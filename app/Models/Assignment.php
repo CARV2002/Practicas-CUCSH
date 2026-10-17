@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Assignment extends Model
 {
@@ -42,18 +43,4 @@ class Assignment extends Model
         return $this->hasMany(Report::class);
     }
 
-    public function evaluations()
-    {
-        return $this->hasMany(Evaluation::class);
-    }
-
-    public function documents()
-    {
-        return $this->hasMany(Document::class);
-    }
-
-    public function reports()
-    {
-        return $this->hasMany(Report::class);
-    }
 }

@@ -2,70 +2,43 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
-
-
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, HasRoles, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-    ];
+    protected $fillable = ['name', 'email', 'password', 'activo', 'aviso_privacidad_at'];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    protected $hidden = ['password', 'remember_token'];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
+            'aviso_privacidad_at' => 'datetime',
             'password' => 'hashed',
+            'activo' => 'boolean',
         ];
     }
 
-    public function student()
+    public function alumno(): HasOne
     {
-        return $this->hasOne(Student::class);
+        return $this->hasOne(Alumno::class);
     }
 
-    public function administrator()
+    public function empresa(): HasOne
     {
-        return $this->hasOne(Administrator::class);
+        return $this->hasOne(Empresa::class);
     }
 
-    public function tutor()
+    public function personal(): HasOne
     {
-        return $this->hasOne(Tutor::class);
-    }
-
-    public function companyUsers()
-    {
-        return $this->hasMany(CompanyUser::class);
+        return $this->hasOne(Personal::class);
     }
 }

@@ -3,6 +3,26 @@
 **TailAdmin Laravel** is a modern, production-ready admin dashboard template powered by **Laravel 12**, **Tailwind CSS v4**, **Alpine.js**, and a clean, modular architecture. TailAdmin is one of the most popular Tailwind CSS dashboard now also available for Larvael. It’s designed for building fast, scalable admin panels, CRM dashboards, SaaS backends, and any data-driven application where clarity and performance matter.
 ![TailAdmin - Next.js Dashboard Preview](./tailadmin-laravel.png)
 
+## Modelo de datos CUCSH v6
+
+El proyecto incluye el dominio del diagrama ER v6: alumnos, carreras, divisiones,
+empresas, personal, profesores, convenios, programas, postulaciones, prácticas y
+su flujo documental. Las reglas de negocio están implementadas en los modelos,
+observers, acciones y `ConvenioWorkflow`.
+
+La gestión de archivos usa `spatie/laravel-medialibrary` y requiere habilitar
+`ext-exif` en el entorno PHP. Para crear las tablas, configura una conexión de
+base de datos con su driver PDO instalado y ejecuta:
+
+```bash
+php artisan migrate
+php artisan db:seed --class=RolesSeeder
+```
+
+Las migraciones del dominio se encuentran en `database/migrations` con prefijo
+`2026_10_14_`; incluyen las tablas del diagrama y las columnas adicionales de
+`users`. La migración de `media` es necesaria para los documentos privados.
+
 
 ## Quick Links
 
