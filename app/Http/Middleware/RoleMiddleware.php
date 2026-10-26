@@ -3,22 +3,22 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class RoleMiddleware
 {
     /**
-     * Handle an incoming request.
+     * Acepta uno o varios roles: `role:alumno` o `role:administrador,empresa`.
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
-    public function handle($request, Closure $next, string $role){
-        if (!auth()->check()){
-            return redirect('/login');
+    public function handle($request, Closure $next, string ...$roles): Response
+    {
+        if (! auth()->check()) {
+            return redirect()->route('login');
         }
 
-        if (!auth()->user()->hasRole($role)){
+        if (! auth()->user()->hasAnyRole($roles)) {
             abort(403);
         }
 

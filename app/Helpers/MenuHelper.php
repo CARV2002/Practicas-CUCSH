@@ -2,123 +2,32 @@
 
 namespace App\Helpers;
 
+use App\Enums\Rol;
+
 class MenuHelper
 {
-    public static function getMainNavItems()
-    {
-        return [
-            [
-                'icon' => 'dashboard',
-                'name' => 'Dashboard',
-                'subItems' => [
-                    ['name' => 'Inicio', 'path' => '/'],
-                    ['name' => 'Ecommerce', 'path' => '/ecommerce'],
-                ],
-            ],
-            [
-                'icon' => 'calendar',
-                'name' => 'Calendar',
-                'path' => '/calendar',
-            ],
-            [
-                'icon' => 'user-profile',
-                'name' => 'User Profile',
-                'path' => '/profile',
-            ],
-            [
-                'name' => 'Forms',
-                'icon' => 'forms',
-                'subItems' => [
-                    ['name' => 'Form Elements', 'path' => '/form-elements', 'pro' => false],
-                ],
-            ],
-            [
-                'name' => 'Tables',
-                'icon' => 'tables',
-                'subItems' => [
-                    ['name' => 'Basic Tables', 'path' => '/basic-tables', 'pro' => false]
-                ],
-            ],
-            [
-                'name' => 'Pages',
-                'icon' => 'pages',
-                'subItems' => [
-                    ['name' => 'Blank Page', 'path' => '/blank', 'pro' => false],
-                    ['name' => '404 Error', 'path' => '/error-404', 'pro' => false]
-                ],
-            ],
-        ];
-    }
-
-    public static function getOthersItems()
-    {
-        return [
-            [
-                'icon' => 'charts',
-                'name' => 'Charts',
-                'subItems' => [
-                    ['name' => 'Line Chart', 'path' => '/line-chart', 'pro' => false],
-                    ['name' => 'Bar Chart', 'path' => '/bar-chart', 'pro' => false]
-                ],
-            ],
-            [
-                'icon' => 'ui-elements',
-                'name' => 'UI Elements',
-                'subItems' => [
-                    ['name' => 'Alerts', 'path' => '/alerts', 'pro' => false],
-                    ['name' => 'Avatar', 'path' => '/avatars', 'pro' => false],
-                    ['name' => 'Badge', 'path' => '/badge', 'pro' => false],
-                    ['name' => 'Buttons', 'path' => '/buttons', 'pro' => false],
-                    ['name' => 'Images', 'path' => '/image', 'pro' => false],
-                    ['name' => 'Videos', 'path' => '/videos', 'pro' => false],
-                ],
-            ],
-            [
-                'icon' => 'authentication',
-                'name' => 'Authentication',
-                'subItems' => [
-                    ['name' => 'Sign In', 'path' => '/signin', 'pro' => false],
-                    ['name' => 'Sign Up', 'path' => '/signup', 'pro' => false],
-                ],
-            ],
-        ];
-    }
-
+    /**
+     * Menú lateral según el rol del usuario autenticado.
+     * Los tres roles vigentes están en App\Enums\Rol.
+     */
     public static function getMenuGroups()
     {
         $user = auth()->user();
 
-        if ($user->hasRole('administrador')) {
+        if ($user->hasRole(Rol::Administrador->value)) {
             return self::administradorMenu();
         }
 
-        if ($user->hasRole('coordinador')) {
-            return self::coordinadorMenu();
-        }
-
-        if ($user->hasRole('empresa')) {
+        if ($user->hasRole(Rol::Empresa->value)) {
             return self::empresaMenu();
         }
 
-        if ($user->hasRole('alumno')) {
+        if ($user->hasRole(Rol::Alumno->value)) {
             return self::alumnoMenu();
         }
 
         return [];
-        /*return [
-            [
-                'title' => 'Menu',
-                'items' => self::getMainNavItems()
-            ],
-            [
-                'title' => 'Others',
-                'items' => self::getOthersItems()
-            ]
-        ];*/
     }
-
-
-
 
     private static function empresaMenu()
     {
@@ -150,11 +59,6 @@ class MenuHelper
                         'name' => 'Documentos',
                         'icon' => 'pages',
                         'path' => '/empresa/documentos',
-                    ],
-                    [
-                        'name' => 'Ayuda',
-                        'icon' => 'support-ticket',
-                        'path' => '/empresa/ayuda',
                     ],
                 ]
             ]
@@ -192,84 +96,12 @@ class MenuHelper
         ];
     }
 
-    private static function coordinadorMenu()
-    {
-        return [
-            [
-                'title' => 'Coordinación',
-                'items' => [
-                    [
-                        'name' => 'Dashboard',
-                        'icon' => 'dashboard',
-                        'path' => '/coordinador/dashboard',
-                    ],
-                    [
-                        'name' => 'Practicantes',
-                        'icon' => 'user-profile',
-                        'path' => '/coordinador/lista-practicantes',
-                    ],
-                    [
-                        'name' => 'Empresas',
-                        'icon' => 'ui-elements',
-                        'path' => '/coordinador/lista-empresas',
-                    ],
-                    [
-                        'name' => 'Programas',
-                        'icon' => 'forms',
-                        'path' => '/coordinador/lista-programas',
-                    ],
-                    [
-                        'name' => 'Convenios CUCSH',
-                        'icon' => 'pages',
-                        'path' => '/coordinador/lista-convenios',
-                    ],
-                    [
-                        'name' => 'Departamentos',
-                        'icon' => 'tables',
-                        'path' => '/coordinador/lista-departamentos',
-                    ],
-                    [
-                        'name' => 'Dictámenes',
-                        'icon' => 'task',
-                        'path' => '/coordinador/lista-dictamenes',
-                    ],
-
-                    // Dropdown
-                    [
-                        'name' => 'Administración',
-                        'icon' => 'authentication',
-                        'subItems' => [
-                            [
-                                'name' => 'Usuarios',
-                                'path' => '/coordinador/lista-usuarios',
-                            ],
-                            [
-                                'name' => 'Roles',
-                                'path' => '/coordinador/lista-roles',
-                            ],
-                            [
-                                'name' => 'Permisos',
-                                'path' => '/coordinador/lista-permisos',
-                            ],
-                        ]
-                    ],
-
-                    [
-                        'name' => 'Reportes',
-                        'icon' => 'charts',
-                        'path' => '/coordinador/lista-reportes',
-                    ],
-                ]
-            ]
-        ];
-    }
-
-
+    /** Coordinación de Prácticas Profesionales (Lorena): el proceso de convenio y su seguimiento. */
     private static function administradorMenu()
     {
         return [
             [
-                'title' => 'Administración',
+                'title' => 'Coordinación de Prácticas',
                 'items' => [
                     [
                         'name' => 'Dashboard',
@@ -277,9 +109,14 @@ class MenuHelper
                         'path' => '/admin/dashboard',
                     ],
                     [
-                        'name' => 'Practicantes',
-                        'icon' => 'user-profile',
-                        'path' => '/admin/lista-practicantes',
+                        'name' => 'Convenios',
+                        'icon' => 'pages',
+                        'path' => '/admin/lista-convenios',
+                    ],
+                    [
+                        'name' => 'Dictámenes',
+                        'icon' => 'task',
+                        'path' => '/admin/lista-dictamenes',
                     ],
                     [
                         'name' => 'Empresas',
@@ -292,45 +129,24 @@ class MenuHelper
                         'path' => '/admin/lista-programas',
                     ],
                     [
-                        'name' => 'Convenios CUCSH',
-                        'icon' => 'pages',
-                        'path' => '/admin/lista-convenios',
+                        'name' => 'Practicantes',
+                        'icon' => 'user-profile',
+                        'path' => '/admin/lista-practicantes',
                     ],
-                    [
-                        'name' => 'Departamentos',
-                        'icon' => 'tables',
-                        'path' => '/admin/lista-departamentos',
-                    ],
-                    [
-                        'name' => 'Dictámenes',
-                        'icon' => 'task',
-                        'path' => '/admin/lista-dictamenes',
-                    ],
-
-                    // Dropdown
-                    [
-                        'name' => 'Administración',
-                        'icon' => 'authentication',
-                        'subItems' => [
-                            [
-                                'name' => 'Usuarios',
-                                'path' => '/admin/lista-usuarios',
-                            ],
-                            [
-                                'name' => 'Roles',
-                                'path' => '/admin/lista-roles',
-                            ],
-                            [
-                                'name' => 'Permisos',
-                                'path' => '/admin/lista-permisos',
-                            ],
-                        ]
-                    ],
-
                     [
                         'name' => 'Reportes',
                         'icon' => 'charts',
                         'path' => '/admin/lista-reportes',
+                    ],
+                    [
+                        'name' => 'Divisiones y carreras',
+                        'icon' => 'tables',
+                        'path' => '/admin/catalogos',
+                    ],
+                    [
+                        'name' => 'Usuarios',
+                        'icon' => 'authentication',
+                        'path' => '/admin/lista-usuarios',
                     ],
                 ]
             ]

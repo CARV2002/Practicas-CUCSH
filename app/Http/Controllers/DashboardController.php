@@ -2,30 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Enums\Rol;
+use Illuminate\Http\RedirectResponse;
 
 class DashboardController extends Controller
 {
-    public function index()
+    /** Cada usuario entra al panel de su rol; sin rol no hay acceso. */
+    public function index(): RedirectResponse
     {
         $user = auth()->user();
 
-        if ($user->hasRole('alumno')) {
-            return redirect()->route('alumno.dashboard');
+        foreach (Rol::cases() as $rol) {
+            if ($user->hasRole($rol->value)) {
+                return redirect()->route($rol->panel());
+            }
         }
 
-        if ($user->hasRole('empresa')) {
-            return redirect()->route('empresa.dashboard');
-        }
-
-        if ($user->hasRole('coordinador')) {
-            return redirect()->route('coordinador.dashboard');
-        }
-
-        if ($user->hasRole('administrador')) {
-            return redirect()->route('admin.dashboard');
-        }
-        
-        abort(403);
+        abort(403, 'Tu cuenta no tiene un rol asignado.');
     }
 }

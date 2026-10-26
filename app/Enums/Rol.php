@@ -2,25 +2,32 @@
 
 namespace App\Enums;
 
-/** Nombres de rol de spatie/laravel-permission. */
+/**
+ * Roles del sistema (spatie/laravel-permission).
+ *
+ * Hoy el sistema lo usan tres actores:
+ *  - Administrador: la Coordinación de Prácticas Profesionales (Lorena), que lleva el proceso de convenio.
+ *  - Empresa: tramita su convenio y publica sus ofertas.
+ *  - Alumno: consulta ofertas y gestiona su práctica.
+ *
+ * Divisiones, Secretaría Académica, Jurídica, Rectoría y Control Escolar NO usan el sistema por ahora:
+ * Lorena captura sus dictámenes y firmas. Si en el futuro lo usan, agrega aquí el caso
+ * (p. ej. DirectorDivision, CoordinadorCarrera, Tutor, Juridico, ControlEscolar) y RolesSeeder lo crea
+ * sin migración.
+ */
 enum Rol: string
 {
-    case Alumno = 'alumno';
+    case Administrador = 'administrador';
     case Empresa = 'empresa';
-    case Vinculacion = 'vinculacion';
-    case SecretariaAcademica = 'secretaria_academica';
-    case DirectorDivision = 'director_division';
-    case CoordinadorCarrera = 'coordinador_carrera';
-    case Juridico = 'juridico';
-    case Rectoria = 'rectoria';
-    case ControlEscolar = 'control_escolar';
+    case Alumno = 'alumno';
 
-    /** @return self[] roles que pertenecen a la tabla `personal`. */
-    public static function personal(): array
+    /** Nombre de la ruta del panel de cada rol (lo usa DashboardController). */
+    public function panel(): string
     {
-        return array_values(array_filter(
-            self::cases(),
-            fn (self $r) => ! in_array($r, [self::Alumno, self::Empresa], true)
-        ));
+        return match ($this) {
+            self::Administrador => 'admin.dashboard',
+            self::Empresa => 'empresa.dashboard',
+            self::Alumno => 'alumno.dashboard',
+        };
     }
 }

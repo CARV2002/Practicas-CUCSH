@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\ConvenioEstado;
 use App\Enums\Dictamen;
 use App\Enums\EtapaConvenio;
+use App\Enums\Rol;
 use App\Enums\SeguimientoEstado;
 use App\Models\Carrera;
 use App\Models\Convenio;
@@ -13,7 +14,8 @@ use App\Models\ConvenioSeguimiento;
 use App\Models\Empresa;
 use App\Models\Personal;
 use App\Models\User;
-use App\Notifications\DictamenPendiente;
+use App\Notifications\ConvenioActualizado;
+use App\Notifications\NuevaSolicitudConvenio;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +26,9 @@ use Illuminate\Validation\ValidationException;
  * El proceso real de Vinculación como máquina de estados.
  * Cada método = un paso del documento; abre/cierra etapas en la bitácora (convenio_seguimientos)
  * y bloquea la fila del convenio para que dos personas no avancen el mismo trámite a la vez.
+ *
+ * Quién usa el sistema: Lorena (rol administrador) ejecuta los pasos y CAPTURA lo que resuelven las divisiones,
+ * Jurídica y Rectoría (que no entran al sistema). La empresa recibe un aviso en cada cambio de etapa.
  *
  *   solicitar → enviarAValidacionAcademica → registrarDictamenCarrera (por carrera)
  *   → turnarAJuridica → registrarDictamenJuridico → registrarFirma (empresa, Rectoría) → formalizar
@@ -61,6 +66,7 @@ class ConvenioWorkflow
             ));
 
             $this->abrirEtapa($convenio, EtapaConvenio::RevisionDocumentos, null);
+            $this->avisarAdministradores($convenio);
 
             return $convenio;
         });
@@ -84,7 +90,7 @@ class ConvenioWorkflow
 
             $this->cerrarEtapa($convenio, EtapaConvenio::RevisionDocumentos, SeguimientoEstado::Aprobado, $por);
             $this->abrirEtapa($convenio, EtapaConvenio::TurnoAcademico, $por, 'Turnado a las carreras solicitadas.');
-            $this->notificarCarreras($convenio);
+            $this->avisarEmpresa($convenio, 'Tu documentación fue aceptada. Tu solicitud pasó a la validación académica de las carreras.');
 
             return $convenio;
         });
@@ -142,6 +148,7 @@ class ConvenioWorkflow
                 null,
                 'Dictámenes recibidos. Redactar el borrador solo con las carreras aprobatorias.'
             );
+            $this->avisarEmpresa($convenio, 'Las carreras emitieron su dictamen. Estamos redactando tu convenio.');
 
             return $convenio;
         });
@@ -162,13 +169,14 @@ class ConvenioWorkflow
                 $this->fallar('Faltan dictámenes por carrera o ninguna resultó aprobatoria.');
             }
 
-            if ($convenio->getMedia('borrador_convenio')->isEmpty()) {
+            if (! $convenio->media()->where('collection_name', 'borrador_convenio')->exists()) {
                 $this->fallar('Adjunta el borrador del convenio antes de turnarlo.');
             }
 
             $this->cerrarEtapa($convenio, EtapaConvenio::RedaccionBorrador, SeguimientoEstado::Aprobado, $por);
             $convenio->update(['estado' => ConvenioEstado::EnRevisionJuridica]);
             $this->abrirEtapa($convenio, EtapaConvenio::DictamenJuridico, $por);
+            $this->avisarEmpresa($convenio, 'Tu convenio está en revisión de la Unidad Jurídica.');
 
             return $convenio;
         });
@@ -232,6 +240,9 @@ class ConvenioWorkflow
                 : EtapaConvenio::ArchivoDistribucion;
 
             $this->abrirEtapa($convenio, $siguiente, $por);
+            $this->avisarEmpresa($convenio, $etapa === EtapaConvenio::FirmaEmpresa
+                ? 'Recibimos tu firma. El convenio pasa a la firma de Rectoría.'
+                : 'Rectoría firmó el convenio. Estamos registrándolo y archivándolo.');
 
             return $convenio;
         });
@@ -254,7 +265,7 @@ class ConvenioWorkflow
                 $this->fallar('Aún faltan firmas por registrar.');
             }
 
-            if ($convenio->getMedia('convenio_firmado')->isEmpty()) {
+            if (! $convenio->media()->where('collection_name', 'convenio_firmado')->exists()) {
                 $this->fallar('Adjunta el escaneo del convenio firmado.');
             }
 
@@ -274,6 +285,7 @@ class ConvenioWorkflow
             ]);
 
             $this->cerrarEtapa($convenio, EtapaConvenio::ArchivoDistribucion, SeguimientoEstado::Aprobado, $por, $comentario);
+            $this->avisarEmpresa($convenio, "Tu convenio quedó formalizado (folio {$folio}), vigente del {$inicio->format('d/m/Y')} al {$fin->format('d/m/Y')}. Ya puedes publicar tus ofertas.");
 
             return $convenio;
         });
@@ -313,6 +325,7 @@ class ConvenioWorkflow
             }
 
             $convenio->update(['estado' => ConvenioEstado::Rechazado]);
+            $this->avisarEmpresa($convenio, "Tu solicitud de convenio fue rechazada: {$motivo}");
 
             return $convenio;
         });
@@ -335,6 +348,7 @@ class ConvenioWorkflow
         $this->cerrarEtapa($convenio, EtapaConvenio::DictamenJuridico, SeguimientoEstado::Aprobado, $por, $comentario);
         $convenio->update(['estado' => ConvenioEstado::EnFirmas]);
         $this->abrirEtapa($convenio, EtapaConvenio::FirmaEmpresa, $por, 'Imprimir 3 juegos y llamar a la empresa.');
+        $this->avisarEmpresa($convenio, 'La Unidad Jurídica aprobó tu convenio. La Coordinación de Prácticas te contactará para entregar los 3 juegos originales y recabar tu firma.');
     }
 
     private function observarJuridica(Convenio $convenio, Personal $por, ?string $comentario): void
@@ -344,17 +358,28 @@ class ConvenioWorkflow
         $this->abrirEtapa($convenio, EtapaConvenio::RedaccionBorrador, null, 'Corregir el borrador según las observaciones de Jurídica.');
     }
 
-    private function notificarCarreras(Convenio $convenio): void
+    /**
+     * Avisa a la empresa (que sí usa el sistema) cuando su convenio cambia de etapa.
+     * Va en afterCommit: si el correo falla, el cambio de estado ya quedó guardado.
+     */
+    private function avisarEmpresa(Convenio $convenio, string $mensaje): void
     {
-        $carreraIds = $convenio->dictamenes()->pluck('carrera_id');
-        $divisionIds = Carrera::whereIn('id', $carreraIds)->pluck('division_id');
+        DB::afterCommit(function () use ($convenio, $mensaje) {
+            $convenio->loadMissing('empresa.user');
 
-        $destinatarios = User::whereHas('personal', fn ($q) => $q
-            ->whereIn('carrera_id', $carreraIds)
-            ->orWhereIn('division_id', $divisionIds))
-            ->get();
+            $convenio->empresa?->user?->notify(new ConvenioActualizado($convenio, $mensaje));
+        });
+    }
 
-        Notification::send($destinatarios, new DictamenPendiente($convenio));
+    /** Avisa a Lorena (rol administrador) que llegó una solicitud nueva. */
+    private function avisarAdministradores(Convenio $convenio): void
+    {
+        DB::afterCommit(function () use ($convenio) {
+            Notification::send(
+                User::role(Rol::Administrador->value)->get(),
+                new NuevaSolicitudConvenio($convenio)
+            );
+        });
     }
 
     private function abrirEtapa(Convenio $convenio, EtapaConvenio $etapa, ?Personal $por, ?string $comentario = null): ConvenioSeguimiento

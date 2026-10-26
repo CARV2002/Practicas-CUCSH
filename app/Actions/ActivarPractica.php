@@ -22,9 +22,9 @@ class ActivarPractica
     public function __invoke(
         Postulacion $postulacion,
         Personal $por,
-        Profesor $supervisor,
         CarbonInterface $fechaInicio,
         CarbonInterface $fechaFin,
+        ?Profesor $supervisor = null,   // opcional: si nadie administra profesores aún, se asigna después
     ): Practica {
         return DB::transaction(function () use ($postulacion, $por, $supervisor, $fechaInicio, $fechaFin) {
             $alumno = Alumno::with('carrera')->lockForUpdate()->findOrFail($postulacion->alumno_id);
@@ -43,8 +43,8 @@ class ActivarPractica
                 $this->fallar('La fecha de fin debe ser posterior a la de inicio.');
             }
 
-            // El profesor debe ser de la misma DIVISIÓN que la carrera del alumno
-            if (! $supervisor->puedeSupervisar($alumno->carrera)) {
+            // Si se asigna supervisor, debe ser de la misma DIVISIÓN que la carrera del alumno
+            if ($supervisor !== null && ! $supervisor->puedeSupervisar($alumno->carrera)) {
                 $this->fallar('El profesor supervisor no pertenece a la división de la carrera del alumno.');
             }
 
@@ -64,7 +64,7 @@ class ActivarPractica
             $practica = Practica::create([
                 'postulacion_id' => $postulacion->id,
                 'autorizado_por' => $por->id,
-                'profesor_supervisor_id' => $supervisor->id,
+                'profesor_supervisor_id' => $supervisor?->id,
                 'modalidad' => $programa->modalidad,
                 'fecha_inicio' => $fechaInicio,
                 'fecha_fin' => $fechaFin,

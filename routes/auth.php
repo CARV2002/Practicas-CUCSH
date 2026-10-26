@@ -7,15 +7,26 @@ use App\Http\Controllers\Auth\EmailVerificationPromptController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
-use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\RegistroAlumnoController;
+use App\Http\Controllers\Auth\RegistroEmpresaController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
-    Route::get('register', [RegisteredUserController::class, 'create'])
+    // Registro público: SOLO alumnos y empresas, siempre con rol y perfil.
+    // El personal institucional (administrador) se crea desde el seeder o por el administrador.
+    Route::view('register', 'pages.auth.registro')
         ->name('register');
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
+    Route::get('registro/alumno', [RegistroAlumnoController::class, 'create'])
+        ->name('registro.alumno');
+
+    Route::post('registro/alumno', [RegistroAlumnoController::class, 'store']);
+
+    Route::get('registro/empresa', [RegistroEmpresaController::class, 'create'])
+        ->name('registro.empresa');
+
+    Route::post('registro/empresa', [RegistroEmpresaController::class, 'store']);
 
     Route::get('signin', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
