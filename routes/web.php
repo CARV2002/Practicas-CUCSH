@@ -4,6 +4,7 @@ use App\Enums\Rol;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\CatalogoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,7 +16,7 @@ Route::view('/estudiantes', 'pages.home.estudiantes')->name('estudiantes');
 Route::view('/empresas', 'pages.home.empresas')->name('empresas');
 
 // /login es el nombre histórico; la pantalla real es /signin (ruta nombrada "login" en auth.php)
-Route::get('/login', fn () => redirect()->route('login'));
+Route::get('/login', fn() => redirect()->route('login'));
 
 /*
 |--------------------------------------------------------------------------
@@ -33,7 +34,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
 */
 Route::prefix('alumno')
     ->name('alumno.')
-    ->middleware(['auth', 'role:'.Rol::Alumno->value])
+    ->middleware(['auth', 'role:' . Rol::Alumno->value])
     ->group(function () {
         Route::view('/dashboard', 'alumno.dashboard')->name('dashboard');
         Route::view('/oferta-programas', 'alumno.oferta-programas')->name('oferta-programas');
@@ -48,7 +49,7 @@ Route::prefix('alumno')
 */
 Route::prefix('empresa')
     ->name('empresa.')
-    ->middleware(['auth', 'role:'.Rol::Empresa->value])
+    ->middleware(['auth', 'role:' . Rol::Empresa->value])
     ->group(function () {
         Route::view('/dashboard', 'empresa.dashboard')->name('dashboard');
         Route::view('/convenio', 'empresa.convenio')->name('convenio');
@@ -64,7 +65,7 @@ Route::prefix('empresa')
 */
 Route::prefix('admin')
     ->name('admin.')
-    ->middleware(['auth', 'role:'.Rol::Administrador->value])
+    ->middleware(['auth', 'role:' . Rol::Administrador->value])
     ->group(function () {
         Route::view('/dashboard', 'admin.dashboard')->name('dashboard');
         Route::view('/lista-convenios', 'admin.lista-convenios')->name('lista-convenios');
@@ -73,7 +74,14 @@ Route::prefix('admin')
         Route::view('/lista-programas', 'admin.lista-programas')->name('lista-programas');
         Route::view('/lista-practicantes', 'admin.lista-practicantes')->name('lista-practicantes');
         Route::view('/lista-reportes', 'admin.lista-reportes')->name('lista-reportes');
-        Route::view('/catalogos', 'admin.catalogos')->name('catalogos');
+        
+        //Route::view('/catalogos', 'admin.catalogos')->name('catalogos');
+        Route::get('/catalogos', [CatalogoController::class, 'index'])->name('catalogos');
+        Route::post('/catalogos/divisiones', [CatalogoController::class, 'storeDivision'])->name('catalogos.divisiones.store');
+        Route::put('/catalogos/divisiones/{division}', [CatalogoController::class, 'updateDivision'])->name('catalogos.divisiones.update');
+        Route::post('/catalogos/carreras', [CatalogoController::class, 'storeCarrera'])->name('catalogos.carreras.store');
+        Route::put('/catalogos/carreras/{carrera}', [CatalogoController::class, 'updateCarrera'])->name('catalogos.carreras.update');
+
         Route::view('/lista-usuarios', 'admin.lista-usuarios')->name('lista-usuarios');
     });
 
@@ -83,4 +91,4 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

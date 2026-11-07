@@ -22,6 +22,8 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(RolesSeeder::class);
 
+        $this->call(CarreraSeeder::class);
+
         // En producción NO se siembran cuentas con contraseña conocida:
         // el administrador se crea con `php artisan practicas:crear-administrador correo@udg.mx`.
         if (! app()->environment('local')) {
