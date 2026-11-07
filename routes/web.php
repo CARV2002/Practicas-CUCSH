@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\CatalogoController;
+use App\Http\Controllers\Admin\ConvenioController;
 
 /*
 |--------------------------------------------------------------------------
@@ -68,7 +69,24 @@ Route::prefix('admin')
     ->middleware(['auth', 'role:' . Rol::Administrador->value])
     ->group(function () {
         Route::view('/dashboard', 'admin.dashboard')->name('dashboard');
-        Route::view('/lista-convenios', 'admin.lista-convenios')->name('lista-convenios');
+        //Route::view('/lista-convenios', 'admin.lista-convenios')->name('lista-convenios');
+        Route::get('/lista-convenios', [ConvenioController::class, 'index'])->name('lista-convenios');
+
+        Route::prefix('convenios/{convenio}')->name('convenios.')->group(function () {
+        Route::get('/', [ConvenioController::class, 'show'])->name('show');
+        Route::post('/documentos/{media}', [ConvenioController::class, 'resolverDocumento'])->name('documentos.resolver');
+        Route::get('/archivos/{media}', [ConvenioController::class, 'descargar'])->name('archivos.descargar');
+        Route::post('/validacion-academica', [ConvenioController::class, 'enviarAValidacionAcademica'])->name('validacion-academica');
+        Route::post('/dictamenes/{dictamen}', [ConvenioController::class, 'registrarDictamenCarrera'])->name('dictamenes.registrar');
+        Route::post('/borrador', [ConvenioController::class, 'subirBorrador'])->name('borrador');
+        Route::post('/juridica/turnar', [ConvenioController::class, 'turnarAJuridica'])->name('juridica.turnar');
+        Route::post('/juridica/dictamen', [ConvenioController::class, 'registrarDictamenJuridico'])->name('juridica.dictamen');
+        Route::post('/firmas', [ConvenioController::class, 'registrarFirma'])->name('firmas');
+        Route::post('/formalizar', [ConvenioController::class, 'formalizar'])->name('formalizar');
+        Route::post('/rechazar', [ConvenioController::class, 'rechazar'])->name('rechazar');
+        });
+        
+
         Route::view('/lista-dictamenes', 'admin.lista-dictamenes')->name('lista-dictamenes');
         Route::view('/lista-empresas', 'admin.lista-empresas')->name('lista-empresas');
         Route::view('/lista-programas', 'admin.lista-programas')->name('lista-programas');
@@ -85,6 +103,11 @@ Route::prefix('admin')
         Route::view('/lista-usuarios', 'admin.lista-usuarios')->name('lista-usuarios');
     });
 
+    /*
+|--------------------------------------------------------------------------
+| Gestión de Perfil de Usuario
+|--------------------------------------------------------------------------
+*/
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
