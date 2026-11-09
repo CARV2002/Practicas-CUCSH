@@ -6,6 +6,13 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\CatalogoController;
 use App\Http\Controllers\Admin\ConvenioController;
+use App\Http\Controllers\Admin\EmpresaController;
+use App\Http\Controllers\Admin\ProgramaController;
+use App\Http\Controllers\Admin\PracticanteController;
+use App\Http\Controllers\Admin\ReporteController;
+use App\Http\Controllers\Admin\UsuarioController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\NotificacionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -68,31 +75,63 @@ Route::prefix('admin')
     ->name('admin.')
     ->middleware(['auth', 'role:' . Rol::Administrador->value])
     ->group(function () {
-        Route::view('/dashboard', 'admin.dashboard')->name('dashboard');
+
+        //Route::view('/dashboard', 'admin.dashboard')->name('dashboard');
+        Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+
         //Route::view('/lista-convenios', 'admin.lista-convenios')->name('lista-convenios');
         Route::get('/lista-convenios', [ConvenioController::class, 'index'])->name('lista-convenios');
-
         Route::prefix('convenios/{convenio}')->name('convenios.')->group(function () {
-        Route::get('/', [ConvenioController::class, 'show'])->name('show');
-        Route::post('/documentos/{media}', [ConvenioController::class, 'resolverDocumento'])->name('documentos.resolver');
-        Route::get('/archivos/{media}', [ConvenioController::class, 'descargar'])->name('archivos.descargar');
-        Route::post('/validacion-academica', [ConvenioController::class, 'enviarAValidacionAcademica'])->name('validacion-academica');
-        Route::post('/dictamenes/{dictamen}', [ConvenioController::class, 'registrarDictamenCarrera'])->name('dictamenes.registrar');
-        Route::post('/borrador', [ConvenioController::class, 'subirBorrador'])->name('borrador');
-        Route::post('/juridica/turnar', [ConvenioController::class, 'turnarAJuridica'])->name('juridica.turnar');
-        Route::post('/juridica/dictamen', [ConvenioController::class, 'registrarDictamenJuridico'])->name('juridica.dictamen');
-        Route::post('/firmas', [ConvenioController::class, 'registrarFirma'])->name('firmas');
-        Route::post('/formalizar', [ConvenioController::class, 'formalizar'])->name('formalizar');
-        Route::post('/rechazar', [ConvenioController::class, 'rechazar'])->name('rechazar');
+            Route::get('/', [ConvenioController::class, 'show'])->name('show');
+            Route::post('/documentos/{media}', [ConvenioController::class, 'resolverDocumento'])->name('documentos.resolver');
+            Route::get('/archivos/{media}', [ConvenioController::class, 'descargar'])->name('archivos.descargar');
+            Route::post('/validacion-academica', [ConvenioController::class, 'enviarAValidacionAcademica'])->name('validacion-academica');
+            //Route::post('/dictamenes/{dictamen}', [ConvenioController::class, 'registrarDictamenCarrera'])->name('dictamenes.registrar');
+            Route::post('/borrador', [ConvenioController::class, 'subirBorrador'])->name('borrador');
+            Route::post('/juridica/turnar', [ConvenioController::class, 'turnarAJuridica'])->name('juridica.turnar');
+            Route::post('/juridica/dictamen', [ConvenioController::class, 'registrarDictamenJuridico'])->name('juridica.dictamen');
+            Route::post('/firmas', [ConvenioController::class, 'registrarFirma'])->name('firmas');
+            Route::post('/formalizar', [ConvenioController::class, 'formalizar'])->name('formalizar');
+            Route::post('/rechazar', [ConvenioController::class, 'rechazar'])->name('rechazar');
         });
-        
 
-        Route::view('/lista-dictamenes', 'admin.lista-dictamenes')->name('lista-dictamenes');
-        Route::view('/lista-empresas', 'admin.lista-empresas')->name('lista-empresas');
-        Route::view('/lista-programas', 'admin.lista-programas')->name('lista-programas');
-        Route::view('/lista-practicantes', 'admin.lista-practicantes')->name('lista-practicantes');
-        Route::view('/lista-reportes', 'admin.lista-reportes')->name('lista-reportes');
-        
+
+        //Route::view('/lista-dictamenes', 'admin.lista-dictamenes')->name('lista-dictamenes');
+        Route::get('/lista-dictamenes', [App\Http\Controllers\Admin\DictamenController::class, 'index'])->name('lista-dictamenes');
+        Route::post('/dictamenes/{dictamen}', [App\Http\Controllers\Admin\DictamenController::class, 'registrar'])->name('dictamenes.registrar');
+        Route::get('/dictamenes/{dictamen}/archivos/{media}', [App\Http\Controllers\Admin\DictamenController::class, 'descargar'])->name('dictamenes.archivos.descargar');
+
+        //Route::view('/lista-empresas', 'admin.lista-empresas')->name('lista-empresas');
+        Route::get('/lista-empresas', [EmpresaController::class, 'index'])->name('lista-empresas');
+        Route::get('/empresas/{empresa}', [EmpresaController::class, 'show'])->name('empresas.show');
+        Route::put('/empresas/{empresa}', [EmpresaController::class, 'update'])->name('empresas.update');
+        Route::post('/empresas/{empresa}/activo', [EmpresaController::class, 'toggleActivo'])->name('empresas.activo');
+
+        // Route::view('/lista-programas', 'admin.lista-programas')->name('lista-programas');
+        Route::get('/lista-programas', [ProgramaController::class, 'index'])->name('lista-programas');
+        Route::post('/programas', [ProgramaController::class, 'store'])->name('programas.store');
+        Route::put('/programas/{programa}', [ProgramaController::class, 'update'])->name('programas.update');
+        Route::post('/programas/{programa}/estado', [ProgramaController::class, 'cambiarEstado'])->name('programas.estado');
+        Route::delete('/programas/{programa}', [ProgramaController::class, 'destroy'])->name('programas.destroy');
+
+
+        //Route::view('/lista-practicantes', 'admin.lista-practicantes')->name('lista-practicantes');
+        Route::get('/lista-practicantes', [PracticanteController::class, 'index'])->name('lista-practicantes');
+        Route::prefix('postulaciones/{postulacion}')->name('postulaciones.')->group(function () {
+            Route::post('/carta-presentacion', [PracticanteController::class, 'emitirCarta'])->name('carta');
+            Route::post('/rechazar', [PracticanteController::class, 'rechazarPostulacion'])->name('rechazar');
+            Route::post('/carta-aceptacion', [PracticanteController::class, 'subirCartaAceptacion'])->name('aceptacion');
+            Route::post('/activar', [PracticanteController::class, 'activar'])->name('activar');
+            Route::get('/archivos/{media}', [PracticanteController::class, 'descargar'])->name('archivos');
+        });
+        Route::post('/practicas/{practica}/supervisor', [PracticanteController::class, 'asignarSupervisor'])->name('practicas.supervisor');
+        Route::post('/practicas/{practica}/cancelar', [PracticanteController::class, 'cancelar'])->name('practicas.cancelar');
+
+        // Route::view('/lista-reportes', 'admin.lista-reportes')->name('lista-reportes');
+        Route::get('/lista-reportes', [ReporteController::class, 'index'])->name('lista-reportes');
+        Route::post('/reportes/{reporte}', [ReporteController::class, 'resolver'])->name('reportes.resolver');
+        Route::get('/reportes/{reporte}/archivos/{media}', [ReporteController::class, 'descargar'])->name('reportes.archivos');
+
         //Route::view('/catalogos', 'admin.catalogos')->name('catalogos');
         Route::get('/catalogos', [CatalogoController::class, 'index'])->name('catalogos');
         Route::post('/catalogos/divisiones', [CatalogoController::class, 'storeDivision'])->name('catalogos.divisiones.store');
@@ -100,15 +139,26 @@ Route::prefix('admin')
         Route::post('/catalogos/carreras', [CatalogoController::class, 'storeCarrera'])->name('catalogos.carreras.store');
         Route::put('/catalogos/carreras/{carrera}', [CatalogoController::class, 'updateCarrera'])->name('catalogos.carreras.update');
 
-        Route::view('/lista-usuarios', 'admin.lista-usuarios')->name('lista-usuarios');
+        //Route::view('/lista-usuarios', 'admin.lista-usuarios')->name('lista-usuarios');
+        Route::get('/lista-usuarios', [UsuarioController::class, 'index'])->name('lista-usuarios');
+        Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
+        Route::post('/usuarios/{usuario}/activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.activo');
+        Route::post('/usuarios/{usuario}/password', [UsuarioController::class, 'restablecerPassword'])->name('usuarios.password');
     });
 
-    /*
+/*
 |--------------------------------------------------------------------------
 | Gestión de Perfil de Usuario
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth')->group(function () {
+    Route::get('/notificaciones', [NotificacionController::class, 'index'])->name('notificaciones.index');
+    Route::get('/notificaciones/resumen', [NotificacionController::class, 'resumen'])->name('notificaciones.resumen');
+    Route::get('/notificaciones/{id}/abrir', [NotificacionController::class, 'abrir'])->name('notificaciones.abrir');
+    Route::post('/notificaciones/leer-todas', [NotificacionController::class, 'marcarTodas'])->name('notificaciones.leer-todas');
+    
+   Route::view('/ayuda', 'ayuda')->name('ayuda');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

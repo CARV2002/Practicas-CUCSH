@@ -92,30 +92,6 @@ class ConvenioController extends Controller
         return back()->with('status', 'Convenio turnado a las carreras.');
     }
 
-    public function registrarDictamenCarrera(Request $request, Convenio $convenio, ConvenioCarrera $dictamen): RedirectResponse
-    {
-        abort_unless((int) $dictamen->convenio_id === (int) $convenio->id, 404);
-
-        $datos = $request->validate([
-            'dictamen' => ['required', Rule::in([Dictamen::Aprobatorio->value, Dictamen::Negativo->value])],
-            'observaciones' => ['nullable', 'string', 'max:2000'],
-            'documento' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-        ]);
-
-        $this->workflow->registrarDictamenCarrera(
-            $dictamen,
-            Dictamen::from($datos['dictamen']),
-            $datos['observaciones'] ?? null,
-            $request->user()->personal
-        );
-
-        if ($request->hasFile('documento')) {
-            $dictamen->addMediaFromRequest('documento')->toMediaCollection('dictamen_pertinencia');
-        }
-
-        return back()->with('status', 'Dictamen registrado.');
-    }
-
     public function subirBorrador(Request $request, Convenio $convenio): RedirectResponse
     {
         $request->validate([

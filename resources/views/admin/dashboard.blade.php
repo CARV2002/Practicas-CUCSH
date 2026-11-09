@@ -1,209 +1,179 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $card = 'rounded-2xl border border-gray-200 bg-white p-5';
+    $panel = 'rounded-2xl border border-gray-200 bg-white p-6';
+    $totalPracticas = max(1, $practicas_por_estado->sum());
+    $pend = [
+        ['Solicitudes nuevas', $pendientes['solicitudes'], route('admin.lista-convenios', ['estado' => 'solicitado'])],
+        ['Dictámenes por carrera', $pendientes['dictamenes'], route('admin.lista-dictamenes')],
+        ['En Unidad Jurídica', $pendientes['juridica'], route('admin.lista-convenios', ['estado' => 'en_revision_juridica'])],
+        ['Firmas pendientes', $pendientes['firmas'], route('admin.lista-convenios', ['estado' => 'en_firmas'])],
+        ['Postulaciones por validar', $pendientes['postulaciones'], route('admin.lista-practicantes')],
+        ['Reportes por validar', $pendientes['reportes'], route('admin.lista-reportes')],
+    ];
+@endphp
 
-<style>
-/* ==========================================================================
-   ESTILOS ADICIONALES: PANEL DE CONTROL ADMINISTRADOR
-   ========================================================================== */
+<x-common.page-breadcrumb pageTitle="Panel de Control Central" />
 
-.admin-dashboard {
-    font-family: var(--font-outfit);
-}
+<div class="space-y-6">
 
-/* Colores de marca dinámicos */
-.text-brand-600 {
-    color: var(--color-brand-600);
-}
-.bg-brand-50 {
-    background-color: var(--color-brand-50);
-}
-.bg-brand-500 {
-    background-color: var(--color-brand-500);
-}
-.bg-brand-600 {
-    background-color: var(--color-brand-600);
-}
-.hover\:bg-brand-700:hover {
-    background-color: var(--color-brand-700);
-}
-
-/* Alertas de color para estados y advertencias */
-.bg-blue-light-50 {
-    background-color: var(--color-blue-light-50);
-}
-.text-blue-light-600 {
-    color: var(--color-blue-light-600);
-}
-
-.bg-error-50 {
-    background-color: var(--color-error-50);
-}
-.text-error-600 {
-    color: var(--color-error-600);
-}
-
-.bg-warning-50 {
-    background-color: var(--color-warning-50);
-}
-.text-warning-600 {
-    color: var(--color-warning-600);
-}
-.text-warning-700 {
-    color: var(--color-warning-700);
-}
-.border-warning-100 {
-    border-color: var(--color-warning-100);
-}
-
-.bg-success-50 {
-    background-color: var(--color-success-50);
-}
-.text-success-700 {
-    color: var(--color-success-700);
-}
-.border-success-100 {
-    border-color: var(--color-success-100);
-}
-
-
-</style>
-    <x-common.page-breadcrumb pageTitle="Panel de Control Central" />
-
-    <div class="space-y-6 admin-dashboard">
-        
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Alumnos Activos</p>
-                    <h3 class="mt-1 text-2xl font-bold text-gray-900">1,240</h3>
-                    <span class="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-success-600">
-                        ▲ 4.8% <span class="text-gray-400 font-normal">este mes</span>
-                    </span>
-                </div>
-                <div class="h-12 w-12 bg-brand-50 rounded-xl flex items-center justify-center text-brand-600 text-xl font-bold">🎓</div>
-            </div>
-
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Empresas con Convenio</p>
-                    <h3 class="mt-1 text-2xl font-bold text-gray-900">184</h3>
-                    <span class="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-success-600">
-                        ▲ 12 nuevas <span class="text-gray-400 font-normal">este ciclo</span>
-                    </span>
-                </div>
-                <div class="h-12 w-12 bg-blue-light-50 rounded-xl flex items-center justify-center text-blue-light-600 text-xl font-bold">🏢</div>
-            </div>
-
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Convenios por Vencer</p>
-                    <h3 class="mt-1 text-2xl font-bold text-error-600">8</h3>
-                    <span class="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-error-600">
-                        ⚠️ Requieren renovación
-                    </span>
-                </div>
-                <div class="h-12 w-12 bg-error-50 rounded-xl flex items-center justify-center text-error-600 text-xl font-bold">📄</div>
-            </div>
-
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ocupación de Plazas</p>
-                    <h3 class="mt-1 text-2xl font-bold text-gray-900">76%</h3>
-                    <div class="w-24 bg-gray-200 rounded-full h-1.5 mt-3">
-                        <div class="bg-brand-500 h-1.5 rounded-full" style="width: 76%"></div>
-                    </div>
-                </div>
-                <div class="h-12 w-12 bg-warning-50 rounded-xl flex items-center justify-center text-warning-600 text-xl font-bold">📊</div>
-            </div>
+    {{-- KPIs --}}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="{{ $card }}">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Alumnos registrados</p>
+            <h3 class="mt-1 text-2xl font-bold text-gray-900">{{ number_format($kpis['alumnos']) }}</h3>
+            <p class="mt-1 text-xs text-gray-500">{{ $kpis['practicas_activas'] }} con práctica activa</p>
         </div>
-
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            
-            <div class="lg:col-span-2 rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h4 class="text-base font-bold text-gray-900">Estado de Programas y Ofertas</h4>
-                        <p class="text-xs text-gray-500">Monitoreo de vacantes publicadas por las empresas vinculadas.</p>
-                    </div>
-                    <a href="#" class="text-xs font-semibold text-brand-600 hover:underline">Ver todas las ofertas</a>
-                </div>
-
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:bg-gray-50/50 transition-all">
-                        <div class="flex items-center gap-3">
-                            <span class="text-xl">⚖️</span>
-                            <div>
-                                <h5 class="text-sm font-semibold text-gray-900">Asistente Jurídico - Suprema Corte</h5>
-                                <p class="text-xs text-gray-400">Derecho • 15 plazas disponibles</p>
-                            </div>
-                        </div>
-                        <span class="bg-success-50 text-success-700 px-2.5 py-1 rounded-full text-xs font-bold border border-success-100">Activo</span>
-                    </div>
-
-                    <div class="flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:bg-gray-50/50 transition-all">
-                        <div class="flex items-center gap-3">
-                            <span class="text-xl">📊</span>
-                            <div>
-                                <h5 class="text-sm font-semibold text-gray-900">Analista de Políticas Públicas - Gob</h5>
-                                <p class="text-xs text-gray-400">Estudios Políticos • 4 plazas disponibles</p>
-                            </div>
-                        </div>
-                        <span class="bg-success-50 text-success-700 px-2.5 py-1 rounded-full text-xs font-bold border border-success-100">Activo</span>
-                    </div>
-
-                    <div class="flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:bg-gray-50/50 transition-all">
-                        <div class="flex items-center gap-3">
-                            <span class="text-xl">🌍</span>
-                            <div>
-                                <h5 class="text-sm font-semibold text-gray-900">Coordinador de Proyectos - ONU México</h5>
-                                <p class="text-xs text-gray-400">Sociología • 0 plazas disponibles</p>
-                            </div>
-                        </div>
-                        <span class="bg-warning-50 text-warning-700 px-2.5 py-1 rounded-full text-xs font-bold border border-warning-100">Cupo Lleno</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs">
-                <div class="mb-4">
-                    <h4 class="text-base font-bold text-gray-900">Dictámenes y Validaciones Pendientes</h4>
-                    <p class="text-xs text-gray-500">Documentación que requiere autorización inmediata del Administrador.</p>
-                </div>
-
-                <div class="divide-y divide-gray-100">
-                    <div class="py-3 flex items-start gap-3">
-                        <div class="mt-0.5 text-lg">📝</div>
-                        <div class="flex-1">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-bold text-gray-900">Convenio: IBM México</span>
-                                <span class="text-[10px] text-gray-400 font-medium">Hace 2h</span>
-                            </div>
-                            <p class="text-xs text-gray-500 mt-0.5">Falta firma digital institucional del dictamen de validación.</p>
-                            <div class="mt-2 flex gap-2">
-                                <button class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-2.5 py-1 rounded text-[11px] transition-colors">Validar</button>
-                                <button class="text-gray-500 hover:bg-gray-100 px-2.5 py-1 rounded text-[11px] font-medium transition-colors">Revisar</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="py-3 flex items-start gap-3">
-                        <div class="mt-0.5 text-lg">🏢</div>
-                        <div class="flex-1">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-bold text-gray-900">Nueva Solicitud: Notaría 44</span>
-                                <span class="text-[10px] text-gray-400 font-medium">Ayer</span>
-                            </div>
-                            <p class="text-xs text-gray-500 mt-0.5">Empresa solicita apertura de cuenta receptora externa.</p>
-                            <div class="mt-2 flex gap-2">
-                                <button class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-2.5 py-1 rounded text-[11px] transition-colors">Aprobar</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+        <div class="{{ $card }}">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Empresas con convenio vigente</p>
+            <h3 class="mt-1 text-2xl font-bold text-gray-900">{{ $kpis['empresas_con_convenio'] }}<span class="text-sm font-normal text-gray-400"> / {{ $kpis['empresas'] }}</span></h3>
+            <p class="mt-1 text-xs text-gray-500">{{ $pendientes['convenios_en_tramite'] }} trámite(s) abiertos</p>
         </div>
-
+        <div class="{{ $card }}">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Convenios por vencer</p>
+            <h3 class="mt-1 text-2xl font-bold {{ $kpis['por_vencer_60'] ? 'text-red-600' : 'text-gray-900' }}">{{ $kpis['por_vencer_60'] }}</h3>
+            <p class="mt-1 text-xs text-gray-500">en 60 días · {{ $kpis['por_vencer_30'] }} en 30 días</p>
+        </div>
+        <div class="{{ $card }}">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Ocupación de plazas</p>
+            <h3 class="mt-1 text-2xl font-bold text-gray-900">{{ $kpis['ocupacion'] }}%</h3>
+            <div class="mt-2 h-1.5 w-full rounded-full bg-gray-200"><div class="bg-brand-500 h-1.5 rounded-full" style="width: {{ $kpis['ocupacion'] }}%"></div></div>
+            <p class="mt-1 text-xs text-gray-500">{{ $kpis['cupos_ocupados'] }} de {{ $kpis['cupos_totales'] }} cupos publicados</p>
+        </div>
     </div>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+
+        {{-- Pendientes --}}
+        <div class="{{ $panel }}">
+            <h4 class="text-base font-bold text-gray-900">Pendientes de atención</h4>
+            <p class="mb-3 text-xs text-gray-500">Lo que requiere acción de la Coordinación.</p>
+            <ul class="divide-y divide-gray-100">
+                @foreach ($pend as [$texto, $n, $url])
+                    <li>
+                        <a href="{{ $url }}" class="flex items-center justify-between py-2.5 text-sm hover:text-brand-600">
+                            <span class="text-gray-700">{{ $texto }}</span>
+                            <span class="rounded-full px-2.5 py-0.5 text-xs font-bold {{ $n ? 'bg-yellow-50 text-yellow-700' : 'bg-gray-100 text-gray-400' }}">{{ $n }}</span>
+                        </a>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+
+        {{-- Cuellos de botella --}}
+        <div class="{{ $panel }} lg:col-span-2">
+            <h4 class="text-base font-bold text-gray-900">Cuellos de botella</h4>
+            <p class="mb-3 text-xs text-gray-500">Etapas abiertas que rebasan el máximo documentado de días hábiles.</p>
+            <div class="divide-y divide-gray-100">
+                @forelse ($cuellos as $s)
+                    <div class="flex flex-wrap items-center justify-between gap-2 py-3">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-800">{{ $s->convenio->empresa->razon_social }}</p>
+                            <p class="text-xs text-gray-500">{{ $s->etapa->label() }} · {{ $s->etapa->responsable() }}</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="rounded bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700">{{ $s->diasHabiles() }} días hábiles</span>
+                            <a href="{{ route('admin.convenios.show', $s->convenio) }}" class="text-brand-600 text-xs font-semibold">Gestionar →</a>
+                        </div>
+                    </div>
+                @empty
+                    <p class="py-6 text-center text-sm text-gray-400">Ningún trámite excede su tiempo de espera.</p>
+                @endforelse
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+
+        {{-- Convenios por vencer --}}
+        <div class="{{ $panel }}">
+            <div class="mb-3 flex items-center justify-between">
+                <h4 class="text-base font-bold text-gray-900">Convenios por vencer</h4>
+                <a href="{{ route('admin.lista-convenios') }}" class="text-brand-600 text-xs font-semibold hover:underline">Ver todos</a>
+            </div>
+            <div class="divide-y divide-gray-100">
+                @forelse ($convenios_por_vencer as $c)
+                    <div class="flex items-center justify-between py-3">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-800">{{ $c->empresa->razon_social }}</p>
+                            <p class="text-xs text-gray-500">{{ $c->folio }}</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="block text-xs font-semibold text-red-600">{{ $c->fecha_fin_vigencia->format('d/m/Y') }}</span>
+                            <span class="text-xs text-gray-400">en {{ (int) now()->diffInDays($c->fecha_fin_vigencia, false) }} días</span>
+                        </div>
+                    </div>
+                @empty
+                    <p class="py-6 text-center text-sm text-gray-400">Sin vencimientos próximos.</p>
+                @endforelse
+            </div>
+        </div>
+
+        {{-- Prácticas por estado --}}
+        <div class="{{ $panel }}">
+            <h4 class="mb-3 text-base font-bold text-gray-900">Prácticas por estado</h4>
+            <div class="space-y-3">
+                @foreach ($practicas_por_estado as $estado => $n)
+                    <div>
+                        <div class="mb-1 flex justify-between text-sm">
+                            <span class="text-gray-700">{{ $estado }}</span>
+                            <span class="font-semibold text-gray-900">{{ $n }}</span>
+                        </div>
+                        <div class="h-1.5 w-full rounded-full bg-gray-100"><div class="bg-brand-500 h-1.5 rounded-full" style="width: {{ round($n / $totalPracticas * 100) }}%"></div></div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+
+        {{-- Convenios recientes --}}
+        <div class="{{ $panel }}">
+            <h4 class="mb-3 text-base font-bold text-gray-900">Convenios recientes</h4>
+            <div class="divide-y divide-gray-100">
+                @forelse ($convenios_recientes as $c)
+                    <div class="flex items-center justify-between py-3">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-800">{{ $c->empresa->razon_social }}</p>
+                            <p class="text-xs text-gray-500">Recibido {{ $c->fecha_recepcion->format('d/m/Y') }}</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{{ $c->estado->label() }}</span>
+                            <a href="{{ route('admin.convenios.show', $c) }}" class="text-brand-600 text-xs font-semibold">Ver</a>
+                        </div>
+                    </div>
+                @empty
+                    <p class="py-6 text-center text-sm text-gray-400">Aún no hay convenios.</p>
+                @endforelse
+            </div>
+        </div>
+
+        {{-- Programas recientes --}}
+        <div class="{{ $panel }}">
+            <div class="mb-3 flex items-center justify-between">
+                <h4 class="text-base font-bold text-gray-900">Programas recientes</h4>
+                <a href="{{ route('admin.lista-programas') }}" class="text-brand-600 text-xs font-semibold hover:underline">Ver todos</a>
+            </div>
+            <div class="divide-y divide-gray-100">
+                @forelse ($programas_recientes as $p)
+                    <div class="flex items-center justify-between py-3">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-800">{{ $p->titulo }}</p>
+                            <p class="text-xs text-gray-500">{{ $p->carrera->carrera_clave }} · {{ $p->convenio?->empresa->razon_social ?? 'Proyecto interno' }}</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="block text-sm font-bold text-gray-800">{{ (int) $p->cupos_ocupados }}/{{ $p->cupos_totales }}</span>
+                            <span class="text-xs text-gray-400">{{ ucfirst($p->estado->value) }}</span>
+                        </div>
+                    </div>
+                @empty
+                    <p class="py-6 text-center text-sm text-gray-400">Aún no hay programas.</p>
+                @endforelse
+            </div>
+        </div>
+    </div>
+</div>
 @endsection

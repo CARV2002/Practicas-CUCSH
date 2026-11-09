@@ -114,8 +114,7 @@
                         <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $d->dictamen === Dictamen::Aprobatorio ? 'bg-green-50 text-green-700' : ($d->dictamen === Dictamen::Negativo ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700') }}">{{ ucfirst($d->dictamen->value) }}</span>
                     </div>
                     @if ($estado === E::EnValidacionAcademica && $d->dictamen === Dictamen::Pendiente)
-                        <form method="POST" enctype="multipart/form-data" action="{{ route('admin.convenios.dictamenes.registrar', [$convenio, $d]) }}" class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-5">
-                            @csrf
+<form method="POST" enctype="multipart/form-data" action="{{ route('admin.dictamenes.registrar', $d) }}" class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-5">                            @csrf
                             <select name="dictamen" required class="{{ $input }}">
                                 <option value="aprobatorio">Aprobatorio</option>
                                 <option value="negativo">Negativo</option>
