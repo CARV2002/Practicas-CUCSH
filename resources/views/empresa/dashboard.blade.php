@@ -1,196 +1,120 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $card = 'rounded-2xl border border-gray-200 bg-white p-5';
+    $panel = 'rounded-2xl border border-gray-200 bg-white p-6';
+    $ocupacion = $kpis['cupos_totales'] > 0 ? round($kpis['cupos_ocupados'] / $kpis['cupos_totales'] * 100) : 0;
+@endphp
 
-<style>
-/* ==========================================================================
-   ESTILOS ADICIONALES: PANEL DE CONTROL DE EMPRESA / RECEPTOR
-   ========================================================================== */
+<x-common.page-breadcrumb pageTitle="Panel de empresa" />
 
-.company-dashboard {
-    font-family: var(--font-outfit);
-}
+<div class="space-y-6">
 
-/* Clases de utilidad corporativa */
-.text-brand-600 {
-    color: var(--color-brand-600);
-}
-.bg-brand-50 {
-    background-color: var(--color-brand-50);
-}
-.bg-brand-600 {
-    background-color: var(--color-brand-600);
-}
-.hover\:bg-brand-700:hover {
-    background-color: var(--color-brand-700);
-}
-
-/* Adaptación de Alertas del Sistema */
-.bg-warning-50 {
-    background-color: var(--color-warning-50);
-}
-.text-warning-600 {
-    color: var(--color-warning-600);
-}
-
-.bg-blue-light-50 {
-    background-color: var(--color-blue-light-50);
-}
-.text-blue-light-600 {
-    color: var(--color-blue-light-600);
-}
-
-.bg-success-50 {
-    background-color: var(--color-success-50);
-}
-.text-success-600 {
-    color: var(--color-success-600);
-}
-.text-success-700 {
-    color: var(--color-success-700);
-}
-
-.text-error-600 {
-    color: var(--color-error-600);
-}
-.bg-error-50 {
-    background-color: var(--color-error-50);
-}
-
-
-</style>
-    <x-common.page-breadcrumb pageTitle="Panel de Gestión Externa" />
-
-    <div class="space-y-6 company-dashboard">
-        
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Alumnos Asignados</p>
-                    <h3 class="mt-1 text-2xl font-bold text-gray-900">14</h3>
-                    <span class="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-success-600">
-                        ● 6 Prácticas • 8 Servicio
-                    </span>
-                </div>
-                <div class="h-12 w-12 bg-brand-50 rounded-xl flex items-center justify-center text-brand-600 text-xl font-bold">🎓</div>
-            </div>
-
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Postulaciones Nuevas</p>
-                    <h3 class="mt-1 text-2xl font-bold text-gray-900">5</h3>
-                    <span class="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-amber-600 animate-pulse">
-                        ⚠️ Requieren entrevista
-                    </span>
-                </div>
-                <div class="h-12 w-12 bg-warning-50 rounded-xl flex items-center justify-center text-warning-600 text-xl font-bold">📩</div>
-            </div>
-
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Programas Ofertados</p>
-                    <h3 class="mt-1 text-2xl font-bold text-gray-900">3</h3>
-                    <span class="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-gray-500">
-                        Plazas totales: 20
-                    </span>
-                </div>
-                <div class="h-12 w-12 bg-blue-light-50 rounded-xl flex items-center justify-center text-blue-light-600 text-xl font-bold">📋</div>
-            </div>
-
-            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Convenio General</p>
-                    <h3 class="mt-1 text-lg font-bold text-success-700 flex items-center gap-1.5">
-                        <span class="h-2 w-2 rounded-full bg-success-600"></span> Vigente
-                    </h3>
-                    <span class="mt-1.5 block text-[11px] text-gray-400 font-medium">Vence: 12-Dic-2027</span>
-                </div>
-                <div class="h-12 w-12 bg-success-50 rounded-xl flex items-center justify-center text-success-600 text-xl font-bold">📄</div>
-            </div>
+    {{-- Avisos --}}
+    @if (! $vigente && ! $enTramite)
+        <div class="rounded-xl border border-yellow-500 bg-yellow-50 p-4 text-sm text-yellow-800">
+            Aún no tienes un convenio con el CUCSH. <a href="{{ route('empresa.convenio') }}" class="font-semibold underline">Solicítalo aquí</a> para poder ofertar programas.
         </div>
-
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            
-            <div class="lg:col-span-2 rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs">
-                <div class="flex items-center justify-between mb-5">
-                    <div>
-                        <h4 class="text-base font-bold text-gray-900">Reportes Mensuales de Horas Pendientes</h4>
-                        <p class="text-xs text-gray-500">Valida y firma digitalmente las horas ejecutadas por tus alumnos asignados.</p>
-                    </div>
-                    <a href="#" class="text-xs font-semibold text-brand-600 hover:underline">Ver bitácoras</a>
-                </div>
-
-                <div class="space-y-3">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50/40 transition-all gap-3">
-                        <div class="flex items-center gap-3">
-                            <div class="h-9 w-9 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-xs font-bold font-mono">AM</div>
-                            <div>
-                                <h5 class="text-sm font-semibold text-gray-900">Alejandro Martínez Solís</h5>
-                                <p class="text-xs text-gray-400">Lic. Derecho • Reporte #2 (80 Horas)</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2 self-end sm:self-auto">
-                            <button class="text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">Ver Detalles</button>
-                            <button class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-theme-xs transition-colors">Firmar Reporte</button>
-                        </div>
-                    </div>
-
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50/40 transition-all gap-3">
-                        <div class="flex items-center gap-3">
-                            <div class="h-9 w-9 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-xs font-bold font-mono">SV</div>
-                            <div>
-                                <h5 class="text-sm font-semibold text-gray-900">Sofía Villanueva Ramos</h5>
-                                <p class="text-xs text-gray-400">Lic. Psicología • Reporte Inicial (40 Horas)</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2 self-end sm:self-auto">
-                            <button class="text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">Ver Detalles</button>
-                            <button class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-theme-xs transition-colors">Firmar Reporte</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs">
-                <div class="mb-4">
-                    <h4 class="text-base font-bold text-gray-900">Entrevistas y Candidatos</h4>
-                    <p class="text-xs text-gray-500">Últimos estudiantes postulados a tus programas.</p>
-                </div>
-
-                <div class="divide-y divide-gray-100">
-                    <div class="py-3.5 flex items-start gap-3">
-                        <div class="mt-0.5 text-base">📩</div>
-                        <div class="flex-1">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-bold text-gray-900">Carlos Eduardo Gómez</span>
-                                <span class="text-[10px] bg-brand-50 text-brand-700 font-bold px-1.5 py-0.5 rounded">CV Adjunto</span>
-                            </div>
-                            <p class="text-xs text-gray-500 mt-0.5">Postulado a: Asistencia Jurídica Institucional</p>
-                            <div class="mt-2.5 flex gap-1.5">
-                                <button class="bg-brand-600 hover:bg-brand-700 text-white px-2.5 py-1 rounded text-[11px] font-semibold transition-colors">Agendar Cita</button>
-                                <button class="text-error-600 hover:bg-error-50 px-2.5 py-1 rounded text-[11px] font-semibold transition-colors">Declinar</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="py-3.5 flex items-start gap-3">
-                        <div class="mt-0.5 text-base">📩</div>
-                        <div class="flex-1">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-bold text-gray-900">Elena Rostova Ortiz</span>
-                                <span class="text-[10px] bg-brand-50 text-brand-700 font-bold px-1.5 py-0.5 rounded">CV Adjunto</span>
-                            </div>
-                            <p class="text-xs text-gray-500 mt-0.5">Postulado a: Apoyo Psicosocial Comunitario</p>
-                            <div class="mt-2.5 flex gap-1.5">
-                                <button class="bg-brand-600 hover:bg-brand-700 text-white px-2.5 py-1 rounded text-[11px] font-semibold transition-colors">Agendar Cita</button>
-                                <button class="text-error-600 hover:bg-error-50 px-2.5 py-1 rounded text-[11px] font-semibold transition-colors">Declinar</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+    @elseif ($vigente && $diasRestantes <= 60)
+        <div class="rounded-xl border border-yellow-500 bg-yellow-50 p-4 text-sm text-yellow-800">
+            Tu convenio vence en {{ $diasRestantes }} días. <a href="{{ route('empresa.convenio') }}" class="font-semibold underline">Solicita la renovación</a>.
         </div>
+    @endif
 
+    @if (! $expedienteCompleto)
+        <div class="rounded-xl border border-blue-500 bg-blue-50 p-4 text-sm text-blue-800">
+            Tu expediente está incompleto o con documentos sin validar. <a href="{{ route('empresa.documentos') }}" class="font-semibold underline">Revisar documentos</a>.
+        </div>
+    @endif
+
+    {{-- KPIs --}}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="{{ $card }}">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Practicantes activos</p>
+            <h3 class="mt-1 text-2xl font-bold text-gray-900">{{ $kpis['practicantes_activos'] }}</h3>
+            <p class="mt-1 text-xs text-gray-500">{{ $kpis['acreditados'] }} acreditados</p>
+        </div>
+        <div class="{{ $card }}">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Programas publicados</p>
+            <h3 class="mt-1 text-2xl font-bold text-gray-900">{{ $kpis['programas_publicados'] }}</h3>
+            <p class="mt-1 text-xs text-gray-500">{{ $programasSinPublicar }} en borrador</p>
+        </div>
+        <div class="{{ $card }}">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Ocupación de cupos</p>
+            <h3 class="mt-1 text-2xl font-bold text-gray-900">{{ $ocupacion }}%</h3>
+            <div class="mt-2 h-1.5 w-full rounded-full bg-gray-200"><div class="bg-brand-500 h-1.5 rounded-full" style="width: {{ $ocupacion }}%"></div></div>
+            <p class="mt-1 text-xs text-gray-500">{{ $kpis['cupos_libres'] }} cupos libres</p>
+        </div>
+        <div class="{{ $card }}">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Convenio</p>
+            @if ($vigente)
+                <h3 class="mt-1 flex items-center gap-1.5 text-lg font-bold text-green-700"><span class="h-2 w-2 rounded-full bg-green-600"></span> Vigente</h3>
+                <p class="mt-1 text-xs text-gray-500">Vence {{ $vigente->fecha_fin_vigencia->format('d/m/Y') }}</p>
+            @elseif ($enTramite)
+                <h3 class="mt-1 text-lg font-bold text-blue-700">En trámite</h3>
+                <p class="mt-1 text-xs text-gray-500">{{ $enTramite->estado->label() }}</p>
+            @else
+                <h3 class="mt-1 text-lg font-bold text-gray-500">Sin convenio</h3>
+            @endif
+        </div>
     </div>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+
+        {{-- Retroalimentación pendiente --}}
+        <div class="{{ $panel }} lg:col-span-2">
+            <div class="mb-4 flex items-center justify-between">
+                <div>
+                    <h4 class="text-base font-bold text-gray-900">Reportes sin tu retroalimentación</h4>
+                    <p class="text-xs text-gray-500">Reportes de horas de tus practicantes que aún no has comentado.</p>
+                </div>
+                <a href="{{ route('empresa.lista-practicantes') }}" class="text-brand-600 text-xs font-semibold hover:underline">Ver practicantes</a>
+            </div>
+            <div class="divide-y divide-gray-100">
+                @forelse ($reportesPendientes as $r)
+                    @php $al = $r->practica->postulacion->alumno; @endphp
+                    <div class="flex flex-wrap items-center justify-between gap-2 py-3">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-900">{{ $al->user->name }}</p>
+                            <p class="text-xs text-gray-500">{{ ucfirst($r->tipo->value) }} · {{ $r->horas_reportadas }} h · {{ $r->periodo_inicio->format('d/m') }} – {{ $r->periodo_fin->format('d/m/Y') }}</p>
+                        </div>
+                        <a href="{{ route('empresa.practicantes.show', $r->practica) }}" class="bg-brand-500 hover:bg-brand-600 rounded-lg px-3 py-1.5 text-xs font-semibold text-white">Comentar</a>
+                    </div>
+                @empty
+                    <p class="py-8 text-center text-sm text-gray-400">No tienes reportes pendientes de comentar.</p>
+                @endforelse
+            </div>
+        </div>
+
+        {{-- Accesos rápidos --}}
+        <div class="{{ $panel }}">
+            <h4 class="mb-3 text-base font-bold text-gray-900">Accesos rápidos</h4>
+            <div class="space-y-2">
+                <a href="{{ route('empresa.lista-programas') }}" class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-brand-300 hover:bg-gray-50">Mis programas <span>→</span></a>
+                <a href="{{ route('empresa.convenio') }}" class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-brand-300 hover:bg-gray-50">Convenio CUCSH <span>→</span></a>
+                <a href="{{ route('empresa.documentos') }}" class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-brand-300 hover:bg-gray-50">Documentos <span>→</span></a>
+            </div>
+        </div>
+    </div>
+
+    {{-- Candidatos con carta de presentación --}}
+    <div class="{{ $panel }}">
+        <h4 class="text-base font-bold text-gray-900">Alumnos con carta de presentación</h4>
+        <p class="mb-4 text-xs text-gray-500">Alumnos validados por la Coordinación que se presentarán en tus programas. Al aceptarlos, entrega la carta de aceptación sellada al alumno.</p>
+        <div class="divide-y divide-gray-100">
+            @forelse ($candidatos as $po)
+                <div class="flex flex-wrap items-center justify-between gap-2 py-3">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-900">{{ $po->alumno->user->name }}</p>
+                        <p class="text-xs text-gray-500">{{ $po->alumno->carrera->nombre }} · {{ $po->programa->titulo }}</p>
+                    </div>
+                    <a href="{{ route('empresa.programas.postulantes', $po->programa) }}" class="text-brand-600 text-xs font-semibold">Ver programa →</a>
+                </div>
+            @empty
+                <p class="py-6 text-center text-sm text-gray-400">Sin alumnos pendientes de presentarse.</p>
+            @endforelse
+        </div>
+    </div>
+</div>
 @endsection

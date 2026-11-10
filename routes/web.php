@@ -13,6 +13,11 @@ use App\Http\Controllers\Admin\ReporteController;
 use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\NotificacionController;
+use App\Http\Controllers\Empresa\ProgramaController as EmpresaProgramaController;
+use App\Http\Controllers\Empresa\ConvenioController as EmpresaConvenioController;
+use App\Http\Controllers\Empresa\DocumentoController;
+use App\Http\Controllers\Empresa\PracticanteController as EmpresaPracticanteController;
+use App\Http\Controllers\Empresa\DashboardController as EmpresaDashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -59,11 +64,32 @@ Route::prefix('empresa')
     ->name('empresa.')
     ->middleware(['auth', 'role:' . Rol::Empresa->value])
     ->group(function () {
-        Route::view('/dashboard', 'empresa.dashboard')->name('dashboard');
-        Route::view('/convenio', 'empresa.convenio')->name('convenio');
-        Route::view('/documentos', 'empresa.documentos')->name('documentos');
-        Route::view('/lista-programas', 'empresa.lista-programas')->name('lista-programas');
-        Route::view('/lista-practicantes', 'empresa.lista-practicantes')->name('lista-practicantes');
+        //Route::view('/dashboard', 'empresa.dashboard')->name('dashboard');
+        Route::get('/dashboard', [EmpresaDashboardController::class, 'index'])->name('dashboard');
+
+        // Route::view('/convenio', 'empresa.convenio')->name('convenio');
+        Route::get('/convenio', [EmpresaConvenioController::class, 'show'])->name('convenio');
+        Route::post('/convenio', [EmpresaConvenioController::class, 'solicitar'])->name('convenio.solicitar');
+        Route::get('/convenio/{convenio}/archivo', [EmpresaConvenioController::class, 'descargar'])->name('convenio.archivo');
+
+        //Route::view('/documentos', 'empresa.documentos')->name('documentos');
+        Route::get('/documentos', [DocumentoController::class, 'index'])->name('documentos');
+        Route::post('/documentos', [DocumentoController::class, 'subir'])->name('documentos.subir');
+        Route::get('/documentos/{media}', [DocumentoController::class, 'descargar'])->name('documentos.descargar');
+
+        //Route::view('/lista-programas', 'empresa.lista-programas')->name('lista-programas');
+        Route::get('/lista-programas', [EmpresaProgramaController::class, 'index'])->name('lista-programas');
+        Route::post('/programas', [EmpresaProgramaController::class, 'store'])->name('programas.store');
+        Route::put('/programas/{programa}', [EmpresaProgramaController::class, 'update'])->name('programas.update');
+        Route::post('/programas/{programa}/estado', [EmpresaProgramaController::class, 'cambiarEstado'])->name('programas.estado');
+        Route::delete('/programas/{programa}', [EmpresaProgramaController::class, 'destroy'])->name('programas.destroy');
+        Route::get('/programas/{programa}/postulantes', [EmpresaProgramaController::class, 'postulantes'])->name('programas.postulantes');
+
+        //Route::view('/lista-practicantes', 'empresa.lista-practicantes')->name('lista-practicantes');
+        Route::get('/lista-practicantes', [EmpresaPracticanteController::class, 'index'])->name('lista-practicantes');
+        Route::get('/practicantes/{practica}', [EmpresaPracticanteController::class, 'show'])->name('practicantes.show');
+        Route::post('/reportes/{reporte}/retroalimentacion', [EmpresaPracticanteController::class, 'retroalimentar'])->name('reportes.retroalimentar');
+        Route::get('/reportes/{reporte}/archivos/{media}', [EmpresaPracticanteController::class, 'descargarReporte'])->name('reportes.archivos');
     });
 
 /*
@@ -156,8 +182,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/notificaciones/resumen', [NotificacionController::class, 'resumen'])->name('notificaciones.resumen');
     Route::get('/notificaciones/{id}/abrir', [NotificacionController::class, 'abrir'])->name('notificaciones.abrir');
     Route::post('/notificaciones/leer-todas', [NotificacionController::class, 'marcarTodas'])->name('notificaciones.leer-todas');
-    
-   Route::view('/ayuda', 'ayuda')->name('ayuda');
+
+    Route::view('/ayuda', 'ayuda')->name('ayuda');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
