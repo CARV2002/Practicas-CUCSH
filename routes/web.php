@@ -18,6 +18,10 @@ use App\Http\Controllers\Empresa\ConvenioController as EmpresaConvenioController
 use App\Http\Controllers\Empresa\DocumentoController;
 use App\Http\Controllers\Empresa\PracticanteController as EmpresaPracticanteController;
 use App\Http\Controllers\Empresa\DashboardController as EmpresaDashboardController;
+use App\Http\Controllers\Alumno\DocumentoController as AlumnoDocumentoController;
+use App\Http\Controllers\Alumno\MisPracticasController;
+use App\Http\Controllers\Alumno\OfertaController;
+use App\Http\Controllers\Alumno\DashboardController as AlumnoDashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,10 +53,25 @@ Route::prefix('alumno')
     ->name('alumno.')
     ->middleware(['auth', 'role:' . Rol::Alumno->value])
     ->group(function () {
-        Route::view('/dashboard', 'alumno.dashboard')->name('dashboard');
-        Route::view('/oferta-programas', 'alumno.oferta-programas')->name('oferta-programas');
-        Route::view('/mis-practicas', 'alumno.mis-practicas')->name('mis-practicas');
-        Route::view('/mis-documentos', 'alumno.mis-documentos')->name('mis-documentos');
+        //Route::view('/dashboard', 'alumno.dashboard')->name('dashboard');
+        Route::get('/dashboard', [AlumnoDashboardController::class, 'index'])->name('dashboard');
+
+        //Route::view('/oferta-programas', 'alumno.oferta-programas')->name('oferta-programas');
+        Route::get('/oferta-programas', [OfertaController::class, 'index'])->name('oferta-programas');
+        Route::post('/oferta-programas/{programa}/postular', [OfertaController::class, 'postular'])->name('oferta-programas.postular');
+
+
+        //Route::view('/mis-practicas', 'alumno.mis-practicas')->name('mis-practicas');
+        Route::get('/mis-practicas', [MisPracticasController::class, 'index'])->name('mis-practicas');
+
+        //Route::view('/mis-documentos', 'alumno.mis-documentos')->name('mis-documentos');
+        Route::get('/mis-documentos', [AlumnoDocumentoController::class, 'index'])->name('mis-documentos');
+        Route::post('/documentos/imss', [AlumnoDocumentoController::class, 'subirImss'])->name('documentos.imss');
+        Route::post('/postulaciones/{postulacion}/kardex', [AlumnoDocumentoController::class, 'subirKardex'])->name('documentos.kardex');
+        Route::post('/postulaciones/{postulacion}/carta-aceptacion', [AlumnoDocumentoController::class, 'subirCartaAceptacion'])->name('documentos.aceptacion');
+        Route::post('/reportes/{reporte}/archivo', [AlumnoDocumentoController::class, 'subirReporte'])->name('documentos.reporte');
+        Route::post('/practicas/{practica}/carta-termino', [AlumnoDocumentoController::class, 'subirCartaTermino'])->name('documentos.termino');
+        Route::get('/archivos/{media}', [AlumnoDocumentoController::class, 'descargar'])->name('documentos.descargar');
     });
 
 /*

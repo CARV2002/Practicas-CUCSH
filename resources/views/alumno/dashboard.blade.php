@@ -1,7 +1,8 @@
+{{-- resources/views/alumno/dashboard.blade.php --}}
 @extends('layouts.app')
 
 @section('content')
-    <style>
+<style>
 /* ==========================================================================
    ESTILOS PREMIUM: STUDENT HOME DASHBOARD (CUCSH 2026)
    ========================================================================== */
@@ -377,145 +378,171 @@
     }
 }
 
-    </style>
-    <x-common.page-breadcrumb pageTitle="Dashboard" />
+ </style>
 
-    
-    <div class="min-h-screen rounded-2xl border border-gray-200 bg-white ">
-        <div class="cucsh-dashboard-container">
-    
-    <header class="dashboard-welcome-hero">
-        <div class="welcome-profile-area">
-            <div class="avatar-ring-wrapper">
-                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="Avatar Alumno" class="student-hero-avatar">
-                <span class="online-status-dot"></span>
+<x-common.page-breadcrumb pageTitle="Dashboard" />
+
+@php
+    $iniciales = mb_strtoupper(mb_substr($alumno->user->name, 0, 1));
+    $partes = preg_split('/\s+/', trim($alumno->user->name));
+    $iniciales = mb_strtoupper(mb_substr($partes[0] ?? '', 0, 1).mb_substr($partes[1] ?? '', 0, 1));
+@endphp
+
+<div class="min-h-screen rounded-2xl border border-gray-200 bg-white">
+    <div class="cucsh-dashboard-container">
+
+        <header class="dashboard-welcome-hero">
+            <div class="welcome-profile-area">
+                <div class="avatar-ring-wrapper">
+                    <div class="student-hero-avatar" style="display:flex;align-items:center;justify-content:center;background:var(--color-brand-50);color:var(--color-brand-600);font-weight:800;font-size:20px;">{{ $iniciales }}</div>
+                    <span class="online-status-dot"></span>
+                </div>
+                <div class="welcome-text-strings">
+                    <h1>Hola de nuevo, {{ $saludo }} 👋</h1>
+                    <p class="academic-subtext">{{ $alumno->carrera->nombre }} • Código: {{ $alumno->num_control }}</p>
+                </div>
             </div>
-            <div class="welcome-text-strings">
-                <h1>Hola de nuevo, {{ Auth::user()->name ?? 'Juan Alumno' }} 👋</h1>
-                <p class="academic-subtext">Estudiante de CUCSH • Código: 219485722</p>
+
+            <div class="home-next-step-badge">
+                <div class="next-step-header">
+                    <span class="pulse-icon-ping"></span>
+                    <strong>🎯 TU SIGUIENTE PASO HOY:</strong>
+                </div>
+                <p>{{ $paso }}</p>
             </div>
+        </header>
+
+        <div class="dashboard-workspace-layout">
+
+            <main class="dashboard-workspace-main">
+
+                @if ($kpis)
+                    <section class="kpi-dashboard-row" aria-label="Métricas de progreso">
+                        <div class="kpi-saas-card">
+                            <div class="kpi-icon-container bg-brand">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            </div>
+                            <div class="kpi-data">
+                                <span class="kpi-title-label">Horas validadas</span>
+                                <div class="kpi-numeric-value">{{ $kpis['horas'] }} / <small>{{ $kpis['requeridas'] }} hrs</small></div>
+                                <div class="kpi-mini-progress"><div class="fill" style="width: {{ $kpis['pct'] }}%"></div></div>
+                            </div>
+                        </div>
+
+                        <div class="kpi-saas-card">
+                            <div class="kpi-icon-container bg-success">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            </div>
+                            <div class="kpi-data">
+                                <span class="kpi-title-label">Reportes validados</span>
+                                <div class="kpi-numeric-value">{{ $kpis['validados'] }} <small>de {{ $kpis['reportes_total'] }}</small></div>
+                                <p class="kpi-subtext-caption text-success">{{ $kpis['rechazados'] }} rechazado(s)</p>
+                            </div>
+                        </div>
+
+                        <div class="kpi-saas-card">
+                            <div class="kpi-icon-container bg-warning">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            </div>
+                            <div class="kpi-data">
+                                <span class="kpi-title-label">Pendientes</span>
+                                <div class="kpi-numeric-value">{{ $kpis['pendientes'] }} <small>reporte(s)</small></div>
+                                <p class="kpi-subtext-caption text-warning">{{ $kpis['dias_restantes'] }} días restantes</p>
+                            </div>
+                        </div>
+                    </section>
+                @endif
+
+                <section class="dashboard-quick-actions-section">
+                    <h2 class="dashboard-section-heading">¿Qué necesitas hacer hoy?</h2>
+                    <div class="quick-actions-cards-grid">
+
+                        @if ($practica)
+                            <a href="{{ route('alumno.mis-documentos') }}" class="action-hub-card">
+                                <div class="hub-icon-box">📁</div>
+                                <div class="hub-content">
+                                    <h3>Subir reportes y documentos</h3>
+                                    <p>Reportes firmados, carta de término y constancias.</p>
+                                </div>
+                                <span class="hub-arrow-indicator">→</span>
+                            </a>
+                            <a href="{{ route('alumno.mis-practicas') }}" class="action-hub-card">
+                                <div class="hub-icon-box">🏢</div>
+                                <div class="hub-content">
+                                    <h3>Ver mi práctica</h3>
+                                    <p>{{ $empresa?->razon_social ?? 'Proyecto interno' }} · {{ $programa->titulo }}</p>
+                                </div>
+                                <span class="hub-arrow-indicator">→</span>
+                            </a>
+                        @else
+                            <a href="{{ route('alumno.oferta-programas') }}" class="action-hub-card">
+                                <div class="hub-icon-box">🔎</div>
+                                <div class="hub-content">
+                                    <h3>Explorar programas</h3>
+                                    <p>Encuentra vacantes para {{ $alumno->carrera->nombre }}.</p>
+                                </div>
+                                <span class="hub-arrow-indicator">→</span>
+                            </a>
+                            <a href="{{ route('alumno.mis-documentos') }}" class="action-hub-card">
+                                <div class="hub-icon-box">📁</div>
+                                <div class="hub-content">
+                                    <h3>Mis documentos</h3>
+                                    <p>Constancia IMSS, kardex y cartas de tu postulación.</p>
+                                </div>
+                                <span class="hub-arrow-indicator">→</span>
+                            </a>
+                            @if ($enTramite)
+                                <a href="{{ route('alumno.mis-practicas') }}" class="action-hub-card">
+                                    <div class="hub-icon-box">⏳</div>
+                                    <div class="hub-content">
+                                        <h3>Seguimiento de mi postulación</h3>
+                                        <p>{{ $enTramite->estado->label() }} · {{ $enTramite->programa->titulo }}</p>
+                                    </div>
+                                    <span class="hub-arrow-indicator">→</span>
+                                </a>
+                            @endif
+                        @endif
+
+                    </div>
+                </section>
+            </main>
+
+            <aside class="dashboard-workspace-sidebar" aria-label="Panel de control diario">
+
+                <div class="sidebar-saas-widget">
+                    <h3 class="widget-title">Alertas académicas</h3>
+                    <div class="widget-alert-list">
+                        @forelse ($alertas as $a)
+                            <div class="saas-alert-pill {{ $a['tipo'] === 'danger' ? 'border-danger' : 'border-info' }}">
+                                <div class="pill-dot {{ $a['tipo'] === 'danger' ? 'bg-danger' : 'bg-info' }}"></div>
+                                <div class="pill-info">
+                                    <h4>{{ $a['titulo'] }}</h4>
+                                    <p>{{ $a['texto'] }}</p>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="saas-alert-pill border-info">
+                                <div class="pill-dot bg-info"></div>
+                                <div class="pill-info">
+                                    <h4>{{ $imssOk ? 'Seguro IMSS verificado' : 'Sube tu constancia IMSS' }}</h4>
+                                    <p>{{ $imssOk ? 'Cumples el requisito de seguro facultativo.' : 'Es requisito para activar tu práctica.' }}</p>
+                                </div>
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+
+                <div class="sidebar-saas-widget motivation-widget-theme">
+                    <div class="motivation-icon-header">{{ $motivacion['icono'] }}</div>
+                    <h4 class="motivation-title">{{ $motivacion['titulo'] }}</h4>
+                    <p class="motivation-description">{{ $motivacion['texto'] }}</p>
+                    @if ($kpis)
+                        <div class="motivation-badge-inline"><span>{{ $kpis['pct'] }}% completado</span></div>
+                    @endif
+                </div>
+
+            </aside>
         </div>
-        
-        <div class="home-next-step-badge">
-            <div class="next-step-header">
-                <span class="pulse-icon-ping"></span>
-                <strong>🎯 TU SIGUIENTE PASO HOY:</strong>
-            </div>
-            <p>Tienes un reporte bimestral pendiente de entregar antes del 15 de junio. Tu supervisor, el Dr. Juan Pérez, aprobó tus últimas 8 horas ayer.</p>
-        </div>
-    </header>
-
-    <div class="dashboard-workspace-layout">
-        
-        <main class="dashboard-workspace-main">
-            
-            <section class="kpi-dashboard-row" aria-label="Métricas de Progreso">
-                <div class="kpi-saas-card">
-                    <div class="kpi-icon-container bg-brand">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    </div>
-                    <div class="kpi-data">
-                        <span class="kpi-title-label">Horas acumuladas</span>
-                        <div class="kpi-numeric-value">240 / <small>480 hrs</small></div>
-                        <div class="kpi-mini-progress"><div class="fill" style="width: 50%"></div></div>
-                    </div>
-                </div>
-
-                <div class="kpi-saas-card">
-                    <div class="kpi-icon-container bg-success">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                    </div>
-                    <div class="kpi-data">
-                        <span class="kpi-title-label">Actividades Aprobadas</span>
-                        <div class="kpi-numeric-value">18 <small>registros</small></div>
-                        <p class="kpi-subtext-caption text-success">0 rechazadas por supervisor</p>
-                    </div>
-                </div>
-
-                <div class="kpi-saas-card">
-                    <div class="kpi-icon-container bg-warning">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    </div>
-                    <div class="kpi-data">
-                        <span class="kpi-title-label">Documentos validados</span>
-                        <div class="kpi-numeric-value">3 / <small>4 entregados</small></div>
-                        <p class="kpi-subtext-caption text-warning">1 requiere corrección</p>
-                    </div>
-                </div>
-            </section>
-
-            <section class="dashboard-quick-actions-section">
-                <h2 class="dashboard-section-heading">¿Qué necesitas hacer hoy?</h2>
-                <div class="quick-actions-cards-grid">
-                    
-                    <a href="" class="action-hub-card">
-                        <div class="hub-icon-box">✍️</div>
-                        <div class="hub-content">
-                            <h3>Registrar mi bitácora diaria</h3>
-                            <p>Sube las actividades de desarrollo realizadas hoy.</p>
-                        </div>
-                        <span class="hub-arrow-indicator">→</span>
-                    </a>
-
-                    <a href="#" class="action-hub-card">
-                        <div class="hub-icon-box">📁</div>
-                        <div class="hub-content">
-                            <h3>Subir evidencias o reportes</h3>
-                            <p>Formatos, cartas firmadas y reportes mensuales.</p>
-                        </div>
-                        <span class="hub-arrow-indicator">→</span>
-                    </a>
-
-                    <a href="#" class="action-hub-card">
-                        <div class="hub-icon-box">🏢</div>
-                        <div class="hub-content">
-                            <h3>Ver datos de mi empresa</h3>
-                            <p>Contacto con el supervisor y horarios validados.</p>
-                        </div>
-                        <span class="hub-arrow-indicator">→</span>
-                    </a>
-
-                </div>
-            </section>
-
-        </main>
-
-        <aside class="dashboard-workspace-sidebar" aria-label="Panel de Control Diario">
-            
-            <div class="sidebar-saas-widget">
-                <h3 class="widget-title">Alertas académicas</h3>
-                <div class="widget-alert-list">
-                    
-                    <div class="saas-alert-pill border-danger">
-                        <div class="pill-dot bg-danger"></div>
-                        <div class="pill-info">
-                            <h4>Corregir Carta de Aceptación</h4>
-                            <p>El formato PDF está borroso. Súbelo de nuevo.</p>
-                        </div>
-                    </div>
-
-                    <div class="saas-alert-pill border-info">
-                        <div class="pill-dot bg-info"></div>
-                        <div class="pill-info">
-                            <h4>Evaluación técnica disponible</h4>
-                            <p>Tu supervisor ya puede calificarte el segundo periodo.</p>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-
-            <div class="sidebar-saas-widget motivation-widget-theme">
-                <div class="motivation-icon-header">🛡️</div>
-                <h4 class="motivation-title">Ritmo Constante</h4>
-                <p class="motivation-description">Has registrado actividades durante 3 semanas seguidas sin retrasos. ¡Mantén el paso para liberar en Septiembre!</p>
-                <div class="motivation-badge-inline">
-                    <span>🔥 Streak: 21 Días</span>
-                </div>
-            </div>
-
-        </aside>
     </div>
 </div>
-    </div>
 @endsection

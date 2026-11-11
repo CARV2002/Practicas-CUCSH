@@ -1,4 +1,3 @@
-{{-- resources/views/empresa/practicante-show.blade.php --}}
 @extends('layouts.app')
 
 @section('content')

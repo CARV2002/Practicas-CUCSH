@@ -1,4 +1,3 @@
-{{-- resources/views/empresa/programa-postulantes.blade.php (la ruta "Postulantes" la usa) --}}
 @extends('layouts.app')
 
 @section('content')
