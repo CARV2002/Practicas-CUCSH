@@ -71,6 +71,7 @@ Route::prefix('alumno')
         Route::post('/postulaciones/{postulacion}/carta-aceptacion', [AlumnoDocumentoController::class, 'subirCartaAceptacion'])->name('documentos.aceptacion');
         Route::post('/reportes/{reporte}/archivo', [AlumnoDocumentoController::class, 'subirReporte'])->name('documentos.reporte');
         Route::post('/practicas/{practica}/carta-termino', [AlumnoDocumentoController::class, 'subirCartaTermino'])->name('documentos.termino');
+        Route::post('/practicas/{practica}/reportes', [AlumnoDocumentoController::class, 'crearReporte'])->name('documentos.reporte.crear');
         Route::get('/archivos/{media}', [AlumnoDocumentoController::class, 'descargar'])->name('documentos.descargar');
     });
 
@@ -138,6 +139,7 @@ Route::prefix('admin')
             Route::post('/firmas', [ConvenioController::class, 'registrarFirma'])->name('firmas');
             Route::post('/formalizar', [ConvenioController::class, 'formalizar'])->name('formalizar');
             Route::post('/rechazar', [ConvenioController::class, 'rechazar'])->name('rechazar');
+            Route::post('/borrador/generar', [ConvenioController::class, 'generarBorrador'])->name('borrador.generar');
         });
 
 

@@ -16,6 +16,9 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use App\Enums\ReporteTipo;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class DocumentoController extends Controller
 {
@@ -82,20 +85,22 @@ class DocumentoController extends Controller
     }
 
     public function subirReporte(Request $request, Reporte $reporte): RedirectResponse
-    {
-        $practica = $reporte->practica;
-        abort_unless((int) $practica->postulacion->alumno_id === (int) $request->user()->alumno->id, 403);
+{
+    $practica = $reporte->practica;
+    abort_unless((int) $practica->postulacion->alumno_id === (int) $request->user()->alumno->id, 403);
 
-        if ($reporte->estado !== ReporteEstado::Pendiente || ! in_array($practica->estado, PracticaEstado::activas(), true)) {
-            throw ValidationException::withMessages(['archivo' => 'Este reporte ya no admite cambios.']);
-        }
-
-        $request->validate(['archivo' => ['required', 'file', 'mimes:pdf', 'max:10240']]);
-
-        $reporte->addMediaFromRequest('archivo')->toMediaCollection('reporte_firmado');
-
-        return back()->with('status', 'Reporte firmado enviado.');
+    if (! in_array($reporte->estado, [ReporteEstado::Pendiente, ReporteEstado::Rechazado], true)
+        || ! in_array($practica->estado, PracticaEstado::activas(), true)) {
+        throw ValidationException::withMessages(['archivo' => 'Este reporte ya no admite cambios.']);
     }
+
+    $request->validate(['archivo' => ['required', 'file', 'mimes:pdf', 'max:10240']]);
+
+    $reporte->addMediaFromRequest('archivo')->toMediaCollection('reporte_firmado');
+    $reporte->update(['estado' => ReporteEstado::Pendiente]);   // un rechazado vuelve a revisión
+
+    return back()->with('status', 'Reporte firmado enviado.');
+}
 
     public function subirCartaTermino(Request $request, Practica $practica): RedirectResponse
     {
@@ -139,4 +144,57 @@ class DocumentoController extends Controller
             default => false,
         };
     }
+
+    public function crearReporte(Request $request, Practica $practica): RedirectResponse
+{
+    abort_unless((int) $practica->postulacion->alumno_id === (int) $request->user()->alumno->id, 403);
+
+    if (! in_array($practica->estado, PracticaEstado::activas(), true)) {
+        throw ValidationException::withMessages(['archivo' => 'La práctica ya no está activa.']);
+    }
+
+    $tope = today()->min($practica->fecha_fin)->toDateString();
+
+    $datos = $request->validate([
+        'tipo' => ['required', Rule::enum(ReporteTipo::class)],
+        'periodo_inicio' => ['required', 'date', 'after_or_equal:'.$practica->fecha_inicio->toDateString(), 'before_or_equal:'.$tope],
+        'periodo_fin' => ['required', 'date', 'after_or_equal:periodo_inicio', 'before_or_equal:'.$tope],
+        'horas_reportadas' => ['required', 'integer', 'min:1', 'max:1000'],
+        'archivo' => ['required', 'file', 'mimes:pdf', 'max:10240'],
+    ], [
+        'periodo_inicio.after_or_equal' => 'El periodo no puede empezar antes de tu práctica.',
+        'periodo_fin.before_or_equal' => 'El periodo no puede terminar en el futuro ni después de tu práctica.',
+    ]);
+
+    DB::transaction(function () use ($practica, $datos, $request) {
+        $practica = Practica::lockForUpdate()->findOrFail($practica->id);
+
+        $comprometidas = (int) $practica->reportes()
+            ->where('estado', '!=', ReporteEstado::Rechazado->value)
+            ->sum('horas_reportadas');
+
+        if ($comprometidas + $datos['horas_reportadas'] > $practica->horas_requeridas) {
+            throw ValidationException::withMessages([
+                'horas_reportadas' => 'Con estas horas rebasarías las '.$practica->horas_requeridas.' requeridas (llevas '.$comprometidas.' entre pendientes y validadas).',
+            ]);
+        }
+
+        if ($datos['tipo'] === ReporteTipo::Final->value
+            && $practica->reportes()->where('tipo', 'final')->where('estado', '!=', ReporteEstado::Rechazado->value)->exists()) {
+            throw ValidationException::withMessages(['tipo' => 'Ya tienes un reporte final en revisión o validado.']);
+        }
+
+        $reporte = $practica->reportes()->create([
+            'tipo' => $datos['tipo'],
+            'periodo_inicio' => $datos['periodo_inicio'],
+            'periodo_fin' => $datos['periodo_fin'],
+            'horas_reportadas' => $datos['horas_reportadas'],
+            'estado' => ReporteEstado::Pendiente,
+        ]);
+
+        $reporte->addMediaFromRequest('archivo')->toMediaCollection('reporte_firmado');
+    });
+
+    return back()->with('status', 'Reporte enviado. La Coordinación lo validará para que cuenten tus horas.');
+}
 }

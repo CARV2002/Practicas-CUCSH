@@ -3,6 +3,9 @@
 use App\Enums\Rol;
 use App\Models\User;
 use Database\Seeders\RolesSeeder;
+use Illuminate\Support\Str;
+use App\Models\{Alumno, Carrera, Division, Empresa, Personal};
+use App\Enums\TipoOrganismo;
 
 /** Pantallas de cada rol (nombres de ruta de routes/web.php). */
 function pantallasPorRol(): array
@@ -21,6 +24,22 @@ function usuarioConRol(string $rol): User
 {
     $user = User::factory()->create();
     $user->assignRole($rol);
+
+    match ($rol) {
+        Rol::Administrador->value => Personal::create(['user_id' => $user->id, 'puesto' => 'Coordinación']),
+        Rol::Empresa->value => Empresa::create([
+            'user_id' => $user->id, 'rfc' => 'T'.Str::upper(Str::random(11)), 'razon_social' => 'Empresa '.Str::random(4),
+            'tipo_organismo' => TipoOrganismo::Privado, 'contacto_nombre' => 'Contacto',
+        ]),
+        Rol::Alumno->value => Alumno::create([
+            'user_id' => $user->id, 'num_control' => Str::random(9),
+            'carrera_id' => Carrera::firstOrCreate(['carrera_clave' => 'TEST'], [
+                'division_id' => Division::firstOrCreate(['nombre' => 'División de prueba'])->id,
+                'nombre' => 'Carrera de prueba', 'horas_requeridas' => 250,
+                'porcentaje_creditos_minimo' => 50, 'creditos_otorgados' => 8,
+            ])->id,
+        ]),
+    };
 
     return $user;
 }

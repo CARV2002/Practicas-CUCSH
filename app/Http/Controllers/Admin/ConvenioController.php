@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use App\Services\GeneradorBorradorConvenio;
 
 class ConvenioController extends Controller
 {
@@ -201,4 +202,36 @@ class ConvenioController extends Controller
 
         return $media->toResponse(request());
     }
+
+    public function generarBorrador(Request $request, Convenio $convenio, GeneradorBorradorConvenio $generador): RedirectResponse
+{
+    $enRedaccion = $convenio->etapasAbiertas()->where('etapa', EtapaConvenio::RedaccionBorrador->value)->exists();
+
+    if (! $enRedaccion || ! $convenio->puedePasarAJuridica()) {
+        return back()->withErrors(['convenio' => 'El borrador solo se genera cuando la etapa de redacción está abierta y hay al menos una carrera aprobada.']);
+    }
+
+    $datos = $request->validate([
+        'representante_nombre' => ['required', 'string', 'max:255'],
+        'representante_cargo' => ['required', 'string', 'max:255'],
+        'constitucion' => ['required', 'string', 'max:1500'],
+        'atribuciones' => ['required', 'string', 'max:1500'],
+        'facultad_firmante' => ['required', 'string', 'max:1500'],
+        'domicilio_legal' => ['required', 'string', 'max:500'],
+        'lugar_firma' => ['required', 'string', 'max:100'],
+        'fecha_firma' => ['required', 'date'],
+        'apoyo_economico' => ['nullable', 'string', 'max:500'],
+    ]);
+
+    $convenio->load('empresa');
+
+    $ruta = $generador->generar($convenio, $datos);
+    $version = $convenio->getMedia('borrador_convenio')->count() + 1;
+
+    $convenio->addMedia($ruta)
+        ->usingFileName("borrador-convenio-v{$version}.docx")
+        ->toMediaCollection('borrador_convenio');
+
+    return back()->with('status', "Borrador v{$version} generado y adjuntado. Revísalo en Word antes de turnarlo a Jurídica.");
+}
 }

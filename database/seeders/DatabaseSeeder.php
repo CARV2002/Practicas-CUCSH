@@ -42,6 +42,7 @@ class DatabaseSeeder extends Seeder
         // Datos ficticios para probar el flujo en local. Las divisiones y carreras reales
         // (con sus horas y % de créditos) se capturan desde el catálogo de la aplicación.
         $this->datosDemo();
+        $this->call(DemoOperacionSeeder::class); 
     }
 
     private function datosDemo(): void

@@ -143,6 +143,35 @@
             @endif
 
             @if ($etapa === Et::RedaccionBorrador)
+
+
+            @php $e = $empresa; @endphp
+<details class="mb-4 rounded-lg border border-gray-200 p-4" @if ($errors->any()) open @endif>
+    <summary class="cursor-pointer text-sm font-semibold text-brand-600">Generar borrador desde el Formato de PP</summary>
+    <form method="POST" action="{{ route('admin.convenios.borrador.generar', $convenio) }}" class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+        @csrf
+        <div><label class="mb-1 block text-xs font-medium text-gray-600">Representante (nombre completo)</label>
+            <input type="text" name="representante_nombre" required value="{{ old('representante_nombre', $e->representante_legal ?? $e->contacto_nombre) }}" class="{{ $input }}"></div>
+        <div><label class="mb-1 block text-xs font-medium text-gray-600">Cargo</label>
+            <input type="text" name="representante_cargo" required value="{{ old('representante_cargo', $e->contacto_cargo) }}" class="{{ $input }}"></div>
+        <div class="md:col-span-2"><label class="mb-1 block text-xs font-medium text-gray-600">Creación o constitución (ley o decreto con fecha de publicación; o escritura pública, fecha y notario)</label>
+            <textarea name="constitucion" rows="2" required class="{{ $input }}">{{ old('constitucion') }}</textarea></div>
+        <div class="md:col-span-2"><label class="mb-1 block text-xs font-medium text-gray-600">Atribuciones (dependencia) u objeto social (AC, SC...) relacionados con el convenio</label>
+            <textarea name="atribuciones" rows="2" required class="{{ $input }}">{{ old('atribuciones') }}</textarea></div>
+        <div class="md:col-span-2"><label class="mb-1 block text-xs font-medium text-gray-600">Facultad de quien firma (norma, poder o «manifiesta bajo protesta de decir verdad que cuenta con autorización»)</label>
+            <textarea name="facultad_firmante" rows="2" required class="{{ $input }}">{{ old('facultad_firmante') }}</textarea></div>
+        <div class="md:col-span-2"><label class="mb-1 block text-xs font-medium text-gray-600">Domicilio legal</label>
+            <input type="text" name="domicilio_legal" required value="{{ old('domicilio_legal', $e->domicilio_fiscal) }}" class="{{ $input }}"></div>
+        <div><label class="mb-1 block text-xs font-medium text-gray-600">Ciudad de firma</label>
+            <input type="text" name="lugar_firma" required value="{{ old('lugar_firma', 'Guadalajara') }}" class="{{ $input }}"></div>
+        <div><label class="mb-1 block text-xs font-medium text-gray-600">Fecha de firma</label>
+            <input type="date" name="fecha_firma" required value="{{ old('fecha_firma', now()->toDateString()) }}" class="{{ $input }}"></div>
+        <div class="md:col-span-2"><label class="mb-1 block text-xs font-medium text-gray-600">Ayuda o estímulo económico (opcional; si lo dejas vacío se usa el texto estándar)</label>
+            <input type="text" name="apoyo_economico" value="{{ old('apoyo_economico') }}" class="{{ $input }}"></div>
+        <div class="md:col-span-2"><button class="{{ $btn }}">Generar y adjuntar borrador (.docx)</button></div>
+    </form>
+</details>
+
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <form method="POST" enctype="multipart/form-data" action="{{ route('admin.convenios.borrador', $convenio) }}" class="flex items-center gap-2">
                         @csrf
