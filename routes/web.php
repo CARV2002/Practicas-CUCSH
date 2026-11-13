@@ -22,6 +22,7 @@ use App\Http\Controllers\Alumno\DocumentoController as AlumnoDocumentoController
 use App\Http\Controllers\Alumno\MisPracticasController;
 use App\Http\Controllers\Alumno\OfertaController;
 use App\Http\Controllers\Alumno\DashboardController as AlumnoDashboardController;
+use App\Http\Controllers\Admin\CierreController;
 
 /*
 |--------------------------------------------------------------------------
@@ -171,6 +172,15 @@ Route::prefix('admin')
             Route::post('/activar', [PracticanteController::class, 'activar'])->name('activar');
             Route::get('/archivos/{media}', [PracticanteController::class, 'descargar'])->name('archivos');
         });
+        Route::get('/lista-cierres', [CierreController::class, 'index'])->name('lista-cierres');
+        Route::prefix('cierres/{practica}')->name('cierres.')->group(function () {
+            Route::post('/carta', [CierreController::class, 'resolverCarta'])->name('carta');
+            Route::post('/oficio', [CierreController::class, 'emitirOficio'])->name('oficio');
+            Route::post('/enviar', [CierreController::class, 'enviarControlEscolar'])->name('enviar');
+            Route::post('/siiau', [CierreController::class, 'capturarSiiau'])->name('siiau');
+            Route::get('/archivos/{media}', [CierreController::class, 'descargar'])->name('archivos');
+        });
+
         Route::post('/practicas/{practica}/supervisor', [PracticanteController::class, 'asignarSupervisor'])->name('practicas.supervisor');
         Route::post('/practicas/{practica}/cancelar', [PracticanteController::class, 'cancelar'])->name('practicas.cancelar');
 

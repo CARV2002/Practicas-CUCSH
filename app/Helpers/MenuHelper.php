@@ -134,6 +134,11 @@ class MenuHelper
                         'path' => '/admin/lista-practicantes',
                     ],
                     [
+                        'name' => 'Cierre de prácticas',
+                        'icon' => 'calendar',
+                        'path' => '/admin/lista-cierres',
+                    ],
+                    [
                         'name' => 'Reportes',
                         'icon' => 'charts',
                         'path' => '/admin/lista-reportes',

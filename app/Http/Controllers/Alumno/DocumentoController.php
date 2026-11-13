@@ -19,6 +19,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use App\Enums\ReporteTipo;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use App\Enums\ValidacionEstado;
 
 class DocumentoController extends Controller
 {
@@ -103,20 +104,21 @@ class DocumentoController extends Controller
 }
 
     public function subirCartaTermino(Request $request, Practica $practica): RedirectResponse
-    {
-        abort_unless((int) $practica->postulacion->alumno_id === (int) $request->user()->alumno->id, 403);
+{
+    abort_unless((int) $practica->postulacion->alumno_id === (int) $request->user()->alumno->id, 403);
 
-        if (! in_array($practica->estado, PracticaEstado::activas(), true)) {
-            throw ValidationException::withMessages(['archivo' => 'La práctica ya no está activa.']);
-        }
-
-        $request->validate(['archivo' => ['required', 'file', 'mimes:pdf', 'max:10240']]);
-
-        $carta = CartaTermino::firstOrCreate(['practica_id' => $practica->id]);
-        $carta->addMediaFromRequest('archivo')->toMediaCollection('carta_termino');
-
-        return back()->with('status', 'Carta de término enviada.');
+    if ($practica->estado !== PracticaEstado::EnCurso) {
+        throw ValidationException::withMessages(['archivo' => 'Tu carta de término ya no admite cambios.']);
     }
+
+    $request->validate(['archivo' => ['required', 'file', 'mimes:pdf', 'max:10240']]);
+
+    $carta = CartaTermino::firstOrCreate(['practica_id' => $practica->id]);
+    $carta->addMediaFromRequest('archivo')->toMediaCollection('carta_termino');
+    $carta->update(['estado_validacion' => ValidacionEstado::Pendiente]);   // vuelve a revisión
+
+    return back()->with('status', 'Carta de término enviada.');
+}
 
     public function descargar(Request $request, Media $media)
     {

@@ -15,7 +15,7 @@ function pantallasPorRol(): array
         Rol::Empresa->value => ['empresa.dashboard', 'empresa.convenio', 'empresa.documentos', 'empresa.lista-programas', 'empresa.lista-practicantes'],
         Rol::Administrador->value => [
             'admin.dashboard', 'admin.lista-convenios', 'admin.lista-dictamenes', 'admin.lista-empresas',
-            'admin.lista-programas', 'admin.lista-practicantes', 'admin.lista-reportes', 'admin.catalogos', 'admin.lista-usuarios',
+            'admin.lista-programas', 'admin.lista-practicantes', 'admin.lista-reportes', 'admin.catalogos', 'admin.lista-usuarios','admin.lista-cierres',
         ],
     ];
 }

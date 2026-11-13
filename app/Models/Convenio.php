@@ -23,10 +23,18 @@ class Convenio extends Model implements HasMedia
     protected $table = 'convenios';
 
     protected $fillable = [
-        'empresa_id', 'gestionado_por', 'folio', 'estado', 'fecha_recepcion',
-        'objetivos', 'actividades_propuestas', 'plazas_estimadas',
-        'medio_conocimiento', 'experiencia_previa',
-        'fecha_inicio_vigencia', 'fecha_fin_vigencia',
+        'empresa_id',
+        'gestionado_por',
+        'folio',
+        'estado',
+        'fecha_recepcion',
+        'objetivos',
+        'actividades_propuestas',
+        'plazas_estimadas',
+        'medio_conocimiento',
+        'experiencia_previa',
+        'fecha_inicio_vigencia',
+        'fecha_fin_vigencia',
     ];
 
     protected function casts(): array
@@ -45,10 +53,20 @@ class Convenio extends Model implements HasMedia
         // Borradores: SIN singleFile(), cada versión que Jurídica devuelve queda guardada.
         $this->addMediaCollection('borrador_convenio')
             ->useDisk('local')
-            ->acceptsMimeTypes([
-                'application/pdf',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            ]);
+            ->acceptsFile(function (\Spatie\MediaLibrary\MediaCollections\File $file) {
+                $ext = strtolower(pathinfo($file->name, PATHINFO_EXTENSION));
+
+                return match ($ext) {
+                    'pdf' => $file->mimeType === 'application/pdf',
+                    // Según el servidor, un .docx se detecta como Word, zip u octet-stream
+                    'docx' => in_array($file->mimeType, [
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'application/zip',
+                        'application/octet-stream',
+                    ], true),
+                    default => false,
+                };
+            });
 
         // Escaneo de los 3 juegos originales firmados por ambas partes
         $this->addMediaCollection('convenio_firmado')
@@ -120,7 +138,7 @@ class Convenio extends Model implements HasMedia
     {
         return $this->dictamenes()->exists()
             && $this->dictamenesPendientes() === 0
-            && ! $this->tieneAprobatorio();
+            && !$this->tieneAprobatorio();
     }
 
     /** Sin pendientes y con al menos una carrera aprobatoria. */
@@ -160,7 +178,7 @@ class Convenio extends Model implements HasMedia
 
         return $ids === null
             ? $query
-            : $query->whereHas('dictamenes', fn (Builder $q) => $q->whereIn('carrera_id', $ids));
+            : $query->whereHas('dictamenes', fn(Builder $q) => $q->whereIn('carrera_id', $ids));
     }
 
     public function estaVigente(?CarbonInterface $en = null): bool
