@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>{{ $title ?? 'Inicio' }}</title>
+  <title>@yield('title', 'Prácticas Profesionales | CUCSH')</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,14 +25,14 @@
       <a href="{{ route('inicio') }}" class="hidden lg:block" >Inicio</a>
       <a href="{{ route('estudiantes') }}" >Estudiantes</a>
       <a href="{{ route('empresas') }}">Empresas</a>
-      <a href="#" class="hidden lg:block">Contacto</a>
+      <a href="#contacto" class="hidden lg:block">Contacto</a>
       <a
         
         class="btn-demo text-white" 
         style="padding-bottom: 16px;"
-        href="/signin"
+        href="{{ auth()->check() ? route('dashboard') : route('login') }}"
         >
-        Iniciar sesión
+        {{ auth()->check() ? 'Mi panel' : 'Iniciar sesión' }}
         </a>
     </div>
   </nav>
@@ -57,29 +57,29 @@
             </div>
             <br>
         <h4 class="font-bold">Centro Universitario de Ciencias Sociales y Humanidades</h4>
-        <a href="#" class="text-sm">Los Belenes. Av. José Parres Arias #150, San Jose del Bajio,</a><br>
-        <a href="#" class="text-sm">C.P. 45132. Zapopan, Jalisco, México.  </a><br>
-        <a href="#" class="text-sm">Teléfono: +52 (33) 38193300</a>
+        <span class="text-sm">Los Belenes. Av. José Parres Arias #150, San Jose del Bajio,</span><br>
+        <span class="text-sm">C.P. 45132. Zapopan, Jalisco, México.</span><br>
+        <a href="tel:+523338193300" class="text-sm">Teléfono: +52 (33) 38193300</a>
         
 
         
         
       </div>
-      <div class="footer-col">
+      <div class="footer-col" id="contacto">
         <a href="#" style="visibility: hidden;">f</a>
         <a href="#" style="visibility: hidden;">📷</a>
         <a href="#" style="visibility: hidden;">in</a>
         <h4>Contáctanos </h4>
-        <a href="#">practicas.profesionales.cucsh@csh.udg.mx</a>
-        <a href="#">(33) 3819-3300 </a>
-        <a href="#">Ext. 23549, 23404</a>
+        <a href="mailto:practicas.profesionales.cucsh@csh.udg.mx">practicas.profesionales.cucsh@csh.udg.mx</a>
+        <a href="tel:+523338193300">(33) 3819-3300</a>
+        <span style="display:block; font-size:12px; color: var(--text-muted);">Ext. 23549, 23404</span>
 
       </div>
 
 
     </div>
     <div class="footer-bottom">
-      <span>Derechos reservados ©2026. Universidad de Guadalajara.</span>
+      <span>Derechos reservados ©{{ now()->year }}. Universidad de Guadalajara.</span>
       <span>
         <a href="#">Términos y condiciones</a> &nbsp;|&nbsp;
         <a href="#">Políticas de privacidad</a>

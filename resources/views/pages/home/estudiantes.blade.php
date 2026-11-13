@@ -1,5 +1,7 @@
 @extends('layouts.landing')
 
+@section('title', 'Estudiantes | Prácticas Profesionales CUCSH')
+
 @section('content')
 
 <style>
@@ -447,7 +449,11 @@
     <div class="brand-tag">Estudiantes</div>
     <h1>Prácticas Profesionales</h1>
     <p>Habilidades y competencias para el escenario laboral</p>
-    <a href="/signin" class="btn-demo">Iniciar sesión</a>
+    @auth
+      <a href="{{ route('dashboard') }}" class="btn-demo">Ir a mi panel</a>
+    @else
+      <a href="{{ route('login') }}" class="btn-demo">Iniciar sesión</a>
+    @endauth
   </div>
 
   <section class="section-timeline">
@@ -455,43 +461,39 @@
         <div class="section-header">
             <span class="badge-category">Flujo del Proceso</span>
             <h2>Realiza tus prácticas en 5 pasos</h2>
-            <p>Gestiona todo tu camino profesional desde una plataforma intuitiva y centralizada.</p>
+            <p>Estas son las etapas que sigue tu trámite dentro de la plataforma, desde tu registro hasta la acreditación.</p>
         </div>
 
         <div class="timeline-grid">
             <div class="timeline-card">
                 <div class="step-number">01</div>
-                <h3>Registra tu información</h3>
-                <p>Sube tus documentos oficiales y espera su validación para habilitar tu participación en los programas.</p>
-                <span class="card-action-hint">Ver más <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+                <h3>Regístrate y sube tu IMSS</h3>
+                <p>Crea tu cuenta con tu código de alumno y tu carrera, y sube la constancia de tu seguro facultativo (IMSS) con su fecha de vigencia: debe cubrir hasta el final de tus prácticas.</p>
+                <span class="card-action-hint">Mis documentos <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
             </div>
-
             <div class="timeline-card">
                 <div class="step-number">02</div>
-                <h3>Postúlate y elige empresa</h3>
-                <p>Inscríbete en los programas disponibles del catálogo y selecciona la organización que acepte tu perfil.</p>
-                <span class="card-action-hint">Ver más <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+                <h3>Postúlate con tu kardex</h3>
+                <p>Consulta los programas de tu carrera con convenio vigente y cupo disponible. Te postulas adjuntando tu kardex y el porcentaje de créditos que llevas. Puedes tener una sola empresa o práctica en trámite a la vez.</p>
+                <span class="card-action-hint">Oferta programas <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
             </div>
-
             <div class="timeline-card">
                 <div class="step-number">03</div>
-                <h3>Obtén tu asignación</h3>
-                <p>Descarga tu Oficio de Asignación, gestiona las firmas requeridas y formaliza el inicio con la empresa.</p>
-                <span class="card-action-hint">Ver más <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+                <h3>Recibe tu carta de presentación</h3>
+                <p>La Coordinación revisa tu postulación y emite tu carta de presentación, que reserva tu cupo. Te presentas con la organización y subes en PDF la carta de aceptación que te entregue.</p>
+                <span class="card-action-hint">Mis documentos <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
             </div>
-
             <div class="timeline-card">
                 <div class="step-number">04</div>
-                <h3>Inicia tus prácticas</h3>
-                <p>Adjunta el oficio firmado digitalmente a la plataforma y comienza tus actividades operativas curriculares.</p>
-                <span class="card-action-hint">Ver más <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+                <h3>Inicia y reporta tus horas</h3>
+                <p>La Coordinación activa tu práctica con sus fechas de inicio y fin. Durante la práctica subes tus reportes (mensual, intermedio y final) en PDF; tus horas cuentan cuando se validan.</p>
+                <span class="card-action-hint">Mis prácticas <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
             </div>
-
             <div class="timeline-card full-width-mobile">
                 <div class="step-number">05</div>
-                <h3>Concluye el proceso</h3>
-                <p>Sube tu carta de término y recibe tu constancia oficial de liberación de prácticas profesionales.</p>
-                <span class="card-action-hint">Ver más <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+                <h3>Concluye y acredita</h3>
+                <p>Al completar tus horas subes tu carta de término. La Coordinación la valida y envía el oficio de acreditación a Control Escolar, que lo captura en SIIAU y deja tu práctica acreditada.</p>
+                <span class="card-action-hint">Mis prácticas <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
             </div>
         </div>
     </div>
@@ -500,46 +502,46 @@
   <section class="section-resources">
     <div class="container">
         <div class="section-header">
-            <span class="badge-category">Centro de Soporte</span>
-            <h2>Recursos para estudiantes</h2>
-            <p>Formatos institucionales, infografías y guías diseñadas para agilizar tu trámite.</p>
+            <span class="badge-category">Documentos</span>
+            <h2>Lo que necesitas para tus prácticas</h2>
+            <p>Estos son los documentos que solicita la plataforma durante el proceso. Todos se cargan desde Mis documentos.</p>
         </div>
 
         <div class="resources-grid">
             <div class="resource-premium-card">
                 <div class="resource-icon-wrapper red-accent">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/></svg>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 </div>
-                <h3>Guía de inicio</h3>
-                <p>El manual definitivo con capturas de pantalla sobre cómo iniciar con éxito.</p>
-                <a href="#" class="resource-link">Ver guía completa <span>→</span></a>
+                <h3>Constancia IMSS</h3>
+                <p>Comprobante de tu seguro facultativo con su fecha de vigencia. Es indispensable para que se emita tu carta de presentación y para activar tu práctica.</p>
+                <span class="resource-link">Debe estar vigente al emitir tu carta</span>
             </div>
 
             <div class="resource-premium-card">
                 <div class="resource-icon-wrapper blue-accent">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 </div>
-                <h3>Formatos</h3>
-                <p>Descarga directa de cartas de aceptación, reportes obligatorios y plantillas oficiales.</p>
-                <a href="#" class="resource-link">Descargar ZIP <span>→</span></a>
+                <h3>Kardex</h3>
+                <p>Se adjunta en cada postulación junto con el porcentaje de créditos que llevas, que debe alcanzar el mínimo que exige tu carrera (consulta la tabla más abajo).</p>
+                <span class="resource-link">PDF o imagen, hasta 10 MB</span>
             </div>
 
             <div class="resource-premium-card">
                 <div class="resource-icon-wrapper orange-accent">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="21" y1="9" x2="3" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><polyline points="9 11 12 14 22 4"/></svg>
                 </div>
-                <h3>Infografías</h3>
-                <p>Esquemas visuales y mapas mentales rápidos para comprender los requisitos clave.</p>
-                <a href="#" class="resource-link">Explorar multimedia <span>→</span></a>
+                <h3>Carta de aceptación</h3>
+                <p>La que te entrega la organización al aceptarte. Puedes subirla en cuanto tengas tu carta de presentación; con ella la Coordinación activa tu práctica.</p>
+                <span class="resource-link">Solo en PDF</span>
             </div>
 
             <div class="resource-premium-card">
                 <div class="resource-icon-wrapper purple-accent">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 </div>
-                <h3>Preguntas frecuentes</h3>
-                <p>Respuestas inmediatas a los problemas más comunes de registro y plazos académicos.</p>
-                <a href="#" class="resource-link">Consultar Base de Conocimiento <span>→</span></a>
+                <h3>Reportes y carta de término</h3>
+                <p>Reportes mensual, intermedio y final con las horas que realizaste, firmados y en PDF. Si uno es rechazado, lo corriges y lo subes de nuevo. Al cubrir tus horas subes la carta de término.</p>
+                <span class="resource-link">Solo en PDF</span>
             </div>
         </div>
     </div>
@@ -551,88 +553,120 @@
             <div class="benefits-sticky-header">
                 <span class="badge-category">Tu Futuro</span>
                 <h2>Beneficios de tu trayectoria</h2>
-                <p>El puente estratégico entre tu formación universitaria y tu inserción definitiva en los ecosistemas de alta innovación laboral.</p>
+                <p>El puente entre tu formación universitaria y tu experiencia profesional, con respaldo institucional del CUCSH.</p>
             </div>
             <div class="benefits-list">
                 <div class="benefit-item">
                     <h4>Experiencia profesional real</h4>
-                    <p>Deja la teoría atrás. Enfrenta retos reales de ingeniería, humanidades o gestión en empresas líderes del mercado regional.</p>
+                    <p>Aplica lo aprendido en una organización con convenio vigente con el CUCSH, o en un proyecto universitario, según la modalidad de tu programa.</p>
                 </div>
                 <div class="benefit-item">
-                    <h4>Desarrollo de competencias críticas</h4>
-                    <p>Potencia tus soft-skills y tus habilidades técnicas bajo la mentoría directa de profesionales experimentados del sector.</p>
+                    <h4>Seguimiento de tus horas</h4>
+                    <p>Cada reporte que subes se valida y suma a tu avance. Ves en tu panel cuántas horas llevas, cuántas te faltan y el estado de cada reporte.</p>
                 </div>
                 <div class="benefit-item">
-                    <h4>Vinculación de alto valor</h4>
-                    <p>Construye un networking sólido y accede a ofertas de contratación directa antes de concluir tu carrera.</p>
+                    <h4>Convenios con respaldo</h4>
+                    <p>Las organizaciones pasan por revisión de documentos, validación académica, revisión jurídica y firmas antes de poder publicar programas.</p>
                 </div>
                 <div class="benefit-item">
-                    <h4>Acompañamiento Institucional</h4>
-                    <p>Soporte continuo y validación académica por parte de asesores del CUCSH asignados exclusivamente a tu éxito.</p>
+                    <h4>Acompañamiento institucional</h4>
+                    <p>La Coordinación valida tu postulación, activa tu práctica, puede asignarte un profesor supervisor y da seguimiento hasta tu acreditación.</p>
                 </div>
             </div>
         </div>
     </div>
   </section>
 
-  <section class="section-stats">
+  @if ($divisiones->isNotEmpty())
+  <section class="section-benefits">
     <div class="container">
-        <div class="stats-glass-grid">
-            <div class="stat-box">
-                <span class="stat-number">500+</span>
-                <span class="stat-label">Estudiantes activos</span>
+        <div class="benefits-layout">
+            <div class="benefits-sticky-header">
+                <span class="badge-category">Requisitos</span>
+                <h2>Horas y créditos por carrera</h2>
+                <p>Cada carrera define las horas de práctica que debes cubrir y el porcentaje mínimo de créditos que necesitas para postularte.</p>
             </div>
-            <div class="stat-box">
-                <span class="stat-number">200+</span>
-                <span class="stat-label">Instituciones receptoras</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-number">1,000+</span>
-                <span class="stat-label">Trámites gestionados</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-number">95%</span>
-                <span class="stat-label">Procesos concluidos</span>
+            <div class="benefits-list">
+                @foreach ($divisiones as $division)
+                    <div class="benefit-item">
+                        <h4>{{ $division->nombre }}</h4>
+                        @foreach ($division->carreras as $carrera)
+                            <p>
+                                <strong>{{ $carrera->nombre }}</strong>:
+                                {{ $carrera->horas_requeridas }} horas · mínimo
+                                {{ rtrim(rtrim(number_format((float) $carrera->porcentaje_creditos_minimo, 2), '0'), '.') }}&nbsp;% de créditos
+                            </p>
+                        @endforeach
+                    </div>
+                @endforeach
             </div>
         </div>
     </div>
   </section>
+  @endif
+
+  @if ($organizaciones + $programasAbiertos + $practicasEnCurso + $practicasAcreditadas > 0)
+  <section class="section-stats">
+    <div class="container">
+        <div class="stats-glass-grid">
+            <div class="stat-box">
+                <span class="stat-number">{{ number_format($organizaciones) }}</span>
+                <span class="stat-label">Organizaciones con convenio vigente</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number">{{ number_format($programasAbiertos) }}</span>
+                <span class="stat-label">Programas abiertos</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number">{{ number_format($practicasEnCurso) }}</span>
+                <span class="stat-label">Prácticas en curso</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number">{{ number_format($practicasAcreditadas) }}</span>
+                <span class="stat-label">Prácticas acreditadas</span>
+            </div>
+        </div>
+    </div>
+  </section>
+  @endif
+
+  @guest
+  <div class="cta-band">
+    <h2>¿Listo para empezar tus prácticas?</h2>
+    <a href="{{ route('registro.alumno') }}" class="btn-demo">Crear cuenta de alumno</a>
+    <a href="{{ route('login') }}" class="btn-outline">Ya tengo cuenta</a>
+  </div>
+  @endguest
 
   <section class="section-contact">
     <div class="container">
         <div class="contact-card-wrapper">
             <div class="contact-info-side">
                 <h2>¿Necesitas ayuda con tu proceso?</h2>
-                <p>Si tienes inconvenientes técnicos, dudas con la carga documental o requieres asistencia de un asesor, envíanos un ticket instantáneo.</p>
+                <p>Si tienes dudas con la carga de documentos, con el estado de tu postulación o con tu práctica, comunícate con la Coordinación de Prácticas Profesionales del CUCSH.</p>
+                @auth
                 <div class="quick-contact-meta">
-                    <p><strong>Respuesta estimada:</strong> menos de 24 horas hábiles.</p>
+                    <p>También puedes consultar la <a href="{{ route('ayuda') }}" style="color: inherit; text-decoration: underline;">sección de ayuda</a> dentro de la plataforma.</p>
                 </div>
+                @endauth
             </div>
             <div class="contact-form-side">
-                <form>
-                    <div class="form-row-twin">
-                        <div class="form-group">
-                            <label>Nombre completo</label>
-                            <input type="text" placeholder="Ej. Juan Pérez">
-                        </div>
-                        <div class="form-group">
-                            <label>Correo electrónico</label>
-                            <input type="email" placeholder="juan.perez@alumnos.udg.mx">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Asunto</label>
-                        <input type="text" placeholder="Ej. Problema con firma de asignación">
-                    </div>
-                    <div class="form-group">
-                        <label>Mensaje o Descripción</label>
-                        <textarea rows="4" placeholder="Describe detalladamente tu situación..."></textarea>
-                    </div>
-                    <button type="submit" class="btn-primary-submit">
-                        Enviar consulta
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                    </button>
-                </form>
+                <div class="form-group">
+                    <label>Correo electrónico</label>
+                    <a href="mailto:practicas.profesionales.cucsh@csh.udg.mx" style="font-size: var(--text-theme-sm); color: var(--color-black);">practicas.profesionales.cucsh@csh.udg.mx</a>
+                </div>
+                <div class="form-group">
+                    <label>Teléfono</label>
+                    <a href="tel:+523338193300" style="font-size: var(--text-theme-sm); color: var(--color-black);">(33) 3819-3300, ext. 23549 o 23404</a>
+                </div>
+                <div class="form-group">
+                    <label>Dirección</label>
+                    <span style="font-size: var(--text-theme-sm); color: var(--color-black);">Los Belenes. Av. José Parres Arias #150, San José del Bajío, C.P. 45132. Zapopan, Jalisco, México.</span>
+                </div>
+                <a href="mailto:practicas.profesionales.cucsh@csh.udg.mx" class="btn-primary-submit" style="text-decoration: none;">
+                    Escribir a la Coordinación
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </a>
             </div>
         </div>
     </div>

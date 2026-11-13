@@ -3,6 +3,7 @@
 use App\Enums\Rol;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\HomeController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\CatalogoController;
 use App\Http\Controllers\Admin\ConvenioController;
@@ -29,9 +30,9 @@ use App\Http\Controllers\Admin\CierreController;
 | Sitio público
 |--------------------------------------------------------------------------
 */
-Route::view('/', 'pages.home.inicio')->name('inicio');
-Route::view('/estudiantes', 'pages.home.estudiantes')->name('estudiantes');
-Route::view('/empresas', 'pages.home.empresas')->name('empresas');
+Route::get('/', [HomeController::class, 'inicio'])->name('inicio');
+Route::get('/estudiantes', [HomeController::class, 'estudiantes'])->name('estudiantes');
+Route::get('/empresas', [HomeController::class, 'empresas'])->name('empresas');
 
 // /login es el nombre histórico; la pantalla real es /signin (ruta nombrada "login" en auth.php)
 Route::get('/login', fn() => redirect()->route('login'));
