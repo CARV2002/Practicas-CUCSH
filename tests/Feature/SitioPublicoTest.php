@@ -169,3 +169,43 @@ test('empresas ofrece ir al panel cuando ya hay sesión', function () {
         ->assertSee('Ir a mi panel')
         ->assertDontSee('Registrar mi organización');
 });
+
+test('contacto muestra los datos de la Coordinación tomados de la configuración', function () {
+    $this->get(route('contacto'))
+        ->assertOk()
+        ->assertSee(config('practicas.contacto.correo'))
+        ->assertSee(config('practicas.contacto.telefono'))
+        ->assertSee('23549')
+        ->assertSee('23404')
+        ->assertSee(config('practicas.domicilio_cucsh'))
+        ->assertSee(route('estudiantes'), false)
+        ->assertSee(route('empresas'), false)
+        ->assertSee(route('password.request'), false)
+        ->assertSee(route('register'), false)
+        ->assertDontSee('<form', false)
+        ->assertDontSee('24 horas');
+});
+
+test('contacto ofrece la ayuda interna cuando ya hay sesión', function () {
+    $this->actingAs(User::factory()->create())
+        ->get(route('contacto'))
+        ->assertOk()
+        ->assertSee(route('ayuda'), false)
+        ->assertSee('Ir a mi panel')
+        ->assertDontSee('Crear una cuenta');
+});
+
+test('el menú público enlaza a la página de contacto', function () {
+    $this->get(route('inicio'))
+        ->assertOk()
+        ->assertSee('href="' . route('contacto') . '"', false);
+});
+
+test('todas las páginas públicas muestran el mismo correo de contacto', function () {
+    foreach (['inicio', 'estudiantes', 'empresas', 'contacto'] as $ruta) {
+        $this->get(route($ruta))
+            ->assertOk()
+            ->assertSee(config('practicas.contacto.correo'))
+            ->assertDontSee('vinculacion.cucsh@academicos.udg.mx');
+    }
+});

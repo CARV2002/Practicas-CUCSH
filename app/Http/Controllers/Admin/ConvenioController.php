@@ -28,10 +28,10 @@ class ConvenioController extends Controller
     public function index(Request $request): View
     {
         $convenios = Convenio::with(['empresa', 'seguimientos'])
-            ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->string('estado')))
-            ->when($request->filled('q'), fn ($q) => $q->whereHas('empresa', fn ($e) => $e
-                ->where('razon_social', 'like', '%'.$request->string('q').'%')
-                ->orWhere('rfc', 'like', '%'.$request->string('q').'%')))
+            ->when($request->filled('estado'), fn($q) => $q->where('estado', $request->string('estado')))
+            ->when($request->filled('q'), fn($q) => $q->whereHas('empresa', fn($e) => $e
+                ->where('razon_social', 'like', '%' . $request->string('q') . '%')
+                ->orWhere('rfc', 'like', '%' . $request->string('q') . '%')))
             ->latest('fecha_recepcion')
             ->latest('id')
             ->paginate(15)
@@ -46,6 +46,8 @@ class ConvenioController extends Controller
 
     public function show(Convenio $convenio): View
     {
+        $this->authorize('view', $convenio);
+
         $convenio->load([
             'empresa.user',
             'dictamenes.carrera',
@@ -66,6 +68,8 @@ class ConvenioController extends Controller
     /** Valida o rechaza un documento del expediente de la empresa. */
     public function resolverDocumento(Request $request, Convenio $convenio, Media $media): RedirectResponse
     {
+        $this->authorize('gestionar', $convenio);
+
         abort_unless(
             $media->model_type === Empresa::class && (int) $media->model_id === (int) $convenio->empresa_id,
             404
@@ -88,6 +92,8 @@ class ConvenioController extends Controller
 
     public function enviarAValidacionAcademica(Request $request, Convenio $convenio): RedirectResponse
     {
+        $this->authorize('gestionar', $convenio);
+
         $this->workflow->enviarAValidacionAcademica($convenio, $request->user()->personal);
 
         return back()->with('status', 'Convenio turnado a las carreras.');
@@ -95,6 +101,8 @@ class ConvenioController extends Controller
 
     public function subirBorrador(Request $request, Convenio $convenio): RedirectResponse
     {
+        $this->authorize('gestionar', $convenio);
+
         $request->validate([
             'borrador' => ['required', 'file', 'mimes:pdf,docx', 'max:10240'],
         ]);
@@ -106,6 +114,8 @@ class ConvenioController extends Controller
 
     public function turnarAJuridica(Request $request, Convenio $convenio): RedirectResponse
     {
+        $this->authorize('gestionar', $convenio);
+
         $this->workflow->turnarAJuridica($convenio, $request->user()->personal);
 
         return back()->with('status', 'Borrador turnado a la Unidad Jurídica.');
@@ -113,12 +123,17 @@ class ConvenioController extends Controller
 
     public function registrarDictamenJuridico(Request $request, Convenio $convenio): RedirectResponse
     {
+        $this->authorize('gestionar', $convenio);
+
         $datos = $request->validate([
-            'resultado' => ['required', Rule::in([
-                SeguimientoEstado::Aprobado->value,
-                SeguimientoEstado::Observado->value,
-                SeguimientoEstado::Rechazado->value,
-            ])],
+            'resultado' => [
+                'required',
+                Rule::in([
+                    SeguimientoEstado::Aprobado->value,
+                    SeguimientoEstado::Observado->value,
+                    SeguimientoEstado::Rechazado->value,
+                ])
+            ],
             'comentario' => ['nullable', 'string', 'max:2000'],
             'documento' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
         ]);
@@ -144,6 +159,8 @@ class ConvenioController extends Controller
 
     public function registrarFirma(Request $request, Convenio $convenio): RedirectResponse
     {
+        $this->authorize('gestionar', $convenio);
+
         $datos = $request->validate([
             'etapa' => ['required', Rule::in([EtapaConvenio::FirmaEmpresa->value, EtapaConvenio::FirmaRectoria->value])],
             'comentario' => ['nullable', 'string', 'max:1000'],
@@ -161,6 +178,8 @@ class ConvenioController extends Controller
 
     public function formalizar(Request $request, Convenio $convenio): RedirectResponse
     {
+        $this->authorize('gestionar', $convenio);
+
         $datos = $request->validate([
             'folio' => ['required', 'string', 'max:30'],
             'fecha_inicio_vigencia' => ['required', 'date'],
@@ -170,6 +189,7 @@ class ConvenioController extends Controller
         ]);
 
         if ($request->hasFile('convenio_firmado')) {
+            $convenio->clearMediaCollection('convenio_firmado');   // un reintento no deja versiones duplicadas
             $convenio->addMediaFromRequest('convenio_firmado')->toMediaCollection('convenio_firmado');
         }
 
@@ -180,11 +200,13 @@ class ConvenioController extends Controller
 
         $aviso = $this->workflow->advertenciaVigencia($inicio, $fin);
 
-        return back()->with('status', 'Convenio formalizado.'.($aviso ? " Aviso: {$aviso}" : ''));
+        return back()->with('status', 'Convenio formalizado.' . ($aviso ? " Aviso: {$aviso}" : ''));
     }
 
     public function rechazar(Request $request, Convenio $convenio): RedirectResponse
     {
+        $this->authorize('gestionar', $convenio);
+
         $datos = $request->validate(['motivo' => ['required', 'string', 'max:1000']]);
 
         $this->workflow->rechazar($convenio, $request->user()->personal, $datos['motivo']);
@@ -200,38 +222,42 @@ class ConvenioController extends Controller
 
         abort_unless($pertenece, 404);
 
+        $this->authorize('download', $media);
+
         return $media->toResponse(request());
     }
 
     public function generarBorrador(Request $request, Convenio $convenio, GeneradorBorradorConvenio $generador): RedirectResponse
-{
-    $enRedaccion = $convenio->etapasAbiertas()->where('etapa', EtapaConvenio::RedaccionBorrador->value)->exists();
+    {
+        $this->authorize('gestionar', $convenio);
 
-    if (! $enRedaccion || ! $convenio->puedePasarAJuridica()) {
-        return back()->withErrors(['convenio' => 'El borrador solo se genera cuando la etapa de redacción está abierta y hay al menos una carrera aprobada.']);
+        $enRedaccion = $convenio->etapasAbiertas()->where('etapa', EtapaConvenio::RedaccionBorrador->value)->exists();
+
+        if (!$enRedaccion || !$convenio->puedePasarAJuridica()) {
+            return back()->withErrors(['convenio' => 'El borrador solo se genera cuando la etapa de redacción está abierta y hay al menos una carrera aprobada.']);
+        }
+
+        $datos = $request->validate([
+            'representante_nombre' => ['required', 'string', 'max:255'],
+            'representante_cargo' => ['required', 'string', 'max:255'],
+            'constitucion' => ['required', 'string', 'max:1500'],
+            'atribuciones' => ['required', 'string', 'max:1500'],
+            'facultad_firmante' => ['required', 'string', 'max:1500'],
+            'domicilio_legal' => ['required', 'string', 'max:500'],
+            'lugar_firma' => ['required', 'string', 'max:100'],
+            'fecha_firma' => ['required', 'date'],
+            'apoyo_economico' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $convenio->load('empresa');
+
+        $ruta = $generador->generar($convenio, $datos);
+        $version = $convenio->getMedia('borrador_convenio')->count() + 1;
+
+        $convenio->addMedia($ruta)
+            ->usingFileName("borrador-convenio-v{$version}.docx")
+            ->toMediaCollection('borrador_convenio');
+
+        return back()->with('status', "Borrador v{$version} generado y adjuntado. Revísalo en Word antes de turnarlo a Jurídica.");
     }
-
-    $datos = $request->validate([
-        'representante_nombre' => ['required', 'string', 'max:255'],
-        'representante_cargo' => ['required', 'string', 'max:255'],
-        'constitucion' => ['required', 'string', 'max:1500'],
-        'atribuciones' => ['required', 'string', 'max:1500'],
-        'facultad_firmante' => ['required', 'string', 'max:1500'],
-        'domicilio_legal' => ['required', 'string', 'max:500'],
-        'lugar_firma' => ['required', 'string', 'max:100'],
-        'fecha_firma' => ['required', 'date'],
-        'apoyo_economico' => ['nullable', 'string', 'max:500'],
-    ]);
-
-    $convenio->load('empresa');
-
-    $ruta = $generador->generar($convenio, $datos);
-    $version = $convenio->getMedia('borrador_convenio')->count() + 1;
-
-    $convenio->addMedia($ruta)
-        ->usingFileName("borrador-convenio-v{$version}.docx")
-        ->toMediaCollection('borrador_convenio');
-
-    return back()->with('status', "Borrador v{$version} generado y adjuntado. Revísalo en Word antes de turnarlo a Jurídica.");
-}
 }

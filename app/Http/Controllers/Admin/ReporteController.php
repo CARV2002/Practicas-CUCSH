@@ -26,13 +26,13 @@ class ReporteController extends Controller
         $personal = $request->user()->personal;
 
         $reportes = Reporte::with(['practica.postulacion.alumno.user', 'practica.postulacion.alumno.carrera', 'practica.postulacion.programa.convenio.empresa', 'media'])
-            ->whereHas('practica', fn ($p) => $p->visiblesPara($personal))
-            ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->string('estado')))
-            ->when($request->filled('tipo'), fn ($q) => $q->where('tipo', $request->string('tipo')))
-            ->when($request->filled('carrera_id'), fn ($q) => $q->whereHas('practica.postulacion.alumno', fn ($a) => $a->where('carrera_id', $request->integer('carrera_id'))))
-            ->when($request->filled('q'), fn ($q) => $q->whereHas('practica.postulacion.alumno', fn ($a) => $a
-                ->where('num_control', 'like', '%'.$request->string('q').'%')
-                ->orWhereHas('user', fn ($u) => $u->where('name', 'like', '%'.$request->string('q').'%'))))
+            ->whereHas('practica', fn($p) => $p->visiblesPara($personal))
+            ->when($request->filled('estado'), fn($q) => $q->where('estado', $request->string('estado')))
+            ->when($request->filled('tipo'), fn($q) => $q->where('tipo', $request->string('tipo')))
+            ->when($request->filled('carrera_id'), fn($q) => $q->whereHas('practica.postulacion.alumno', fn($a) => $a->where('carrera_id', $request->integer('carrera_id'))))
+            ->when($request->filled('q'), fn($q) => $q->whereHas('practica.postulacion.alumno', fn($a) => $a
+                ->where('num_control', 'like', '%' . $request->string('q') . '%')
+                ->orWhereHas('user', fn($u) => $u->where('name', 'like', '%' . $request->string('q') . '%'))))
             ->orderByRaw("case estado when 'pendiente' then 0 else 1 end")
             ->latest('periodo_fin')
             ->paginate(15, ['*'], 'reportes')
@@ -52,7 +52,7 @@ class ReporteController extends Controller
             ->visiblesPara($personal)
             ->activas()
             ->get()
-            ->filter(fn ($p) => $p->fecha_fin->lessThanOrEqualTo(now()->addDays(30)) || $p->horasCompletas())
+            ->filter(fn($p) => $p->fecha_fin->lessThanOrEqualTo(now()->addDays(30)) || $p->horasCompletas())
             ->sortBy('fecha_fin')
             ->values();
 
@@ -64,7 +64,7 @@ class ReporteController extends Controller
             'estados' => ReporteEstado::cases(),
             'tipos' => ReporteTipo::cases(),
             'pendientes' => Reporte::where('estado', ReporteEstado::Pendiente->value)
-                ->whereHas('practica', fn ($p) => $p->visiblesPara($personal))
+                ->whereHas('practica', fn($p) => $p->visiblesPara($personal))
                 ->count(),
         ]);
     }
@@ -72,10 +72,8 @@ class ReporteController extends Controller
     /** Valida o rechaza un reporte de horas; las horas validadas son las que cuentan. */
     public function resolver(Request $request, Reporte $reporte): RedirectResponse
     {
-        abort_unless(
-            $request->user()->personal->puedeVerCarrera((int) $reporte->practica->postulacion->alumno->carrera_id),
-            403
-        );
+       $this->authorize('resolver', $reporte);
+
 
         $datos = $request->validate([
             'estado' => ['required', Rule::in([ReporteEstado::Validado->value, ReporteEstado::Rechazado->value])],
@@ -83,24 +81,20 @@ class ReporteController extends Controller
             'retroalimentacion_empresa' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        if (! in_array($reporte->practica->estado, PracticaEstado::activas(), true)) {
+        if (!in_array($reporte->practica->estado, PracticaEstado::activas(), true)) {
             return back()->withErrors(['reporte' => 'La práctica ya no está activa.']);
         }
 
         $reporte->update($datos);
 
-        return back()->with('status', 'Reporte '.($datos['estado'] === ReporteEstado::Validado->value ? 'validado' : 'rechazado').'.');
+        return back()->with('status', 'Reporte ' . ($datos['estado'] === ReporteEstado::Validado->value ? 'validado' : 'rechazado') . '.');
     }
 
     /** Descarga del reporte firmado (disco privado). */
     public function descargar(Request $request, Reporte $reporte, Media $media)
     {
-        abort_unless(
-            $media->model_type === Reporte::class
-            && (int) $media->model_id === (int) $reporte->id
-            && $request->user()->personal->puedeVerCarrera((int) $reporte->practica->postulacion->alumno->carrera_id),
-            404
-        );
+        abort_unless($media->model_type === Reporte::class && (int) $media->model_id === (int) $reporte->id, 404);
+        $this->authorize('download', $media);
 
         return $media->toResponse($request);
     }

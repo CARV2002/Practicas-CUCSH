@@ -28,8 +28,8 @@ class ConvenioController extends Controller
             ->latest('id')
             ->get();
 
-        $vigente = $convenios->first(fn (Convenio $c) => $c->estaVigente());
-        $enTramite = $convenios->first(fn (Convenio $c) => ! $c->estado->esFinal());
+        $vigente = $convenios->first(fn(Convenio $c) => $c->estaVigente());
+        $enTramite = $convenios->first(fn(Convenio $c) => !$c->estado->esFinal());
 
         $diasRestantes = $vigente
             ? (int) now()->startOfDay()->diffInDays($vigente->fecha_fin_vigencia, false)
@@ -39,7 +39,7 @@ class ConvenioController extends Controller
             'empresa' => $empresa,
             'vigente' => $vigente,
             'enTramite' => $enTramite,
-            'historial' => $convenios->filter(fn (Convenio $c) => $c->estado->esFinal() && $c->isNot($vigente)),
+            'historial' => $convenios->filter(fn(Convenio $c) => $c->estado->esFinal() && $c->isNot($vigente)),
             'diasRestantes' => $diasRestantes,
             'puedeRenovar' => $vigente !== null && $enTramite === null && $diasRestantes <= 60,
             'puedeSolicitar' => $vigente === null && $enTramite === null,
@@ -54,11 +54,11 @@ class ConvenioController extends Controller
         $empresa = $request->user()->empresa;
         $convenios = $empresa->convenios()->get();
 
-        if ($convenios->contains(fn (Convenio $c) => ! $c->estado->esFinal())) {
+        if ($convenios->contains(fn(Convenio $c) => !$c->estado->esFinal())) {
             throw ValidationException::withMessages(['convenio' => 'Ya tienes una solicitud de convenio en trámite.']);
         }
 
-        $vigente = $convenios->first(fn (Convenio $c) => $c->estaVigente());
+        $vigente = $convenios->first(fn(Convenio $c) => $c->estaVigente());
 
         if ($vigente && now()->diffInDays($vigente->fecha_fin_vigencia, false) > 60) {
             throw ValidationException::withMessages([
@@ -87,10 +87,9 @@ class ConvenioController extends Controller
     /** Descarga del convenio firmado (solo propio y formalizado; disco privado). */
     public function descargar(Request $request, Convenio $convenio)
     {
-        abort_unless((int) $convenio->empresa_id === (int) $request->user()->empresa->id, 403);
+        $this->authorize('descargarFirmado', $convenio);
 
         $archivo = $convenio->getMedia('convenio_firmado')->last();
-
         abort_unless($archivo !== null, 404);
 
         return $archivo->toResponse($request);

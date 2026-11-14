@@ -19,12 +19,12 @@ class UsuarioController extends Controller
     public function index(Request $request): View
     {
         $usuarios = User::with('roles')
-            ->when($request->filled('q'), fn ($q) => $q->where(fn ($w) => $w
-                ->where('name', 'like', '%'.$request->string('q').'%')
-                ->orWhere('email', 'like', '%'.$request->string('q').'%')))
-            ->when($request->filled('rol'), fn ($q) => $q->role($request->string('rol')->toString()))
-            ->when($request->string('estado')->toString() === 'activo', fn ($q) => $q->where('activo', true))
-            ->when($request->string('estado')->toString() === 'inactivo', fn ($q) => $q->where('activo', false))
+            ->when($request->filled('q'), fn($q) => $q->where(fn($w) => $w
+                ->where('name', 'like', '%' . $request->string('q') . '%')
+                ->orWhere('email', 'like', '%' . $request->string('q') . '%')))
+            ->when($request->filled('rol'), fn($q) => $q->role($request->string('rol')->toString()))
+            ->when($request->string('estado')->toString() === 'activo', fn($q) => $q->where('activo', true))
+            ->when($request->string('estado')->toString() === 'inactivo', fn($q) => $q->where('activo', false))
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();
@@ -71,7 +71,7 @@ class UsuarioController extends Controller
             return back()->withErrors(['usuario' => 'No puedes desactivar tu propia cuenta.']);
         }
 
-        $usuario->update(['activo' => ! $usuario->activo]);
+        $usuario->update(['activo' => !$usuario->activo]);
 
         return back()->with('status', $usuario->activo ? 'Cuenta activada.' : 'Cuenta desactivada.');
     }
@@ -86,5 +86,14 @@ class UsuarioController extends Controller
         $usuario->update(['password' => $datos['password']]);
 
         return back()->with('status', 'Contraseña actualizada.');
+    }
+
+    public function verificarCorreo(User $usuario): RedirectResponse
+    {
+        if (!$usuario->hasVerifiedEmail()) {
+            $usuario->markEmailAsVerified();
+        }
+
+        return back()->with('status', 'Correo marcado como verificado.');
     }
 }

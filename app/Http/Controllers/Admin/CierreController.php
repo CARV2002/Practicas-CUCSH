@@ -28,16 +28,19 @@ class CierreController extends Controller
             : PracticaEstado::activas());
 
         $practicas = Practica::with([
-                'postulacion.alumno.user', 'postulacion.alumno.carrera', 'postulacion.programa.convenio.empresa',
-                'cartaTermino.media', 'oficioAcreditacion.media',
-            ])
+            'postulacion.alumno.user',
+            'postulacion.alumno.carrera',
+            'postulacion.programa.convenio.empresa',
+            'cartaTermino.media',
+            'oficioAcreditacion.media',
+        ])
             ->conHorasAcumuladas()
             ->visiblesPara($personal)
             ->whereHas('cartaTermino')
             ->whereIn('estado', $estados)
-            ->when($request->filled('q'), fn ($q) => $q->whereHas('postulacion.alumno', fn ($a) => $a
-                ->where('num_control', 'like', '%'.$request->string('q').'%')
-                ->orWhereHas('user', fn ($u) => $u->where('name', 'like', '%'.$request->string('q').'%'))))
+            ->when($request->filled('q'), fn($q) => $q->whereHas('postulacion.alumno', fn($a) => $a
+                ->where('num_control', 'like', '%' . $request->string('q') . '%')
+                ->orWhereHas('user', fn($u) => $u->where('name', 'like', '%' . $request->string('q') . '%'))))
             ->latest('id')
             ->paginate(15)
             ->withQueryString();
@@ -159,14 +162,13 @@ class CierreController extends Controller
             404
         );
 
+        $this->authorize('download', $media);
+
         return $media->toResponse($request);
     }
 
     private function autorizar(Request $request, Practica $practica): void
     {
-        abort_unless(
-            $request->user()->personal->puedeVerCarrera((int) $practica->postulacion->alumno->carrera_id),
-            403
-        );
+        $this->authorize('gestionar', $practica);
     }
 }

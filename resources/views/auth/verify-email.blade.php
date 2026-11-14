@@ -1,31 +1,27 @@
-<x-guest-layout>
-    <div class="mb-4 text-sm text-gray-600">
-        {{ __('Thanks for signing up! Before getting started, could you verify your email address by clicking on the link we just emailed to you? If you didn\'t receive the email, we will gladly send you another.') }}
-    </div>
+@extends('layouts.fullscreen-layout')
 
-    @if (session('status') == 'verification-link-sent')
-        <div class="mb-4 font-medium text-sm text-green-600">
-            {{ __('A new verification link has been sent to the email address you provided during registration.') }}
+@section('content')
+    <x-auth.split title="Verifica tu correo"
+        subtitle="Te enviamos un enlace de confirmación a {{ auth()->user()->email }}. Ábrelo para usar la plataforma.">
+
+        @if (session('status') == 'verification-link-sent')
+            <div class="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">Te enviamos un nuevo enlace de verificación.</div>
+        @endif
+
+        <div class="space-y-4">
+            <form method="POST" action="{{ route('verification.send') }}">
+                @csrf
+                <x-auth.submit>Reenviar correo de verificación</x-auth.submit>
+            </form>
+
+            <form method="POST" action="{{ route('logout') }}" class="text-center">
+                @csrf
+                <button class="text-sm text-gray-500 hover:text-gray-700">Cerrar sesión</button>
+            </form>
+
+            <p class="text-center text-xs text-gray-400">
+                ¿No llega? Revisa spam o escribe a practicas.profesionales.cucsh@csh.udg.mx
+            </p>
         </div>
-    @endif
-
-    <div class="mt-4 flex items-center justify-between">
-        <form method="POST" action="{{ route('verification.send') }}">
-            @csrf
-
-            <div>
-                <x-primary-button>
-                    {{ __('Resend Verification Email') }}
-                </x-primary-button>
-            </div>
-        </form>
-
-        <form method="POST" action="{{ route('logout') }}">
-            @csrf
-
-            <button type="submit" class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                {{ __('Log Out') }}
-            </button>
-        </form>
-    </div>
-</x-guest-layout>
+    </x-auth.split>
+@endsection

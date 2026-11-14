@@ -643,7 +643,7 @@
         <div class="contact-card-wrapper">
             <div class="contact-info-side">
                 <h2>¿Necesitas ayuda con tu proceso?</h2>
-                <p>Si tienes dudas con la carga de documentos, con el estado de tu postulación o con tu práctica, comunícate con la Coordinación de Prácticas Profesionales del CUCSH.</p>
+                <p>Si tienes dudas con la carga de documentos, con el estado de tu postulación o con tu práctica, comunícate con la Coordinación de Prácticas Profesionales del CUCSH (consulta también la <a href="{{ route('contacto') }}" style="color: inherit; text-decoration: underline;">página de contacto</a>).</p>
                 @auth
                 <div class="quick-contact-meta">
                     <p>También puedes consultar la <a href="{{ route('ayuda') }}" style="color: inherit; text-decoration: underline;">sección de ayuda</a> dentro de la plataforma.</p>
@@ -653,17 +653,17 @@
             <div class="contact-form-side">
                 <div class="form-group">
                     <label>Correo electrónico</label>
-                    <a href="mailto:practicas.profesionales.cucsh@csh.udg.mx" style="font-size: var(--text-theme-sm); color: var(--color-black);">practicas.profesionales.cucsh@csh.udg.mx</a>
+                    <a href="mailto:{{ config('practicas.contacto.correo') }}" style="font-size: var(--text-theme-sm); color: var(--color-black);">{{ config('practicas.contacto.correo') }}</a>
                 </div>
                 <div class="form-group">
                     <label>Teléfono</label>
-                    <a href="tel:+523338193300" style="font-size: var(--text-theme-sm); color: var(--color-black);">(33) 3819-3300, ext. 23549 o 23404</a>
+                    <a href="tel:{{ config('practicas.contacto.telefono_enlace') }}" style="font-size: var(--text-theme-sm); color: var(--color-black);">{{ config('practicas.contacto.telefono') }}, ext. {{ implode(' o ', config('practicas.contacto.extensiones')) }}</a>
                 </div>
                 <div class="form-group">
                     <label>Dirección</label>
-                    <span style="font-size: var(--text-theme-sm); color: var(--color-black);">Los Belenes. Av. José Parres Arias #150, San José del Bajío, C.P. 45132. Zapopan, Jalisco, México.</span>
+                    <span style="font-size: var(--text-theme-sm); color: var(--color-black);">{{ config('practicas.domicilio_cucsh') }}</span>
                 </div>
-                <a href="mailto:practicas.profesionales.cucsh@csh.udg.mx" class="btn-primary-submit" style="text-decoration: none;">
+                <a href="mailto:{{ config('practicas.contacto.correo') }}" class="btn-primary-submit" style="text-decoration: none;">
                     Escribir a la Coordinación
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 </a>

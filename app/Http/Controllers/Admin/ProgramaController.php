@@ -49,6 +49,8 @@ class ProgramaController extends Controller
 
     public function update(Request $request, Programa $programa): RedirectResponse
     {
+        $this->authorize('gestionar', $programa);
+
         $programa->update($this->validar($request, $programa));
 
         return back()->with('status', 'Programa actualizado.');
@@ -57,6 +59,8 @@ class ProgramaController extends Controller
     /** Cambia el estado: publicar, cerrar o regresar a borrador. Las reglas las aplica ProgramaObserver. */
     public function cambiarEstado(Request $request, Programa $programa): RedirectResponse
     {
+        $this->authorize('gestionar', $programa);
+        
         $datos = $request->validate(['estado' => ['required', Rule::enum(ProgramaEstado::class)]]);
 
         $programa->update(['estado' => $datos['estado']]);
@@ -66,6 +70,8 @@ class ProgramaController extends Controller
 
     public function destroy(Programa $programa): RedirectResponse
     {
+        $this->authorize('gestionar', $programa);
+
         if ($programa->postulaciones()->exists()) {
             return back()->withErrors(['programa' => 'No se puede eliminar: ya tiene postulaciones. Ciérralo en su lugar.']);
         }

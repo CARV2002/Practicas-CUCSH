@@ -23,9 +23,9 @@ class ProgramaController extends Controller
 
         $programas = Programa::with(['carrera', 'convenio'])
             ->conCuposOcupados()
-            ->whereHas('convenio', fn ($c) => $c->where('empresa_id', $empresa->id))
-            ->when($request->filled('q'), fn ($q) => $q->where('titulo', 'like', '%'.$request->string('q').'%'))
-            ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->string('estado')))
+            ->whereHas('convenio', fn($c) => $c->where('empresa_id', $empresa->id))
+            ->when($request->filled('q'), fn($q) => $q->where('titulo', 'like', '%' . $request->string('q') . '%'))
+            ->when($request->filled('estado'), fn($q) => $q->where('estado', $request->string('estado')))
             ->latest('id')
             ->paginate(15)
             ->withQueryString();
@@ -33,7 +33,7 @@ class ProgramaController extends Controller
         // Convenios vigentes con las carreras aprobadas en cada uno (las únicas para las que se puede ofertar)
         $convenios = $empresa->convenios()
             ->vigentes()
-            ->with(['dictamenes' => fn ($d) => $d->where('dictamen', \App\Enums\Dictamen::Aprobatorio->value)->with('carrera')])
+            ->with(['dictamenes' => fn($d) => $d->where('dictamen', \App\Enums\Dictamen::Aprobatorio->value)->with('carrera')])
             ->get();
 
         return view('empresa.lista-programas', [
@@ -114,17 +114,14 @@ class ProgramaController extends Controller
 
     private function autorizar(Request $request, Programa $programa): void
     {
-        abort_unless(
-            $programa->convenio && (int) $programa->convenio->empresa_id === (int) $request->user()->empresa->id,
-            403
-        );
+        $this->authorize('gestionar', $programa);
     }
 
     private function convenioPropio(Request $request, int $convenioId): void
     {
         $propio = $request->user()->empresa->convenios()->whereKey($convenioId)->exists();
 
-        if (! $propio) {
+        if (!$propio) {
             throw ValidationException::withMessages(['convenio_id' => 'El convenio no pertenece a tu empresa.']);
         }
     }
@@ -148,7 +145,7 @@ class ProgramaController extends Controller
         ]);
 
         $datos['actividades'] = collect(preg_split('/\R/', $datos['actividades']))
-            ->map(fn ($l) => trim($l))
+            ->map(fn($l) => trim($l))
             ->filter()
             ->values()
             ->all();

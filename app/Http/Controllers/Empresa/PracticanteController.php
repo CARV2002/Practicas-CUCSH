@@ -22,18 +22,18 @@ class PracticanteController extends Controller
         $practicas = $this->propias($empresa->id)
             ->with(['postulacion.alumno.user', 'postulacion.alumno.carrera', 'postulacion.programa', 'supervisor'])
             ->conHorasAcumuladas()
-            ->when($request->filled('q'), fn ($q) => $q->whereHas('postulacion.alumno', fn ($a) => $a
-                ->where('num_control', 'like', '%'.$request->string('q').'%')
-                ->orWhereHas('user', fn ($u) => $u->where('name', 'like', '%'.$request->string('q').'%'))))
-            ->when($request->filled('programa_id'), fn ($q) => $q->whereHas('postulacion', fn ($p) => $p->where('programa_id', $request->integer('programa_id'))))
-            ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->string('estado')))
+            ->when($request->filled('q'), fn($q) => $q->whereHas('postulacion.alumno', fn($a) => $a
+                ->where('num_control', 'like', '%' . $request->string('q') . '%')
+                ->orWhereHas('user', fn($u) => $u->where('name', 'like', '%' . $request->string('q') . '%'))))
+            ->when($request->filled('programa_id'), fn($q) => $q->whereHas('postulacion', fn($p) => $p->where('programa_id', $request->integer('programa_id'))))
+            ->when($request->filled('estado'), fn($q) => $q->where('estado', $request->string('estado')))
             ->latest('id')
             ->paginate(15)
             ->withQueryString();
 
         return view('empresa.lista-practicantes', [
             'practicas' => $practicas,
-            'programas' => Programa::whereHas('convenio', fn ($c) => $c->where('empresa_id', $empresa->id))
+            'programas' => Programa::whereHas('convenio', fn($c) => $c->where('empresa_id', $empresa->id))
                 ->orderBy('titulo')->get(['id', 'titulo', 'ciclo']),
             'estados' => PracticaEstado::cases(),
             'resumen' => [
@@ -61,7 +61,7 @@ class PracticanteController extends Controller
     /** La empresa solo escribe su retroalimentación; la validación de horas es de la Coordinación. */
     public function retroalimentar(Request $request, Reporte $reporte): RedirectResponse
     {
-        $this->autorizar($request, $reporte->practica);
+        $this->authorize('retroalimentar', $reporte);
 
         $datos = $request->validate([
             'retroalimentacion_empresa' => ['required', 'string', 'max:2000'],
@@ -74,23 +74,19 @@ class PracticanteController extends Controller
 
     public function descargarReporte(Request $request, Reporte $reporte, Media $media)
     {
-        $this->autorizar($request, $reporte->practica);
-
         abort_unless($media->model_type === Reporte::class && (int) $media->model_id === (int) $reporte->id, 404);
+        $this->authorize('download', $media);
 
         return $media->toResponse($request);
     }
 
     private function propias(int $empresaId)
     {
-        return Practica::whereHas('postulacion.programa.convenio', fn ($c) => $c->where('empresa_id', $empresaId));
+        return Practica::whereHas('postulacion.programa.convenio', fn($c) => $c->where('empresa_id', $empresaId));
     }
 
     private function autorizar(Request $request, Practica $practica): void
     {
-        abort_unless(
-            (int) $practica->postulacion->programa->convenio?->empresa_id === (int) $request->user()->empresa->id,
-            403
-        );
+        $this->authorize('view', $practica);
     }
 }

@@ -18,10 +18,12 @@ class DocumentoController extends Controller
     {
         $empresa = $request->user()->empresa;
 
-        $documentos = collect($this->colecciones())->mapWithKeys(fn ($col) => [$col => [
-            'media' => $empresa->documentoVigente($col),
-            'obligatorio' => in_array($col, Empresa::coleccionesObligatorias(), true),
-        ]]);
+        $documentos = collect($this->colecciones())->mapWithKeys(fn($col) => [
+            $col => [
+                'media' => $empresa->documentoVigente($col),
+                'obligatorio' => in_array($col, Empresa::coleccionesObligatorias(), true),
+            ]
+        ]);
 
         return view('empresa.documentos', [
             'empresa' => $empresa,
@@ -40,7 +42,9 @@ class DocumentoController extends Controller
 
         $request->validate([
             'archivo' => [
-                'required', 'file', 'max:10240',
+                'required',
+                'file',
+                'max:10240',
                 $coleccion === 'cv_instancia' ? 'mimes:pdf,doc,docx' : 'mimes:pdf',
             ],
         ]);
@@ -62,8 +66,7 @@ class DocumentoController extends Controller
     public function descargar(Request $request, int $media)
     {
         $archivo = $request->user()->empresa->media()->findOrFail($media);
-
-        return $archivo->toResponse($request);
+        $this->authorize('download', $archivo);
     }
 
     /** @return string[] */

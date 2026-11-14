@@ -25,7 +25,7 @@
       <a href="{{ route('inicio') }}" class="hidden lg:block" >Inicio</a>
       <a href="{{ route('estudiantes') }}" >Estudiantes</a>
       <a href="{{ route('empresas') }}">Empresas</a>
-      <a href="#contacto" class="hidden lg:block">Contacto</a>
+      <a href="{{ route('contacto') }}" class="hidden lg:block">Contacto</a>
       <a
         
         class="btn-demo text-white" 
@@ -59,7 +59,7 @@
         <h4 class="font-bold">Centro Universitario de Ciencias Sociales y Humanidades</h4>
         <span class="text-sm">Los Belenes. Av. José Parres Arias #150, San Jose del Bajio,</span><br>
         <span class="text-sm">C.P. 45132. Zapopan, Jalisco, México.</span><br>
-        <a href="tel:+523338193300" class="text-sm">Teléfono: +52 (33) 38193300</a>
+        <a href="tel:{{ config('practicas.contacto.telefono_enlace') }}" class="text-sm">Teléfono: +52 (33) 38193300</a>
         
 
         
@@ -70,9 +70,9 @@
         <a href="#" style="visibility: hidden;">📷</a>
         <a href="#" style="visibility: hidden;">in</a>
         <h4>Contáctanos </h4>
-        <a href="mailto:practicas.profesionales.cucsh@csh.udg.mx">practicas.profesionales.cucsh@csh.udg.mx</a>
-        <a href="tel:+523338193300">(33) 3819-3300</a>
-        <span style="display:block; font-size:12px; color: var(--text-muted);">Ext. 23549, 23404</span>
+        <a href="mailto:{{ config('practicas.contacto.correo') }}">{{ config('practicas.contacto.correo') }}</a>
+        <a href="tel:{{ config('practicas.contacto.telefono_enlace') }}">{{ config('practicas.contacto.telefono') }}</a>
+        <span style="display:block; font-size:12px; color: var(--text-muted);">Ext. {{ implode(', ', config('practicas.contacto.extensiones')) }}</span>
 
       </div>
 

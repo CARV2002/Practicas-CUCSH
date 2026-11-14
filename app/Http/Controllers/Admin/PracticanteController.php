@@ -30,11 +30,11 @@ class PracticanteController extends Controller
         $practicas = Practica::with(['postulacion.alumno.user', 'postulacion.alumno.carrera', 'postulacion.programa.convenio.empresa', 'supervisor'])
             ->conHorasAcumuladas()
             ->visiblesPara($personal)
-            ->when($request->filled('q'), fn ($q) => $q->whereHas('postulacion.alumno', fn ($a) => $a
-                ->where('num_control', 'like', '%'.$request->string('q').'%')
-                ->orWhereHas('user', fn ($u) => $u->where('name', 'like', '%'.$request->string('q').'%'))))
-            ->when($request->filled('carrera_id'), fn ($q) => $q->whereHas('postulacion.alumno', fn ($a) => $a->where('carrera_id', $request->integer('carrera_id'))))
-            ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->string('estado')))
+            ->when($request->filled('q'), fn($q) => $q->whereHas('postulacion.alumno', fn($a) => $a
+                ->where('num_control', 'like', '%' . $request->string('q') . '%')
+                ->orWhereHas('user', fn($u) => $u->where('name', 'like', '%' . $request->string('q') . '%'))))
+            ->when($request->filled('carrera_id'), fn($q) => $q->whereHas('postulacion.alumno', fn($a) => $a->where('carrera_id', $request->integer('carrera_id'))))
+            ->when($request->filled('estado'), fn($q) => $q->where('estado', $request->string('estado')))
             ->latest('id')
             ->paginate(15, ['*'], 'practicas')
             ->withQueryString();
@@ -61,6 +61,8 @@ class PracticanteController extends Controller
 
     public function emitirCarta(Request $request, Postulacion $postulacion, EmitirCartaPresentacion $emitir): RedirectResponse
     {
+        $this->authorize('gestionar', $postulacion);
+
         $emitir($postulacion, $request->user()->personal);
 
         return back()->with('status', 'Carta de presentación emitida; cupo reservado.');
@@ -68,9 +70,9 @@ class PracticanteController extends Controller
 
     public function rechazarPostulacion(Request $request, Postulacion $postulacion): RedirectResponse
     {
-        abort_unless($request->user()->personal->puedeVerCarrera((int) $postulacion->alumno->carrera_id), 403);
+        $this->authorize('gestionar', $postulacion);
 
-        if (! in_array($postulacion->estado, [PostulacionEstado::Pendiente, PostulacionEstado::CartaPresentacionEmitida], true)) {
+        if (!in_array($postulacion->estado, [PostulacionEstado::Pendiente, PostulacionEstado::CartaPresentacionEmitida], true)) {
             return back()->withErrors(['postulacion' => 'Solo se rechazan postulaciones pendientes o con carta emitida.']);
         }
 
@@ -81,7 +83,7 @@ class PracticanteController extends Controller
 
     public function subirCartaAceptacion(Request $request, Postulacion $postulacion, RegistrarCartaAceptacion $registrar): RedirectResponse
     {
-        abort_unless($request->user()->personal->puedeVerCarrera((int) $postulacion->alumno->carrera_id), 403);
+        $this->authorize('gestionar', $postulacion);
 
         $request->validate(['archivo' => ['required', 'file', 'mimes:pdf', 'max:10240']]);
 
@@ -93,6 +95,7 @@ class PracticanteController extends Controller
 
     public function activar(Request $request, Postulacion $postulacion, ActivarPractica $activar): RedirectResponse
     {
+        $this->authorize('gestionar', $postulacion);
         $datos = $request->validate([
             'fecha_inicio' => ['required', 'date'],
             'fecha_fin' => ['required', 'date', 'after:fecha_inicio'],
@@ -115,6 +118,7 @@ class PracticanteController extends Controller
     /** Asigna o cambia el supervisor (debe ser de la división de la carrera del alumno). */
     public function asignarSupervisor(Request $request, Practica $practica): RedirectResponse
     {
+        $this->authorize('gestionar', $practica);
         $datos = $request->validate(['profesor_id' => ['required', 'integer', Rule::exists('profesores', 'id')]]);
 
         $profesor = Profesor::findOrFail($datos['profesor_id']);
@@ -122,7 +126,7 @@ class PracticanteController extends Controller
 
         abort_unless($request->user()->personal->puedeVerCarrera((int) $carrera->id), 403);
 
-        if (! $profesor->puedeSupervisar($carrera)) {
+        if (!$profesor->puedeSupervisar($carrera)) {
             return back()->withErrors(['practica' => 'El profesor no pertenece a la división de la carrera del alumno.']);
         }
 
@@ -133,12 +137,13 @@ class PracticanteController extends Controller
 
     public function cancelar(Request $request, Practica $practica): RedirectResponse
     {
+        $this->authorize('gestionar', $practica);
         abort_unless(
             $request->user()->personal->puedeVerCarrera((int) $practica->postulacion->alumno->carrera_id),
             403
         );
 
-        if (! in_array($practica->estado, PracticaEstado::activas(), true)) {
+        if (!in_array($practica->estado, PracticaEstado::activas(), true)) {
             return back()->withErrors(['practica' => 'Solo se cancelan prácticas activas.']);
         }
 
@@ -150,12 +155,8 @@ class PracticanteController extends Controller
     /** Descarga de archivos de una postulación (kardex, cartas). */
     public function descargar(Request $request, Postulacion $postulacion, Media $media)
     {
-        abort_unless(
-            $media->model_type === Postulacion::class
-            && (int) $media->model_id === (int) $postulacion->id
-            && $request->user()->personal->puedeVerCarrera((int) $postulacion->alumno->carrera_id),
-            404
-        );
+        abort_unless($media->model_type === Postulacion::class && (int) $media->model_id === (int) $postulacion->id, 404);
+        $this->authorize('download', $media);
 
         return $media->toResponse($request);
     }

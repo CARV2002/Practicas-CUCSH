@@ -100,6 +100,8 @@ class DictamenController extends Controller
             404
         );
 
+        $this->authorize('download', $media);
+
         return $media->toResponse(request());
     }
 }

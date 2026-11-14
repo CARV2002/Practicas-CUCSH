@@ -33,6 +33,7 @@ use App\Http\Controllers\Admin\CierreController;
 Route::get('/', [HomeController::class, 'inicio'])->name('inicio');
 Route::get('/estudiantes', [HomeController::class, 'estudiantes'])->name('estudiantes');
 Route::get('/empresas', [HomeController::class, 'empresas'])->name('empresas');
+Route::view('/contacto', 'pages.home.contacto')->name('contacto');
 
 // /login es el nombre histórico; la pantalla real es /signin (ruta nombrada "login" en auth.php)
 Route::get('/login', fn() => redirect()->route('login'));
@@ -43,7 +44,7 @@ Route::get('/login', fn() => redirect()->route('login'));
 |--------------------------------------------------------------------------
 */
 Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware('auth')
+    ->middleware('auth', 'verified')
     ->name('dashboard');
 
 /*
@@ -53,7 +54,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
 */
 Route::prefix('alumno')
     ->name('alumno.')
-    ->middleware(['auth', 'role:' . Rol::Alumno->value])
+    ->middleware(['auth', 'verified','role:' . Rol::Alumno->value])
     ->group(function () {
         //Route::view('/dashboard', 'alumno.dashboard')->name('dashboard');
         Route::get('/dashboard', [AlumnoDashboardController::class, 'index'])->name('dashboard');
@@ -84,7 +85,7 @@ Route::prefix('alumno')
 */
 Route::prefix('empresa')
     ->name('empresa.')
-    ->middleware(['auth', 'role:' . Rol::Empresa->value])
+    ->middleware(['auth', 'verified', 'role:' . Rol::Empresa->value])
     ->group(function () {
         //Route::view('/dashboard', 'empresa.dashboard')->name('dashboard');
         Route::get('/dashboard', [EmpresaDashboardController::class, 'index'])->name('dashboard');
@@ -121,9 +122,10 @@ Route::prefix('empresa')
 */
 Route::prefix('admin')
     ->name('admin.')
-    ->middleware(['auth', 'role:' . Rol::Administrador->value])
+    ->middleware(['auth', 'verified', 'role:' . Rol::Administrador->value])
     ->group(function () {
-
+        //verificar correo de usuario nuevo (no requiere que el usuario esté activo)
+        Route::post('/usuarios/{usuario}/verificar', [UsuarioController::class, 'verificarCorreo'])->name('usuarios.verificar');
         //Route::view('/dashboard', 'admin.dashboard')->name('dashboard');
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
