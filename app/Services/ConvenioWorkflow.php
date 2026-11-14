@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Enums\ConvenioEstado;
 use App\Enums\Dictamen;
 use App\Enums\EtapaConvenio;
-use App\Enums\Rol;
 use App\Enums\SeguimientoEstado;
 use App\Models\Carrera;
 use App\Models\Convenio;
@@ -13,13 +12,11 @@ use App\Models\ConvenioCarrera;
 use App\Models\ConvenioSeguimiento;
 use App\Models\Empresa;
 use App\Models\Personal;
-use App\Models\User;
 use App\Notifications\ConvenioActualizado;
 use App\Notifications\NuevaSolicitudConvenio;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -51,8 +48,11 @@ class ConvenioWorkflow
         return DB::transaction(function () use ($empresa, $datos, $carreraIds) {
             $convenio = Convenio::create([
                 ...Arr::only($datos, [
-                    'objetivos', 'actividades_propuestas', 'plazas_estimadas',
-                    'medio_conocimiento', 'experiencia_previa',
+                    'objetivos',
+                    'actividades_propuestas',
+                    'plazas_estimadas',
+                    'medio_conocimiento',
+                    'experiencia_previa',
                 ]),
                 'empresa_id' => $empresa->id,
                 'estado' => ConvenioEstado::Solicitado,
@@ -61,7 +61,7 @@ class ConvenioWorkflow
 
             // Un dictamen "pendiente" por cada carrera solicitada
             $convenio->dictamenes()->createMany(array_map(
-                fn (int $id) => ['carrera_id' => $id, 'dictamen' => Dictamen::Pendiente],
+                fn(int $id) => ['carrera_id' => $id, 'dictamen' => Dictamen::Pendiente],
                 $carreraIds
             ));
 
@@ -79,7 +79,7 @@ class ConvenioWorkflow
             $convenio = $this->bloquear($convenio);
             $this->exigirEstado($convenio, ConvenioEstado::Solicitado);
 
-            if (! $convenio->empresa->expedienteCompleto()) {
+            if (!$convenio->empresa->expedienteCompleto()) {
                 $this->fallar('El expediente de la empresa está incompleto o tiene documentos sin validar.');
             }
 
@@ -110,7 +110,7 @@ class ConvenioWorkflow
 
             $this->exigirEstado($convenio, ConvenioEstado::EnValidacionAcademica);
 
-            if (! $por->puedeVerCarrera((int) $dictamen->carrera_id)) {
+            if (!$por->puedeVerCarrera((int) $dictamen->carrera_id)) {
                 $this->fallar('No tienes alcance para dictaminar esta carrera.');
             }
 
@@ -134,7 +134,7 @@ class ConvenioWorkflow
             }
 
             // Fase 3.1 — "Si todas rechazaron, el proceso muere"
-            if (! $convenio->tieneAprobatorio()) {
+            if (!$convenio->tieneAprobatorio()) {
                 $this->rechazar($convenio, $por, 'Todas las carreras emitieron dictamen negativo.');
 
                 return $convenio->refresh();
@@ -165,11 +165,11 @@ class ConvenioWorkflow
                 $this->fallar('No hay un borrador pendiente de turnar.');
             }
 
-            if (! $convenio->puedePasarAJuridica()) {
+            if (!$convenio->puedePasarAJuridica()) {
                 $this->fallar('Faltan dictámenes por carrera o ninguna resultó aprobatoria.');
             }
 
-            if (! $convenio->media()->where('collection_name', 'borrador_convenio')->exists()) {
+            if (!$convenio->media()->where('collection_name', 'borrador_convenio')->exists()) {
                 $this->fallar('Adjunta el borrador del convenio antes de turnarlo.');
             }
 
@@ -221,7 +221,7 @@ class ConvenioWorkflow
     /** Fase 4.1 / 4.2 — Firma de la empresa (3 juegos) y firma de Rectoría. */
     public function registrarFirma(Convenio $convenio, EtapaConvenio $etapa, Personal $por, ?string $comentario = null): Convenio
     {
-        if (! in_array($etapa, [EtapaConvenio::FirmaEmpresa, EtapaConvenio::FirmaRectoria], true)) {
+        if (!in_array($etapa, [EtapaConvenio::FirmaEmpresa, EtapaConvenio::FirmaRectoria], true)) {
             $this->fallar('Solo se registran firmas de la empresa o de Rectoría.');
         }
 
@@ -265,7 +265,7 @@ class ConvenioWorkflow
                 $this->fallar('Aún faltan firmas por registrar.');
             }
 
-            if (! $convenio->media()->where('collection_name', 'convenio_firmado')->exists()) {
+            if (!$convenio->media()->where('collection_name', 'convenio_firmado')->exists()) {
                 $this->fallar('Adjunta el escaneo del convenio firmado.');
             }
 
@@ -371,15 +371,10 @@ class ConvenioWorkflow
         });
     }
 
-    /** Avisa a Lorena (rol administrador) que llegó una solicitud nueva. */
+    /** Avisa a la Coordinación (alcance global) que llegó una solicitud nueva: campana + correo. */
     private function avisarAdministradores(Convenio $convenio): void
     {
-        DB::afterCommit(function () use ($convenio) {
-            Notification::send(
-                User::role(Rol::Administrador->value)->get(),
-                new NuevaSolicitudConvenio($convenio)
-            );
-        });
+        Avisos::enviar(Avisos::coordinacionGlobal(), new NuevaSolicitudConvenio($convenio));
     }
 
     private function abrirEtapa(Convenio $convenio, EtapaConvenio $etapa, ?Personal $por, ?string $comentario = null): ConvenioSeguimiento
@@ -451,8 +446,8 @@ class ConvenioWorkflow
 
     private function exigirEstado(Convenio $convenio, ConvenioEstado ...$permitidos): void
     {
-        if (! in_array($convenio->estado, $permitidos, true)) {
-            $esperado = implode(' o ', array_map(fn (ConvenioEstado $e) => $e->label(), $permitidos));
+        if (!in_array($convenio->estado, $permitidos, true)) {
+            $esperado = implode(' o ', array_map(fn(ConvenioEstado $e) => $e->label(), $permitidos));
             $this->fallar("El convenio está «{$convenio->estado->label()}»; este paso requiere: {$esperado}.");
         }
     }

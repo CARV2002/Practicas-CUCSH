@@ -20,7 +20,7 @@
             </form>
 
             <p class="text-center text-xs text-gray-400">
-                ¿No llega? Revisa spam o escribe a practicas.profesionales.cucsh@csh.udg.mx
+                ¿No llega? Revisa spam o escribe a {{ config('practicas.contacto.correo') }}
             </p>
         </div>
     </x-auth.split>

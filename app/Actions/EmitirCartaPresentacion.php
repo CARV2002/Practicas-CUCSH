@@ -10,6 +10,8 @@ use App\Models\Postulacion;
 use App\Models\Programa;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Services\Avisos;
+use App\Notifications\AvisoOperativo;
 
 /**
  * El coordinador valida la postulación y emite la carta de presentación (reserva el cupo).
@@ -27,7 +29,7 @@ class EmitirCartaPresentacion
             $postulacion = Postulacion::lockForUpdate()->findOrFail($postulacion->id);
 
             // Cada coordinador solo valida alumnos de su carrera (el director, de su división)
-            if (! $por->puedeVerCarrera((int) $alumno->carrera_id)) {
+            if (!$por->puedeVerCarrera((int) $alumno->carrera_id)) {
                 $this->fallar('No tienes alcance sobre la carrera de este alumno.');
             }
 
@@ -44,7 +46,7 @@ class EmitirCartaPresentacion
             }
 
             // Sin convenio vigente no hay oferta (salvo modalidad interna)
-            if (! $programa->esInterno() && ! $programa->convenio?->estaVigente()) {
+            if (!$programa->esInterno() && !$programa->convenio?->estaVigente()) {
                 $this->fallar('El convenio de la empresa no está vigente.');
             }
 
@@ -52,7 +54,7 @@ class EmitirCartaPresentacion
                 $this->fallar("El alumno no cumple el {$alumno->carrera->porcentaje_creditos_minimo}% mínimo de créditos.");
             }
 
-            if (! $alumno->tieneImssVigenteHasta(now())) {
+            if (!$alumno->tieneImssVigenteHasta(now())) {
                 $this->fallar('El alumno no tiene seguro facultativo (IMSS) vigente.');
             }
 
@@ -74,6 +76,22 @@ class EmitirCartaPresentacion
                 'estado' => PostulacionEstado::CartaPresentacionEmitida,
                 'validado_por' => $por->id,
             ]);
+
+            $empresa = $programa->convenio?->empresa;
+
+            Avisos::enviar($alumno->user, new AvisoOperativo(
+                mensaje: "Tu postulación a «{$programa->titulo}» fue validada. Preséntate con " . ($empresa?->razon_social ?? 'el proyecto interno del CUCSH') . ' y sube tu carta de aceptación.',
+                url: route('alumno.mis-documentos', absolute: false),
+                detalle: $programa->titulo,
+                correo: true,
+                asunto: 'Tu carta de presentación está lista',
+            ));
+
+            Avisos::enviar($empresa?->user, new AvisoOperativo(
+                mensaje: "{$alumno->user->name} ({$alumno->carrera->carrera_clave}) se presentará en «{$programa->titulo}». Si lo aceptas, entrégale su carta de aceptación sellada.",
+                url: route('empresa.programas.postulantes', $programa, false),
+                detalle: $programa->titulo,
+            ));
 
             return $postulacion;
         });

@@ -92,7 +92,7 @@
 
     <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5 text-xs leading-relaxed text-gray-500">
         <strong>¿Necesitas cambiar un documento ya validado?</strong> (cambio de apoderado, domicilio fiscal, etc.)
-        Contacta a la Coordinación de Prácticas Profesionales: practicas.profesionales.cucsh@csh.udg.mx
+        Contacta a la Coordinación de Prácticas Profesionales: {{ config('practicas.contacto.correo') }}
     </div>
 </div>
 @endsection

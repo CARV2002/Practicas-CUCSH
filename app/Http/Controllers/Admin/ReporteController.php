@@ -14,6 +14,8 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use App\Services\Avisos;
+use App\Notifications\AvisoOperativo;
 
 class ReporteController extends Controller
 {
@@ -72,7 +74,7 @@ class ReporteController extends Controller
     /** Valida o rechaza un reporte de horas; las horas validadas son las que cuentan. */
     public function resolver(Request $request, Reporte $reporte): RedirectResponse
     {
-       $this->authorize('resolver', $reporte);
+        $this->authorize('resolver', $reporte);
 
 
         $datos = $request->validate([
@@ -86,6 +88,18 @@ class ReporteController extends Controller
         }
 
         $reporte->update($datos);
+
+        $ok = $datos['estado'] === ReporteEstado::Validado->value;
+        $periodo = $reporte->periodo_inicio->format('d/m') . ' al ' . $reporte->periodo_fin->format('d/m/Y');
+
+        Avisos::enviar(Avisos::alumnoDe($reporte->practica), new AvisoOperativo(
+            mensaje: $ok
+            ? "Tu reporte del {$periodo} fue validado: se sumaron {$reporte->horas_reportadas} horas."
+            : "Tu reporte del {$periodo} fue rechazado" . (filled($datos['evaluacion_profesor'] ?? null) ? ': ' . $datos['evaluacion_profesor'] : '.') . ' Corrígelo y vuelve a subirlo.',
+            url: route($ok ? 'alumno.mis-practicas' : 'alumno.mis-documentos', absolute: false),
+            correo: !$ok,
+            asunto: 'Tu reporte fue rechazado',
+        ));
 
         return back()->with('status', 'Reporte ' . ($datos['estado'] === ReporteEstado::Validado->value ? 'validado' : 'rechazado') . '.');
     }

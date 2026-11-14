@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use App\Services\Avisos;
+use App\Notifications\AvisoOperativo;
 
 /** Cierre de la práctica: carta de término -> oficio -> Control Escolar -> SIIAU. */
 class CierreController extends Controller
@@ -75,6 +77,17 @@ class CierreController extends Controller
             $carta->update(['estado_validacion' => $estado]);   // si faltan horas, el observer lanza ValidationException
             $carta->resolverDocumento($archivo, $estado, $datos['motivo'] ?? null, $request->user()->id);
         });
+
+        $valida = $estado === ValidacionEstado::Validada;
+
+        Avisos::enviar(Avisos::alumnoDe($practica), new AvisoOperativo(
+            mensaje: $valida
+            ? 'Tu carta de término fue validada. Solo falta que la Coordinación registre tu acreditación; no tienes que hacer nada más.'
+            : 'Tu carta de término fue rechazada: ' . $datos['motivo'] . ' Sube una corregida.',
+            url: route($valida ? 'alumno.mis-practicas' : 'alumno.mis-documentos', absolute: false),
+            correo: true,
+            asunto: 'Actualización de tu carta de término',
+        ));
 
         return back()->with('status', $estado === ValidacionEstado::Validada
             ? 'Carta validada: la práctica pasó a cierre.'
@@ -145,6 +158,20 @@ class CierreController extends Controller
         }
 
         $oficio->update(['capturado_siiau_at' => now()]);   // el observer exige que ya se haya enviado y acredita la práctica
+
+        $titulo = $practica->postulacion->programa->titulo;
+
+        Avisos::enviar(Avisos::alumnoDe($practica), new AvisoOperativo(
+            mensaje: "¡Tu práctica profesional en «{$titulo}» quedó acreditada! Ya puedes ver tu acreditación en el sistema.",
+            url: route('alumno.mis-practicas', absolute: false),
+            correo: true,
+            asunto: '¡Tu práctica quedó acreditada!',
+        ));
+
+        Avisos::enviar(Avisos::empresaDe($practica), new AvisoOperativo(
+            mensaje: "{$practica->postulacion->alumno->user->name} concluyó y acreditó su práctica en «{$titulo}». Gracias por recibirle.",
+            url: route('empresa.practicantes.show', $practica, false),
+        ));
 
         return back()->with('status', 'Captura en SIIAU registrada: la práctica quedó acreditada.');
     }

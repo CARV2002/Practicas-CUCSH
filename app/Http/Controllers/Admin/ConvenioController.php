@@ -18,6 +18,9 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use App\Services\GeneradorBorradorConvenio;
+use Illuminate\Support\Str;
+use App\Services\Avisos;
+use App\Notifications\AvisoOperativo;
 
 class ConvenioController extends Controller
 {
@@ -86,6 +89,22 @@ class ConvenioController extends Controller
             $datos['motivo'] ?? null,
             $request->user()->id
         );
+
+        $empresa = $convenio->empresa;
+
+        if ($datos['estado'] === ValidacionEstado::Rechazada->value) {
+            Avisos::enviar($empresa->user, new AvisoOperativo(
+                mensaje: 'Rechazamos «' . Str::headline($media->collection_name) . '» de tu expediente: ' . $datos['motivo'] . ' Súbelo de nuevo para continuar con tu convenio.',
+                url: route('empresa.documentos', absolute: false),
+                correo: true,
+                asunto: 'Documento de tu expediente rechazado',
+            ));
+        } elseif ($empresa->fresh()->expedienteCompleto()) {
+            Avisos::enviar($empresa->user, new AvisoOperativo(
+                mensaje: 'Tu expediente quedó completo y validado. La Coordinación turnará tu solicitud a las carreras.',
+                url: route('empresa.convenio', absolute: false),
+            ));
+        }
 
         return back()->with('status', 'Documento actualizado.');
     }

@@ -34,6 +34,8 @@ Route::get('/', [HomeController::class, 'inicio'])->name('inicio');
 Route::get('/estudiantes', [HomeController::class, 'estudiantes'])->name('estudiantes');
 Route::get('/empresas', [HomeController::class, 'empresas'])->name('empresas');
 Route::view('/contacto', 'pages.home.contacto')->name('contacto');
+Route::view('/terminos-y-condiciones', 'pages.home.terminos')->name('terminos');
+Route::view('/aviso-de-privacidad', 'pages.home.privacidad')->name('privacidad');
 
 // /login es el nombre histórico; la pantalla real es /signin (ruta nombrada "login" en auth.php)
 Route::get('/login', fn() => redirect()->route('login'));

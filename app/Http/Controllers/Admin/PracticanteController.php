@@ -19,6 +19,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use App\Services\Avisos;
+use App\Notifications\AvisoOperativo;
 
 class PracticanteController extends Controller
 {
@@ -78,6 +80,13 @@ class PracticanteController extends Controller
 
         $postulacion->update(['estado' => PostulacionEstado::Rechazada]);
 
+        Avisos::enviar($postulacion->alumno->user, new AvisoOperativo(
+            mensaje: "Tu postulación a «{$postulacion->programa->titulo}» fue rechazada. Puedes postularte a otro programa de tu carrera.",
+            url: route('alumno.oferta-programas', absolute: false),
+            correo: true,
+            asunto: 'Actualización de tu postulación',
+        ));
+
         return back()->with('status', 'Postulación rechazada.');
     }
 
@@ -85,12 +94,17 @@ class PracticanteController extends Controller
     {
         $this->authorize('gestionar', $postulacion);
 
-        $request->validate(['archivo' => ['required', 'file', 'mimes:pdf', 'max:10240']]);
+        $ya = $postulacion->media()->where('collection_name', 'carta_aceptacion')->exists();
 
-        $postulacion->addMediaFromRequest('archivo')->toMediaCollection('carta_aceptacion');
+        $request->validate(['archivo' => [$ya ? 'nullable' : 'required', 'file', 'mimes:pdf', 'max:10240']]);
+
+        if ($request->hasFile('archivo')) {
+            $postulacion->addMediaFromRequest('archivo')->toMediaCollection('carta_aceptacion');
+        }
+
         $registrar($postulacion);
 
-        return back()->with('status', 'Carta de aceptación registrada.');
+        return back()->with('status', 'Carta de aceptación registrada; la práctica puede activarse.');
     }
 
     public function activar(Request $request, Postulacion $postulacion, ActivarPractica $activar): RedirectResponse
@@ -132,6 +146,11 @@ class PracticanteController extends Controller
 
         $practica->update(['profesor_supervisor_id' => $profesor->id]);
 
+        Avisos::enviar(Avisos::alumnoDe($practica), new AvisoOperativo(
+            mensaje: "Tu profesor supervisor es {$profesor->nombre}.",
+            url: route('alumno.mis-practicas', absolute: false),
+        ));
+
         return back()->with('status', 'Supervisor asignado.');
     }
 
@@ -148,6 +167,20 @@ class PracticanteController extends Controller
         }
 
         $practica->update(['estado' => PracticaEstado::Cancelada]);
+
+        $titulo = $practica->postulacion->programa->titulo;
+
+        Avisos::enviar(Avisos::alumnoDe($practica), new AvisoOperativo(
+            mensaje: "Tu práctica en «{$titulo}» fue cancelada. Si crees que es un error, contacta a la Coordinación.",
+            url: route('alumno.mis-practicas', absolute: false),
+            correo: true,
+            asunto: 'Tu práctica fue cancelada',
+        ));
+
+        Avisos::enviar(Avisos::empresaDe($practica), new AvisoOperativo(
+            mensaje: "La práctica de {$practica->postulacion->alumno->user->name} en «{$titulo}» fue cancelada por la Coordinación.",
+            url: route('empresa.practicantes.show', $practica, false),
+        ));
 
         return back()->with('status', 'Práctica cancelada.');
     }

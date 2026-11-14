@@ -11,6 +11,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use App\Services\Avisos;
+use App\Notifications\AvisoOperativo;
 
 class OfertaController extends Controller
 {
@@ -27,17 +29,17 @@ class OfertaController extends Controller
             ->with(['convenio.empresa', 'carrera'])
             ->where('carrera_id', $alumno->carrera_id)
             ->when($request->filled('q'), function ($q) use ($request) {
-                $t = '%'.$request->string('q').'%';
-                $q->where(fn ($w) => $w
+                $t = '%' . $request->string('q') . '%';
+                $q->where(fn($w) => $w
                     ->where('titulo', 'like', $t)
                     ->orWhere('descripcion', 'like', $t)
                     ->orWhere('sede', 'like', $t)
-                    ->orWhereHas('convenio.empresa', fn ($e) => $e->where('razon_social', 'like', $t)));
+                    ->orWhereHas('convenio.empresa', fn($e) => $e->where('razon_social', 'like', $t)));
             })
-            ->when($request->filled('modalidad'), fn ($q) => $q->where('modalidad', $request->string('modalidad')))
-            ->when($request->filled('ciclo'), fn ($q) => $q->where('ciclo', $request->string('ciclo')))
-            ->when($chip === 'nuevas', fn ($q) => $q->where('programas.created_at', '>=', now()->subDays(7)))
-            ->when($chip === 'cierre', fn ($q) => $q->whereRaw(
+            ->when($request->filled('modalidad'), fn($q) => $q->where('modalidad', $request->string('modalidad')))
+            ->when($request->filled('ciclo'), fn($q) => $q->where('ciclo', $request->string('ciclo')))
+            ->when($chip === 'nuevas', fn($q) => $q->where('programas.created_at', '>=', now()->subDays(7)))
+            ->when($chip === 'cierre', fn($q) => $q->whereRaw(
                 "programas.cupos_totales - (select count(*) from postulaciones where postulaciones.programa_id = programas.id and postulaciones.estado in ($marcadores)) <= 2",
                 $estados
             ))
@@ -52,7 +54,7 @@ class OfertaController extends Controller
         $bloqueo = match (true) {
             $alumno->tienePracticaActiva() => 'Ya tienes una práctica activa.',
             $alumno->postulaciones()->whereIn('estado', PostulacionEstado::valores(PostulacionEstado::enTramite()))->exists()
-                => 'Ya tienes una empresa en trámite; termina ese proceso antes de postularte a otra.',
+            => 'Ya tienes una empresa en trámite; termina ese proceso antes de postularte a otra.',
             default => null,
         };
 
@@ -72,7 +74,7 @@ class OfertaController extends Controller
     {
         $alumno = $request->user()->alumno->load('carrera');
 
-        if (! Programa::abiertos()->whereKey($programa->id)->exists()) {
+        if (!Programa::abiertos()->whereKey($programa->id)->exists()) {
             throw ValidationException::withMessages(['postulacion' => 'El programa ya no está disponible.']);
         }
 
@@ -84,15 +86,17 @@ class OfertaController extends Controller
             throw ValidationException::withMessages(['postulacion' => 'Ya te postulaste a este programa.']);
         }
 
-        if ($alumno->tienePracticaActiva()
-            || $alumno->postulaciones()->whereIn('estado', PostulacionEstado::valores(PostulacionEstado::enTramite()))->exists()) {
+        if (
+            $alumno->tienePracticaActiva()
+            || $alumno->postulaciones()->whereIn('estado', PostulacionEstado::valores(PostulacionEstado::enTramite()))->exists()
+        ) {
             throw ValidationException::withMessages(['postulacion' => 'Ya tienes una práctica o una empresa en trámite.']);
         }
 
         $minimo = (float) $alumno->carrera->porcentaje_creditos_minimo;
 
         $datos = $request->validate([
-            'porcentaje_creditos_declarado' => ['required', 'numeric', 'min:'.$minimo, 'max:100'],
+            'porcentaje_creditos_declarado' => ['required', 'numeric', 'min:' . $minimo, 'max:100'],
             'kardex' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ], [
             'porcentaje_creditos_declarado.min' => "Tu carrera exige al menos {$minimo}% de créditos para postularte.",
@@ -106,6 +110,12 @@ class OfertaController extends Controller
         ]);
 
         $postulacion->addMediaFromRequest('kardex')->toMediaCollection('kardex');
+
+        Avisos::enviar(Avisos::administradores((int) $alumno->carrera_id), new AvisoOperativo(
+            mensaje: "{$request->user()->name} ({$alumno->carrera->carrera_clave}) se postuló a «{$programa->titulo}». Valida créditos e IMSS.",
+            url: route('admin.lista-practicantes', absolute: false),
+            detalle: $programa->titulo,
+        ));
 
         return redirect()
             ->route('alumno.oferta-programas', ['programa' => $programa->id])

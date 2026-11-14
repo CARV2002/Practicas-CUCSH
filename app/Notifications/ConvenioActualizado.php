@@ -3,40 +3,39 @@
 namespace App\Notifications;
 
 use App\Models\Convenio;
-use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 /** A la empresa: su convenio avanzó de etapa (elimina la "espera pasiva"). */
-class ConvenioActualizado extends Notification
+class ConvenioActualizado extends AvisoPracticas
 {
-    use Queueable;
-
     public function __construct(public Convenio $convenio, public string $mensaje)
     {
     }
 
-    /** @return string[] */
-    public function via(object $notifiable): array
+    protected function texto(): string
     {
-        return ['mail', 'database'];
+        return $this->mensaje;
     }
 
-    public function toMail(object $notifiable): MailMessage
+    protected function ruta(): string
     {
-        return (new MailMessage)
-            ->subject('Actualización de tu convenio con el CUCSH')
-            ->line($this->mensaje)
-            ->line('Puedes consultar el estado completo de tu trámite en la plataforma de Prácticas Profesionales.');
+        return route('empresa.convenio', absolute: false);
     }
 
-    /** @return array<string,mixed> */
+    protected function detalle(): ?string
+    {
+        return $this->convenio->folio ?? 'Solicitud de convenio';
+    }
+
+    protected function asunto(): string
+    {
+        return 'Actualización de tu convenio con el CUCSH';
+    }
+
     public function toArray(object $notifiable): array
     {
-        return [
+        return parent::toArray($notifiable) + [
             'convenio_id' => $this->convenio->id,
             'estado' => $this->convenio->estado->value,
-            'mensaje' => $this->mensaje,
         ];
     }
 }

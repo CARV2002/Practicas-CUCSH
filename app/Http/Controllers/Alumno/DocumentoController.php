@@ -20,6 +20,8 @@ use App\Enums\ReporteTipo;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use App\Enums\ValidacionEstado;
+use App\Services\Avisos;
+use App\Notifications\AvisoOperativo;
 
 class DocumentoController extends Controller
 {
@@ -82,6 +84,8 @@ class DocumentoController extends Controller
 
         $postulacion->addMediaFromRequest('archivo')->toMediaCollection('carta_aceptacion');
 
+        $this->avisarCoordinacion($request, 'subió su carta de aceptación de «'.$postulacion->programa->titulo.'»; regístrala para activar su práctica.', 'admin.lista-practicantes');
+
         return back()->with('status', 'Carta de aceptación enviada; la Coordinación la registrará.');
     }
 
@@ -102,6 +106,9 @@ class DocumentoController extends Controller
         $reporte->addMediaFromRequest('archivo')->toMediaCollection('reporte_firmado');
         $reporte->update(['estado' => ReporteEstado::Pendiente]);   // un rechazado vuelve a revisión
 
+        $this->avisarCoordinacion($request, 'reenvió su reporte firmado del '.$reporte->periodo_inicio->format('d/m/Y').' para revisión.', 'admin.lista-reportes');
+
+
         return back()->with('status', 'Reporte firmado enviado.');
     }
 
@@ -119,15 +126,18 @@ class DocumentoController extends Controller
         $carta->addMediaFromRequest('archivo')->toMediaCollection('carta_termino');
         $carta->update(['estado_validacion' => ValidacionEstado::Pendiente]);   // vuelve a revisión
 
+        $this->avisarCoordinacion($request, 'subió su carta de término para revisión.', 'admin.lista-cierres');
+
+
         return back()->with('status', 'Carta de término enviada.');
     }
 
-   public function descargar(Request $request, Media $media)
-{
-    $this->authorize('download', $media);
+    public function descargar(Request $request, Media $media)
+    {
+        $this->authorize('download', $media);
 
-    return $media->toResponse($request);
-}
+        return $media->toResponse($request);
+    }
 
     private function propia(Request $request, Postulacion $postulacion): void
     {
@@ -151,7 +161,7 @@ class DocumentoController extends Controller
 
     public function crearReporte(Request $request, Practica $practica): RedirectResponse
     {
-       $this->authorize('entregarDocumentos', $practica);
+        $this->authorize('entregarDocumentos', $practica);
 
         if (!in_array($practica->estado, PracticaEstado::activas(), true)) {
             throw ValidationException::withMessages(['archivo' => 'La práctica ya no está activa.']);
@@ -171,6 +181,8 @@ class DocumentoController extends Controller
         ]);
 
         DB::transaction(function () use ($practica, $datos, $request) {
+            $this->avisarCoordinacion($request, "envió un reporte {$datos['tipo']} de {$datos['horas_reportadas']} h por validar.", 'admin.lista-reportes');
+
             $practica = Practica::lockForUpdate()->findOrFail($practica->id);
 
             $comprometidas = (int) $practica->reportes()
@@ -202,5 +214,16 @@ class DocumentoController extends Controller
         });
 
         return back()->with('status', 'Reporte enviado. La Coordinación lo validará para que cuenten tus horas.');
+    }
+
+    private function avisarCoordinacion(Request $request, string $mensaje, string $ruta): void
+    {
+        $user = $request->user();
+
+        Avisos::enviar(Avisos::administradores((int) $user->alumno->carrera_id), new AvisoOperativo(
+            mensaje: "{$user->name} {$mensaje}",
+            url: route($ruta, absolute: false),
+            detalle: $user->alumno->num_control,
+        ));
     }
 }

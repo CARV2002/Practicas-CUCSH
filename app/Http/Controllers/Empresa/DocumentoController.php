@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Empresa;
 
 use App\Enums\ValidacionEstado;
+use App\Enums\ConvenioEstado;
 use App\Http\Controllers\Controller;
 use App\Models\Empresa;
 use Illuminate\Http\RedirectResponse;
@@ -10,6 +11,9 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Illuminate\Support\Str;
+use App\Services\Avisos;
+use App\Notifications\AvisoOperativo;
 
 class DocumentoController extends Controller
 {
@@ -58,6 +62,16 @@ class DocumentoController extends Controller
         }
 
         $empresa->addMediaFromRequest('archivo')->toMediaCollection($coleccion);
+
+        $solicitud = $empresa->convenios()->where('estado', ConvenioEstado::Solicitado->value)->first();
+
+        if ($solicitud) {   // solo avisa si Lorena está esperando documentos
+            Avisos::enviar(Avisos::administradoresDe($solicitud), new AvisoOperativo(
+                mensaje: "{$empresa->razon_social} subió «" . Str::headline($coleccion) . '» a su expediente.',
+                url: route('admin.convenios.show', $solicitud, false),
+                detalle: $empresa->razon_social,
+            ));
+        }
 
         return back()->with('status', 'Documento enviado a revisión.');
     }

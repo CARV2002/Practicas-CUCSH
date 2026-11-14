@@ -11,6 +11,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use App\Services\Avisos;
+use App\Notifications\AvisoOperativo;
 
 class PracticanteController extends Controller
 {
@@ -68,6 +70,11 @@ class PracticanteController extends Controller
         ]);
 
         $reporte->update($datos);
+
+        Avisos::enviar(Avisos::alumnoDe($reporte->practica), new AvisoOperativo(
+            mensaje: $request->user()->empresa->razon_social . ' dejó retroalimentación en tu reporte del ' . $reporte->periodo_inicio->format('d/m') . ' al ' . $reporte->periodo_fin->format('d/m/Y') . '.',
+            url: route('alumno.mis-practicas', absolute: false),
+        ));
 
         return back()->with('status', 'Retroalimentación guardada.');
     }

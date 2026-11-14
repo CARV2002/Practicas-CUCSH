@@ -24,10 +24,10 @@ class NotificacionController extends Controller
 
         return response()->json([
             'no_leidas' => $user->unreadNotifications()->count(),
-            'items' => $user->notifications()->limit(8)->get()->map(fn ($n) => [
+            'items' => $user->notifications()->limit(8)->get()->map(fn($n) => [
                 'id' => $n->id,
                 'mensaje' => $n->data['mensaje'] ?? 'Notificación',
-                'detalle' => $n->data['empresa'] ?? null,
+                'detalle' => $n->data['detalle'] ?? $n->data['empresa'] ?? null,
                 'leida' => $n->read_at !== null,
                 'hace' => $n->created_at->diffForHumans(),
                 'url' => route('notificaciones.abrir', $n->id),
@@ -35,12 +35,20 @@ class NotificacionController extends Controller
         ]);
     }
 
-    /** Marca como leída y redirige al recurso relacionado. */
+    /** Marca como leída y lleva al recurso relacionado. */
     public function abrir(Request $request, string $id): RedirectResponse
     {
         $n = $request->user()->notifications()->findOrFail($id);
         $n->markAsRead();
 
+        $url = $n->data['url'] ?? null;
+
+        // Solo rutas internas: nunca se redirige a un dominio externo
+        if (is_string($url) && str_starts_with($url, '/') && !str_starts_with($url, '//') && !str_contains($url, '\\')) {
+            return redirect($url);
+        }
+
+        // Avisos anteriores a `url`
         $convenioId = $n->data['convenio_id'] ?? null;
 
         if ($convenioId && $request->user()->hasRole('administrador')) {

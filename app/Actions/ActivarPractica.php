@@ -12,6 +12,8 @@ use App\Models\Profesor;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Services\Avisos;
+use App\Notifications\AvisoOperativo;
 
 /**
  * Nace la práctica. Congela horas_requeridas desde la carrera, exige que convenio e IMSS
@@ -31,7 +33,7 @@ class ActivarPractica
             $postulacion = Postulacion::with('programa.convenio')->lockForUpdate()->findOrFail($postulacion->id);
             $programa = $postulacion->programa;
 
-            if (! $por->puedeVerCarrera((int) $alumno->carrera_id)) {
+            if (!$por->puedeVerCarrera((int) $alumno->carrera_id)) {
                 $this->fallar('No tienes alcance sobre la carrera de este alumno.');
             }
 
@@ -44,16 +46,16 @@ class ActivarPractica
             }
 
             // Si se asigna supervisor, debe ser de la misma DIVISIÓN que la carrera del alumno
-            if ($supervisor !== null && ! $supervisor->puedeSupervisar($alumno->carrera)) {
+            if ($supervisor !== null && !$supervisor->puedeSupervisar($alumno->carrera)) {
                 $this->fallar('El profesor supervisor no pertenece a la división de la carrera del alumno.');
             }
 
             // Un convenio que vence a mitad de la práctica invalida las horas
-            if (! $programa->esInterno() && ! $programa->convenio?->cubreHasta($fechaFin)) {
+            if (!$programa->esInterno() && !$programa->convenio?->cubreHasta($fechaFin)) {
                 $this->fallar('El convenio no está vigente durante todo el periodo de la práctica.');
             }
 
-            if (! $alumno->tieneImssVigenteHasta($fechaFin)) {
+            if (!$alumno->tieneImssVigenteHasta($fechaFin)) {
                 $this->fallar('El seguro IMSS del alumno vence antes de terminar la práctica.');
             }
 
@@ -80,6 +82,20 @@ class ActivarPractica
                 ->whereIn('estado', PostulacionEstado::valores(PostulacionEstado::abiertas()))
                 ->update(['estado' => PostulacionEstado::Cancelada->value]);
 
+            $empresa = $programa->convenio?->empresa;
+
+            Avisos::enviar($alumno->user, new AvisoOperativo(
+                mensaje: "Tu práctica en «{$programa->titulo}» quedó activa del {$fechaInicio->format('d/m/Y')} al {$fechaFin->format('d/m/Y')}. Debes completar {$practica->horas_requeridas} horas y entregar tus reportes firmados.",
+                url: route('alumno.mis-practicas', absolute: false),
+                detalle: $programa->titulo,
+                correo: true,
+                asunto: 'Tu práctica profesional está activa',
+            ));
+
+            Avisos::enviar($empresa?->user, new AvisoOperativo(
+                mensaje: "{$alumno->user->name} inició su práctica en «{$programa->titulo}».",
+                url: route('empresa.practicantes.show', $practica, false),
+            ));
             return $practica;
         });
     }
