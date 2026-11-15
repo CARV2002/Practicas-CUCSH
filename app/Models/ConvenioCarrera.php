@@ -9,16 +9,22 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use App\Models\Concerns\Auditable;
 
 /** Dictamen Técnico de Pertinencia Académica: una carrera opina sobre un convenio. */
 class ConvenioCarrera extends Model implements HasMedia
 {
-    use InteractsWithMedia, ValidaDocumentos;
+    use InteractsWithMedia, ValidaDocumentos, Auditable;
 
     protected $table = 'convenio_carrera';
 
     protected $fillable = [
-        'convenio_id', 'carrera_id', 'dictaminado_por', 'dictamen', 'observaciones', 'fecha_dictamen',
+        'convenio_id',
+        'carrera_id',
+        'dictaminado_por',
+        'dictamen',
+        'observaciones',
+        'fecha_dictamen',
     ];
 
     protected function casts(): array
@@ -63,4 +69,10 @@ class ConvenioCarrera extends Model implements HasMedia
 
         return $ids === null ? $query : $query->whereIn('carrera_id', $ids);
     }
+
+    public function auditoriaEtiqueta(): string
+    {
+        return 'Dictamen';
+    }
+
 }

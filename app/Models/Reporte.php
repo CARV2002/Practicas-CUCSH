@@ -11,11 +11,12 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use App\Observers\ReporteObserver;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy; 
+use App\Models\Concerns\Auditable;
 
 #[ObservedBy([ReporteObserver::class])]
 class Reporte extends Model implements HasMedia
 {
-    use InteractsWithMedia, ValidaDocumentos;
+    use InteractsWithMedia, ValidaDocumentos, Auditable;
 
     protected $table = 'reportes';
 

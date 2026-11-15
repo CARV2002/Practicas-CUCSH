@@ -10,11 +10,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use App\Models\Concerns\Auditable;
 
 #[ObservedBy([CartaTerminoObserver::class])]
 class CartaTermino extends Model implements HasMedia
 {
-    use InteractsWithMedia, ValidaDocumentos;
+    use InteractsWithMedia, ValidaDocumentos, Auditable;
 
     protected $table = 'cartas_termino';
 
@@ -35,4 +36,10 @@ class CartaTermino extends Model implements HasMedia
     {
         return $this->belongsTo(Practica::class);
     }
+
+    public function auditoriaEtiqueta(): string
+    {
+        return 'Carta de término';
+    }
+
 }

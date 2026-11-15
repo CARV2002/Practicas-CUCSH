@@ -33,12 +33,12 @@ class DictamenController extends Controller
 
         $dictamenes = ConvenioCarrera::with(['convenio.empresa', 'carrera.division', 'dictaminador.user', 'media'])
             ->visiblesPara($personal)
-            ->when($filtro !== 'todos', fn ($q) => $q->where('dictamen', $filtro))
-            ->when($request->filled('carrera_id'), fn ($q) => $q->where('carrera_id', $request->integer('carrera_id')))
-            ->when($request->filled('q'), fn ($q) => $q->whereHas('convenio.empresa', fn ($e) => $e
-                ->where('razon_social', 'like', '%'.$request->string('q').'%')
-                ->orWhere('rfc', 'like', '%'.$request->string('q').'%')))
-            ->whereHas('convenio', fn ($c) => $filtro === Dictamen::Pendiente->value
+            ->when($filtro !== 'todos', fn($q) => $q->where('dictamen', $filtro))
+            ->when($request->filled('carrera_id'), fn($q) => $q->where('carrera_id', $request->integer('carrera_id')))
+            ->when($request->filled('q'), fn($q) => $q->whereHas('convenio.empresa', fn($e) => $e
+                ->where('razon_social', 'like', '%' . $request->string('q') . '%')
+                ->orWhere('rfc', 'like', '%' . $request->string('q') . '%')))
+            ->whereHas('convenio', fn($c) => $filtro === Dictamen::Pendiente->value
                 ? $c->where('estado', ConvenioEstado::EnValidacionAcademica->value)
                 : $c)
             ->orderByRaw("case dictamen when 'pendiente' then 0 else 1 end")
@@ -49,7 +49,7 @@ class DictamenController extends Controller
         $todasNegativas = Convenio::with(['empresa', 'dictamenes.carrera'])
             ->visiblesPara($personal)
             ->whereHas('dictamenes')
-            ->whereDoesntHave('dictamenes', fn ($d) => $d->where('dictamen', '!=', Dictamen::Negativo->value))
+            ->whereDoesntHave('dictamenes', fn($d) => $d->where('dictamen', '!=', Dictamen::Negativo->value))
             ->latest('id')
             ->limit(20)
             ->get();
@@ -60,7 +60,7 @@ class DictamenController extends Controller
             'carreras' => Carrera::orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
             'resumen' => [
                 'pendientes' => ConvenioCarrera::visiblesPara($personal)->pendientes()
-                    ->whereHas('convenio', fn ($c) => $c->where('estado', ConvenioEstado::EnValidacionAcademica->value))
+                    ->whereHas('convenio', fn($c) => $c->where('estado', ConvenioEstado::EnValidacionAcademica->value))
                     ->count(),
                 'aprobatorios' => ConvenioCarrera::visiblesPara($personal)->where('dictamen', Dictamen::Aprobatorio->value)->count(),
                 'negativos' => ConvenioCarrera::visiblesPara($personal)->where('dictamen', Dictamen::Negativo->value)->count(),
@@ -102,7 +102,7 @@ class DictamenController extends Controller
 
         $this->authorize('download', $media);
 
-        return $media->toResponse(request());
+        return $this->entregar($media);
     }
 }
 

@@ -12,18 +12,22 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use App\Observers\PostulacionObserver;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
-
+use App\Models\Concerns\Auditable;
 
 #[ObservedBy([PostulacionObserver::class])]
 class Postulacion extends Model implements HasMedia
 {
-    use InteractsWithMedia, ValidaDocumentos;
+    use InteractsWithMedia, ValidaDocumentos, Auditable;
 
     protected $table = 'postulaciones';
 
     protected $fillable = [
-        'alumno_id', 'programa_id', 'validado_por', 'estado',
-        'porcentaje_creditos_declarado', 'fecha_postulacion',
+        'alumno_id',
+        'programa_id',
+        'validado_por',
+        'estado',
+        'porcentaje_creditos_declarado',
+        'fecha_postulacion',
     ];
 
     protected function casts(): array
@@ -73,6 +77,12 @@ class Postulacion extends Model implements HasMedia
 
         return $ids === null
             ? $query
-            : $query->whereHas('alumno', fn (Builder $q) => $q->whereIn('carrera_id', $ids));
+            : $query->whereHas('alumno', fn(Builder $q) => $q->whereIn('carrera_id', $ids));
     }
+
+    public function auditoriaEtiqueta(): string
+    {
+        return 'Postulación';
+    }
+
 }

@@ -14,8 +14,17 @@ function pantallasPorRol(): array
         Rol::Alumno->value => ['alumno.dashboard', 'alumno.oferta-programas', 'alumno.mis-practicas', 'alumno.mis-documentos'],
         Rol::Empresa->value => ['empresa.dashboard', 'empresa.convenio', 'empresa.documentos', 'empresa.lista-programas', 'empresa.lista-practicantes'],
         Rol::Administrador->value => [
-            'admin.dashboard', 'admin.lista-convenios', 'admin.lista-dictamenes', 'admin.lista-empresas',
-            'admin.lista-programas', 'admin.lista-practicantes', 'admin.lista-reportes', 'admin.catalogos', 'admin.lista-usuarios','admin.lista-cierres',
+            'admin.dashboard',
+            'admin.lista-convenios',
+            'admin.lista-dictamenes',
+            'admin.lista-empresas',
+            'admin.lista-programas',
+            'admin.lista-practicantes',
+            'admin.lista-reportes',
+            'admin.catalogos',
+            'admin.lista-usuarios',
+            'admin.lista-cierres',
+            'admin.auditoria',
         ],
     ];
 }
@@ -28,15 +37,21 @@ function usuarioConRol(string $rol): User
     match ($rol) {
         Rol::Administrador->value => Personal::create(['user_id' => $user->id, 'puesto' => 'Coordinación']),
         Rol::Empresa->value => Empresa::create([
-            'user_id' => $user->id, 'rfc' => 'T'.Str::upper(Str::random(11)), 'razon_social' => 'Empresa '.Str::random(4),
-            'tipo_organismo' => TipoOrganismo::Privado, 'contacto_nombre' => 'Contacto',
+            'user_id' => $user->id,
+            'rfc' => 'T' . Str::upper(Str::random(11)),
+            'razon_social' => 'Empresa ' . Str::random(4),
+            'tipo_organismo' => TipoOrganismo::Privado,
+            'contacto_nombre' => 'Contacto',
         ]),
         Rol::Alumno->value => Alumno::create([
-            'user_id' => $user->id, 'num_control' => Str::random(9),
+            'user_id' => $user->id,
+            'num_control' => Str::random(9),
             'carrera_id' => Carrera::firstOrCreate(['carrera_clave' => 'TEST'], [
                 'division_id' => Division::firstOrCreate(['nombre' => 'División de prueba'])->id,
-                'nombre' => 'Carrera de prueba', 'horas_requeridas' => 250,
-                'porcentaje_creditos_minimo' => 50, 'creditos_otorgados' => 8,
+                'nombre' => 'Carrera de prueba',
+                'horas_requeridas' => 250,
+                'porcentaje_creditos_minimo' => 50,
+                'creditos_otorgados' => 8,
             ])->id,
         ]),
     };
@@ -44,7 +59,7 @@ function usuarioConRol(string $rol): User
     return $user;
 }
 
-beforeEach(fn () => $this->seed(RolesSeeder::class));
+beforeEach(fn() => $this->seed(RolesSeeder::class));
 
 test('cada rol entra a todas sus pantallas y se renderizan', function () {
     foreach (pantallasPorRol() as $rol => $rutas) {

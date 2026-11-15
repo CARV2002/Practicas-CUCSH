@@ -15,18 +15,24 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Observers\PracticaObserver;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
-
+use App\Models\Concerns\Auditable;
 
 #[ObservedBy([PracticaObserver::class])]
 class Practica extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, Auditable;
 
     protected $table = 'practicas';
 
     protected $fillable = [
-        'postulacion_id', 'autorizado_por', 'profesor_supervisor_id',
-        'modalidad', 'fecha_inicio', 'fecha_fin', 'horas_requeridas', 'estado',
+        'postulacion_id',
+        'autorizado_por',
+        'profesor_supervisor_id',
+        'modalidad',
+        'fecha_inicio',
+        'fecha_fin',
+        'horas_requeridas',
+        'estado',
     ];
 
     protected function casts(): array
@@ -87,7 +93,7 @@ class Practica extends Model
 
         return $ids === null
             ? $query
-            : $query->whereHas('postulacion.alumno', fn (Builder $q) => $q->whereIn('carrera_id', $ids));
+            : $query->whereHas('postulacion.alumno', fn(Builder $q) => $q->whereIn('carrera_id', $ids));
     }
 
     /**
@@ -110,7 +116,7 @@ class Practica extends Model
     public function scopeConHorasAcumuladas(Builder $query): Builder
     {
         return $query->withSum(
-            ['reportes as horas_acumuladas' => fn ($q) => $q->where('estado', ReporteEstado::Validado->value)],
+            ['reportes as horas_acumuladas' => fn($q) => $q->where('estado', ReporteEstado::Validado->value)],
             'horas_reportadas'
         );
     }
@@ -118,11 +124,17 @@ class Practica extends Model
     /** Texto para el panel del alumno: "240/480". */
     public function progresoTexto(): string
     {
-        return $this->horas_acumuladas.'/'.$this->horas_requeridas;
+        return $this->horas_acumuladas . '/' . $this->horas_requeridas;
     }
 
     public function horasCompletas(): bool
     {
         return $this->horas_acumuladas >= $this->horas_requeridas;
     }
+
+    public function auditoriaEtiqueta(): string
+    {
+        return 'Práctica';
+    }
+
 }

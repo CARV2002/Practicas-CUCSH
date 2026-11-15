@@ -13,4 +13,6 @@ return [
         'telefono_enlace' => '+523338193300',
         'extensiones' => ['23549', '23404'],
     ],
+
+    'auditoria' => (bool) env('AUDITORIA_ACTIVA', true),
 ];

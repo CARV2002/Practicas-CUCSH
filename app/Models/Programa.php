@@ -12,10 +12,12 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Concerns\Auditable;
 
 #[ObservedBy([ProgramaObserver::class])]
 class Programa extends Model
 {
+    use Auditable;
     protected $table = 'programas';
 
     protected $fillable = [
@@ -108,4 +110,10 @@ class Programa extends Model
                 $estados
             );
     }
+
+    public function auditoriaNombre(): ?string
+    {
+        return $this->titulo;
+    }
+
 }

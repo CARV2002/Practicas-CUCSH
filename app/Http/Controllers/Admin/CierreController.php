@@ -199,7 +199,7 @@ class CierreController extends Controller
 
         $this->authorize('download', $media);
 
-        return $media->toResponse($request);
+        return $this->entregar($media);
     }
 
     private function autorizar(Request $request, Practica $practica): void

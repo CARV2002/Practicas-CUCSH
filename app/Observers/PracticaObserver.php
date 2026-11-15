@@ -12,19 +12,21 @@ class PracticaObserver
 {
     public function updating(Practica $practica): void
     {
-        if (! $practica->isDirty('estado')) {
+        if (!$practica->isDirty('estado')) {
             return;
         }
 
         $desde = $practica->getOriginal('estado');
         $hacia = $practica->estado;
 
-        if ($desde instanceof PracticaEstado && ! $desde->puedePasarA($hacia)) {
+        if ($desde instanceof PracticaEstado && !$desde->puedePasarA($hacia)) {
             $this->fallar("Una práctica «{$desde->label()}» no puede pasar a «{$hacia->label()}».");
         }
 
-        if ($hacia === PracticaEstado::Cancelada
-            && $practica->oficioAcreditacion?->enviado_control_escolar_at !== null) {
+        if (
+            $hacia === PracticaEstado::Cancelada
+            && $practica->oficioAcreditacion?->enviado_control_escolar_at !== null
+        ) {
             $this->fallar('No se puede cancelar: el oficio de acreditación ya se envió a Control Escolar.');
         }
     }
@@ -32,7 +34,7 @@ class PracticaObserver
     /** Al cancelar: se libera el cupo y se anula lo que quedó sin resolver. */
     public function updated(Practica $practica): void
     {
-        if (! $practica->wasChanged('estado') || $practica->estado !== PracticaEstado::Cancelada) {
+        if (!$practica->wasChanged('estado') || $practica->estado !== PracticaEstado::Cancelada) {
             return;
         }
 
@@ -44,7 +46,8 @@ class PracticaObserver
 
         $practica->reportes()
             ->where('estado', ReporteEstado::Pendiente->value)
-            ->update(['estado' => ReporteEstado::Anulado->value]);
+            ->get()
+            ->each->update(['estado' => ReporteEstado::Anulado]);
     }
 
     private function fallar(string $mensaje): never

@@ -8,10 +8,11 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
+use App\Models\Concerns\Auditable;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasFactory, HasRoles, Notifiable;
+    use HasFactory, HasRoles, Notifiable, Auditable;
 
     protected $fillable = ['name', 'email', 'password', 'activo', 'aviso_privacidad_at'];
 
@@ -41,4 +42,15 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasOne(Personal::class);
     }
+
+    public function auditoriaEtiqueta(): string
+    {
+        return 'Usuario';
+    }
+    
+    public function auditoriaNombre(): ?string
+    {
+        return $this->email;
+    }
+
 }

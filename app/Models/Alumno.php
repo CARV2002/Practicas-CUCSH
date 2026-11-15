@@ -11,10 +11,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use App\Models\Concerns\Auditable;
 
 class Alumno extends Model implements HasMedia
 {
-    use InteractsWithMedia, ValidaDocumentos;
+    use InteractsWithMedia, ValidaDocumentos, Auditable;
 
     protected $table = 'alumnos';
 
@@ -70,4 +71,10 @@ class Alumno extends Model implements HasMedia
     {
         return $this->practicas()->where('practicas.estado', PracticaEstado::Acreditada->value)->exists();
     }
+
+    public function auditoriaNombre(): ?string
+    {
+        return $this->num_control;
+    }
+
 }

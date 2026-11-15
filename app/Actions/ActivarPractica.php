@@ -80,7 +80,8 @@ class ActivarPractica
             Postulacion::where('alumno_id', $alumno->id)
                 ->where('id', '!=', $postulacion->id)
                 ->whereIn('estado', PostulacionEstado::valores(PostulacionEstado::abiertas()))
-                ->update(['estado' => PostulacionEstado::Cancelada->value]);
+                ->get()
+                ->each->update(['estado' => PostulacionEstado::Cancelada]);
 
             $empresa = $programa->convenio?->empresa;
 

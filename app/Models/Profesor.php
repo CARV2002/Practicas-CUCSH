@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Concerns\Auditable;
 
 /** Catálogo de profesores supervisores, adscritos a una división (sin login en esta fase). */
 class Profesor extends Model
 {
+    use Auditable;
     protected $table = 'profesores';
 
     protected $fillable = ['division_id', 'nombre', 'email'];
@@ -28,4 +30,10 @@ class Profesor extends Model
     {
         return (int) $this->division_id === (int) $carrera->division_id;
     }
+
+    public function auditoriaNombre(): ?string
+    {
+        return $this->nombre;
+    }
+
 }

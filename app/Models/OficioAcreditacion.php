@@ -10,17 +10,21 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use App\Models\Concerns\Auditable;
 
 #[ObservedBy([OficioAcreditacionObserver::class])]
 class OficioAcreditacion extends Model implements HasMedia
 {
-    use InteractsWithMedia, ValidaDocumentos;
+    use InteractsWithMedia, ValidaDocumentos, Auditable;
 
     protected $table = 'oficios_acreditacion';
 
     protected $fillable = [
-        'practica_id', 'emitido_por', 'estado_validacion',
-        'enviado_control_escolar_at', 'capturado_siiau_at',
+        'practica_id',
+        'emitido_por',
+        'estado_validacion',
+        'enviado_control_escolar_at',
+        'capturado_siiau_at',
     ];
 
     protected function casts(): array
@@ -47,4 +51,10 @@ class OficioAcreditacion extends Model implements HasMedia
     {
         return $this->belongsTo(Personal::class, 'emitido_por');
     }
+
+    public function auditoriaEtiqueta(): string
+    {
+        return 'Oficio de acreditación';
+    }
+
 }

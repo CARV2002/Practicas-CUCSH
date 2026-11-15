@@ -18,7 +18,11 @@ class DatabaseSeeder extends Seeder
      * Idempotente: se puede correr varias veces sin duplicar nada.
      * En producción solo crea los roles; en local además crea usuarios y datos de prueba.
      */
-    public function run(): void
+   public function run(): void
+    {
+        \App\Services\Auditoria::sinRegistro(fn () => $this->sembrar());
+    }
+    private function sembrar(): void
     {
         $this->call(RolesSeeder::class);
 

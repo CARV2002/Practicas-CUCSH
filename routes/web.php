@@ -24,6 +24,7 @@ use App\Http\Controllers\Alumno\MisPracticasController;
 use App\Http\Controllers\Alumno\OfertaController;
 use App\Http\Controllers\Alumno\DashboardController as AlumnoDashboardController;
 use App\Http\Controllers\Admin\CierreController;
+use App\Http\Controllers\Admin\AuditoriaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -206,6 +207,9 @@ Route::prefix('admin')
         Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
         Route::post('/usuarios/{usuario}/activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.activo');
         Route::post('/usuarios/{usuario}/password', [UsuarioController::class, 'restablecerPassword'])->name('usuarios.password');
+        
+        //auditoría: solo administradores con alcance global
+        Route::get('/auditoria', [AuditoriaController::class, 'index'])->name('auditoria');
     });
 
 /*

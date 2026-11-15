@@ -56,6 +56,8 @@ class UsuarioController extends Controller
         $user->markEmailAsVerified();
         $user->assignRole(Rol::Administrador->value);
 
+        \App\Services\Auditoria::registrar('usuario.rol_asignado', "Rol «administrador» asignado a {$user->email}", $user);
+
         Personal::create([
             'user_id' => $user->id,
             'puesto' => $datos['puesto'] ?? 'Coordinación de Prácticas Profesionales',

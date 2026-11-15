@@ -195,6 +195,6 @@ class PracticanteController extends Controller
         abort_unless($media->model_type === Postulacion::class && (int) $media->model_id === (int) $postulacion->id, 404);
         $this->authorize('download', $media);
 
-        return $media->toResponse($request);
+        return $this->entregar($media);
     }
 }

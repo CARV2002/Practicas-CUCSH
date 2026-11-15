@@ -92,6 +92,6 @@ class ConvenioController extends Controller
         $archivo = $convenio->getMedia('convenio_firmado')->last();
         abort_unless($archivo !== null, 404);
 
-        return $archivo->toResponse($request);
+        return $this->entregar($archivo);
     }
 }

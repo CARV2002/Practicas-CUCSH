@@ -44,11 +44,11 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        // Si la contraseña es correcta pero la cuenta está desactivada, se avisa con claridad.
         // Solo se revela después de acertar la contraseña, así no se filtra qué correos existen.
         $user = User::where('email', $this->string('email')->lower()->toString())->first();
 
         if ($user && !$user->activo && Hash::check($this->string('password')->toString(), $user->password)) {
+            \App\Services\Auditoria::registrar('acceso.cuenta_inactiva', "Intento de acceso a la cuenta desactivada {$user->email}", $user, actor: $user);
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([

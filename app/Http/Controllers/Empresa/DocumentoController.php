@@ -80,7 +80,7 @@ class DocumentoController extends Controller
     public function descargar(Request $request, int $media)
     {
         $archivo = $request->user()->empresa->media()->findOrFail($media);
-        $this->authorize('download', $archivo);
+        return $this->entregar($archivo);
     }
 
     /** @return string[] */

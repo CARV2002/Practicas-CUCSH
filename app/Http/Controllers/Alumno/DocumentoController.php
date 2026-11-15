@@ -136,7 +136,7 @@ class DocumentoController extends Controller
     {
         $this->authorize('download', $media);
 
-        return $media->toResponse($request);
+        return $this->entregar($media);
     }
 
     private function propia(Request $request, Postulacion $postulacion): void

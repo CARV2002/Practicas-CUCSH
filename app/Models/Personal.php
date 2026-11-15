@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Concerns\Auditable;
 
 /**
  * Personal institucional. El rol (vinculación, coordinador, director, jurídico...) está en Spatie;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Personal extends Model
 {
+    use Auditable;
     protected $table = 'personal';
 
     protected $fillable = ['user_id', 'division_id', 'carrera_id', 'puesto'];
@@ -58,7 +60,7 @@ class Personal extends Model
         }
 
         if ($this->division_id !== null) {
-            return Carrera::where('division_id', $this->division_id)->pluck('id')->map(fn ($id) => (int) $id)->all();
+            return Carrera::where('division_id', $this->division_id)->pluck('id')->map(fn($id) => (int) $id)->all();
         }
 
         return null;
@@ -70,4 +72,10 @@ class Personal extends Model
 
         return $ids === null || in_array($carreraId, $ids, true);
     }
+
+    public function auditoriaNombre(): ?string
+    {
+        return $this->puesto;
+    }
+
 }

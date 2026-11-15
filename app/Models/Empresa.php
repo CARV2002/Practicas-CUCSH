@@ -10,16 +10,26 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use App\Models\Concerns\Auditable;
 
 class Empresa extends Model implements HasMedia
 {
-    use InteractsWithMedia, SoftDeletes, ValidaDocumentos;
+    use InteractsWithMedia, SoftDeletes, ValidaDocumentos, Auditable;
 
     protected $table = 'empresas';
 
     protected $fillable = [
-        'user_id', 'rfc', 'razon_social', 'tipo_organismo', 'domicilio_fiscal', 'representante_legal',
-        'contacto_nombre', 'contacto_cargo', 'contacto_telefono', 'descripcion', 'proyectos_principales',
+        'user_id',
+        'rfc',
+        'razon_social',
+        'tipo_organismo',
+        'domicilio_fiscal',
+        'representante_legal',
+        'contacto_nombre',
+        'contacto_cargo',
+        'contacto_telefono',
+        'descripcion',
+        'proyectos_principales',
     ];
 
     protected function casts(): array
@@ -33,7 +43,8 @@ class Empresa extends Model implements HasMedia
         $this->addMediaCollection('cv_instancia')
             ->useDisk('local')
             ->acceptsMimeTypes([
-                'application/pdf', 'application/msword',
+                'application/pdf',
+                'application/msword',
                 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             ]);
 
@@ -58,7 +69,9 @@ class Empresa extends Model implements HasMedia
     public static function coleccionesPdf(): array
     {
         return [
-            'identificacion_representante', 'acta_constitutiva', 'constancia_situacion_fiscal',
+            'identificacion_representante',
+            'acta_constitutiva',
+            'constancia_situacion_fiscal',
             'comprobante_domicilio',
             'poder_notarial',   // opcional: pendiente de confirmar si se pide aparte del acta
         ];
@@ -68,8 +81,11 @@ class Empresa extends Model implements HasMedia
     public static function coleccionesObligatorias(): array
     {
         return [
-            'cv_instancia', 'identificacion_representante', 'acta_constitutiva',
-            'constancia_situacion_fiscal', 'comprobante_domicilio',
+            'cv_instancia',
+            'identificacion_representante',
+            'acta_constitutiva',
+            'constancia_situacion_fiscal',
+            'comprobante_domicilio',
         ];
     }
 
@@ -77,11 +93,17 @@ class Empresa extends Model implements HasMedia
     public function expedienteCompleto(): bool
     {
         foreach (self::coleccionesObligatorias() as $coleccion) {
-            if (! $this->documentoValidado($coleccion)) {
+            if (!$this->documentoValidado($coleccion)) {
                 return false;
             }
         }
 
         return true;
     }
+
+    public function auditoriaNombre(): ?string
+    {
+        return $this->razon_social;
+    }
+
 }

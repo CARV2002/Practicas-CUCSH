@@ -6,14 +6,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Concerns\Auditable;
 
 class Carrera extends Model
 {
+    use Auditable;
     protected $table = 'carreras';
 
     protected $fillable = [
-        'division_id', 'carrera_clave', 'nombre',
-        'horas_requeridas', 'porcentaje_creditos_minimo', 'creditos_otorgados',
+        'division_id',
+        'carrera_clave',
+        'nombre',
+        'horas_requeridas',
+        'porcentaje_creditos_minimo',
+        'creditos_otorgados',
     ];
 
     protected function casts(): array
@@ -58,4 +64,10 @@ class Carrera extends Model
             ->withPivot(['id', 'dictamen', 'observaciones', 'fecha_dictamen'])
             ->withTimestamps();
     }
+
+    public function auditoriaNombre(): ?string
+    {
+        return $this->carrera_clave;
+    }
+
 }

@@ -99,64 +99,75 @@ class MenuHelper
     /** Coordinación de Prácticas Profesionales (Lorena): el proceso de convenio y su seguimiento. */
     private static function administradorMenu()
     {
+        $items = [
+            [
+                'name' => 'Dashboard',
+                'icon' => 'dashboard',
+                'path' => '/admin/dashboard',
+            ],
+            [
+                'name' => 'Convenios',
+                'icon' => 'pages',
+                'path' => '/admin/lista-convenios',
+            ],
+            [
+                'name' => 'Dictámenes',
+                'icon' => 'task',
+                'path' => '/admin/lista-dictamenes',
+            ],
+            [
+                'name' => 'Empresas',
+                'icon' => 'ui-elements',
+                'path' => '/admin/lista-empresas',
+            ],
+            [
+                'name' => 'Programas',
+                'icon' => 'forms',
+                'path' => '/admin/lista-programas',
+            ],
+            [
+                'name' => 'Practicantes',
+                'icon' => 'user-profile',
+                'path' => '/admin/lista-practicantes',
+            ],
+            [
+                'name' => 'Cierre de prácticas',
+                'icon' => 'calendar',
+                'path' => '/admin/lista-cierres',
+            ],
+            [
+                'name' => 'Reportes',
+                'icon' => 'charts',
+                'path' => '/admin/lista-reportes',
+            ],
+            [
+                'name' => 'Divisiones y carreras',
+                'icon' => 'tables',
+                'path' => '/admin/catalogos',
+            ],
+            [
+                'name' => 'Usuarios',
+                'icon' => 'authentication',
+                'path' => '/admin/lista-usuarios',
+            ],
+        ];
+
+        if (auth()->user()?->can('ver-auditoria')) {
+            $items[] = [
+                'name' => 'Auditoría',
+                'icon' => 'authentication',
+                'path' => '/admin/auditoria',
+            ];
+        }
+
         return [
             [
                 'title' => 'Coordinación de Prácticas',
-                'items' => [
-                    [
-                        'name' => 'Dashboard',
-                        'icon' => 'dashboard',
-                        'path' => '/admin/dashboard',
-                    ],
-                    [
-                        'name' => 'Convenios',
-                        'icon' => 'pages',
-                        'path' => '/admin/lista-convenios',
-                    ],
-                    [
-                        'name' => 'Dictámenes',
-                        'icon' => 'task',
-                        'path' => '/admin/lista-dictamenes',
-                    ],
-                    [
-                        'name' => 'Empresas',
-                        'icon' => 'ui-elements',
-                        'path' => '/admin/lista-empresas',
-                    ],
-                    [
-                        'name' => 'Programas',
-                        'icon' => 'forms',
-                        'path' => '/admin/lista-programas',
-                    ],
-                    [
-                        'name' => 'Practicantes',
-                        'icon' => 'user-profile',
-                        'path' => '/admin/lista-practicantes',
-                    ],
-                    [
-                        'name' => 'Cierre de prácticas',
-                        'icon' => 'calendar',
-                        'path' => '/admin/lista-cierres',
-                    ],
-                    [
-                        'name' => 'Reportes',
-                        'icon' => 'charts',
-                        'path' => '/admin/lista-reportes',
-                    ],
-                    [
-                        'name' => 'Divisiones y carreras',
-                        'icon' => 'tables',
-                        'path' => '/admin/catalogos',
-                    ],
-                    [
-                        'name' => 'Usuarios',
-                        'icon' => 'authentication',
-                        'path' => '/admin/lista-usuarios',
-                    ],
-                ]
-            ]
+                'items' => $items,
+            ],
         ];
     }
+
 
     public static function isActive($path)
     {

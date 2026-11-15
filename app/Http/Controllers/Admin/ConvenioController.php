@@ -251,7 +251,7 @@ class ConvenioController extends Controller
 
         $this->authorize('download', $media);
 
-        return $media->toResponse(request());
+        return $this->entregar($media);
     }
 
     public function generarBorrador(Request $request, Convenio $convenio, GeneradorBorradorConvenio $generador): RedirectResponse

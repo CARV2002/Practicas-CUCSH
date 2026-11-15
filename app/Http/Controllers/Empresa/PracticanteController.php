@@ -84,7 +84,7 @@ class PracticanteController extends Controller
         abort_unless($media->model_type === Reporte::class && (int) $media->model_id === (int) $reporte->id, 404);
         $this->authorize('download', $media);
 
-        return $media->toResponse($request);
+        return $this->entregar($media);
     }
 
     private function propias(int $empresaId)

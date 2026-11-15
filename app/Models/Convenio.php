@@ -15,10 +15,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use App\Models\Concerns\Auditable;
 
 class Convenio extends Model implements HasMedia
 {
-    use InteractsWithMedia, SoftDeletes, ValidaDocumentos;
+    use InteractsWithMedia, SoftDeletes, ValidaDocumentos, Auditable;
 
     protected $table = 'convenios';
 
@@ -197,5 +198,10 @@ class Convenio extends Model implements HasMedia
     {
         return $this->estaVigente()
             && $this->fecha_fin_vigencia->toDateString() >= $fecha->toDateString();
+    }
+
+    public function auditoriaNombre(): ?string
+    {
+        return $this->folio;
     }
 }
