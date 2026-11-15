@@ -74,8 +74,8 @@ class PracticanteController extends Controller
     {
         $this->authorize('gestionar', $postulacion);
 
-        if (!in_array($postulacion->estado, [PostulacionEstado::Pendiente, PostulacionEstado::CartaPresentacionEmitida], true)) {
-            return back()->withErrors(['postulacion' => 'Solo se rechazan postulaciones pendientes o con carta emitida.']);
+        if (!$postulacion->estado->puedePasarA(PostulacionEstado::Rechazada)) {
+            return back()->withErrors(['postulacion' => "Una postulación «{$postulacion->estado->label()}» ya no se puede rechazar."]);
         }
 
         $postulacion->update(['estado' => PostulacionEstado::Rechazada]);
@@ -133,6 +133,10 @@ class PracticanteController extends Controller
     public function asignarSupervisor(Request $request, Practica $practica): RedirectResponse
     {
         $this->authorize('gestionar', $practica);
+
+        if (!in_array($practica->estado, PracticaEstado::activas(), true)) {
+            return back()->withErrors(['practica' => 'Solo se asigna supervisor a prácticas activas.']);
+        }
         $datos = $request->validate(['profesor_id' => ['required', 'integer', Rule::exists('profesores', 'id')]]);
 
         $profesor = Profesor::findOrFail($datos['profesor_id']);

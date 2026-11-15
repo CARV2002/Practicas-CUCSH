@@ -62,6 +62,10 @@ class EmitirCartaPresentacion
                 $this->fallar('El programa ya no tiene cupos disponibles.');
             }
 
+            if ($alumno->yaAcreditado()) {
+                $this->fallar('El alumno ya acreditó sus prácticas profesionales.');
+            }
+
             // Un alumno, una empresa a la vez
             $otraEnTramite = Postulacion::where('alumno_id', $alumno->id)
                 ->where('id', '!=', $postulacion->id)

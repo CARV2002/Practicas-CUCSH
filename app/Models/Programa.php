@@ -19,8 +19,18 @@ class Programa extends Model
     protected $table = 'programas';
 
     protected $fillable = [
-        'convenio_id', 'carrera_id', 'modalidad', 'ciclo', 'titulo', 'descripcion',
-        'actividades', 'perfil_requerido', 'horario', 'sede', 'cupos_totales', 'estado',
+        'convenio_id',
+        'carrera_id',
+        'modalidad',
+        'ciclo',
+        'titulo',
+        'descripcion',
+        'actividades',
+        'perfil_requerido',
+        'horario',
+        'sede',
+        'cupos_totales',
+        'estado',
     ];
 
     protected function casts(): array
@@ -74,8 +84,9 @@ class Programa extends Model
     public function scopeConCuposOcupados(Builder $query): Builder
     {
         return $query->withCount([
-            'postulaciones as cupos_ocupados' => fn ($q) => $q->whereIn(
-                'estado', PostulacionEstado::valores(PostulacionEstado::ocupanCupo())
+            'postulaciones as cupos_ocupados' => fn($q) => $q->whereIn(
+                'estado',
+                PostulacionEstado::valores(PostulacionEstado::ocupanCupo())
             ),
         ]);
     }
@@ -88,9 +99,10 @@ class Programa extends Model
 
         return $query
             ->where('estado', ProgramaEstado::Publicado->value)
-            ->where(fn (Builder $q) => $q
+            ->where(fn(Builder $q) => $q
                 ->whereNull('convenio_id')
-                ->orWhereHas('convenio', fn (Builder $c) => $c->vigentes()))
+                ->orWhereHas('convenio', fn(Builder $c) => $c->vigentes()
+                    ->whereHas('empresa.user', fn($u) => $u->where('activo', true))))
             ->whereRaw(
                 "programas.cupos_totales > (select count(*) from postulaciones where postulaciones.programa_id = programas.id and postulaciones.estado in ($marcadores))",
                 $estados

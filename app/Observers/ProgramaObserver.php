@@ -21,6 +21,16 @@ class ProgramaObserver
     {
         $modalidad = $programa->modalidad ?? Modalidad::Externa;
 
+        if ($programa->exists && $programa->postulaciones()->exists()) {
+            if ($programa->isDirty(['carrera_id', 'convenio_id', 'modalidad', 'ciclo'])) {
+                $this->fallar('Ya hay postulaciones: no se pueden cambiar carrera, convenio, modalidad ni ciclo. Crea otro programa.');
+            }
+
+            if ($programa->isDirty('estado') && $programa->estado === ProgramaEstado::Borrador) {
+                $this->fallar('Ya hay postulaciones: no se puede regresar a borrador. Ciérralo en su lugar.');
+            }
+        }
+
         if ($modalidad === Modalidad::Interna) {
             if ($programa->convenio_id !== null) {
                 $this->fallar('Un programa de modalidad interna no lleva convenio.');
@@ -32,20 +42,24 @@ class ProgramaObserver
 
             $convenio = Convenio::find($programa->convenio_id);
 
-            if ($convenio === null || ! $convenio->autorizaCarrera((int) $programa->carrera_id)) {
+            if ($convenio === null || !$convenio->autorizaCarrera((int) $programa->carrera_id)) {
                 $this->fallar('La carrera no tiene dictamen aprobatorio en el convenio de la empresa.');
             }
 
-            if ($programa->isDirty('estado')
+            if (
+                $programa->isDirty('estado')
                 && $programa->estado === ProgramaEstado::Publicado
-                && ! $convenio->estaVigente()) {
+                && !$convenio->estaVigente()
+            ) {
                 $this->fallar('No se puede publicar: el convenio no está vigente.');
             }
         }
 
-        if ($programa->exists
+        if (
+            $programa->exists
             && $programa->isDirty('cupos_totales')
-            && $programa->cupos_totales < $programa->cuposOcupados()) {
+            && $programa->cupos_totales < $programa->cuposOcupados()
+        ) {
             $this->fallar("No puedes bajar los cupos a {$programa->cupos_totales}: ya hay {$programa->cuposOcupados()} ocupados.");
         }
     }

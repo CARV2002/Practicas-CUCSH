@@ -73,6 +73,10 @@ class ConvenioController extends Controller
     {
         $this->authorize('gestionar', $convenio);
 
+        if ($convenio->estado !== ConvenioEstado::Solicitado) {
+            return back()->withErrors(['convenio' => 'Los documentos solo se validan mientras la solicitud está en revisión de documentos.']);
+        }
+
         abort_unless(
             $media->model_type === Empresa::class && (int) $media->model_id === (int) $convenio->empresa_id,
             404
@@ -121,6 +125,10 @@ class ConvenioController extends Controller
     public function subirBorrador(Request $request, Convenio $convenio): RedirectResponse
     {
         $this->authorize('gestionar', $convenio);
+
+        if (!$convenio->etapasAbiertas()->where('etapa', EtapaConvenio::RedaccionBorrador->value)->exists()) {
+            return back()->withErrors(['convenio' => 'El borrador solo se adjunta cuando la etapa de redacción está abierta.']);
+        }
 
         $request->validate([
             'borrador' => ['required', 'file', 'mimes:pdf,docx', 'max:10240'],

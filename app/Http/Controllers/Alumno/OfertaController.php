@@ -52,6 +52,7 @@ class OfertaController extends Controller
         $misPostulaciones = $alumno->postulaciones()->pluck('estado', 'programa_id');
 
         $bloqueo = match (true) {
+            $alumno->yaAcreditado() => 'Ya tienes una práctica acreditada.',
             $alumno->tienePracticaActiva() => 'Ya tienes una práctica activa.',
             $alumno->postulaciones()->whereIn('estado', PostulacionEstado::valores(PostulacionEstado::enTramite()))->exists()
             => 'Ya tienes una empresa en trámite; termina ese proceso antes de postularte a otra.',
@@ -84,6 +85,10 @@ class OfertaController extends Controller
 
         if ($alumno->postulaciones()->where('programa_id', $programa->id)->exists()) {
             throw ValidationException::withMessages(['postulacion' => 'Ya te postulaste a este programa.']);
+        }
+
+        if ($alumno->yaAcreditado()) {
+            throw ValidationException::withMessages(['postulacion' => 'Ya acreditaste tus prácticas profesionales.']);
         }
 
         if (

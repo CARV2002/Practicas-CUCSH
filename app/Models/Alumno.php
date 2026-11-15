@@ -65,4 +65,9 @@ class Alumno extends Model implements HasMedia
         return $this->vigencia_imss !== null
             && $this->vigencia_imss->toDateString() >= $fecha->toDateString();
     }
+
+    public function yaAcreditado(): bool
+    {
+        return $this->practicas()->where('practicas.estado', PracticaEstado::Acreditada->value)->exists();
+    }
 }

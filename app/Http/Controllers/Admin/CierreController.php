@@ -16,6 +16,7 @@ use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use App\Services\Avisos;
 use App\Notifications\AvisoOperativo;
+use App\Enums\ReporteEstado;
 
 /** Cierre de la práctica: carta de término -> oficio -> Control Escolar -> SIIAU. */
 class CierreController extends Controller
@@ -69,6 +70,13 @@ class CierreController extends Controller
 
         if ($practica->estado !== PracticaEstado::EnCurso) {
             return back()->withErrors(['carta' => 'Solo se revisa la carta de una práctica en curso.']);
+        }
+
+        if (
+            $datos['estado'] === ValidacionEstado::Validada->value
+            && $practica->reportes()->where('estado', ReporteEstado::Pendiente->value)->exists()
+        ) {
+            return back()->withErrors(['carta' => 'Hay reportes pendientes de revisión; resuélvelos antes de validar la carta.']);
         }
 
         $estado = ValidacionEstado::from($datos['estado']);

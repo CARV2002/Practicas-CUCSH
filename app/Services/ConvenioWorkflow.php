@@ -110,6 +110,10 @@ class ConvenioWorkflow
 
             $this->exigirEstado($convenio, ConvenioEstado::EnValidacionAcademica);
 
+            if ($dictamen->dictamen !== Dictamen::Pendiente) {
+                $this->fallar('Este dictamen ya fue emitido y no se puede modificar.');
+            }
+
             if (!$por->puedeVerCarrera((int) $dictamen->carrera_id)) {
                 $this->fallar('No tienes alcance para dictaminar esta carrera.');
             }

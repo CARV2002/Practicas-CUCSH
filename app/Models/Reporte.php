@@ -9,7 +9,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use App\Observers\ReporteObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy; 
 
+#[ObservedBy([ReporteObserver::class])]
 class Reporte extends Model implements HasMedia
 {
     use InteractsWithMedia, ValidaDocumentos;

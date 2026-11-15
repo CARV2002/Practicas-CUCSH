@@ -83,8 +83,8 @@ class ReporteController extends Controller
             'retroalimentacion_empresa' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        if (!in_array($reporte->practica->estado, PracticaEstado::activas(), true)) {
-            return back()->withErrors(['reporte' => 'La práctica ya no está activa.']);
+        if ($reporte->practica->estado !== PracticaEstado::EnCurso) {
+            return back()->withErrors(['reporte' => 'Los reportes solo se revisan mientras la práctica está en curso.']);
         }
 
         $reporte->update($datos);

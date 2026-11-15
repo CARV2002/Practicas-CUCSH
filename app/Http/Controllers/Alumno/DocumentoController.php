@@ -84,7 +84,7 @@ class DocumentoController extends Controller
 
         $postulacion->addMediaFromRequest('archivo')->toMediaCollection('carta_aceptacion');
 
-        $this->avisarCoordinacion($request, 'subió su carta de aceptación de «'.$postulacion->programa->titulo.'»; regístrala para activar su práctica.', 'admin.lista-practicantes');
+        $this->avisarCoordinacion($request, 'subió su carta de aceptación de «' . $postulacion->programa->titulo . '»; regístrala para activar su práctica.', 'admin.lista-practicantes');
 
         return back()->with('status', 'Carta de aceptación enviada; la Coordinación la registrará.');
     }
@@ -96,7 +96,7 @@ class DocumentoController extends Controller
 
         if (
             !in_array($reporte->estado, [ReporteEstado::Pendiente, ReporteEstado::Rechazado], true)
-            || !in_array($practica->estado, PracticaEstado::activas(), true)
+            || $practica->estado !== PracticaEstado::EnCurso
         ) {
             throw ValidationException::withMessages(['archivo' => 'Este reporte ya no admite cambios.']);
         }
@@ -106,7 +106,7 @@ class DocumentoController extends Controller
         $reporte->addMediaFromRequest('archivo')->toMediaCollection('reporte_firmado');
         $reporte->update(['estado' => ReporteEstado::Pendiente]);   // un rechazado vuelve a revisión
 
-        $this->avisarCoordinacion($request, 'reenvió su reporte firmado del '.$reporte->periodo_inicio->format('d/m/Y').' para revisión.', 'admin.lista-reportes');
+        $this->avisarCoordinacion($request, 'reenvió su reporte firmado del ' . $reporte->periodo_inicio->format('d/m/Y') . ' para revisión.', 'admin.lista-reportes');
 
 
         return back()->with('status', 'Reporte firmado enviado.');
@@ -163,8 +163,8 @@ class DocumentoController extends Controller
     {
         $this->authorize('entregarDocumentos', $practica);
 
-        if (!in_array($practica->estado, PracticaEstado::activas(), true)) {
-            throw ValidationException::withMessages(['archivo' => 'La práctica ya no está activa.']);
+        if ($practica->estado !== PracticaEstado::EnCurso) {
+            throw ValidationException::withMessages(['archivo' => 'Solo puedes subir reportes cuando la práctica está en curso.']);
         }
 
         $tope = today()->min($practica->fecha_fin)->toDateString();

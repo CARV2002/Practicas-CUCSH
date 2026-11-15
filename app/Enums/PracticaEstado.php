@@ -2,8 +2,11 @@
 
 namespace App\Enums;
 
+use App\Enums\Concerns\TieneTransiciones;
+
 enum PracticaEstado: string
 {
+    use TieneTransiciones;
     case EnCurso = 'en_curso';
     case EnCierre = 'en_cierre';     // carta de término validada
     case Acreditada = 'acreditada';  // oficio enviado a Control Escolar
@@ -17,7 +20,7 @@ enum PracticaEstado: string
     /** @return string[] */
     public static function valores(array $casos): array
     {
-        return array_map(fn (self $c) => $c->value, $casos);
+        return array_map(fn(self $c) => $c->value, $casos);
     }
 
     public function label(): string
@@ -27,6 +30,15 @@ enum PracticaEstado: string
             self::EnCierre => 'En cierre',
             self::Acreditada => 'Acreditada',
             self::Cancelada => 'Cancelada',
+        };
+    }
+
+    public function transiciones(): array
+    {
+        return match ($this) {
+            self::EnCurso => [self::EnCierre, self::Cancelada],
+            self::EnCierre => [self::Acreditada, self::Cancelada],
+            self::Acreditada, self::Cancelada => [],
         };
     }
 }
