@@ -25,6 +25,7 @@ use App\Http\Controllers\Alumno\OfertaController;
 use App\Http\Controllers\Alumno\DashboardController as AlumnoDashboardController;
 use App\Http\Controllers\Admin\CierreController;
 use App\Http\Controllers\Admin\AuditoriaController;
+use App\Http\Controllers\Admin\InformeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -57,7 +58,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
 */
 Route::prefix('alumno')
     ->name('alumno.')
-    ->middleware(['auth', 'verified','role:' . Rol::Alumno->value])
+    ->middleware(['auth', 'verified', 'role:' . Rol::Alumno->value])
     ->group(function () {
         //Route::view('/dashboard', 'alumno.dashboard')->name('dashboard');
         Route::get('/dashboard', [AlumnoDashboardController::class, 'index'])->name('dashboard');
@@ -207,9 +208,15 @@ Route::prefix('admin')
         Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
         Route::post('/usuarios/{usuario}/activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.activo');
         Route::post('/usuarios/{usuario}/password', [UsuarioController::class, 'restablecerPassword'])->name('usuarios.password');
-        
+
         //auditoría: solo administradores con alcance global
         Route::get('/auditoria', [AuditoriaController::class, 'index'])->name('auditoria');
+
+        //informes: solo administradores con alcance global
+        Route::get('/informes', [InformeController::class, 'index'])->name('informes');
+        Route::get('/informes/{tipo}/exportar', [InformeController::class, 'exportar'])
+            ->whereIn('tipo', ['practicas', 'postulaciones', 'convenios', 'programas'])
+            ->name('informes.exportar');
     });
 
 /*
@@ -227,7 +234,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
 require __DIR__ . '/auth.php';

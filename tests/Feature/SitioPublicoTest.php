@@ -209,3 +209,11 @@ test('todas las páginas públicas muestran el mismo correo de contacto', functi
             ->assertDontSee('vinculacion.cucsh@academicos.udg.mx');
     }
 });
+
+test('el registro enlaza el aviso de privacidad y el aviso declara la bitácora', function () {
+    foreach (['/registro/alumno', '/registro/empresa'] as $url) {
+        $this->get($url)->assertOk()->assertSee(route('privacidad'), false)->assertSee(route('terminos'), false);
+    }
+
+    $this->get(route('privacidad'))->assertOk()->assertSee('Bitácora de actividad')->assertSee('Informes y descargas');
+});

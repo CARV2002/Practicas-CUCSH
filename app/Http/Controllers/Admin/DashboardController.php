@@ -22,6 +22,7 @@ use App\Models\Programa;
 use App\Models\Reporte;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use App\Enums\ValidacionEstado;
 
 class DashboardController extends Controller
 {
@@ -41,8 +42,8 @@ class DashboardController extends Controller
         $excedidas = ConvenioSeguimiento::with('convenio.empresa')
             ->abiertos()
             ->get()
-            ->filter(fn ($s) => $s->excedeEspera())
-            ->sortByDesc(fn ($s) => $s->diasHabiles())
+            ->filter(fn($s) => $s->excedeEspera())
+            ->sortByDesc(fn($s) => $s->diasHabiles())
             ->values();
 
         return view('admin.dashboard', [
@@ -50,7 +51,7 @@ class DashboardController extends Controller
                 'alumnos' => Alumno::count(),
                 'practicas_activas' => Practica::activas()->count(),
                 'empresas' => Empresa::count(),
-                'empresas_con_convenio' => Empresa::whereHas('convenios', fn ($c) => $c->vigentes())->count(),
+                'empresas_con_convenio' => Empresa::whereHas('convenios', fn($c) => $c->vigentes())->count(),
                 'por_vencer_60' => Convenio::porVencer(60)->count(),
                 'por_vencer_30' => Convenio::porVencer(30)->count(),
                 'ocupacion' => $totalCupos > 0 ? (int) round($ocupados / $totalCupos * 100) : 0,
@@ -64,7 +65,7 @@ class DashboardController extends Controller
                 ])->count(),
                 'solicitudes' => Convenio::where('estado', ConvenioEstado::Solicitado->value)->count(),
                 'dictamenes' => ConvenioCarrera::pendientes()
-                    ->whereHas('convenio', fn ($c) => $c->where('estado', ConvenioEstado::EnValidacionAcademica->value))
+                    ->whereHas('convenio', fn($c) => $c->where('estado', ConvenioEstado::EnValidacionAcademica->value))
                     ->count(),
                 'juridica' => ConvenioSeguimiento::abiertos()
                     ->where('etapa', EtapaConvenio::DictamenJuridico->value)->count(),
@@ -73,7 +74,12 @@ class DashboardController extends Controller
                 'postulaciones' => Postulacion::visiblesPara($personal)
                     ->where('estado', PostulacionEstado::Pendiente->value)->count(),
                 'reportes' => Reporte::where('estado', ReporteEstado::Pendiente->value)
-                    ->whereHas('practica', fn ($p) => $p->visiblesPara($personal))->count(),
+                    ->whereHas('practica', fn($p) => $p->visiblesPara($personal))->count(),
+                'cierres' => Practica::visiblesPara($personal)->where(fn($q) => $q
+                    ->where('estado', PracticaEstado::EnCierre->value)
+                    ->orWhere(fn($w) => $w->where('estado', PracticaEstado::EnCurso->value)
+                        ->whereHas('cartaTermino', fn($c) => $c->where('estado_validacion', ValidacionEstado::Pendiente->value))))
+                    ->count(),
             ],
             'cuellos' => $excedidas->take(5),
             'convenios_recientes' => Convenio::with('empresa')->latest('id')->limit(5)->get(),
@@ -87,7 +93,7 @@ class DashboardController extends Controller
                 ->latest('id')
                 ->limit(5)
                 ->get(),
-            'practicas_por_estado' => collect(PracticaEstado::cases())->mapWithKeys(fn ($e) => [
+            'practicas_por_estado' => collect(PracticaEstado::cases())->mapWithKeys(fn($e) => [
                 $e->label() => Practica::where('estado', $e->value)->count(),
             ]),
         ]);

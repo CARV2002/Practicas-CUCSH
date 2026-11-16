@@ -1,25 +1,20 @@
-<x-guest-layout>
-    <div class="mb-4 text-sm text-gray-600">
-        {{ __('Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.') }}
-    </div>
+@extends('layouts.fullscreen-layout')
 
-    <!-- Session Status -->
-    <x-auth-session-status class="mb-4" :status="session('status')" />
+@section('content')
+    <x-auth.split title="Recuperar contraseña" subtitle="Escribe tu correo y te enviaremos un enlace para elegir una contraseña nueva.">
+        @if (session('status'))
+            <div class="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>
+        @endif
 
-    <form method="POST" action="{{ route('password.email') }}">
-        @csrf
-
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-        </div>
-
-        <div class="flex items-center justify-end mt-4">
-            <x-primary-button>
-                {{ __('Email Password Reset Link') }}
-            </x-primary-button>
-        </div>
-    </form>
-</x-guest-layout>
+        <form method="POST" action="{{ route('password.email') }}">
+            @csrf
+            <div class="space-y-5">
+                <x-auth.input name="email" type="email" label="Correo electrónico" autocomplete="username" />
+                <x-auth.submit>Enviar enlace</x-auth.submit>
+                <p class="text-center text-sm text-gray-500">
+                    <a href="{{ route('login') }}" class="text-brand-500 hover:text-brand-600">Volver a iniciar sesión</a>
+                </p>
+            </div>
+        </form>
+    </x-auth.split>
+@endsection

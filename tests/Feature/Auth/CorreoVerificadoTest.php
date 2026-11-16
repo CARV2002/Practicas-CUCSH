@@ -67,9 +67,11 @@ test('al registrarse se envía el correo y al confirmarlo se entra al panel', fu
 test('la coordinación puede marcar un correo como verificado', function () {
     $admin = User::factory()->create();
     $admin->assignRole(Rol::Administrador->value);
+    $admin->personal()->create(['puesto' => 'Coordinación']);
     $pendiente = User::factory()->unverified()->create();
 
     $this->actingAs($admin)->post(route('admin.usuarios.verificar', $pendiente))->assertRedirect();
+    
 
     expect($pendiente->refresh()->hasVerifiedEmail())->toBeTrue();
 });

@@ -113,6 +113,7 @@
                             $color = match ($r->estado) {
                                 RE::Validado => 'bg-green-50 text-green-700',
                                 RE::Rechazado => 'bg-red-50 text-red-700',
+                                RE::Anulado => 'bg-gray-100 text-gray-600',
                                 default => 'bg-yellow-50 text-yellow-700',
                             };
                         @endphp

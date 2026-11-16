@@ -657,7 +657,7 @@
                             $rech = $r->estado === \App\Enums\ReporteEstado::Rechazado;
                             $comentario = $r->evaluacion_profesor ?: $r->retroalimentacion_empresa;
                         @endphp
-                        <div class="timeline-item {{ $ok ? 'status-approved' : 'status-pending' }}">
+                        <div class="timeline-item {{ $ok ? 'Validado' : ($rech ? 'Rechazado' : ($r->estado === \App\Enums\ReporteEstado::Anulado ? 'Anulado' : 'En revisión')) }}">
                             <div class="timeline-marker">
                                 @if ($ok)
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>

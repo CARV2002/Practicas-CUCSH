@@ -50,10 +50,15 @@ class DemoOperacionSeeder extends Seeder
 
     public function run(): void
     {
-        if (! app()->environment('local')) {
+        if (!app()->environment('local')) {
             return;
         }
 
+        \App\Services\Auditoria::sinRegistro(fn() => $this->sembrar());
+    }
+
+    private function sembrar(): void
+    {
         $this->carreras = Carrera::whereIn('carrera_clave', ['ABOG', 'CRIM', 'DEMO'])->get()->keyBy('carrera_clave');
 
         if ($this->carreras->count() < 3) {
@@ -75,6 +80,7 @@ class DemoOperacionSeeder extends Seeder
         $this->usuarioInactivo();
     }
 
+
     /* ----------------------------- Coordinación ----------------------------- */
 
     private function perfilLorena(): Personal
@@ -88,7 +94,7 @@ class DemoOperacionSeeder extends Seeder
 
     private function profesores(): void
     {
-        $div = fn (string $clave) => $this->carreras[$clave]->division_id;
+        $div = fn(string $clave) => $this->carreras[$clave]->division_id;
 
         $lista = [
             'juridico_1' => ['Dr. Ernesto Salcedo Rivas', $div('ABOG')],
@@ -115,14 +121,19 @@ class DemoOperacionSeeder extends Seeder
     {
         $empresa = Empresa::where('rfc', 'ESO010101AB1')->first(); // la crea ConvenioSeeder (convenio "solicitado")
 
-        if (! $empresa) {
+        if (!$empresa) {
             return;
         }
 
         $this->adjuntar($empresa, 'cv_instancia', 'cv-instancia.pdf');
         $this->adjuntar($empresa, 'identificacion_representante', 'identificacion.pdf');
-        $this->adjuntar($empresa, 'acta_constitutiva', 'acta-constitutiva.pdf',
-            ValidacionEstado::Rechazada, 'El acta está ilegible; sube un escaneo a color.');
+        $this->adjuntar(
+            $empresa,
+            'acta_constitutiva',
+            'acta-constitutiva.pdf',
+            ValidacionEstado::Rechazada,
+            'El acta está ilegible; sube un escaneo a color.'
+        );
     }
 
     /** Convenio en estado "en_firmas" (ConvenioSeeder no lo cubre). */
@@ -253,7 +264,7 @@ class DemoOperacionSeeder extends Seeder
 
         // 6. Práctica CANCELADA
         $cancelada = $this->alumno('alumno.cancelada@test.com', 'Carlos Cancelado', 'ABOG', 'DEMO0007', $vigente);
-        $po = $this->postulacion($cancelada, $p['abog_abierto'], PostulacionEstado::Aceptada, 60, validada: true, presentacion: true, aceptacion: true);
+        $po = $this->postulacion($cancelada, $p['abog_abierto'], PostulacionEstado::Cancelada, 60, validada: true, presentacion: true, aceptacion: true);
         $practica = $this->practica($po, 'ABOG', PracticaEstado::Cancelada, now()->subMonths(4), now()->addMonths(2), $this->profes['juridico_2']);
         $this->reporte($practica, ReporteTipo::Mensual, ReporteEstado::Validado, 40, now()->subMonths(4), now()->subMonths(3), true, 'Buen inicio.');
 
@@ -277,7 +288,7 @@ class DemoOperacionSeeder extends Seeder
     {
         $this->reporte($practica, ReporteTipo::Mensual, ReporteEstado::Validado, 110, now()->subMonths(9), now()->subMonths(7), true, 'Aprobado.', 'Muy buen desempeño.');
         $this->reporte($practica, ReporteTipo::Intermedio, ReporteEstado::Validado, 100, now()->subMonths(7), now()->subMonths(5), true, 'Aprobado.');
-        $this->reporte($practica, ReporteTipo::Final, ReporteEstado::Validado, 90, now()->subMonths(5), now()->subMonths(3), true, 'Aprobado.');
+        $this->reporte($practica, ReporteTipo::Final , ReporteEstado::Validado, 90, now()->subMonths(5), now()->subMonths(3), true, 'Aprobado.');
 
         $carta = CartaTermino::firstOrCreate(['practica_id' => $practica->id], ['estado_validacion' => ValidacionEstado::Validada]);
         $this->adjuntar($carta, 'carta_termino', 'carta-termino.pdf', ValidacionEstado::Validada);
@@ -306,7 +317,7 @@ class DemoOperacionSeeder extends Seeder
             ['name' => $nombre, 'password' => 'password123', 'activo' => $activo, 'aviso_privacidad_at' => now()]
         );
 
-        if (! $user->hasVerifiedEmail()) {
+        if (!$user->hasVerifiedEmail()) {
             $user->markEmailAsVerified();
         }
 
@@ -317,20 +328,20 @@ class DemoOperacionSeeder extends Seeder
 
     private function empresa(string $email, string $rfc, string $razon, TipoOrganismo $tipo): Empresa
     {
-        $user = $this->usuario($email, 'Contacto '.$razon, Rol::Empresa);
+        $user = $this->usuario($email, 'Contacto ' . $razon, Rol::Empresa);
 
         return Empresa::firstOrCreate(['rfc' => $rfc], [
             'user_id' => $user->id,
             'razon_social' => $razon,
             'tipo_organismo' => $tipo,
-            'contacto_nombre' => 'Contacto '.$razon,
+            'contacto_nombre' => 'Contacto ' . $razon,
         ]);
     }
 
     private function expedienteCompleto(Empresa $empresa): void
     {
         foreach (Empresa::coleccionesObligatorias() as $coleccion) {
-            $this->adjuntar($empresa, $coleccion, str_replace('_', '-', $coleccion).'.pdf', ValidacionEstado::Validada);
+            $this->adjuntar($empresa, $coleccion, str_replace('_', '-', $coleccion) . '.pdf', ValidacionEstado::Validada);
         }
     }
 

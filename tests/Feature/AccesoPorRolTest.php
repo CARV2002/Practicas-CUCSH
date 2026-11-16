@@ -25,6 +25,7 @@ function pantallasPorRol(): array
             'admin.lista-usuarios',
             'admin.lista-cierres',
             'admin.auditoria',
+            'admin.informes'
         ],
     ];
 }
@@ -111,4 +112,11 @@ test('el sitio público se muestra sin iniciar sesión', function () {
     foreach (['/', '/estudiantes', '/empresas', '/signin', '/register', '/registro/alumno', '/registro/empresa'] as $url) {
         $this->get($url)->assertOk();
     }
+});
+
+test('un administrador sin perfil de Coordinación recibe un 403 y no un error', function () {
+    $user = User::factory()->create();
+    $user->assignRole(Rol::Administrador->value);
+
+    $this->actingAs($user)->get(route('admin.dashboard'))->assertForbidden();
 });

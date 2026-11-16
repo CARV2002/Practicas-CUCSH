@@ -12,6 +12,7 @@
         ['Firmas pendientes', $pendientes['firmas'], route('admin.lista-convenios', ['estado' => 'en_firmas'])],
         ['Postulaciones por validar', $pendientes['postulaciones'], route('admin.lista-practicantes')],
         ['Reportes por validar', $pendientes['reportes'], route('admin.lista-reportes')],
+        ['Cierres por atender', $pendientes['cierres'], route('admin.lista-cierres')],
     ];
 @endphp
 

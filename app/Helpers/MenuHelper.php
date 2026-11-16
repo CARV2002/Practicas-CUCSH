@@ -141,6 +141,11 @@ class MenuHelper
                 'path' => '/admin/lista-reportes',
             ],
             [
+                'name' => 'Informes',
+                'icon' => 'charts',
+                'path' => '/admin/informes',
+            ],
+            [
                 'name' => 'Divisiones y carreras',
                 'icon' => 'tables',
                 'path' => '/admin/catalogos',

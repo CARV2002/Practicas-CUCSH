@@ -31,6 +31,7 @@ class ConvenioController extends Controller
     public function index(Request $request): View
     {
         $convenios = Convenio::with(['empresa', 'seguimientos'])
+            ->visiblesPara($request->user()->personal)
             ->when($request->filled('estado'), fn($q) => $q->where('estado', $request->string('estado')))
             ->when($request->filled('q'), fn($q) => $q->whereHas('empresa', fn($e) => $e
                 ->where('razon_social', 'like', '%' . $request->string('q') . '%')

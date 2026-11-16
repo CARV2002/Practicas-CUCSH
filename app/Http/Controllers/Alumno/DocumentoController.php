@@ -181,7 +181,6 @@ class DocumentoController extends Controller
         ]);
 
         DB::transaction(function () use ($practica, $datos, $request) {
-            $this->avisarCoordinacion($request, "envió un reporte {$datos['tipo']} de {$datos['horas_reportadas']} h por validar.", 'admin.lista-reportes');
 
             $practica = Practica::lockForUpdate()->findOrFail($practica->id);
 
@@ -212,6 +211,8 @@ class DocumentoController extends Controller
 
             $reporte->addMediaFromRequest('archivo')->toMediaCollection('reporte_firmado');
         });
+
+        $this->avisarCoordinacion($request, "envió un reporte {$datos['tipo']} de {$datos['horas_reportadas']} h por validar.", 'admin.lista-reportes');
 
         return back()->with('status', 'Reporte enviado. La Coordinación lo validará para que cuenten tus horas.');
     }

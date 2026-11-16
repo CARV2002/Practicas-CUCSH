@@ -93,7 +93,8 @@
                                 <p class="text-sm font-semibold text-gray-900">{{ $po->programa->titulo }}</p>
                                 <p class="text-xs text-gray-500">
                                     {{ $po->programa->convenio?->empresa->razon_social ?? 'Proyecto interno' }} ·
-                                    {{ $po->programa->ciclo }}</p>
+                                    {{ $po->programa->ciclo }}
+                                </p>
                             </div>
                             <span
                                 class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{{ $po->estado->label() }}</span>
@@ -160,13 +161,14 @@
                     <div>
                         <h3 class="text-lg font-bold text-gray-900">{{ $pr->postulacion->programa->titulo }}</h3>
                         <p class="text-sm text-gray-500">{{ $pr->fecha_inicio->format('d/m/Y') }} –
-                            {{ $pr->fecha_fin->format('d/m/Y') }} · reportes y carta de término</p>
+                            {{ $pr->fecha_fin->format('d/m/Y') }} · reportes y carta de término
+                        </p>
                     </div>
                     <span
                         class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{{ $pr->estado->label() }}</span>
                 </div>
 
-                @if ($activa)
+                @if ($pr->estado === PrE::EnCurso)
                     <form method="POST" enctype="multipart/form-data" action="{{ route('alumno.documentos.reporte.crear', $pr) }}"
                         class="grid grid-cols-1 gap-3 border-b border-gray-100 bg-gray-50/60 px-6 py-4 md:grid-cols-6">
                         @csrf
@@ -191,12 +193,13 @@
                     @forelse ($pr->reportes->sortByDesc('periodo_fin') as $r)
                         @php
                             $pdf = $r->media->firstWhere('collection_name', 'reporte_firmado');
-                            $c = match ($r->estado) { RE::Validado => 'bg-green-50 text-green-700', RE::Rechazado => 'bg-red-50 text-red-700', default => 'bg-yellow-50 text-yellow-700'};
+                            $c = match ($r->estado) { RE::Validado => 'bg-green-50 text-green-700', RE::Rechazado => 'bg-red-50 text-red-700', RE::Anulado => 'bg-gray-100 text-gray-600', default => 'bg-yellow-50 text-yellow-700'};
                         @endphp
                         <div class="flex flex-col gap-3 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
                             <div>
                                 <p class="text-sm font-semibold text-gray-800">Reporte {{ $r->tipo->value }} ·
-                                    {{ $r->horas_reportadas }} h</p>
+                                    {{ $r->horas_reportadas }} h
+                                </p>
                                 <p class="text-xs text-gray-500">{{ $r->periodo_inicio->format('d/m/Y') }} –
                                     {{ $r->periodo_fin->format('d/m/Y') }}
                                     @if ($pdf) · <a href="{{ route('alumno.documentos.descargar', $pdf) }}"
@@ -208,7 +211,7 @@
                             <div class="flex flex-wrap items-center gap-3">
                                 <span
                                     class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $c }}">{{ ucfirst($r->estado->value) }}</span>
-                                @if ($activa && $r->estado === RE::Pendiente)
+                                @if ($pr->estado === PrE::EnCurso && in_array($r->estado, [RE::Pendiente, RE::Rechazado], true))
                                     <form method="POST" enctype="multipart/form-data"
                                         action="{{ route('alumno.documentos.reporte', $r) }}" class="flex gap-2">
                                         @csrf
