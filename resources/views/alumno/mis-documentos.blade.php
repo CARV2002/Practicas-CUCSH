@@ -155,6 +155,7 @@
                 $activa = in_array($pr->estado, PrE::activas(), true);
                 $carta = $pr->cartaTermino?->getFirstMedia('carta_termino');
                 $cartaSt = $pr->cartaTermino ? $pr->cartaTermino->estado_validacion->value : null;
+                $motivoCarta = $pr->motivoSinCartaTermino();
             @endphp
             <div class="{{ $card }}">
                 <div class="{{ $head }} flex flex-wrap items-center justify-between gap-2">
@@ -237,15 +238,17 @@
                         <div class="flex flex-wrap items-center gap-3">
                             @if ($cartaSt)<span
                             class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $colorDoc($cartaSt) }}">{{ ucfirst($cartaSt) }}</span>@endif
-                            @if ($activa && $cartaSt !== 'validada')
-                                <form method="POST" enctype="multipart/form-data"
-                                    action="{{ route('alumno.documentos.termino', $pr) }}" class="flex gap-2">
-                                    @csrf
-                                    <input type="file" name="archivo" accept="application/pdf" required
-                                        class="{{ $input }} !w-52 text-xs">
-                                    <button class="{{ $btn }}">{{ $carta ? 'Reemplazar' : 'Subir' }}</button>
-                                </form>
-                            @endif
+                            @if ($motivoCarta === null)
+                            <form method="POST" enctype="multipart/form-data"
+                             action="{{ route('alumno.documentos.termino', $pr) }}" class="flex gap-2">
+                                @csrf
+                               <input type="file" name="archivo" accept="application/pdf" required
+                                class="{{ $input }} !w-52 text-xs">
+                               <button class="{{ $btn }}">{{ $carta ? 'Reemplazar' : 'Subir' }}</button>
+                            </form>
+                          @elseif ($cartaSt !== 'validada')
+                              <p class="max-w-xs text-xs text-gray-400">{{ $motivoCarta }}</p>
+                           @endif
                         </div>
                     </div>
                 </div>

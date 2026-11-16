@@ -37,7 +37,7 @@
     </button>
 
     <div x-show="abierto" x-cloak x-transition
-        class="absolute -right-[240px] z-50 mt-[17px] flex max-h-[480px] w-[350px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg sm:w-[361px] lg:right-0">
+        class="z-50 flex max-h-[480px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg max-xl:fixed max-xl:inset-x-4 max-xl:top-36 sm:max-xl:left-auto sm:max-xl:w-[361px] xl:absolute xl:right-0 xl:mt-[17px] xl:w-[361px]">
         <div class="mb-3 flex items-center justify-between border-b border-gray-100 pb-3">
             <h5 class="text-lg font-semibold text-gray-800">Notificaciones</h5>
             <button type="button" @click="leerTodas()" x-show="noLeidas > 0" class="text-brand-600 text-xs font-semibold hover:underline">Marcar todas</button>

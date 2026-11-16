@@ -494,14 +494,23 @@
 
     /* ── RESPONSIVE ── */
     @media (max-width: 768px) {
-      nav { padding: 14px 20px; }
-      .container { padding: 0 20px; }
-      .two-col, .feature-row, .partner-inner { grid-template-columns: 1fr; gap: 32px; }
-      .feature-row.reverse { direction: ltr; }
-      .testimonial-inner { grid-template-columns: 1fr; }
-      .seal { display: none; }
-      .footer-grid { grid-template-columns: 1fr 1fr; }
-    }
+  nav { padding: 12px 16px; flex-wrap: wrap; justify-content: center; gap: 10px 16px; }
+  .logo-area .logo-name img { width: 120px; height: auto; }
+  .nav-links { gap: 8px 18px; flex-wrap: wrap; justify-content: center; }
+  .nav-links a { font-size: 13px; }
+  .container { padding: 0 20px; }
+  .hero { padding: 56px 20px; min-height: 0; }
+  .two-col, .feature-row, .partner-inner { grid-template-columns: 1fr; gap: 32px; }
+  .feature-row.reverse { direction: ltr; }
+  .testimonial-inner { grid-template-columns: 1fr; }
+  .seal { display: none; }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 560px) {
+  .footer-grid { grid-template-columns: 1fr; }
+  footer { padding: 40px 20px 20px; }
+}
 
     .text-white{
       color: #fff !important;

@@ -122,7 +122,7 @@
 /* --- KPI SAAS CARDS --- */
 .kpi-dashboard-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
     gap: 16px;
 }
 
@@ -382,11 +382,6 @@
 
 <x-common.page-breadcrumb pageTitle="Dashboard" />
 
-@php
-    $iniciales = mb_strtoupper(mb_substr($alumno->user->name, 0, 1));
-    $partes = preg_split('/\s+/', trim($alumno->user->name));
-    $iniciales = mb_strtoupper(mb_substr($partes[0] ?? '', 0, 1).mb_substr($partes[1] ?? '', 0, 1));
-@endphp
 
 <div class="min-h-screen rounded-2xl border border-gray-200 bg-white">
     <div class="cucsh-dashboard-container">
@@ -394,8 +389,11 @@
         <header class="dashboard-welcome-hero">
             <div class="welcome-profile-area">
                 <div class="avatar-ring-wrapper">
-                    <div class="student-hero-avatar" style="display:flex;align-items:center;justify-content:center;background:var(--color-brand-50);color:var(--color-brand-600);font-weight:800;font-size:20px;">{{ $iniciales }}</div>
-                    <span class="online-status-dot"></span>
+@if ($alumno->user->foto_url)
+    <img class="student-hero-avatar" src="{{ $alumno->user->foto_url }}" alt="{{ $alumno->user->name }}" style="object-fit:cover;">
+@else
+    <div class="student-hero-avatar" style="display:flex;align-items:center;justify-content:center;background:var(--color-brand-50);color:var(--color-brand-600);font-weight:800;font-size:20px;">{{ $alumno->user->iniciales }}</div>
+@endif                    <span class="online-status-dot"></span>
                 </div>
                 <div class="welcome-text-strings">
                     <h1>Hola de nuevo, {{ $saludo }} 👋</h1>

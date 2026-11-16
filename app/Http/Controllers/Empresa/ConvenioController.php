@@ -44,7 +44,7 @@ class ConvenioController extends Controller
             'puedeRenovar' => $vigente !== null && $enTramite === null && $diasRestantes <= 60,
             'puedeSolicitar' => $vigente === null && $enTramite === null,
             'carreras' => Carrera::with('division')->orderBy('nombre')->get(),
-            'expedienteCompleto' => $empresa->expedienteCompleto(),
+            'expedienteCompleto' => $empresa->expedienteEnOrden(),
         ]);
     }
 
@@ -63,6 +63,15 @@ class ConvenioController extends Controller
         if ($vigente && now()->diffInDays($vigente->fecha_fin_vigencia, false) > 60) {
             throw ValidationException::withMessages([
                 'convenio' => 'Tu convenio sigue vigente; podrás renovarlo 60 días antes de su vencimiento.',
+            ]);
+        }
+
+        $faltantes = collect(\App\Models\Empresa::coleccionesObligatorias())
+            ->filter(fn($col) => $empresa->documentoVigente($col) === null);
+
+        if ($faltantes->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'convenio' => 'Antes de solicitar el convenio sube todos los documentos obligatorios en la sección Documentos.',
             ]);
         }
 

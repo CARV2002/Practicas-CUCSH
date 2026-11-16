@@ -14,5 +14,10 @@ return [
         'extensiones' => ['23549', '23404'],
     ],
 
+    'google' => [
+        'dominios_alumno' => array_filter(array_map('trim', explode(',', env('GOOGLE_DOMINIOS_ALUMNO', 'alumnos.udg.mx')))),
+        'dominios_personal' => array_filter(array_map('trim', explode(',', env('GOOGLE_DOMINIOS_PERSONAL', 'academicos.udg.mx,csh.udg.mx,udg.mx')))),
+    ],
+
     'auditoria' => (bool) env('AUDITORIA_ACTIVA', true),
 ];

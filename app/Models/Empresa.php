@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use App\Models\Concerns\Auditable;
+use App\Enums\ConvenioEstado;
 
 class Empresa extends Model implements HasMedia
 {
@@ -104,6 +105,20 @@ class Empresa extends Model implements HasMedia
     public function auditoriaNombre(): ?string
     {
         return $this->razon_social;
+    }
+
+    /** Con convenio vigente el expediente ya fue validado: no se marca como incompleto. */
+    public function expedienteEnOrden(): bool
+    {
+        return $this->convenios()->vigentes()->exists() || $this->expedienteCompleto();
+    }
+
+    /** Mientras el convenio está en trámite la empresa no cambia documentos (salvo los rechazados). */
+    public function documentosBloqueados(): bool
+    {
+        return $this->convenios()
+            ->whereNotIn('estado', [ConvenioEstado::Formalizado->value, ConvenioEstado::Rechazado->value])
+            ->exists();
     }
 
 }

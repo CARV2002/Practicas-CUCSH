@@ -26,6 +26,7 @@ use App\Http\Controllers\Alumno\DashboardController as AlumnoDashboardController
 use App\Http\Controllers\Admin\CierreController;
 use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\InformeController;
+use App\Http\Controllers\FotoUsuarioController;
 
 /*
 |--------------------------------------------------------------------------
@@ -234,6 +235,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/profile/foto', [ProfileController::class, 'actualizarFoto'])->name('profile.foto');
+    Route::delete('/profile/foto', [ProfileController::class, 'eliminarFoto'])->name('profile.foto.eliminar');
+    Route::get('/usuarios/{user}/foto', FotoUsuarioController::class)->name('usuarios.foto');
 });
 
 require __DIR__ . '/auth.php';

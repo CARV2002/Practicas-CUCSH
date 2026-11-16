@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Observers\PracticaObserver;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use App\Models\Concerns\Auditable;
+use App\Enums\ValidacionEstado;
 
 #[ObservedBy([PracticaObserver::class])]
 class Practica extends Model
@@ -130,6 +131,35 @@ class Practica extends Model
     public function horasCompletas(): bool
     {
         return $this->horas_acumuladas >= $this->horas_requeridas;
+    }
+
+    /**
+     * Devuelve el motivo por el que el alumno aún NO puede subir su carta de término,
+     * o null si ya puede hacerlo.
+     */
+    public function motivoSinCartaTermino(): ?string
+    {
+        if ($this->estado !== PracticaEstado::EnCurso) {
+            return 'Tu carta de término ya no admite cambios.';
+        }
+
+        if ($this->cartaTermino?->estado_validacion === ValidacionEstado::Validada) {
+            return 'Tu carta de término ya fue validada.';
+        }
+
+        $hayReportesSinResolver = $this->reportes()
+            ->whereIn('estado', [ReporteEstado::Pendiente->value, ReporteEstado::Rechazado->value])
+            ->exists();
+
+        if ($hayReportesSinResolver) {
+            return 'Tienes reportes pendientes de validación o rechazados. Resuélvelos antes de subir tu carta de término.';
+        }
+
+        if (!$this->horasCompletas()) {
+            return "Aún no completas tus horas ({$this->progresoTexto()}). La carta de término se sube al terminar.";
+        }
+
+        return null;
     }
 
     public function auditoriaEtiqueta(): string

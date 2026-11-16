@@ -57,14 +57,20 @@
                             @endphp
                             <tr class="align-top transition-colors hover:bg-gray-50/40">
                                 <td class="px-6 py-4">
-                                    <span class="block text-sm font-semibold text-gray-900">{{ $po->alumno->user->name }}</span>
-                                    <span class="text-xs text-gray-500">{{ $po->alumno->num_control }} ·
-                                        {{ $po->alumno->carrera->carrera_clave }}</span>
-                                    <span
-                                        class="block text-xs {{ $po->alumno->tieneImssVigenteHasta(now()) ? 'text-gray-500' : 'text-red-600' }}">
-                                        IMSS
-                                        {{ $po->alumno->vigencia_imss ? 'hasta ' . $po->alumno->vigencia_imss->format('d/m/Y') : 'sin registrar' }}
-                                    </span>
+                                    <div class="flex items-center gap-3">
+                                        <x-ui.user-avatar :user="$po->alumno->user" size="h-9 w-9 text-xs" />
+                                        <div>
+                                            <span
+                                                class="block text-sm font-semibold text-gray-900">{{ $po->alumno->user->name }}</span>
+                                            <span class="text-xs text-gray-500">{{ $po->alumno->num_control }} ·
+                                                {{ $po->alumno->carrera->carrera_clave }}</span>
+                                            <span
+                                                class="block text-xs {{ $po->alumno->tieneImssVigenteHasta(now()) ? 'text-gray-500' : 'text-red-600' }}">
+                                                IMSS
+                                                {{ $po->alumno->vigencia_imss ? 'hasta ' . $po->alumno->vigencia_imss->format('d/m/Y') : 'sin registrar' }}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-4">
                                     <span class="block text-sm text-gray-800">{{ $po->programa->titulo }}</span>
@@ -205,9 +211,14 @@
                             @endphp
                             <tr class="align-top transition-colors hover:bg-gray-50/40">
                                 <td class="px-6 py-4">
-                                    <span class="block text-sm font-semibold text-gray-900">{{ $al->user->name }}</span>
-                                    <span class="text-xs text-gray-500">{{ $al->num_control }} ·
-                                        {{ $al->carrera->carrera_clave }}</span>
+                                    <div class="flex items-center gap-3">
+                                        <x-ui.user-avatar :user="$al->user" size="h-9 w-9 text-xs" />
+                                        <div>
+                                            <span class="block text-sm font-semibold text-gray-900">{{ $al->user->name }}</span>
+                                            <span class="text-xs text-gray-500">{{ $al->num_control }} ·
+                                                {{ $al->carrera->carrera_clave }}</span>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-4 text-sm text-gray-700">
                                     {{ $pr->postulacion->programa->convenio?->empresa->razon_social ?? 'Proyecto interno' }}
@@ -226,7 +237,8 @@
                                     </div>
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-4 text-xs text-gray-600">
-                                    {{ $pr->fecha_inicio->format('d/m/Y') }} – {{ $pr->fecha_fin->format('d/m/Y') }}</td>
+                                    {{ $pr->fecha_inicio->format('d/m/Y') }} – {{ $pr->fecha_fin->format('d/m/Y') }}
+                                </td>
                                 <td class="px-4 py-4 text-sm text-gray-700">
                                     @if ($activa)
                                         <form method="POST" action="{{ route('admin.practicas.supervisor', $pr) }}"

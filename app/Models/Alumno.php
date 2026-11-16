@@ -61,6 +61,13 @@ class Alumno extends Model implements HasMedia
             ->exists();
     }
 
+    public function tienePracticaCancelada(): bool
+    {
+        return $this->practicas()
+            ->where('practicas.estado', PracticaEstado::Cancelada->value)
+            ->exists();
+    }
+
     public function tieneImssVigenteHasta(CarbonInterface $fecha): bool
     {
         return $this->vigencia_imss !== null

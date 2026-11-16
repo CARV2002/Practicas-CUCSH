@@ -116,8 +116,8 @@ class DocumentoController extends Controller
     {
         $this->authorize('entregarDocumentos', $practica);
 
-        if ($practica->estado !== PracticaEstado::EnCurso) {
-            throw ValidationException::withMessages(['archivo' => 'Tu carta de término ya no admite cambios.']);
+        if ($motivo = $practica->motivoSinCartaTermino()) {
+            throw ValidationException::withMessages(['archivo' => $motivo]);
         }
 
         $request->validate(['archivo' => ['required', 'file', 'mimes:pdf', 'max:10240']]);

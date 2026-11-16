@@ -11,6 +11,7 @@ use App\Http\Controllers\Auth\RegistroAlumnoController;
 use App\Http\Controllers\Auth\RegistroEmpresaController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\GoogleAuthController;
 
 Route::middleware('guest')->group(function () {
     // Registro público: SOLO alumnos y empresas, siempre con rol y perfil.
@@ -44,6 +45,11 @@ Route::middleware('guest')->group(function () {
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
+
+    Route::get('auth/google', [GoogleAuthController::class, 'redirect'])->name('google.redirect');
+    Route::get('auth/google/callback', [GoogleAuthController::class, 'callback'])->name('google.callback');
+    Route::get('registro/google', [GoogleAuthController::class, 'completar'])->name('registro.google');
+    Route::post('registro/google', [GoogleAuthController::class, 'guardar']);
 });
 
 Route::middleware('auth')->group(function () {

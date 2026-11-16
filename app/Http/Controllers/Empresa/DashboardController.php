@@ -44,7 +44,7 @@ class DashboardController extends Controller
             'vigente' => $vigente,
             'enTramite' => $enTramite,
             'diasRestantes' => $vigente ? (int) now()->startOfDay()->diffInDays($vigente->fecha_fin_vigencia, false) : null,
-            'expedienteCompleto' => $empresa->expedienteCompleto(),
+            'expedienteCompleto' => $empresa->expedienteEnOrden(),
             'kpis' => [
                 'practicantes_activos' => $practicas()->activas()->count(),
                 'acreditados' => $practicas()->where('estado', PracticaEstado::Acreditada->value)->count(),

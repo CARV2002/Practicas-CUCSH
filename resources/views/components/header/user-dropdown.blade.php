@@ -1,7 +1,5 @@
 @php
     $usuario = auth()->user();
-    $partes = preg_split('/\s+/', trim($usuario->name));
-    $iniciales = mb_strtoupper(mb_substr($partes[0] ?? '', 0, 1).mb_substr($partes[1] ?? '', 0, 1));
     $rolActual = $usuario->roles->first()?->name;
     $etiquetaRol = match ($rolActual) {
         'administrador' => 'Administrador',
@@ -13,13 +11,7 @@
 
 <div class="relative" x-data="{ dropdownOpen: false }" @click.away="dropdownOpen = false">
     <button type="button" class="flex items-center text-gray-700" @click.prevent="dropdownOpen = !dropdownOpen">
-        <span class="bg-brand-50 text-brand-600 mr-3 flex h-11 w-11 items-center justify-center overflow-hidden rounded-full text-sm font-bold">
-            @if ($usuario->foto_url ?? false)
-                <img src="{{ $usuario->foto_url }}" alt="{{ $usuario->name }}" class="h-full w-full object-cover" />
-            @else
-                {{ $iniciales }}
-            @endif
-        </span>
+        <x-ui.user-avatar :user="$usuario" size="mr-3 h-11 w-11 text-sm" />
 
         <span class="mr-1 hidden text-left sm:block">
             <span class="block text-theme-sm font-medium text-white">{{ $usuario->name }}</span>

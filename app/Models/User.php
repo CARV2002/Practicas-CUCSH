@@ -9,10 +9,15 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use App\Models\Concerns\Auditable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Spatie\Image\Enums\Fit;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements MustVerifyEmail, HasMedia
 {
-    use HasFactory, HasRoles, Notifiable, Auditable;
+    use HasFactory, HasRoles, Notifiable, Auditable, InteractsWithMedia;
 
     protected $fillable = ['name', 'email', 'password', 'activo', 'aviso_privacidad_at'];
 
@@ -23,6 +28,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'aviso_privacidad_at' => 'datetime',
+            'foto_actualizada_at' => 'datetime',
             'password' => 'hashed',
             'activo' => 'boolean',
         ];
@@ -47,10 +53,43 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return 'Usuario';
     }
-    
+
     public function auditoriaNombre(): ?string
     {
         return $this->email;
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('foto')
+            ->useDisk('local')
+            ->singleFile()
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
+    }
+
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('avatar')
+            ->fit(Fit::Crop, 160, 160)
+            ->performOnCollections('foto')
+            ->nonQueued();
+    }
+
+    /** URL protegida de la foto (null si no tiene). El ?v= evita caché vieja al cambiarla. */
+    protected function fotoUrl(): Attribute
+    {
+        return Attribute::get(fn() => $this->foto_actualizada_at
+            ? route('usuarios.foto', ['user' => $this->id, 'v' => $this->foto_actualizada_at->timestamp])
+            : null);
+    }
+
+    protected function iniciales(): Attribute
+    {
+        return Attribute::get(function () {
+            $partes = preg_split('/\s+/', trim($this->name));
+
+            return mb_strtoupper(mb_substr($partes[0] ?? '', 0, 1) . mb_substr($partes[1] ?? '', 0, 1));
+        });
     }
 
 }

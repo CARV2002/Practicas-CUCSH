@@ -27,10 +27,10 @@
 
     </div>
     <div class="nav-links">
-      <a href="{{ route('inicio') }}" class="hidden lg:block">Inicio</a>
+      <a href="{{ route('inicio') }}">Inicio</a>
       <a href="{{ route('estudiantes') }}">Estudiantes</a>
       <a href="{{ route('empresas') }}">Empresas</a>
-      <a href="{{ route('contacto') }}" class="hidden lg:block">Contacto</a>
+      <a href="{{ route('contacto') }}">Contacto</a>
       <a class="btn-demo text-white" style="padding-bottom: 16px;"
         href="{{ auth()->check() ? route('dashboard') : route('login') }}">
         {{ auth()->check() ? 'Mi panel' : 'Iniciar sesión' }}
@@ -71,7 +71,7 @@
         <a href="#" style="visibility: hidden;">📷</a>
         <a href="#" style="visibility: hidden;">in</a>
         <h4>Contáctanos </h4>
-        <a href="mailto:{{ config('practicas.contacto.correo') }}">{{ config('practicas.contacto.correo') }}</a>
+        <a href="{{ App\Support\Correo::gmail(config('practicas.contacto.correo')) }}" target="_blank" rel="noopener">
         <a href="tel:{{ config('practicas.contacto.telefono_enlace') }}">{{ config('practicas.contacto.telefono') }}</a>
         <span style="display:block; font-size:12px; color: var(--text-muted);">Ext.
           {{ implode(', ', config('practicas.contacto.extensiones')) }}</span>

@@ -4,7 +4,6 @@
 @php
     use App\Enums\PostulacionEstado as PE;
 
-    $iniciales = fn ($t) => mb_strtoupper(mb_substr(preg_replace('/[^\p{L}]/u', '', $t), 0, 2));
     $empresaDe = fn ($p) => $p->convenio?->empresa->razon_social ?? 'Proyecto interno CUCSH';
     $chipUrl = fn ($c) => request()->fullUrlWithQuery(['chip' => $chip === $c ? null : $c, 'page' => null, 'programa' => null]);
 @endphp
@@ -391,7 +390,7 @@
 
 .detail-summary-cards {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
     gap: 16px;
     margin-bottom: 32px;
 }
@@ -446,10 +445,19 @@
 
 /* --- RESPONSIVE ADAPTATIVO --- */
 @media (max-width: 1024px) {
-    .saas-split-layout { grid-template-columns: 1fr; height: auto; }
-    .saas-detail-column { display: none; } /* En móvil se prioriza el feed, la vista extendida se activa por flujo alterno */
+    .saas-split-layout { grid-template-columns: 1fr; height: auto; min-height: 0; }
     .saas-search-form { grid-template-columns: 1fr; }
     .saas-filters-group { flex-wrap: wrap; }
+
+    /* Celular y tablet: lista o detalle, uno a la vez */
+    .saas-detail-column { display: none; }
+    .saas-split-layout.mostrando-detalle .saas-detail-column { display: block; }
+    .saas-split-layout.mostrando-detalle .saas-feed-column { display: none; }
+    .saas-volver-lista { display: inline-flex; }
+}
+.saas-volver-lista {
+    display: none; align-items: center; gap: 6px; margin-bottom: 12px;
+    font-size: 14px; font-weight: 600; color: var(--color-brand-600); text-decoration: none;
 }
 
 
@@ -518,7 +526,7 @@
         </div>
     </div>
 
-    <div class="saas-split-layout">
+    <div class="saas-split-layout {{ request()->filled('programa') ? 'mostrando-detalle' : '' }}">
 
         {{-- Feed --}}
         <aside class="saas-feed-column" aria-label="Lista de vacantes">
@@ -541,7 +549,6 @@
                         </div>
 
                         <div class="card-main-row">
-                            <div class="company-logo-avatar"><span>{{ $iniciales($empresaDe($p)) }}</span></div>
                             <div class="card-headline">
                                 <h3 class="vacancy-title">{{ $p->titulo }}</h3>
                                 <p class="company-name">{{ $empresaDe($p) }}</p>
@@ -574,7 +581,8 @@
         </aside>
 
         {{-- Detalle --}}
-        <main class="saas-detail-column" aria-live="polite">
+        <main class="saas-detail-column" aria-live="polite" >
+            <a href="{{ request()->fullUrlWithQuery(['programa' => null]) }}" class="saas-volver-lista">← Volver a las ofertas</a>
             @if ($seleccionado)
                 @php
                     $s = $seleccionado;
@@ -585,7 +593,6 @@
 
                     <div class="detail-header-block">
                         <div class="detail-company-identity">
-                            <div class="detail-logo-large">{{ $iniciales($empresaDe($s)) }}</div>
                             <div>
                                 <h2>{{ $s->titulo }}</h2>
                                 <p class="company-link">{{ $empresaDe($s) }}

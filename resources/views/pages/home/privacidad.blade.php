@@ -72,7 +72,7 @@
 
     <h2>Tus derechos</h2>
     <p>Puedes solicitar el acceso, la rectificación, la cancelación o la oposición al tratamiento de tus datos escribiendo
-      a <a href="mailto:{{ config('practicas.contacto.correo') }}">{{ config('practicas.contacto.correo') }}</a>, o ante
+      a <a href="{{ App\Support\Correo::gmail(config('practicas.contacto.correo')) }}" target="_blank" rel="noopener">{{ config('practicas.contacto.correo') }}</a>, o ante
       la Unidad de Transparencia de la Universidad de Guadalajara.</p>
 
     <h2>Conservación</h2>

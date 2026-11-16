@@ -86,7 +86,7 @@
 
     <h2>12. Contacto</h2>
     <p>Para dudas sobre estos términos escribe a <a
-        href="mailto:{{ config('practicas.contacto.correo') }}">{{ config('practicas.contacto.correo') }}</a> o visita la
+        href="{{ App\Support\Correo::gmail(config('practicas.contacto.correo')) }}" target="_blank" rel="noopener">{{ config('practicas.contacto.correo') }}</a> o visita la
       <a href="{{ route('contacto') }}">página de contacto</a>.</p>
 
     <div class="legal-nav">

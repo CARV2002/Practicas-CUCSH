@@ -21,18 +21,28 @@ class DocumentoController extends Controller
     public function index(Request $request): View
     {
         $empresa = $request->user()->empresa;
+        $bloqueado = $empresa->documentosBloqueados();
 
-        $documentos = collect($this->colecciones())->mapWithKeys(fn($col) => [
-            $col => [
-                'media' => $empresa->documentoVigente($col),
-                'obligatorio' => in_array($col, Empresa::coleccionesObligatorias(), true),
-            ]
-        ]);
+        $documentos = collect($this->colecciones())->mapWithKeys(function ($col) use ($empresa, $bloqueado) {
+            $media = $empresa->documentoVigente($col);
+            $estado = $media ? ($media->getCustomProperty('estado') ?? ValidacionEstado::Pendiente->value) : null;
+
+            return [
+                $col => [
+                    'media' => $media,
+                    'obligatorio' => in_array($col, Empresa::coleccionesObligatorias(), true),
+                    'puedeSubir' => $estado !== ValidacionEstado::Validada->value
+                        && (!$bloqueado || $estado === ValidacionEstado::Rechazada->value),
+                ]
+            ];
+        });
 
         return view('empresa.documentos', [
             'empresa' => $empresa,
             'documentos' => $documentos,
+            'bloqueado' => $bloqueado,
             'expedienteCompleto' => $empresa->expedienteCompleto(),
+            'expedienteEnOrden' => $empresa->expedienteEnOrden(),
         ]);
     }
 
@@ -54,6 +64,15 @@ class DocumentoController extends Controller
         ]);
 
         $vigente = $empresa->documentoVigente($coleccion);
+
+        if (
+            $empresa->documentosBloqueados()
+            && $vigente?->getCustomProperty('estado') !== ValidacionEstado::Rechazada->value
+        ) {
+            throw ValidationException::withMessages([
+                'archivo' => 'Tu convenio está en revisión. Podrás modificar tus documentos si la Coordinación rechaza alguno o rechaza la solicitud.',
+            ]);
+        }
 
         if ($vigente?->getCustomProperty('estado') === ValidacionEstado::Validada->value) {
             throw ValidationException::withMessages([

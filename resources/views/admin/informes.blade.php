@@ -85,7 +85,7 @@
     {{-- Convenios y cuellos de botella --}}
     <div class="{{ $card }}">
         <h3 class="text-lg font-bold text-gray-900">Convenios</h3>
-        <div class="mt-3 grid grid-cols-3 gap-4">
+        <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div class="rounded-xl bg-gray-50 p-4"><p class="text-xs font-semibold uppercase text-gray-500">Vigentes</p><p class="mt-1 text-2xl font-bold text-gray-900">{{ $conveniosResumen['vigentes'] }}</p></div>
             <div class="rounded-xl bg-gray-50 p-4"><p class="text-xs font-semibold uppercase text-gray-500">Vencen en 60 días</p><p class="mt-1 text-2xl font-bold {{ $conveniosResumen['por_vencer'] ? 'text-red-600' : 'text-gray-900' }}">{{ $conveniosResumen['por_vencer'] }}</p></div>
             <div class="rounded-xl bg-gray-50 p-4"><p class="text-xs font-semibold uppercase text-gray-500">En trámite</p><p class="mt-1 text-2xl font-bold text-gray-900">{{ $conveniosResumen['en_tramite'] }}</p></div>

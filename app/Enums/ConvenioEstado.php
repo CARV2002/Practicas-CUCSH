@@ -29,4 +29,34 @@ enum ConvenioEstado: string
             self::Rechazado => 'Rechazado',
         };
     }
+
+    /** Etiqueta general para la empresa (el detalle por etapa es del admin). */
+    public function etiquetaEmpresa(): string
+    {
+        return match ($this) {
+            self::Solicitado => 'Revisión de documentos',
+            self::EnValidacionAcademica, self::EnRevisionJuridica => 'En revisión',
+            self::EnFirmas => 'En firmas',
+            self::Formalizado => 'Formalizado',
+            self::Rechazado => 'Rechazado',
+        };
+    }
+
+    /** @return string[] Pasos generales que ve la empresa. */
+    public static function pasosEmpresa(): array
+    {
+        return ['Revisión de documentos', 'En revisión', 'En firmas', 'Formalizado'];
+    }
+
+    /** Índice del paso actual en pasosEmpresa(); -1 si fue rechazado. */
+    public function pasoEmpresa(): int
+    {
+        return match ($this) {
+            self::Solicitado => 0,
+            self::EnValidacionAcademica, self::EnRevisionJuridica => 1,
+            self::EnFirmas => 2,
+            self::Formalizado => 3,
+            self::Rechazado => -1,
+        };
+    }
 }

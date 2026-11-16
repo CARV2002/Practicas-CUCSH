@@ -11,13 +11,13 @@
     <x-common.page-breadcrumb pageTitle="Usuarios" />
 
     <div x-data="{
-        modalAlta: false,
-        modalPass: false,
-        pass: { id: null, nombre: '' },
-        urlPass: '{{ route('admin.usuarios.password', 0) }}',
-        cambiar(id, nombre) { this.pass = { id, nombre }; this.modalPass = true; },
-        get actionPass() { return this.urlPass.replace(/0$/, this.pass.id); }
-    }" class="space-y-6">
+            modalAlta: false,
+            modalPass: false,
+            pass: { id: null, nombre: '' },
+            urlPass: '{{ route('admin.usuarios.password', 0) }}',
+            cambiar(id, nombre) { this.pass = { id, nombre }; this.modalPass = true; },
+            get actionPass() { return this.urlPass.replace(/0$/, this.pass.id); }
+        }" class="space-y-6">
 
         @if (session('status'))
             <div class="rounded-xl border border-green-500 bg-green-50 p-4 text-sm text-green-700">{{ session('status') }}</div>
@@ -89,9 +89,14 @@
                             @endphp
                             <tr class="transition-colors hover:bg-gray-50/40">
                                 <td class="px-6 py-4">
-                                    <span
-                                        class="block text-sm font-semibold text-gray-900">{{ $u->name }}{{ $esYo ? ' (tú)' : '' }}</span>
-                                    <span class="text-xs text-gray-500">{{ $u->email }}</span>
+                                    <div class="flex items-center gap-3">
+                                        <x-ui.user-avatar :user="$u" size="h-9 w-9 text-xs" />
+                                        <div>
+                                            <span
+                                                class="block text-sm font-semibold text-gray-900">{{ $u->name }}{{ $esYo ? ' (tú)' : '' }}</span>
+                                            <span class="text-xs text-gray-500">{{ $u->email }}</span>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-4">
                                     <span

@@ -12,7 +12,8 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <!-- Alpine.js -->
-    {{-- <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script> --}}
+    {{--
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script> --}}
 
     <!-- Theme Store -->
     <script>
@@ -77,7 +78,7 @@
 
     <!-- Apply dark mode immediately to prevent flash -->
     <script>
-        (function() {
+        (function () {
             const savedTheme = localStorage.getItem('theme');
             const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             const theme = savedTheme || systemTheme;
@@ -90,12 +91,10 @@
             }
         })();
     </script>
-    
+
 </head>
 
-<body
-    x-data="{ 'loaded': true}"
-    x-init="$store.sidebar.isExpanded = window.innerWidth >= 1280;
+<body x-data="{ 'loaded': true}" x-init="$store.sidebar.isExpanded = window.innerWidth >= 1280;
     const checkMobile = () => {
         if (window.innerWidth < 1280) {
             $store.sidebar.setMobileOpen(false);
@@ -108,15 +107,14 @@
     window.addEventListener('resize', checkMobile);">
 
     {{-- preloader --}}
-    <x-common.preloader/>
+    <x-common.preloader />
     {{-- preloader end --}}
 
     <div class="min-h-screen xl:flex">
         @include('layouts.backdrop')
         @include('layouts.sidebar')
 
-        <div class="flex-1 transition-all duration-300 ease-in-out"
-            :class="{
+        <div class="min-w-0 flex-1 transition-all duration-300 ease-in-out" :class="{
                 'xl:ml-[290px]': $store.sidebar.isExpanded || $store.sidebar.isHovered,
                 'xl:ml-[90px]': !$store.sidebar.isExpanded && !$store.sidebar.isHovered,
                 'ml-0': $store.sidebar.isMobileOpen
@@ -130,7 +128,27 @@
         </div>
 
     </div>
-
+    <script>
+        document.addEventListener('invalid', (e) => {
+            const c = e.target, v = c.validity;
+            c.setCustomValidity('');
+            if (v.valueMissing) {
+                c.setCustomValidity(c.type === 'file' ? 'Selecciona un archivo.'
+                    : c.type === 'checkbox' ? 'Debes marcar esta casilla.'
+                        : c.tagName === 'SELECT' ? 'Selecciona una opción.'
+                            : 'Completa este campo.');
+            } else if (v.typeMismatch && c.type === 'email') {
+                c.setCustomValidity('Escribe un correo electrónico válido.');
+            } else if (v.rangeUnderflow) {
+                c.setCustomValidity('El valor debe ser mayor o igual a ' + c.min + '.');
+            } else if (v.rangeOverflow) {
+                c.setCustomValidity('El valor debe ser menor o igual a ' + c.max + '.');
+            } else if (v.tooShort) {
+                c.setCustomValidity('Escribe al menos ' + c.minLength + ' caracteres.');
+            }
+        }, true);
+        document.addEventListener('input', (e) => e.target.setCustomValidity && e.target.setCustomValidity(''));
+    </script>
 </body>
 
 @stack('scripts')
