@@ -69,6 +69,15 @@ class Avisos
             ->values();
     }
 
+    /** Alumnos activos de la carrera que aún no acreditan (avisos de vacantes nuevas). */
+    public static function alumnosDeCarrera(int $carreraId): Collection
+    {
+        return User::where('activo', true)
+            ->whereHas('alumno', fn($a) => $a->where('carrera_id', $carreraId)
+                ->whereDoesntHave('practicas', fn($p) => $p->where('practicas.estado', \App\Enums\PracticaEstado::Acreditada->value)))
+            ->get();
+    }
+
     public static function alumnoDe(Practica $practica): ?User
     {
         return $practica->postulacion->alumno->user;

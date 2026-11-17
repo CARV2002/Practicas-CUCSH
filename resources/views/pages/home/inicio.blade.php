@@ -47,7 +47,7 @@
         <div class="feature-content">
           <h3>Ofertas dirigidas a tu carrera</h3>
           <div class="underline-accent"></div>
-          <p>Al iniciar sesión verás los programas publicados para tu carrera, con convenio vigente y cupo disponible. Te postulas con tu kardex y la Coordinación da seguimiento a tu postulación.</p>
+          <p>Al iniciar sesión verás los programas publicados para tu carrera, con convenio vigente y cupo disponible. Te postulas con tu kardex y tu coordinación de carrera da seguimiento a tu postulación.</p>
         </div>
         <div class="mock-screen">
           <div class="titlebar">

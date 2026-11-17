@@ -63,6 +63,8 @@ class DatabaseSeeder extends Seeder
         Alumno::firstOrCreate(['user_id' => $alumno->id], [
             'carrera_id' => $carrera->id,
             'num_control' => 'DEMO0001',
+            'grado' => 6,
+            'turno' => \App\Enums\Turno::Vespertino,
             'vigencia_imss' => now()->addYear(),
         ]);
 
@@ -72,6 +74,7 @@ class DatabaseSeeder extends Seeder
             'razon_social' => 'Empresa Demo S.A. de C.V.',
             'tipo_organismo' => TipoOrganismo::Privado,
             'contacto_nombre' => 'Contacto Demo',
+            'representante_legal' => 'Lic. Representante Demo',
         ]);
     }
 

@@ -226,10 +226,17 @@ function alumnoDe(Carrera $carrera, string $codigo, ?string $imss = null): Alumn
     $user = User::factory()->create();
     $user->assignRole(Rol::Alumno->value);
 
-    return Alumno::create([
+    $alumno = Alumno::create([
         'user_id' => $user->id, 'carrera_id' => $carrera->id, 'num_control' => $codigo,
+        'grado' => 7, 'turno' => 'matutino',
         'vigencia_imss' => $imss ?? now()->addYear()->toDateString(),
     ]);
+
+    // Constancia IMSS validada por la coordinación (requisito para emitir la carta de presentación)
+    $media = $alumno->addMedia(pdfFalso('imss.pdf'))->toMediaCollection('constancia_imss');
+    $alumno->resolverDocumento($media, \App\Enums\ValidacionEstado::Validada, null, $user->id);
+
+    return $alumno;
 }
 
 function postular(Alumno $alumno, Programa $programa, float $creditos = 60): Postulacion

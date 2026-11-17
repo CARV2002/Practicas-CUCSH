@@ -65,7 +65,7 @@ abstract class AvisoPracticas extends Notification implements ShouldQueue
             ->greeting('Hola '.$notifiable->name)
             ->line($this->texto())
             ->action('Abrir en la plataforma', url($this->ruta()))
-            ->salutation('Coordinación de Prácticas Profesionales');
+            ->salutation('Prácticas Profesionales · CUCSH');
     }
 
     /** @return array<string,mixed> */

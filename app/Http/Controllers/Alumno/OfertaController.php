@@ -54,7 +54,7 @@ class OfertaController extends Controller
         $bloqueo = match (true) {
             $alumno->yaAcreditado() => 'Ya tienes una práctica acreditada.',
             $alumno->tienePracticaActiva() => 'Ya tienes una práctica activa.',
-            $alumno->tienePracticaCancelada() => 'Tu práctica fue cancelada, por lo que no puedes postularte a otro programa. Consulta a la Coordinación de Prácticas.',
+            $alumno->tienePracticaCancelada() => 'Tu práctica fue cancelada, por lo que no puedes postularte a otro programa. Consulta a tu coordinación de carrera.',
             $alumno->postulaciones()->whereIn('estado', PostulacionEstado::valores(PostulacionEstado::enTramite()))->exists()
             => 'Ya tienes una empresa en trámite; termina ese proceso antes de postularte a otra.',
             default => null,
@@ -94,7 +94,7 @@ class OfertaController extends Controller
 
         if ($alumno->tienePracticaCancelada()) {
             throw ValidationException::withMessages([
-                'postulacion' => 'Tu práctica fue cancelada, por lo que no puedes postularte a otro programa. Consulta a la Coordinación de Prácticas.',
+                'postulacion' => 'Tu práctica fue cancelada, por lo que no puedes postularte a otro programa. Consulta a tu coordinación de carrera.',
             ]);
         }
 

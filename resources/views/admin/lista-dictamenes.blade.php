@@ -4,12 +4,15 @@
 @php
     use App\Enums\Dictamen;
 
+    $esCoordinacion = ($modo ?? 'vinculacion') === 'coordinacion';
+    $rutaArchivo = $esCoordinacion ? 'coordinacion.dictamenes.archivos' : 'admin.dictamenes.archivos.descargar';
+
     $input = 'focus:border-brand-300 focus:ring-brand-500/10 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-3 focus:outline-hidden';
     $btn = 'bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-medium text-white';
     $card = 'rounded-2xl border border-gray-200 bg-white';
 @endphp
 
-<x-common.page-breadcrumb pageTitle="Dictámenes por carrera" />
+<x-common.page-breadcrumb pageTitle="{{ $esCoordinacion ? 'Dictámenes de mi carrera' : 'Dictámenes por carrera' }}" />
 
 <div class="space-y-6">
     @if (session('status'))
@@ -42,7 +45,13 @@
         <div class="mb-5 flex flex-col gap-4 px-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <h3 class="text-lg font-bold text-gray-900">Dictámenes de pertinencia académica</h3>
-                <p class="mt-0.5 text-sm text-gray-500">Las divisiones no usan el sistema: captura aquí el resultado cuando regrese el oficio firmado.</p>
+                <p class="mt-0.5 text-sm text-gray-500">
+                    @if ($esCoordinacion)
+                        Revisa si las actividades que propone la empresa corresponden al perfil de egreso y emite tu dictamen.
+                    @else
+                        Cada Coordinación de carrera emite su dictamen desde su panel; aquí das seguimiento.
+                    @endif
+                </p>
             </div>
             <form method="GET" class="flex flex-wrap items-center gap-2">
                 <input type="text" name="q" value="{{ request('q') }}" placeholder="Empresa o RFC..." class="{{ $input }} !w-52">
@@ -82,13 +91,23 @@
                                 default => 'bg-yellow-50 text-yellow-700',
                             };
                             $pdf = $d->getFirstMedia('dictamen_pertinencia');
-                            $capturable = $d->dictamen === Dictamen::Pendiente
+                            $capturable = $esCoordinacion
+                                && $d->dictamen === Dictamen::Pendiente
                                 && $d->convenio->estado === \App\Enums\ConvenioEstado::EnValidacionAcademica;
                         @endphp
                         <tr class="align-top transition-colors hover:bg-gray-50/40">
                             <td class="px-6 py-4">
                                 <span class="block text-sm font-semibold text-gray-900">{{ $d->convenio->empresa->razon_social }}</span>
-                                <a href="{{ route('admin.convenios.show', $d->convenio) }}" class="text-brand-600 text-xs">Ver convenio · {{ $d->convenio->estado->label() }}</a>
+                                @if ($esCoordinacion)
+                                    <span class="block text-xs text-gray-500">{{ $d->convenio->estado->label() }} · {{ $d->convenio->plazas_estimadas }} plazas</span>
+                                    <details class="mt-1 text-xs text-gray-600">
+                                        <summary class="text-brand-600 cursor-pointer">Objetivos y actividades propuestas</summary>
+                                        <p class="mt-1"><strong>Objetivos:</strong> {{ $d->convenio->objetivos }}</p>
+                                        <p class="mt-1"><strong>Actividades:</strong> {{ $d->convenio->actividades_propuestas }}</p>
+                                    </details>
+                                @else
+                                    <a href="{{ route('admin.convenios.show', $d->convenio) }}" class="text-brand-600 text-xs">Ver convenio · {{ $d->convenio->estado->label() }}</a>
+                                @endif
                             </td>
                             <td class="px-4 py-4">
                                 <span class="block text-sm text-gray-800">{{ $d->carrera->nombre }}</span>
@@ -103,13 +122,13 @@
                                 @endif
                                 @if ($d->observaciones) <span class="block">{{ $d->observaciones }}</span> @endif
                                 @if ($pdf)
-                                    <a href="{{ route('admin.dictamenes.archivos.descargar', [$d, $pdf]) }}" class="text-brand-600 font-semibold">Descargar PDF</a>
+                                    <a href="{{ route($rutaArchivo, [$d, $pdf]) }}" class="text-brand-600 font-semibold">Descargar PDF</a>
                                 @endif
                             </td>
                             <td class="px-6 py-4 text-right">
                                 @if ($capturable)
                                     <button type="button" onclick="document.getElementById('captura-{{ $d->id }}').classList.toggle('hidden')"
-                                        class="text-brand-600 hover:text-brand-700 text-xs font-semibold">Capturar</button>
+                                        class="text-brand-600 hover:text-brand-700 text-xs font-semibold">Emitir dictamen</button>
                                 @else
                                     <span class="text-xs text-gray-400">—</span>
                                 @endif
@@ -118,7 +137,7 @@
                         @if ($capturable)
                             <tr id="captura-{{ $d->id }}" class="hidden bg-gray-50/60">
                                 <td colspan="5" class="px-6 py-4">
-                                    <form method="POST" enctype="multipart/form-data" action="{{ route('admin.dictamenes.registrar', $d) }}" class="grid grid-cols-1 gap-2 md:grid-cols-5">
+                                    <form method="POST" enctype="multipart/form-data" action="{{ route('coordinacion.dictamenes.registrar', $d) }}" class="grid grid-cols-1 gap-2 md:grid-cols-5">
                                         @csrf
                                         <select name="dictamen" required class="{{ $input }}">
                                             <option value="aprobatorio">Aprobatorio</option>
@@ -142,6 +161,7 @@
     </div>
 
     {{-- Todas negativas --}}
+    @unless ($esCoordinacion)
     <div class="{{ $card }} p-6">
         <h4 class="text-base font-bold text-gray-900">Convenios con todos los dictámenes negativos</h4>
         <p class="mb-4 text-xs text-gray-500">El trámite se cierra como rechazado cuando ninguna carrera aprueba.</p>
@@ -159,5 +179,6 @@
             @endforelse
         </div>
     </div>
+    @endunless
 </div>
 @endsection

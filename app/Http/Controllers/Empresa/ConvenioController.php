@@ -69,6 +69,12 @@ class ConvenioController extends Controller
         $faltantes = collect(\App\Models\Empresa::coleccionesObligatorias())
             ->filter(fn($col) => $empresa->documentoVigente($col) === null);
 
+        if (blank($empresa->representante_legal)) {
+            throw ValidationException::withMessages([
+                'convenio' => 'Captura el nombre del representante legal en la sección Documentos antes de solicitar el convenio.',
+            ]);
+        }
+
         if ($faltantes->isNotEmpty()) {
             throw ValidationException::withMessages([
                 'convenio' => 'Antes de solicitar el convenio sube todos los documentos obligatorios en la sección Documentos.',

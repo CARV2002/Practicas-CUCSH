@@ -13,6 +13,8 @@ class Carrera extends Model
     use Auditable;
     protected $table = 'carreras';
 
+    protected $attributes = ['esquema_reportes' => 'mensual'];
+
     protected $fillable = [
         'division_id',
         'carrera_clave',
@@ -20,6 +22,9 @@ class Carrera extends Model
         'horas_requeridas',
         'porcentaje_creditos_minimo',
         'creditos_otorgados',
+        'coordinacion_correo',
+        'coordinacion_telefono',
+        'esquema_reportes',
     ];
 
     protected function casts(): array
@@ -28,6 +33,7 @@ class Carrera extends Model
             'horas_requeridas' => 'integer',
             'porcentaje_creditos_minimo' => 'decimal:2',
             'creditos_otorgados' => 'integer',
+            'esquema_reportes' => \App\Enums\EsquemaReportes::class,
         ];
     }
 
@@ -71,6 +77,18 @@ class Carrera extends Model
         $ids = $personal->carreraIdsEnAlcance();
 
         return $ids === null ? $query : $query->whereIn('id', $ids);
+    }
+
+    /** Coordinación de la carrera (personal con rol coordinador y esa carrera, o su división). */
+    public function coordinadores(): \Illuminate\Support\Collection
+    {
+        return \App\Services\Avisos::coordinadores((int) $this->id);
+    }
+
+    /** Correo al que el alumno escribe: el de la coordinación o, si no lo ha capturado, el de su coordinador. */
+    public function correoContacto(): ?string
+    {
+        return $this->coordinacion_correo ?: $this->coordinadores()->first()?->email;
     }
 
     public function auditoriaNombre(): ?string

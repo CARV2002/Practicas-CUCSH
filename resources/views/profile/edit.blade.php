@@ -19,6 +19,9 @@
         @if (session('status') === 'foto-updated')
             <div class="rounded-xl border border-green-500 bg-green-50 p-4 text-sm text-green-700">Foto actualizada.</div>
         @endif
+        @if (session('status') === 'datos-escolares-updated')
+            <div class="rounded-xl border border-green-500 bg-green-50 p-4 text-sm text-green-700">Datos escolares actualizados.</div>
+        @endif
         @if (session('status') === 'foto-deleted')
             <div class="rounded-xl border border-green-500 bg-green-50 p-4 text-sm text-green-700">Foto eliminada.</div>
         @endif
@@ -87,6 +90,24 @@
             </div>
         </form>
 
+        @if ($user->alumno)
+            <form method="POST" action="{{ route('alumno.datos-escolares') }}" class="{{ $card }} space-y-5">
+                @csrf
+                @method('PUT')
+                <div>
+                    <h3 class="text-base font-bold text-gray-900">Datos escolares</h3>
+                    <p class="text-xs text-gray-500">
+                        {{ $user->alumno->carrera->nombre }} · Código {{ $user->alumno->num_control }}.
+                        Tu grado y turno aparecen en tu Carta de Presentación: mantenlos al día.
+                    </p>
+                </div>
+                <x-alumno.grado-turno :grado="$user->alumno->grado" :turno="$user->alumno->turno" />
+                <div class="flex justify-end">
+                    <button class="bg-brand-500 hover:bg-brand-600 rounded-lg px-5 py-2.5 text-sm font-medium text-white">Guardar datos escolares</button>
+                </div>
+            </form>
+        @endif
+
         <form method="POST" action="{{ route('password.update') }}" class="{{ $card }} space-y-5">
             @csrf
             @method('PUT')
@@ -122,8 +143,9 @@
         </form>
 
         <p class="text-xs text-gray-400">
-            ¿Quieres corregir tus datos personales o cancelar tu cuenta? Escribe a la Coordinación:
-            {{ config('practicas.contacto.correo') }} (consulta el <a href="{{ route('privacidad') }}"
+            ¿Quieres corregir tus datos personales o cancelar tu cuenta? Escribe a
+            {{ $user->alumno ? 'tu coordinación: ' . ($user->alumno->carrera->correoContacto() ?? config('practicas.contacto.correo')) : 'Vinculación: ' . config('practicas.contacto.correo') }}
+            (consulta el <a href="{{ route('privacidad') }}"
                 class="underline">aviso de privacidad</a>).
         </p>
     </div>

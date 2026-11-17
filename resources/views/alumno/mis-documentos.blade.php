@@ -173,9 +173,9 @@
                     <form method="POST" enctype="multipart/form-data" action="{{ route('alumno.documentos.reporte.crear', $pr) }}"
                         class="grid grid-cols-1 gap-3 border-b border-gray-100 bg-gray-50/60 px-6 py-4 md:grid-cols-6">
                         @csrf
-                        <select name="tipo" required class="{{ $input }}">
-                            @foreach (\App\Enums\ReporteTipo::cases() as $t)
-                                <option value="{{ $t->value }}" @selected(old('tipo') === $t->value)>{{ ucfirst($t->value) }}</option>
+                        <select name="tipo" required class="{{ $input }}" title="Esquema de tu carrera: {{ $alumno->carrera->esquema_reportes->label() }}">
+                            @foreach ($alumno->carrera->esquema_reportes->tipos() as $t)
+                                <option value="{{ $t->value }}" @selected(old('tipo') === $t->value)>{{ $t->label() }}</option>
                             @endforeach
                         </select>
                         <input type="date" name="periodo_inicio" value="{{ old('periodo_inicio') }}" required class="{{ $input }}"
@@ -198,7 +198,7 @@
                         @endphp
                         <div class="flex flex-col gap-3 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
                             <div>
-                                <p class="text-sm font-semibold text-gray-800">Reporte {{ $r->tipo->value }} ·
+                                <p class="text-sm font-semibold text-gray-800">Reporte {{ mb_strtolower($r->tipo->label()) }} ·
                                     {{ $r->horas_reportadas }} h
                                 </p>
                                 <p class="text-xs text-gray-500">{{ $r->periodo_inicio->format('d/m/Y') }} –

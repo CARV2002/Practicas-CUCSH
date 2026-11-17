@@ -106,6 +106,7 @@ class ConvenioSeeder extends Seeder
             'razon_social' => $razon,
             'tipo_organismo' => $tipo,
             'contacto_nombre' => 'Contacto '.$razon,
+            'representante_legal' => 'Representante de '.$razon,
         ]);
 
         $convenio = Convenio::firstOrCreate(

@@ -320,7 +320,7 @@
   <div class="hero hero-estudiantes">
     <div class="brand-tag">Contacto</div>
     <h1>Prácticas Profesionales</h1>
-    <p>Coordinación de Prácticas Profesionales del CUCSH</p>
+    <p>Alumnos: tu coordinación de carrera · Organizaciones: Vinculación del CUCSH</p>
     @auth
       <a href="{{ route('dashboard') }}" class="btn-demo">Ir a mi panel</a>
     @else
@@ -332,13 +332,13 @@
     <div class="container">
         <div class="contact-card-wrapper">
             <div class="contact-info-side">
-                <h2>Coordinación de Prácticas Profesionales</h2>
-                <p>Centro Universitario de Ciencias Sociales y Humanidades, Universidad de Guadalajara. Resolvemos dudas de alumnos y de organizaciones sobre el proceso de prácticas profesionales y los convenios de vinculación.</p>
+                <h2>Vinculación · Convenios con organizaciones</h2>
+                <p>Centro Universitario de Ciencias Sociales y Humanidades, Universidad de Guadalajara. Vinculación atiende el registro de organizaciones, la solicitud y el seguimiento de convenios. Si eres alumno, escribe a la coordinación de tu carrera (directorio más abajo).</p>
             </div>
             <div class="contact-form-side">
                 <div class="form-group">
                     <label>Correo electrónico</label>
-                    <a href="{{ App\Support\Correo::gmail($correo) }}" target="_blank" rel="noopener">
+                    <a href="{{ App\Support\Correo::gmail($correo) }}" target="_blank" rel="noopener" style="font-size: var(--text-theme-sm); color: var(--color-black);">Escribir por Gmail</a>
                 </div>
                 <div class="form-group">
                     <label>Teléfono</label>
@@ -349,13 +349,17 @@
                     <span style="font-size: var(--text-theme-sm); color: var(--color-black);">{{ config('practicas.domicilio_cucsh') }}.</span>
                     <a href="{{ $mapa }}" target="_blank" rel="noopener" style="font-size: var(--text-theme-xs); color: var(--color-brand-600); font-weight: 600;">Ver en el mapa →</a>
                 </div>
-                <a href="{{ App\Support\Correo::gmail($correo) }}" target="_blank" rel="noopener">
-                    Escribir a la Coordinación
+                <a href="{{ App\Support\Correo::gmail($correo, 'Convenio de prácticas profesionales') }}" target="_blank" rel="noopener">
+                    Escribir a Vinculación (convenios)
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 </a>
             </div>
         </div>
     </div>
+  </section>
+
+  <section id="directorio" style="padding: 60px 20px 0;">
+    <x-directorio-coordinaciones titulo="¿Eres alumno? Escribe a tu coordinación" />
   </section>
 
   <section class="section-resources" style="padding-top: 60px;">
@@ -372,7 +376,7 @@
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
                 </div>
                 <h3>Soy alumno</h3>
-                <p>Dudas sobre tu postulación, tus documentos (IMSS, kardex y cartas), tus reportes o tus horas.</p>
+                <p>Tu postulación, documentos (IMSS, kardex y cartas), reportes y horas los atiende la coordinación de tu carrera.</p>
                 <a href="{{ route('estudiantes') }}" class="resource-link">Ver el proceso para estudiantes <span>→</span></a>
             </div>
 
@@ -418,7 +422,7 @@
             <div class="benefits-sticky-header">
                 <span class="badge-category">Antes de escribir</span>
                 <h2>Datos que ayudan a identificar tu caso</h2>
-                <p>Incluye esta información en tu mensaje para que la Coordinación pueda ubicar tu trámite.</p>
+                <p>Incluye esta información en tu mensaje para que tu coordinación (o Vinculación, si eres organización) pueda ubicar tu trámite.</p>
             </div>
             <div class="benefits-list">
                 <div class="benefit-item">

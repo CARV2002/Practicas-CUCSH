@@ -169,8 +169,12 @@ class DocumentoController extends Controller
 
         $tope = today()->min($practica->fecha_fin)->toDateString();
 
+        // Cada carrera define la periodicidad de sus reportes (mensual, bimestral o parcial + final)
+        $esquema = $request->user()->alumno->carrera->esquema_reportes ?? \App\Enums\EsquemaReportes::Mensual;
+        $permitidos = array_map(fn(ReporteTipo $t) => $t->value, $esquema->tipos());
+
         $datos = $request->validate([
-            'tipo' => ['required', Rule::enum(ReporteTipo::class)],
+            'tipo' => ['required', Rule::in($permitidos)],
             'periodo_inicio' => ['required', 'date', 'after_or_equal:' . $practica->fecha_inicio->toDateString(), 'before_or_equal:' . $tope],
             'periodo_fin' => ['required', 'date', 'after_or_equal:periodo_inicio', 'before_or_equal:' . $tope],
             'horas_reportadas' => ['required', 'integer', 'min:1', 'max:1000'],
@@ -178,9 +182,10 @@ class DocumentoController extends Controller
         ], [
             'periodo_inicio.after_or_equal' => 'El periodo no puede empezar antes de tu práctica.',
             'periodo_fin.before_or_equal' => 'El periodo no puede terminar en el futuro ni después de tu práctica.',
+            'tipo.in' => "Tu carrera pide reportes con el esquema «{$esquema->label()}».",
         ]);
 
-        DB::transaction(function () use ($practica, $datos, $request) {
+        DB::transaction(function () use ($practica, $datos, $request, $esquema) {
 
             $practica = Practica::lockForUpdate()->findOrFail($practica->id);
 
@@ -194,11 +199,14 @@ class DocumentoController extends Controller
                 ]);
             }
 
+            $tipo = ReporteTipo::from($datos['tipo']);
+
+            // El final (y el parcial, en el esquema parcial + final) se entregan una sola vez
             if (
-                $datos['tipo'] === ReporteTipo::Final ->value
-                && $practica->reportes()->where('tipo', 'final')->where('estado', '!=', ReporteEstado::Rechazado->value)->exists()
+                $esquema->esUnico($tipo)
+                && $practica->reportes()->where('tipo', $tipo->value)->where('estado', '!=', ReporteEstado::Rechazado->value)->exists()
             ) {
-                throw ValidationException::withMessages(['tipo' => 'Ya tienes un reporte final en revisión o validado.']);
+                throw ValidationException::withMessages(['tipo' => "Ya tienes un reporte {$tipo->label()} en revisión o validado."]);
             }
 
             $reporte = $practica->reportes()->create([

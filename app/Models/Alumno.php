@@ -19,11 +19,11 @@ class Alumno extends Model implements HasMedia
 
     protected $table = 'alumnos';
 
-    protected $fillable = ['user_id', 'carrera_id', 'num_control', 'vigencia_imss'];
+    protected $fillable = ['user_id', 'carrera_id', 'num_control', 'grado', 'turno', 'vigencia_imss'];
 
     protected function casts(): array
     {
-        return ['vigencia_imss' => 'date'];
+        return ['vigencia_imss' => 'date', 'grado' => 'integer', 'turno' => \App\Enums\Turno::class];
     }
 
     public function registerMediaCollections(): void

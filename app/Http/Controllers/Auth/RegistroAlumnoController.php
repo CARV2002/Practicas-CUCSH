@@ -40,6 +40,8 @@ class RegistroAlumnoController extends Controller
             $user->alumno()->create([
                 'carrera_id' => $datos['carrera_id'],
                 'num_control' => $datos['num_control'],
+                'grado' => $datos['grado'],
+                'turno' => $datos['turno'],
             ]);
 
             return $user;

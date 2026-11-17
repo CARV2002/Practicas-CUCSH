@@ -6,14 +6,19 @@ use App\Enums\Modalidad;
 use App\Enums\PostulacionEstado;
 use App\Enums\ProgramaEstado;
 use App\Http\Controllers\Controller;
-use App\Models\Carrera;
 use App\Models\Programa;
+use App\Notifications\AvisoOperativo;
+use App\Services\Avisos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
+/**
+ * Vacantes de la empresa. La empresa las registra y edita, pero quien las publica es la
+ * Coordinación de la carrera: nacen (y vuelven tras cada cambio) en «pendiente_aprobacion».
+ */
 class ProgramaController extends Controller
 {
     /** Programas de la empresa, con cupos y su convenio vigente. */
@@ -50,34 +55,58 @@ class ProgramaController extends Controller
 
         $this->convenioPropio($request, (int) $datos['convenio_id']);
 
-        Programa::create($datos + ['modalidad' => Modalidad::Externa->value, 'estado' => ProgramaEstado::Borrador->value]);
+        // Nace pendiente: no es visible para los alumnos hasta que la Coordinación de la carrera la apruebe
+        $programa = Programa::create($datos + [
+            'modalidad' => Modalidad::Externa->value,
+            'estado' => ProgramaEstado::PendienteAprobacion->value,
+        ]);
 
-        return back()->with('status', 'Programa creado como borrador.');
+        $this->avisarCoordinacion($request, $programa, 'registró la vacante');
+
+        return back()->with('status', 'Vacante enviada a la Coordinación de la carrera para su aprobación.');
     }
 
     public function update(Request $request, Programa $programa): RedirectResponse
     {
         $this->autorizar($request, $programa);
 
+        if ($programa->postulaciones()->exists()) {
+            return back()->withErrors(['programa' => 'La vacante ya tiene postulaciones: ciérrala y registra una nueva.']);
+        }
+
         $datos = $this->validar($request);
 
         $this->convenioPropio($request, (int) $datos['convenio_id']);
 
-        $programa->update($datos);
+        // Cualquier cambio de la empresa vuelve a revisión (horarios y actividades)
+        $programa->update($datos + [
+            'estado' => ProgramaEstado::PendienteAprobacion->value,
+            'motivo_rechazo' => null,
+            'revisado_por' => null,
+            'revisado_at' => null,
+        ]);
 
-        return back()->with('status', 'Programa actualizado.');
+        $this->avisarCoordinacion($request, $programa, 'modificó la vacante');
+
+        return back()->with('status', 'Vacante actualizada y enviada de nuevo a aprobación.');
     }
 
-    /** La empresa solo publica, cierra o regresa a borrador (las reglas las aplica ProgramaObserver). */
+    /** La empresa solo cierra una vacante publicada: publicar es decisión de la Coordinación. */
     public function cambiarEstado(Request $request, Programa $programa): RedirectResponse
     {
         $this->autorizar($request, $programa);
 
-        $datos = $request->validate(['estado' => ['required', Rule::enum(ProgramaEstado::class)]]);
+        $request->validate(['estado' => ['required', Rule::in([ProgramaEstado::Cerrado->value])]], [
+            'estado.in' => 'La vacante la publica la Coordinación de la carrera; tú solo puedes cerrarla.',
+        ]);
 
-        $programa->update(['estado' => $datos['estado']]);
+        if ($programa->estado !== ProgramaEstado::Publicado) {
+            return back()->withErrors(['programa' => 'Solo se puede cerrar una vacante publicada.']);
+        }
 
-        return back()->with('status', 'Estado actualizado.');
+        $programa->update(['estado' => ProgramaEstado::Cerrado]);
+
+        return back()->with('status', 'Vacante cerrada.');
     }
 
     public function destroy(Request $request, Programa $programa): RedirectResponse
@@ -124,6 +153,15 @@ class ProgramaController extends Controller
         if (!$propio) {
             throw ValidationException::withMessages(['convenio_id' => 'El convenio no pertenece a tu empresa.']);
         }
+    }
+
+    private function avisarCoordinacion(Request $request, Programa $programa, string $accion): void
+    {
+        Avisos::enviar(Avisos::coordinadores((int) $programa->carrera_id), new AvisoOperativo(
+            mensaje: "{$request->user()->empresa->razon_social} {$accion} «{$programa->titulo}». Revisa horario y actividades para aprobarla.",
+            url: route('coordinacion.lista-programas', ['estado' => ProgramaEstado::PendienteAprobacion->value], false),
+            detalle: $programa->titulo,
+        ));
     }
 
     /** @return array<string, mixed> */

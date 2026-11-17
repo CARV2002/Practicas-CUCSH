@@ -40,6 +40,8 @@ class RegistroEmpresaRequest extends FormRequest
             // RFC de persona moral (12) o física (13): 3-4 letras, 6 dígitos de fecha, 3 de homoclave.
             'rfc' => ['required', 'string', 'regex:/^[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}$/u', Rule::unique('empresas', 'rfc')],
             'tipo_organismo' => ['required', Rule::enum(TipoOrganismo::class)],
+            // Quien firma el convenio por parte de la empresa
+            'representante_legal' => ['required', 'string', 'max:255'],
 
             'aviso_privacidad' => ['accepted'],
         ];
@@ -57,6 +59,7 @@ class RegistroEmpresaRequest extends FormRequest
             'razon_social' => 'razón social',
             'rfc' => 'RFC',
             'tipo_organismo' => 'tipo de organismo',
+            'representante_legal' => 'representante legal',
             'aviso_privacidad' => 'aviso de privacidad',
         ];
     }

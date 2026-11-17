@@ -20,7 +20,12 @@
             </form>
 
             <p class="text-center text-xs text-gray-400">
-                ¿No llega? Revisa spam o escribe a {{ config('practicas.contacto.correo') }}
+                ¿No llega? Revisa spam.
+                @if (auth()->user()?->alumno?->carrera?->correoContacto())
+                    Si persiste, escribe a tu coordinación: {{ auth()->user()->alumno->carrera->correoContacto() }}
+                @else
+                    Si persiste, escribe a {{ config('practicas.contacto.correo') }}
+                @endif
             </p>
         </div>
     </x-auth.split>

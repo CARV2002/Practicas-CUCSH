@@ -95,6 +95,24 @@ class DocumentoController extends Controller
         return back()->with('status', 'Documento enviado a revisión.');
     }
 
+    /** Nombre del representante legal (firma el convenio). Se bloquea mientras el convenio está en revisión. */
+    public function datosLegales(Request $request): RedirectResponse
+    {
+        $empresa = $request->user()->empresa;
+
+        if ($empresa->documentosBloqueados()) {
+            return back()->withErrors(['representante_legal' => 'Tu convenio está en revisión: no puedes cambiar el representante legal.']);
+        }
+
+        $empresa->update($request->validate([
+            'representante_legal' => ['required', 'string', 'max:255'],
+        ], [
+            'representante_legal.required' => 'Escribe el nombre del representante legal.',
+        ]));
+
+        return back()->with('status', 'Representante legal actualizado.');
+    }
+
     /** Descarga de un archivo propio (disco privado). */
     public function descargar(Request $request, int $media)
     {

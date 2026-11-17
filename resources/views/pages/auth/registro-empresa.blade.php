@@ -8,6 +8,7 @@
             <div class="space-y-5">
                 <x-auth.input name="razon_social" label="Razón social" />
                 <x-auth.input name="rfc" label="RFC" placeholder="12 o 13 caracteres" />
+                <x-auth.input name="representante_legal" label="Nombre del representante legal" placeholder="Quien firmará el convenio" />
 
                 <div>
                     <label for="tipo_organismo" class="mb-1.5 block text-sm font-medium text-gray-700">

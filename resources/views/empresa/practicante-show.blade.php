@@ -79,7 +79,7 @@
                     <div class="px-6 py-4">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <div>
-                                <p class="text-sm font-semibold text-gray-800">{{ ucfirst($r->tipo->value) }} ·
+                                <p class="text-sm font-semibold text-gray-800">{{ $r->tipo->label() }} ·
                                     {{ $r->horas_reportadas }} h
                                 </p>
                                 <p class="text-xs text-gray-500">{{ $r->periodo_inicio->format('d/m/Y') }} –

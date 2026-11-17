@@ -9,7 +9,7 @@
         ['Postulaciones por validar', $pendientes['postulaciones'], route('coordinacion.lista-practicantes')],
         ['Reportes por validar', $pendientes['reportes'], route('coordinacion.lista-reportes')],
         ['Cierres por atender', $pendientes['cierres'], route('coordinacion.lista-cierres')],
-        ['Programas en borrador', $pendientes['programas_borrador'], route('coordinacion.lista-programas', ['estado' => 'borrador'])],
+        ['Vacantes por aprobar', $pendientes['vacantes_por_aprobar'], route('coordinacion.lista-programas', ['estado' => 'pendiente_aprobacion'])],
     ];
 @endphp
 

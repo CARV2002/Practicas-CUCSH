@@ -44,7 +44,11 @@ class Postulacion extends Model implements HasMedia
         // Evidencia del alumno y cartas del trámite de asignación
         $this->addMediaCollection('kardex')->useDisk('local')
             ->acceptsMimeTypes(['application/pdf', 'image/jpeg', 'image/png']);
+        // La genera el sistema en Word (editable) o se sube firmada en PDF
         $this->addMediaCollection('carta_presentacion')->useDisk('local')
+            ->acceptsMimeTypes(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'application/octet-stream']);
+        // Modalidad interna: oficio firmado por el Jefe de Departamento / Director de División receptor
+        $this->addMediaCollection('oficio_aceptacion_interno')->useDisk('local')
             ->acceptsMimeTypes(['application/pdf']);
         $this->addMediaCollection('carta_aceptacion')->useDisk('local')
             ->acceptsMimeTypes(['application/pdf']);

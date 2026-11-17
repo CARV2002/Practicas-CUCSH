@@ -68,7 +68,7 @@ class DashboardController extends Controller
                 ->latest('id')
                 ->limit(5)
                 ->get(),
-            'programasSinPublicar' => $programas->where('estado', ProgramaEstado::Borrador)->count(),
+            'programasSinPublicar' => $programas->where('estado', ProgramaEstado::PendienteAprobacion)->count(),
         ]);
     }
 }

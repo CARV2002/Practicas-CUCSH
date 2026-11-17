@@ -531,7 +531,7 @@
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><polyline points="9 11 12 14 22 4"/></svg>
                 </div>
                 <h3>Carta de aceptación</h3>
-                <p>La que te entrega la organización al aceptarte. Puedes subirla en cuanto tengas tu carta de presentación; con ella la Coordinación activa tu práctica.</p>
+                <p>La que te entrega la organización al aceptarte. Puedes subirla en cuanto tengas tu carta de presentación; con ella tu coordinación de carrera activa tu práctica.</p>
                 <span class="resource-link">Solo en PDF</span>
             </div>
 
@@ -643,7 +643,7 @@
         <div class="contact-card-wrapper">
             <div class="contact-info-side">
                 <h2>¿Necesitas ayuda con tu proceso?</h2>
-                <p>Si tienes dudas con la carga de documentos, con el estado de tu postulación o con tu práctica, comunícate con la Coordinación de Prácticas Profesionales del CUCSH (consulta también la <a href="{{ route('contacto') }}" style="color: inherit; text-decoration: underline;">página de contacto</a>).</p>
+                <p>Si tienes dudas con la carga de documentos, con el estado de tu postulación o con tu práctica, comunícate con la coordinación de tu carrera (directorio más abajo). Vinculación solo atiende convenios con organizaciones.</p>
                 @auth
                 <div class="quick-contact-meta">
                     <p>También puedes consultar la <a href="{{ route('ayuda') }}" style="color: inherit; text-decoration: underline;">sección de ayuda</a> dentro de la plataforma.</p>
@@ -652,7 +652,7 @@
             </div>
             <div class="contact-form-side">
                 <div class="form-group">
-                    <label>Correo electrónico</label>
+                    <label>Vinculación (solo convenios con organizaciones)</label>
                     <a href="{{ App\Support\Correo::gmail(config('practicas.contacto.correo')) }}" target="_blank" rel="noopener" style="font-size: var(--text-theme-sm); color: var(--color-black);">{{ config('practicas.contacto.correo') }}</a>
                 </div>
                 <div class="form-group">
@@ -663,13 +663,46 @@
                     <label>Dirección</label>
                     <span style="font-size: var(--text-theme-sm); color: var(--color-black);">{{ config('practicas.domicilio_cucsh') }}</span>
                 </div>
-                <a href="{{ App\Support\Correo::gmail(config('practicas.contacto.correo')) }}" target="_blank" rel="noopener" class="btn-primary-submit" style="text-decoration: none;">
-                    Escribir a la Coordinación
+                <a href="#directorio-coordinaciones" class="btn-primary-submit" style="text-decoration: none;">
+                    Buscar mi coordinación
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 </a>
             </div>
         </div>
     </div>
+  </section>
+
+  {{-- Convenios vigentes por carrera: reemplaza la lista que Vinculación enviaba por correo --}}
+  <section style="padding: 60px 20px 0;" x-data="{ carrera: '' }">
+    <div class="mx-auto w-full max-w-5xl">
+      <h2 class="mb-1 text-2xl font-bold text-gray-900">Organizaciones con convenio vigente</h2>
+      <p class="mb-4 text-sm text-gray-600">Solo puedes hacer prácticas externas en una organización con convenio vigente para tu carrera.</p>
+      <label for="filtro-carrera-convenios" class="sr-only">Filtrar por carrera</label>
+      <select id="filtro-carrera-convenios" x-model="carrera" class="mb-4 h-11 w-full max-w-md rounded-lg border border-gray-300 px-3 text-sm">
+        <option value="">Todas las carreras</option>
+        @foreach ($divisiones as $division)
+          @foreach ($division->carreras as $c)
+            <option value="{{ $c->carrera_clave }}">{{ $c->nombre }}</option>
+          @endforeach
+        @endforeach
+      </select>
+      <ul class="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        @forelse ($conveniosVigentes as $cv)
+          @php $claves = $cv->dictamenes->map(fn ($d) => $d->carrera->carrera_clave)->values(); @endphp
+          <li class="flex flex-col gap-1 px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
+              x-show="carrera === '' || @js($claves).includes(carrera)">
+            <span class="text-sm font-semibold text-gray-900">{{ $cv->empresa->razon_social }}</span>
+            <span class="text-xs text-gray-500">{{ $claves->join(' · ') }} · vigente hasta {{ $cv->fecha_fin_vigencia->format('d/m/Y') }}</span>
+          </li>
+        @empty
+          <li class="px-5 py-6 text-center text-sm text-gray-400">Aún no hay convenios vigentes.</li>
+        @endforelse
+      </ul>
+    </div>
+  </section>
+
+  <section id="directorio-coordinaciones" style="padding: 60px 20px;">
+    <x-directorio-coordinaciones />
   </section>
 
 @endsection

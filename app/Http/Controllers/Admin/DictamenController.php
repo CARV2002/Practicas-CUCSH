@@ -22,7 +22,7 @@ class DictamenController extends Controller
     }
 
     /**
-     * Dictámenes por carrera y convenio:
+     * Seguimiento (solo lectura) de los dictámenes que emite cada Coordinación de carrera:
      *  - pendientes (por defecto), filtrables por carrera y estado del dictamen
      *  - convenios en los que todas las carreras dieron dictamen negativo
      */
@@ -55,6 +55,7 @@ class DictamenController extends Controller
             ->get();
 
         return view('admin.lista-dictamenes', [
+            'modo' => 'vinculacion',
             'dictamenes' => $dictamenes,
             'todasNegativas' => $todasNegativas,
             'carreras' => Carrera::orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
@@ -69,28 +70,7 @@ class DictamenController extends Controller
         ]);
     }
 
-    /** Captura del dictamen (aprobatorio/negativo) con observaciones y PDF escaneado. */
-    public function registrar(Request $request, ConvenioCarrera $dictamen): RedirectResponse
-    {
-        $datos = $request->validate([
-            'dictamen' => ['required', Rule::in([Dictamen::Aprobatorio->value, Dictamen::Negativo->value])],
-            'observaciones' => ['nullable', 'string', 'max:2000'],
-            'documento' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
-        ]);
-
-        $this->workflow->registrarDictamenCarrera(
-            $dictamen,
-            Dictamen::from($datos['dictamen']),
-            $datos['observaciones'] ?? null,
-            $request->user()->personal
-        );
-
-        if ($request->hasFile('documento')) {
-            $dictamen->addMediaFromRequest('documento')->toMediaCollection('dictamen_pertinencia');
-        }
-
-        return back()->with('status', 'Dictamen registrado.');
-    }
+    // El dictamen ya no lo captura Vinculación: lo emite cada Coordinación (Coordinacion\DictamenController).
 
     /** Descarga del PDF escaneado del dictamen (disco privado). */
     public function descargar(ConvenioCarrera $dictamen, Media $media)

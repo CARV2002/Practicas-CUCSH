@@ -126,7 +126,7 @@ class MisPracticasController extends Controller
             return '¡Felicidades! Tu práctica profesional quedó acreditada. Misión cumplida. 🎓';
         }
         if ($p->estado === PracticaEstado::Cancelada) {
-            return 'Esta práctica fue cancelada. Si crees que es un error, consulta a la Coordinación de Prácticas.';
+            return 'Esta práctica fue cancelada. Si crees que es un error, consulta a tu coordinación de carrera.';
         }
         if ($p->estado === PracticaEstado::EnCierre) {
             return 'Tu carta de término ya fue validada. Solo falta que la Coordinación capture tu acreditación; no tienes que hacer nada más.';

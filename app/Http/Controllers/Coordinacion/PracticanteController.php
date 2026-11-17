@@ -41,7 +41,7 @@ class PracticanteController extends Controller
             ->paginate(15, ['*'], 'practicas')
             ->withQueryString();
 
-        $postulaciones = Postulacion::with(['alumno.user', 'alumno.carrera', 'programa.convenio.empresa', 'media'])
+        $postulaciones = Postulacion::with(['alumno.user', 'alumno.carrera', 'alumno.media', 'programa.convenio.empresa', 'media'])
             ->visiblesPara($personal)
             ->whereIn('estado', [
                 PostulacionEstado::Pendiente->value,
@@ -107,6 +107,33 @@ class PracticanteController extends Controller
         $registrar($postulacion);
 
         return back()->with('status', 'Carta de aceptación registrada; la práctica puede activarse.');
+    }
+
+    /**
+     * Modalidad interna: adjunta el Oficio de Aceptación Interno firmado por el Jefe de Departamento
+     * o Director de División del área receptora. Es requisito para activar la práctica.
+     */
+    public function subirOficioInterno(Request $request, Postulacion $postulacion): RedirectResponse
+    {
+        $this->authorize('gestionar', $postulacion);
+
+        if (!$postulacion->programa->esInterno()) {
+            return back()->withErrors(['postulacion' => 'El oficio de aceptación interno solo aplica a proyectos internos.']);
+        }
+
+        if (!in_array($postulacion->estado, [PostulacionEstado::CartaPresentacionEmitida, PostulacionEstado::CartaAceptacionRecibida], true)) {
+            return back()->withErrors(['postulacion' => 'Primero emite la carta de presentación.']);
+        }
+
+        $request->validate(['archivo' => ['required', 'file', 'mimes:pdf', 'max:10240']], [
+            'archivo.required' => 'Adjunta el oficio firmado en PDF.',
+        ]);
+
+        $media = $postulacion->addMediaFromRequest('archivo')->toMediaCollection('oficio_aceptacion_interno');
+        // Lo sube la propia coordinación con la firma del área receptora: queda validado
+        $postulacion->resolverDocumento($media, ValidacionEstado::Validada, null, $request->user()->id);
+
+        return back()->with('status', 'Oficio de aceptación interno registrado.');
     }
 
     public function activar(Request $request, Postulacion $postulacion, ActivarPractica $activar): RedirectResponse

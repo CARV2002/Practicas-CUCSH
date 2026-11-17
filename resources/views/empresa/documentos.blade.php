@@ -27,6 +27,22 @@
             </div>
         @endif
 
+        {{-- Datos legales: el representante firma el convenio --}}
+        <form method="POST" action="{{ route('empresa.datos-legales') }}" class="rounded-2xl border border-gray-200 bg-white p-6">
+            @csrf
+            @method('PUT')
+            <h3 class="text-base font-bold text-gray-900">Representante legal</h3>
+            <p class="mb-3 text-xs text-gray-500">Es quien firmará el convenio. Debe coincidir con la identificación oficial y el acta o poder que subas abajo.</p>
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <input type="text" name="representante_legal" required maxlength="255" aria-label="Nombre del representante legal"
+                    value="{{ old('representante_legal', $empresa->representante_legal) }}" placeholder="Nombre completo"
+                    @disabled($bloqueado) class="{{ $input }}">
+                @unless ($bloqueado)
+                    <button class="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-medium text-white">Guardar</button>
+                @endunless
+            </div>
+        </form>
+
         @if ($bloqueado)
             <div class="rounded-xl border border-blue-500 bg-blue-50 p-4 text-sm text-blue-800">
                 Tu convenio está en revisión, por lo que los documentos están bloqueados. Se habilitarán de nuevo si la

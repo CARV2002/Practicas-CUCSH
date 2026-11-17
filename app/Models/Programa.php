@@ -33,6 +33,9 @@ class Programa extends Model
         'sede',
         'cupos_totales',
         'estado',
+        'motivo_rechazo',
+        'revisado_por',
+        'revisado_at',
     ];
 
     protected function casts(): array
@@ -42,7 +45,14 @@ class Programa extends Model
             'estado' => ProgramaEstado::class,
             'actividades' => 'array',   // lista de puntos a realizar
             'cupos_totales' => 'integer',
+            'revisado_at' => 'datetime',
         ];
+    }
+
+    /** Coordinador que aprobó o rechazó la vacante. */
+    public function revisor(): BelongsTo
+    {
+        return $this->belongsTo(Personal::class, 'revisado_por');
     }
 
     public function convenio(): BelongsTo

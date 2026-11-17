@@ -61,7 +61,7 @@
                     <select name="estado" class="{{ $filtro }}">
                         <option value="">Todos los estados</option>
                         @foreach ($estados as $e)
-                            <option value="{{ $e->value }}" @selected(request('estado') === $e->value)>{{ ucfirst($e->value) }}</option>
+                            <option value="{{ $e->value }}" @selected(request('estado') === $e->value)>{{ $e->label() }}</option>
                         @endforeach
                     </select>
                     <button class="h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">Filtrar</button>
@@ -89,11 +89,7 @@
                         @php
                             $ocupados = (int) $pr->cupos_ocupados;
                             $pct = $pr->cupos_totales > 0 ? min(100, round($ocupados / $pr->cupos_totales * 100)) : 0;
-                            $color = match ($pr->estado) {
-                                PE::Publicado => 'bg-green-50 text-green-700',
-                                PE::Cerrado => 'bg-red-50 text-red-700',
-                                default => 'bg-gray-100 text-gray-600',
-                            };
+                            $color = $pr->estado->color();
                             $datos = [
                                 'id' => $pr->id, 'convenio_id' => $pr->convenio_id, 'carrera_id' => $pr->carrera_id,
                                 'ciclo' => $pr->ciclo, 'titulo' => $pr->titulo, 'descripcion' => $pr->descripcion,
@@ -118,23 +114,23 @@
                                 </div>
                             </td>
                             <td class="whitespace-nowrap px-4 py-4">
-                                <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $color }}">{{ ucfirst($pr->estado->value) }}</span>
+                                <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $color }}">{{ $pr->estado->label() }}</span>
+                                @if ($pr->estado === PE::Rechazado && $pr->motivo_rechazo)
+                                    <span class="mt-1 block max-w-[220px] whitespace-normal text-xs text-red-600">Motivo: {{ $pr->motivo_rechazo }}</span>
+                                @elseif ($pr->estado === PE::PendienteAprobacion)
+                                    <span class="mt-1 block text-xs text-gray-500">En revisión por la Coordinación</span>
+                                @endif
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-right">
                                 <div class="flex items-center justify-end gap-3">
                                     <a href="{{ route('empresa.programas.postulantes', $pr) }}" class="text-xs font-semibold text-gray-600 hover:text-gray-800">Postulantes</a>
                                     <button type="button" @click="editar(@js($datos))" class="text-brand-600 hover:text-brand-700 text-xs font-semibold">Editar</button>
-                                    <form method="POST" action="{{ route('empresa.programas.estado', $pr) }}" class="flex gap-2">
-                                        @csrf
-                                        @if ($pr->estado !== PE::Publicado)
-                                            <button name="estado" value="publicado" class="text-xs font-semibold text-green-600 hover:text-green-700">Publicar</button>
-                                        @else
+                                    @if ($pr->estado === PE::Publicado)
+                                        <form method="POST" action="{{ route('empresa.programas.estado', $pr) }}">
+                                            @csrf
                                             <button name="estado" value="cerrado" class="text-xs font-semibold text-yellow-600 hover:text-yellow-700">Cerrar</button>
-                                        @endif
-                                        @if ($pr->estado !== PE::Borrador)
-                                            <button name="estado" value="borrador" class="text-xs font-semibold text-gray-500 hover:text-gray-700">A borrador</button>
-                                        @endif
-                                    </form>
+                                        </form>
+                                    @endif
                                     <form method="POST" action="{{ route('empresa.programas.destroy', $pr) }}" onsubmit="return confirm('¿Eliminar este programa?')">
                                         @csrf @method('DELETE')
                                         <button class="text-xs font-semibold text-red-600 hover:text-red-700">Eliminar</button>
@@ -209,7 +205,7 @@
                 <div><label class="{{ $label }}">Cupos totales</label><input type="number" name="cupos_totales" x-model="p.cupos_totales" required min="1" max="500" class="{{ $input }}"></div>
             </div>
 
-            <p class="text-xs text-gray-500">Se guarda como borrador. Usa «Publicar» en la tabla cuando esté listo.</p>
+            <p class="text-xs text-gray-500">La Coordinación de la carrera revisará horario y actividades antes de publicarla. Cada cambio vuelve a revisión.</p>
 
             <div class="flex justify-end gap-2">
                 <button type="button" @click="modal = false" class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>

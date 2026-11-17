@@ -41,7 +41,7 @@
             <div class="{{ $card }}">
                 <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Programas publicados</p>
                 <h3 class="mt-1 text-2xl font-bold text-gray-900">{{ $kpis['programas_publicados'] }}</h3>
-                <p class="mt-1 text-xs text-gray-500">{{ $programasSinPublicar }} en borrador</p>
+                <p class="mt-1 text-xs text-gray-500">{{ $programasSinPublicar }} en revisión de la Coordinación</p>
             </div>
             <div class="{{ $card }}">
                 <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Ocupación de cupos</p>
@@ -86,7 +86,7 @@
                                 <x-ui.user-avatar :user="$al->user" size="h-9 w-9 text-xs" />
                                 <div>
                                     <p class="text-sm font-semibold text-gray-900">{{ $al->user->name }}</p>
-                                    <p class="text-xs text-gray-500">{{ ucfirst($r->tipo->value) }} · {{ $r->horas_reportadas }}
+                                    <p class="text-xs text-gray-500">{{ $r->tipo->label() }} · {{ $r->horas_reportadas }}
                                         h · {{ $r->periodo_inicio->format('d/m') }} – {{ $r->periodo_fin->format('d/m/Y') }}</p>
                                 </div>
                             </div>

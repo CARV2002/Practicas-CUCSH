@@ -53,8 +53,8 @@ class DashboardController extends Controller
                     ->orWhere(fn($w) => $w->where('estado', PracticaEstado::EnCurso->value)
                         ->whereHas('cartaTermino', fn($c) => $c->where('estado_validacion', ValidacionEstado::Pendiente->value))))
                     ->count(),
-                'programas_borrador' => $enAlcance(Programa::query())
-                    ->where('estado', ProgramaEstado::Borrador->value)->count(),
+                'vacantes_por_aprobar' => $enAlcance(Programa::query())
+                    ->where('estado', ProgramaEstado::PendienteAprobacion->value)->count(),
             ],
             'programas_recientes' => $enAlcance(Programa::with(['convenio.empresa', 'carrera'])->conCuposOcupados())
                 ->latest('id')

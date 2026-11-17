@@ -219,7 +219,7 @@ class DemoOperacionSeeder extends Seeder
     {
         return [
             'abog_abierto' => $this->programa('Auxiliar jurídico en archivo judicial', 'ABOG', ProgramaEstado::Publicado, 6, $c),
-            'abog_borrador' => $this->programa('Apoyo en litigio civil (borrador)', 'ABOG', ProgramaEstado::Borrador, 4, $c),
+            'abog_pendiente' => $this->programa('Apoyo en litigio civil (por aprobar)', 'ABOG', ProgramaEstado::PendienteAprobacion, 4, $c),
             'abog_cerrado' => $this->programa('Asistente de notaría (cerrado)', 'ABOG', ProgramaEstado::Cerrado, 3, $c, '2026B'),
             'abog_interno' => $this->programa('Proyecto interno: clínica jurídica', 'ABOG', ProgramaEstado::Publicado, 2, null),
             'crim_agotado' => $this->programa('Apoyo en defensoría pública', 'CRIM', ProgramaEstado::Publicado, 1, $c),
@@ -353,6 +353,7 @@ class DemoOperacionSeeder extends Seeder
             'razon_social' => $razon,
             'tipo_organismo' => $tipo,
             'contacto_nombre' => 'Contacto ' . $razon,
+            'representante_legal' => 'Representante de ' . $razon,
         ]);
     }
 
@@ -392,6 +393,8 @@ class DemoOperacionSeeder extends Seeder
         $alumno = Alumno::firstOrCreate(['user_id' => $user->id], [
             'carrera_id' => $this->carreras[$clave]->id,
             'num_control' => $control,
+            'grado' => 7,
+            'turno' => \App\Enums\Turno::Matutino,
             'vigencia_imss' => $imss?->toDateString(),
         ]);
 

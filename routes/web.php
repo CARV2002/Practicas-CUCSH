@@ -11,6 +11,10 @@ use App\Http\Controllers\Admin\EmpresaController;
 use App\Http\Controllers\Admin\DictamenController;
 use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\Coordinacion\CierreController;
+use App\Http\Controllers\Coordinacion\DictamenController as CoordinacionDictamenController;
+use App\Http\Controllers\Coordinacion\ExpedienteController;
+use App\Http\Controllers\Alumno\ConvenioVigenteController;
+use App\Http\Controllers\Alumno\DatosEscolaresController;
 use App\Http\Controllers\Coordinacion\PracticanteController;
 use App\Http\Controllers\Coordinacion\ProgramaController;
 use App\Http\Controllers\Coordinacion\ReglaController;
@@ -84,6 +88,12 @@ Route::prefix('alumno')
         Route::post('/practicas/{practica}/carta-termino', [AlumnoDocumentoController::class, 'subirCartaTermino'])->name('documentos.termino');
         Route::post('/practicas/{practica}/reportes', [AlumnoDocumentoController::class, 'crearReporte'])->name('documentos.reporte.crear');
         Route::get('/archivos/{media}', [AlumnoDocumentoController::class, 'descargar'])->name('documentos.descargar');
+
+        // Grado y turno (se imprimen en la Carta de Presentación)
+        Route::put('/datos-escolares', [DatosEscolaresController::class, 'update'])->name('datos-escolares');
+
+        // Convenios vigentes por carrera (antes Vinculación los enviaba por correo)
+        Route::get('/convenios-vigentes', [ConvenioVigenteController::class, 'index'])->name('convenios-vigentes');
     });
 
 /*
@@ -106,6 +116,7 @@ Route::prefix('empresa')
         //Route::view('/documentos', 'empresa.documentos')->name('documentos');
         Route::get('/documentos', [DocumentoController::class, 'index'])->name('documentos');
         Route::post('/documentos', [DocumentoController::class, 'subir'])->name('documentos.subir');
+        Route::put('/datos-legales', [DocumentoController::class, 'datosLegales'])->name('datos-legales');
         Route::get('/documentos/{media}', [DocumentoController::class, 'descargar'])->name('documentos.descargar');
 
         //Route::view('/lista-programas', 'empresa.lista-programas')->name('lista-programas');
@@ -151,9 +162,11 @@ Route::prefix('admin')
             Route::post('/borrador/generar', [ConvenioController::class, 'generarBorrador'])->name('borrador.generar');
         });
 
-        // Dictámenes por carrera: Vinculación turna y captura el voto de cada coordinación
+        // Fechas de paso del oficio por Secretaría Académica y la División
+        Route::post('/convenios/{convenio}/turnos', [ConvenioController::class, 'registrarTurnos'])->name('convenios.turnos');
+
+        // Dictámenes por carrera: los emite cada Coordinación; Vinculación da seguimiento
         Route::get('/lista-dictamenes', [DictamenController::class, 'index'])->name('lista-dictamenes');
-        Route::post('/dictamenes/{dictamen}', [DictamenController::class, 'registrar'])->name('dictamenes.registrar');
         Route::get('/dictamenes/{dictamen}/archivos/{media}', [DictamenController::class, 'descargar'])->name('dictamenes.archivos.descargar');
 
         // Empresas y su expediente
@@ -204,6 +217,17 @@ Route::prefix('coordinacion')
         Route::put('/programas/{programa}', [ProgramaController::class, 'update'])->name('programas.update');
         Route::post('/programas/{programa}/estado', [ProgramaController::class, 'cambiarEstado'])->name('programas.estado');
         Route::delete('/programas/{programa}', [ProgramaController::class, 'destroy'])->name('programas.destroy');
+        Route::post('/programas/{programa}/aprobar', [ProgramaController::class, 'aprobar'])->name('programas.aprobar');
+        Route::post('/programas/{programa}/rechazar', [ProgramaController::class, 'rechazar'])->name('programas.rechazar');
+
+        // Dictamen de pertinencia de las solicitudes de convenio de su carrera
+        Route::get('/lista-dictamenes', [CoordinacionDictamenController::class, 'index'])->name('lista-dictamenes');
+        Route::post('/dictamenes/{dictamen}', [CoordinacionDictamenController::class, 'registrar'])->name('dictamenes.registrar');
+        Route::get('/dictamenes/{dictamen}/archivos/{media}', [CoordinacionDictamenController::class, 'descargar'])->name('dictamenes.archivos');
+
+        // Expediente del alumno: constancia IMSS y kardex
+        Route::post('/documentos/{media}/resolver', [ExpedienteController::class, 'resolver'])->name('documentos.resolver');
+        Route::get('/alumnos/{alumno}/archivos/{media}', [ExpedienteController::class, 'descargarAlumno'])->name('alumnos.archivos');
 
         // Practicantes y postulaciones
         Route::get('/lista-practicantes', [PracticanteController::class, 'index'])->name('lista-practicantes');
@@ -211,6 +235,7 @@ Route::prefix('coordinacion')
             Route::post('/carta-presentacion', [PracticanteController::class, 'emitirCarta'])->name('carta');
             Route::post('/rechazar', [PracticanteController::class, 'rechazarPostulacion'])->name('rechazar');
             Route::post('/carta-aceptacion', [PracticanteController::class, 'subirCartaAceptacion'])->name('aceptacion');
+            Route::post('/oficio-interno', [PracticanteController::class, 'subirOficioInterno'])->name('oficio-interno');
             Route::post('/activar', [PracticanteController::class, 'activar'])->name('activar');
             Route::get('/archivos/{media}', [PracticanteController::class, 'descargar'])->name('archivos');
         });

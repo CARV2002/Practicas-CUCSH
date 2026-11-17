@@ -410,6 +410,8 @@
             </div>
         </header>
 
+        <x-alumno.tu-coordinacion :carrera="$alumno->carrera" />
+
         <div class="dashboard-workspace-layout">
 
             <main class="dashboard-workspace-main">

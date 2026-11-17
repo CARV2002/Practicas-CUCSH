@@ -59,7 +59,7 @@
                     <select name="estado" class="{{ $filtro }}">
                         <option value="">Todos los estados</option>
                         @foreach ($estados as $e)
-                            <option value="{{ $e->value }}" @selected(request('estado') === $e->value)>{{ ucfirst($e->value) }}</option>
+                            <option value="{{ $e->value }}" @selected(request('estado') === $e->value)>{{ $e->label() }}</option>
                         @endforeach
                     </select>
                     <select name="modalidad" class="{{ $filtro }}">
@@ -98,11 +98,9 @@
                         @php
                             $ocupados = (int) $pr->cupos_ocupados;
                             $pct = $pr->cupos_totales > 0 ? min(100, round($ocupados / $pr->cupos_totales * 100)) : 0;
-                            $color = match ($pr->estado) {
-                                \App\Enums\ProgramaEstado::Publicado => 'bg-green-50 text-green-700',
-                                \App\Enums\ProgramaEstado::Cerrado => 'bg-red-50 text-red-700',
-                                default => 'bg-gray-100 text-gray-600',
-                            };
+                            $color = $pr->estado->color();
+                            $pendiente = $pr->estado === \App\Enums\ProgramaEstado::PendienteAprobacion;
+                            $deEmpresa = in_array($pr->estado, [\App\Enums\ProgramaEstado::PendienteAprobacion, \App\Enums\ProgramaEstado::Rechazado], true);
                             $datos = [
                                 'id' => $pr->id, 'modalidad' => $pr->modalidad->value, 'convenio_id' => $pr->convenio_id ?? '',
                                 'carrera_id' => $pr->carrera_id, 'ciclo' => $pr->ciclo, 'titulo' => $pr->titulo,
@@ -128,11 +126,28 @@
                                 </div>
                             </td>
                             <td class="whitespace-nowrap px-4 py-4">
-                                <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $color }}">{{ ucfirst($pr->estado->value) }}</span>
+                                <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $color }}">{{ $pr->estado->label() }}</span>
+                                @if ($pr->motivo_rechazo && $pr->estado === \App\Enums\ProgramaEstado::Rechazado)
+                                    <span class="mt-1 block max-w-[200px] truncate text-xs text-red-600" title="{{ $pr->motivo_rechazo }}">{{ $pr->motivo_rechazo }}</span>
+                                @endif
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-right">
                                 <div class="flex items-center justify-end gap-3">
                                     <button type="button" @click="editar(@js($datos))" class="text-brand-600 hover:text-brand-700 text-xs font-semibold">Editar</button>
+                                    @if ($pendiente)
+                                        <form method="POST" action="{{ route('coordinacion.programas.aprobar', $pr) }}">
+                                            @csrf
+                                            <button class="text-xs font-semibold text-green-600 hover:text-green-700">Aprobar y publicar</button>
+                                        </form>
+                                        <form method="POST" action="{{ route('coordinacion.programas.rechazar', $pr) }}" class="flex items-center gap-1"
+                                            onsubmit="return this.motivo.value.trim() !== '' || (alert('Escribe el motivo del rechazo.'), false)">
+                                            @csrf
+                                            <input type="text" name="motivo" maxlength="1000" placeholder="Motivo del rechazo" aria-label="Motivo del rechazo de {{ $pr->titulo }}"
+                                                class="h-8 w-40 rounded border border-gray-300 px-2 text-xs">
+                                            <button class="text-xs font-semibold text-red-600 hover:text-red-700">Rechazar</button>
+                                        </form>
+                                    @endif
+                                    @unless ($deEmpresa)
                                     <form method="POST" action="{{ route('coordinacion.programas.estado', $pr) }}" class="flex gap-2">
                                         @csrf
                                         @if ($pr->estado !== \App\Enums\ProgramaEstado::Publicado)
@@ -145,6 +160,7 @@
                                             <button name="estado" value="borrador" class="text-xs font-semibold text-gray-500 hover:text-gray-700">A borrador</button>
                                         @endif
                                     </form>
+                                    @endunless
                                     <form method="POST" action="{{ route('coordinacion.programas.destroy', $pr) }}" onsubmit="return confirm('¿Eliminar este programa?')">
                                         @csrf @method('DELETE')
                                         <button class="text-xs font-semibold text-red-600 hover:text-red-700">Eliminar</button>

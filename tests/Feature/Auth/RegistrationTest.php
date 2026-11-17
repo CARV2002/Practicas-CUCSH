@@ -30,6 +30,8 @@ function datosAlumno(array $extra = []): array
         'password_confirmation' => 'password-segura-123',
         'carrera_id' => test()->carrera->id,
         'num_control' => '215123456',
+        'grado' => 6,
+        'turno' => 'matutino',
         'aviso_privacidad' => '1',
     ], $extra);
 }
@@ -46,6 +48,7 @@ function datosEmpresa(array $extra = []): array
         'razon_social' => 'Empresa de Prueba S.A. de C.V.',
         'rfc' => 'epr010101ab1',          // se normaliza a mayúsculas
         'tipo_organismo' => 'privado',
+        'representante_legal' => 'Lic. María Representante',
         'aviso_privacidad' => '1',
     ], $extra);
 }
@@ -67,6 +70,8 @@ test('students register with the student role and profile', function () {
     expect($user->hasRole(Rol::Alumno->value))->toBeTrue()
         ->and($user->alumno->num_control)->toBe('215123456')
         ->and($user->alumno->carrera_id)->toBe($this->carrera->id)
+        ->and($user->alumno->grado)->toBe(6)
+        ->and($user->alumno->turno)->toBe(\App\Enums\Turno::Matutino)
         ->and($user->aviso_privacidad_at)->not->toBeNull();
 });
 
@@ -80,6 +85,7 @@ test('companies register with the company role and profile', function () {
 
     expect($user->hasRole(Rol::Empresa->value))->toBeTrue()
         ->and($user->empresa->rfc)->toBe('EPR010101AB1')
+        ->and($user->empresa->representante_legal)->toBe('Lic. María Representante')
         ->and($user->empresa->contacto_nombre)->toBe('Pedro Contacto');
 });
 

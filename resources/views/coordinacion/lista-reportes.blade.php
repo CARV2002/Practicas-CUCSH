@@ -148,7 +148,7 @@
                                     </div>
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-4 text-sm text-gray-700">
-                                    {{ ucfirst($r->tipo->value) }}
+                                    {{ $r->tipo->label() }}
                                     <span class="block text-xs text-gray-500">{{ $r->periodo_inicio->format('d/m/Y') }} –
                                         {{ $r->periodo_fin->format('d/m/Y') }}</span>
                                     @if ($pdf)

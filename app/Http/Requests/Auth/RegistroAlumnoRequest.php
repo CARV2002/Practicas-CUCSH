@@ -32,6 +32,8 @@ class RegistroAlumnoRequest extends FormRequest
             'password' => ['required', 'confirmed', Password::defaults()],
             'carrera_id' => ['required', 'integer', Rule::exists('carreras', 'id')],
             'num_control' => ['required', 'string', 'max:20', Rule::unique('alumnos', 'num_control')],
+            'grado' => ['required', 'integer', 'between:1,12'],
+            'turno' => ['required', Rule::enum(\App\Enums\Turno::class)],
             'aviso_privacidad' => ['accepted'],
         ];
     }
@@ -45,6 +47,8 @@ class RegistroAlumnoRequest extends FormRequest
             'password' => 'contraseña',
             'carrera_id' => 'carrera',
             'num_control' => 'código de alumno',
+            'grado' => 'grado',
+            'turno' => 'turno',
             'aviso_privacidad' => 'aviso de privacidad',
         ];
     }

@@ -34,6 +34,8 @@ class Convenio extends Model implements HasMedia
         'plazas_estimadas',
         'medio_conocimiento',
         'experiencia_previa',
+        'fecha_turno_secretaria',
+        'fecha_turno_division',
         'fecha_inicio_vigencia',
         'fecha_fin_vigencia',
     ];
@@ -45,6 +47,8 @@ class Convenio extends Model implements HasMedia
             'fecha_recepcion' => 'date',
             'fecha_inicio_vigencia' => 'date',
             'fecha_fin_vigencia' => 'date',
+            'fecha_turno_secretaria' => 'date',
+            'fecha_turno_division' => 'date',
             'plazas_estimadas' => 'integer',
         ];
     }

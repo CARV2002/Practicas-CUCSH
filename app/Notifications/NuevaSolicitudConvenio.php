@@ -5,7 +5,7 @@ namespace App\Notifications;
 use App\Models\Convenio;
 use Illuminate\Notifications\Messages\MailMessage;
 
-/** A la Coordinación de Prácticas: llegó una solicitud de convenio nueva (campana + correo). */
+/** A Vinculación: llegó una solicitud de convenio nueva (campana + correo). */
 class NuevaSolicitudConvenio extends AvisoPracticas
 {
     public function __construct(public Convenio $convenio)
@@ -59,7 +59,7 @@ class NuevaSolicitudConvenio extends AvisoPracticas
 
         return $mensaje
             ->action('Revisar solicitud', url($this->ruta()))
-            ->salutation('Coordinación de Prácticas Profesionales');
+            ->salutation('Vinculación · Prácticas Profesionales CUCSH');
     }
 
     public function toArray(object $notifiable): array

@@ -12,6 +12,7 @@ use App\Models\ConvenioCarrera;
 use App\Models\ConvenioSeguimiento;
 use App\Models\Empresa;
 use App\Models\Personal;
+use App\Notifications\AvisoOperativo;
 use App\Notifications\ConvenioActualizado;
 use App\Notifications\NuevaSolicitudConvenio;
 use Carbon\CarbonInterface;
@@ -92,6 +93,36 @@ class ConvenioWorkflow
             $this->abrirEtapa($convenio, EtapaConvenio::TurnoAcademico, $por, 'Turnado a las carreras solicitadas.');
             $this->avisarEmpresa($convenio, 'Tu documentación fue aceptada. Tu solicitud pasó a la validación académica de las carreras.');
 
+            // Cada Coordinación de carrera emite su dictamen desde su panel
+            foreach ($convenio->dictamenes()->with('carrera')->get() as $d) {
+                Avisos::enviar(Avisos::coordinadores((int) $d->carrera_id), new AvisoOperativo(
+                    mensaje: "Solicitud de convenio de {$convenio->empresa->razon_social}: emite el dictamen de pertinencia de {$d->carrera->carrera_clave}.",
+                    url: route('coordinacion.lista-dictamenes', absolute: false),
+                    detalle: $convenio->empresa->razon_social,
+                    correo: true,
+                    asunto: 'Dictamen de pertinencia pendiente',
+                ));
+            }
+
+            return $convenio;
+        });
+    }
+
+    /**
+     * Registra el paso del oficio de turno por Secretaría Académica y por la División.
+     * Son canales administrativos: no dictaminan ni cambian el estado, pero miden los tiempos.
+     */
+    public function registrarTurnos(Convenio $convenio, Personal $por, ?CarbonInterface $secretaria, ?CarbonInterface $division): Convenio
+    {
+        return DB::transaction(function () use ($convenio, $secretaria, $division) {
+            $convenio = $this->bloquear($convenio);
+            $this->exigirEstado($convenio, ConvenioEstado::EnValidacionAcademica);
+
+            $convenio->update([
+                'fecha_turno_secretaria' => $secretaria?->toDateString(),
+                'fecha_turno_division' => $division?->toDateString(),
+            ]);
+
             return $convenio;
         });
     }
@@ -132,6 +163,14 @@ class ConvenioWorkflow
                 'fecha_dictamen' => today(),
                 'dictaminado_por' => $por->id,
             ]);
+
+            $pendientes = $convenio->dictamenesPendientes();
+            Avisos::enviar(Avisos::vinculacionDe($convenio), new AvisoOperativo(
+                mensaje: "La Coordinación de {$dictamen->carrera->carrera_clave} emitió dictamen {$resultado->value} para {$convenio->empresa->razon_social}."
+                    . ($pendientes > 0 ? " Faltan {$pendientes} carrera(s)." : ' Ya están todos los dictámenes.'),
+                url: route('admin.convenios.show', $convenio, false),
+                detalle: $convenio->empresa->razon_social,
+            ));
 
             if ($convenio->dictamenesPendientes() > 0) {
                 return $convenio;   // faltan carreras por responder
@@ -352,7 +391,7 @@ class ConvenioWorkflow
         $this->cerrarEtapa($convenio, EtapaConvenio::DictamenJuridico, SeguimientoEstado::Aprobado, $por, $comentario);
         $convenio->update(['estado' => ConvenioEstado::EnFirmas]);
         $this->abrirEtapa($convenio, EtapaConvenio::FirmaEmpresa, $por, 'Imprimir 3 juegos y llamar a la empresa.');
-        $this->avisarEmpresa($convenio, 'La Unidad Jurídica aprobó tu convenio. La Coordinación de Prácticas te contactará para entregar los 3 juegos originales y recabar tu firma.');
+        $this->avisarEmpresa($convenio, 'La Unidad Jurídica aprobó tu convenio. Vinculación te contactará para entregar los 3 juegos originales y recabar tu firma.');
     }
 
     private function observarJuridica(Convenio $convenio, Personal $por, ?string $comentario): void

@@ -31,6 +31,8 @@
                     @enderror
                 </div>
 
+                <x-alumno.grado-turno />
+
                 <x-auth.input name="email" type="email" label="Correo electrónico" autocomplete="username" />
                 <x-auth.input name="password" type="password" label="Contraseña" autocomplete="new-password" />
                 <x-auth.input name="password_confirmation" type="password" label="Confirmar contraseña"

@@ -72,6 +72,14 @@ class PersonalSeeder extends Seeder
         [$email, $nombre] = self::COORDINADORES[$clave];
         $user = self::usuario($email, $nombre, Rol::Coordinador);
 
+        // Directorio: el alumno escribe a su coordinación, no a Vinculación
+        if (blank($carrera->coordinacion_correo)) {
+            $carrera->update([
+                'coordinacion_correo' => $email,
+                'coordinacion_telefono' => '(33) 3819-3300 ext. 2' . str_pad((string) $carrera->id, 4, '0', STR_PAD_LEFT),
+            ]);
+        }
+
         return Personal::firstOrCreate(['user_id' => $user->id], [
             'carrera_id' => $carrera->id,
             'puesto' => "Coordinación de {$carrera->nombre}",

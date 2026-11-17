@@ -53,15 +53,23 @@ function escEmpresa(string $rfc): array
     return [$u, $e];
 }
 
-function escAlumno(Carrera $carrera, string $control): array
+/** Alumno con grado, turno y constancia IMSS (validada por defecto, como la deja su coordinación). */
+function escAlumno(Carrera $carrera, string $control, bool $imssValidado = true): array
 {
     $u = escUsuario(Rol::Alumno);
     $a = Alumno::create([
         'user_id' => $u->id,
         'carrera_id' => $carrera->id,
         'num_control' => $control,
+        'grado' => 7,
+        'turno' => 'matutino',
         'vigencia_imss' => now()->addYear()->toDateString(),
     ]);
+
+    $imss = $a->addMedia(escPdf('imss.pdf'))->toMediaCollection('constancia_imss');
+    if ($imssValidado) {
+        $a->resolverDocumento($imss, \App\Enums\ValidacionEstado::Validada, null, $u->id);
+    }
 
     return [$u, $a];
 }
@@ -123,7 +131,7 @@ beforeEach(function () {
 /* ------------------------------ FLUJO COMPLETO ------------------------------ */
 
 test('empresa publica, alumno se postula y la práctica llega a acreditada', function () {
-    // 1. La empresa crea el programa (nace en borrador) y lo publica
+    // 1. La empresa registra la vacante: nace pendiente de aprobación de la Coordinación
     $this->actingAs($this->empresaUser)->post(route('empresa.programas.store'), [
         'convenio_id' => $this->convenio->id,
         'carrera_id' => $this->abogado->id,
@@ -136,15 +144,22 @@ test('empresa publica, alumno se postula y la práctica llega a acreditada', fun
     ])->assertSessionHasNoErrors()->assertRedirect();
 
     $programa = Programa::firstOrFail();
-    expect($programa->estado)->toBe(ProgramaEstado::Borrador)
+    expect($programa->estado)->toBe(ProgramaEstado::PendienteAprobacion)
         ->and($programa->actividades)->toBe(['Archivar', 'Atender usuarios']);
 
-    // Un alumno no ve borradores
+    // Un alumno no ve vacantes sin aprobar, y la empresa no puede publicarla por su cuenta
     $this->actingAs($this->anaUser)->get(route('alumno.oferta-programas'))->assertDontSee('Auxiliar jurídico');
-
     $this->actingAs($this->empresaUser)
         ->post(route('empresa.programas.estado', $programa), ['estado' => 'publicado'])
+        ->assertSessionHasErrors('estado');
+    expect($programa->refresh()->estado)->toBe(ProgramaEstado::PendienteAprobacion);
+
+    // La Coordinación de Abogado revisa horario y actividades y la aprueba
+    $this->actingAs($this->coordUser)
+        ->post(route('coordinacion.programas.aprobar', $programa))
         ->assertSessionHasNoErrors()->assertRedirect();
+    expect($programa->refresh()->estado)->toBe(ProgramaEstado::Publicado)
+        ->and($programa->revisado_por)->toBe($this->coordUser->personal->id);
 
     // 2. Ana lo ve y se postula con kardex
     $this->actingAs($this->anaUser)->get(route('alumno.oferta-programas'))->assertSee('Auxiliar jurídico');
@@ -161,7 +176,8 @@ test('empresa publica, alumno se postula y la práctica llega a acreditada', fun
     // 3. Coordinación emite la carta de presentación (reserva cupo)
     $this->actingAs($this->coordUser)->post(route('coordinacion.postulaciones.carta', $po))->assertSessionHasNoErrors()->assertRedirect();
     expect($po->refresh()->estado)->toBe(PostulacionEstado::CartaPresentacionEmitida)
-        ->and($programa->refresh()->cupos_disponibles)->toBe(1);
+        ->and($programa->refresh()->cupos_disponibles)->toBe(1)
+        ->and($po->getMedia('carta_presentacion'))->toHaveCount(1);   // la genera el sistema en Word
 
     // La empresa ya ve al candidato
     $this->actingAs($this->empresaUser)->get(route('empresa.programas.postulantes', $programa))->assertSee('215000001');

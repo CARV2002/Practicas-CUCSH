@@ -110,6 +110,8 @@ class GoogleAuthController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'carrera_id' => ['required', 'integer', Rule::exists('carreras', 'id')],
             'num_control' => ['required', 'string', 'max:20', Rule::unique('alumnos', 'num_control')],
+            'grado' => ['required', 'integer', 'between:1,12'],
+            'turno' => ['required', Rule::enum(\App\Enums\Turno::class)],
             'aviso_privacidad' => ['accepted'],
         ], [
             'required' => 'El campo :attribute es obligatorio.',
@@ -142,6 +144,8 @@ class GoogleAuthController extends Controller
             $user->alumno()->create([
                 'carrera_id' => $validado['carrera_id'],
                 'num_control' => $validado['num_control'],
+                'grado' => $validado['grado'],
+                'turno' => $validado['turno'],
             ]);
 
             return $user;

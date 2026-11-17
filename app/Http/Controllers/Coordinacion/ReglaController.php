@@ -2,15 +2,18 @@
 
 namespace App\Http\Controllers\Coordinacion;
 
+use App\Enums\EsquemaReportes;
 use App\Http\Controllers\Controller;
 use App\Models\Carrera;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
- * Reglas académicas de las carreras de la coordinación: horas requeridas, % mínimo de créditos
- * y créditos que otorga. El alta de divisiones/carreras sigue siendo del administrador técnico.
+ * Reglas de las carreras de la coordinación: horas requeridas, % mínimo de créditos, créditos que otorga,
+ * periodicidad de reportes y el contacto que ven los alumnos («Tu coordinación»).
+ * El alta de divisiones/carreras sigue siendo del administrador técnico.
  */
 class ReglaController extends Controller
 {
@@ -21,6 +24,7 @@ class ReglaController extends Controller
                 ->enAlcance($request->user()->personal)
                 ->orderBy('nombre')
                 ->get(),
+            'esquemas' => EsquemaReportes::cases(),
         ]);
     }
 
@@ -32,6 +36,9 @@ class ReglaController extends Controller
             'horas_requeridas' => ['required', 'integer', 'min:1', 'max:2000'],
             'porcentaje_creditos_minimo' => ['required', 'numeric', 'min:0', 'max:100'],
             'creditos_otorgados' => ['required', 'integer', 'min:0', 'max:50'],
+            'esquema_reportes' => ['sometimes', 'required', Rule::enum(EsquemaReportes::class)],
+            'coordinacion_correo' => ['nullable', 'email', 'max:255'],
+            'coordinacion_telefono' => ['nullable', 'string', 'max:40'],
         ]));
 
         return back()->with('status', "Reglas de {$carrera->carrera_clave} actualizadas.");

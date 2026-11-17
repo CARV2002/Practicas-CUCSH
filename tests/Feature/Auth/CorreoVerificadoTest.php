@@ -48,7 +48,7 @@ test('al registrarse se envía el correo y al confirmarlo se entra al panel', fu
     $this->post('/registro/alumno', [
         'name' => 'Ana Alumna', 'email' => 'ana@example.com',
         'password' => 'password-segura-123', 'password_confirmation' => 'password-segura-123',
-        'carrera_id' => $carrera->id, 'num_control' => '215123456', 'aviso_privacidad' => '1',
+        'carrera_id' => $carrera->id, 'num_control' => '215123456', 'grado' => 5, 'turno' => 'vespertino', 'aviso_privacidad' => '1',
     ])->assertRedirect();
 
     $user = User::where('email', 'ana@example.com')->firstOrFail();

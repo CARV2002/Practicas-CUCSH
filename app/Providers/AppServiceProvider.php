@@ -45,7 +45,7 @@ class AppServiceProvider extends ServiceProvider
             ->line('Confirma tu correo para activar tu cuenta en la plataforma de Prácticas Profesionales del CUCSH.')
             ->action('Confirmar correo', $url)
             ->line('El enlace caduca en 60 minutos. Si no creaste esta cuenta, ignora este mensaje.')
-            ->salutation('Coordinación de Prácticas Profesionales'));
+            ->salutation('Prácticas Profesionales · CUCSH'));
 
         Media::created(function (Media $m) {
             Auditoria::registrar(

@@ -231,6 +231,29 @@ class ConvenioController extends Controller
         return back()->with('status', 'Convenio formalizado.' . ($aviso ? " Aviso: {$aviso}" : ''));
     }
 
+    /** Fechas en que el oficio pasó por Secretaría Académica y por la División (solo canales). */
+    public function registrarTurnos(Request $request, Convenio $convenio): RedirectResponse
+    {
+        $this->authorize('gestionar', $convenio);
+
+        $datos = $request->validate([
+            'fecha_turno_secretaria' => ['nullable', 'date', 'before_or_equal:today', 'after_or_equal:' . $convenio->fecha_recepcion->toDateString()],
+            'fecha_turno_division' => ['nullable', 'date', 'before_or_equal:today', 'after_or_equal:fecha_turno_secretaria'],
+        ], [
+            'fecha_turno_division.after_or_equal' => 'La División recibe el turno después de Secretaría Académica.',
+            'fecha_turno_secretaria.after_or_equal' => 'El turno no puede ser anterior a la recepción de la solicitud.',
+        ]);
+
+        $this->workflow->registrarTurnos(
+            $convenio,
+            $request->user()->personal,
+            isset($datos['fecha_turno_secretaria']) ? \Illuminate\Support\Carbon::parse($datos['fecha_turno_secretaria']) : null,
+            isset($datos['fecha_turno_division']) ? \Illuminate\Support\Carbon::parse($datos['fecha_turno_division']) : null,
+        );
+
+        return back()->with('status', 'Fechas de turno registradas.');
+    }
+
     public function rechazar(Request $request, Convenio $convenio): RedirectResponse
     {
         $this->authorize('gestionar', $convenio);

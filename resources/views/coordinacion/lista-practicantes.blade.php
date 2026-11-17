@@ -50,8 +50,12 @@
                     <tbody class="divide-y divide-gray-100">
                         @forelse ($postulaciones as $po)
                             @php
-                                $kardex = $po->getFirstMedia('kardex');
+                                $kardex = $po->documentoVigente('kardex');
                                 $aceptacion = $po->getFirstMedia('carta_aceptacion');
+                                $presentacion = $po->documentoVigente('carta_presentacion');
+                                $oficioInterno = $po->documentoVigente('oficio_aceptacion_interno');
+                                $imss = $po->alumno->documentoVigente('constancia_imss');
+                                $interno = $po->programa->esInterno();
                                 $min = $po->alumno->carrera->porcentaje_creditos_minimo;
                                 $cumple = (float) $po->porcentaje_creditos_declarado >= (float) $min;
                             @endphp
@@ -69,6 +73,12 @@
                                                 IMSS
                                                 {{ $po->alumno->vigencia_imss ? 'hasta ' . $po->alumno->vigencia_imss->format('d/m/Y') : 'sin registrar' }}
                                             </span>
+                                            <span class="block text-xs text-gray-500">
+                                                {{ $po->alumno->grado ? $po->alumno->grado . '.º sem.' : 'Sin grado' }} ·
+                                                {{ $po->alumno->turno?->label() ?? 'sin turno' }}
+                                            </span>
+                                            <x-coordinacion.documento :media="$imss" etiqueta="Constancia IMSS"
+                                                :descarga="$imss ? route('coordinacion.alumnos.archivos', [$po->alumno, $imss]) : null" />
                                         </div>
                                     </div>
                                 </td>
@@ -83,17 +93,27 @@
                                         class="font-semibold {{ $cumple ? 'text-green-700' : 'text-red-600' }}">{{ rtrim(rtrim((string) $po->porcentaje_creditos_declarado, '0'), '.') }}%</span>
                                     <span class="text-xs text-gray-400">/ mín.
                                         {{ rtrim(rtrim((string) $min, '0'), '.') }}%</span>
-                                    @if ($kardex)
-                                        <a href="{{ route('coordinacion.postulaciones.archivos', [$po, $kardex]) }}"
-                                            class="text-brand-600 block text-xs font-semibold">Kardex</a>
-                                    @endif
+                                    <x-coordinacion.documento :media="$kardex" etiqueta="Kardex"
+                                        :descarga="$kardex ? route('coordinacion.postulaciones.archivos', [$po, $kardex]) : null" />
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-4">
                                     <span
                                         class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{{ $po->estado->label() }}</span>
+                                    @if ($presentacion)
+                                        <a href="{{ route('coordinacion.postulaciones.archivos', [$po, $presentacion]) }}"
+                                            class="text-brand-600 mt-1 block text-xs font-semibold">Carta de presentación</a>
+                                    @endif
                                     @if ($aceptacion)
                                         <a href="{{ route('coordinacion.postulaciones.archivos', [$po, $aceptacion]) }}"
                                             class="text-brand-600 mt-1 block text-xs font-semibold">Carta de aceptación</a>
+                                    @endif
+                                    @if ($interno)
+                                        @if ($oficioInterno)
+                                            <a href="{{ route('coordinacion.postulaciones.archivos', [$po, $oficioInterno]) }}"
+                                                class="text-brand-600 mt-1 block text-xs font-semibold">Oficio de aceptación interno</a>
+                                        @elseif (in_array($po->estado, [PE::CartaPresentacionEmitida, PE::CartaAceptacionRecibida], true))
+                                            <span class="mt-1 block text-xs text-red-600">Falta oficio de aceptación interno</span>
+                                        @endif
                                     @endif
                                 </td>
                                 <td class="px-6 py-4">
@@ -126,6 +146,18 @@
                                                     @endforeach
                                                 </select>
                                                 <button class="{{ $btn }} col-span-2 !py-1.5 text-xs">Activar práctica</button>
+                                            </form>
+                                        @endif
+
+                                        @if ($interno && !$oficioInterno && in_array($po->estado, [PE::CartaPresentacionEmitida, PE::CartaAceptacionRecibida], true))
+                                            <form method="POST" enctype="multipart/form-data"
+                                                action="{{ route('coordinacion.postulaciones.oficio-interno', $po) }}"
+                                                class="flex items-center gap-2">
+                                                @csrf
+                                                <input type="file" name="archivo" accept="application/pdf" required
+                                                    aria-label="Oficio de aceptación interno"
+                                                    class="{{ $input }} !w-44 !py-1 text-xs">
+                                                <button class="{{ $btn }} !py-1.5 text-xs">Subir oficio interno</button>
                                             </form>
                                         @endif
 

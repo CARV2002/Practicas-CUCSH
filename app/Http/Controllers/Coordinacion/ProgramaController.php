@@ -12,6 +12,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use App\Notifications\AvisoOperativo;
+use App\Services\Avisos;
 
 class ProgramaController extends Controller
 {
@@ -72,16 +74,102 @@ class ProgramaController extends Controller
         return back()->with('status', 'Programa actualizado.');
     }
 
-    /** Cambia el estado: publicar, cerrar o regresar a borrador. Las reglas las aplica ProgramaObserver. */
+    /**
+     * Publicar, cerrar o regresar a borrador los programas propios de la coordinación.
+     * Las vacantes que envía una empresa se resuelven con aprobar()/rechazar().
+     */
     public function cambiarEstado(Request $request, Programa $programa): RedirectResponse
     {
         $this->authorize('gestionar', $programa);
-        
-        $datos = $request->validate(['estado' => ['required', Rule::enum(ProgramaEstado::class)]]);
 
-        $programa->update(['estado' => $datos['estado']]);
+        $datos = $request->validate(['estado' => ['required', Rule::in([
+            ProgramaEstado::Borrador->value, ProgramaEstado::Publicado->value, ProgramaEstado::Cerrado->value,
+        ])]]);
+
+        if (in_array($programa->estado, [ProgramaEstado::PendienteAprobacion, ProgramaEstado::Rechazado], true)) {
+            return back()->withErrors(['programa' => 'Es una vacante enviada por la empresa: apruébala o recházala.']);
+        }
+
+        $nuevo = ProgramaEstado::from($datos['estado']);
+        $publica = $nuevo === ProgramaEstado::Publicado && $programa->estado !== ProgramaEstado::Publicado;
+
+        $programa->update(['estado' => $nuevo]);
+
+        if ($publica) {
+            $this->avisarAlumnos($programa);
+        }
 
         return back()->with('status', 'Estado actualizado.');
+    }
+
+    /** La Coordinación verifica horario y actividades y publica la vacante de la empresa. */
+    public function aprobar(Request $request, Programa $programa): RedirectResponse
+    {
+        $this->authorize('gestionar', $programa);
+
+        if ($programa->estado !== ProgramaEstado::PendienteAprobacion) {
+            return back()->withErrors(['programa' => 'Solo se aprueban vacantes pendientes de aprobación.']);
+        }
+
+        // ProgramaObserver exige convenio vigente y dictamen aprobatorio de la carrera
+        $programa->update([
+            'estado' => ProgramaEstado::Publicado,
+            'motivo_rechazo' => null,
+            'revisado_por' => $request->user()->personal->id,
+            'revisado_at' => now(),
+        ]);
+
+        Avisos::enviar($programa->convenio?->empresa?->user, new AvisoOperativo(
+            mensaje: "La Coordinación aprobó tu vacante «{$programa->titulo}»: ya es visible para los alumnos.",
+            url: route('empresa.lista-programas', absolute: false),
+            detalle: $programa->titulo,
+            correo: true,
+            asunto: 'Tu vacante fue aprobada',
+        ));
+
+        $this->avisarAlumnos($programa);
+
+        return back()->with('status', 'Vacante aprobada y publicada.');
+    }
+
+    public function rechazar(Request $request, Programa $programa): RedirectResponse
+    {
+        $this->authorize('gestionar', $programa);
+
+        $datos = $request->validate(['motivo' => ['required', 'string', 'max:1000']], [
+            'motivo.required' => 'Explica a la empresa por qué se rechaza la vacante.',
+        ]);
+
+        if ($programa->estado !== ProgramaEstado::PendienteAprobacion) {
+            return back()->withErrors(['programa' => 'Solo se rechazan vacantes pendientes de aprobación.']);
+        }
+
+        $programa->update([
+            'estado' => ProgramaEstado::Rechazado,
+            'motivo_rechazo' => $datos['motivo'],
+            'revisado_por' => $request->user()->personal->id,
+            'revisado_at' => now(),
+        ]);
+
+        Avisos::enviar($programa->convenio?->empresa?->user, new AvisoOperativo(
+            mensaje: "La Coordinación rechazó tu vacante «{$programa->titulo}»: {$datos['motivo']}. Corrígela y envíala de nuevo.",
+            url: route('empresa.lista-programas', absolute: false),
+            detalle: $programa->titulo,
+            correo: true,
+            asunto: 'Tu vacante requiere cambios',
+        ));
+
+        return back()->with('status', 'Vacante rechazada; se avisó a la empresa.');
+    }
+
+    /** Avisa en plataforma a los alumnos de la carrera que hay una vacante nueva. */
+    private function avisarAlumnos(Programa $programa): void
+    {
+        Avisos::enviar(Avisos::alumnosDeCarrera((int) $programa->carrera_id), new AvisoOperativo(
+            mensaje: "Nueva vacante disponible para tu carrera: «{$programa->titulo}»" . ($programa->convenio?->empresa ? " en {$programa->convenio->empresa->razon_social}" : '') . '.',
+            url: route('alumno.oferta-programas', ['programa' => $programa->id], false),
+            detalle: $programa->titulo,
+        ));
     }
 
     public function destroy(Programa $programa): RedirectResponse

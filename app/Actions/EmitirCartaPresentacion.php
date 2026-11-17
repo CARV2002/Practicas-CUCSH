@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use App\Services\Avisos;
 use App\Notifications\AvisoOperativo;
+use App\Enums\ValidacionEstado;
+use App\Services\GeneradorCartaPresentacion;
 
 /**
  * El coordinador valida la postulación y emite la carta de presentación (reserva el cupo).
@@ -20,6 +22,10 @@ use App\Notifications\AvisoOperativo;
  */
 class EmitirCartaPresentacion
 {
+    public function __construct(private GeneradorCartaPresentacion $generador)
+    {
+    }
+
     public function __invoke(Postulacion $postulacion, Personal $por): Postulacion
     {
         return DB::transaction(function () use ($postulacion, $por) {
@@ -58,6 +64,20 @@ class EmitirCartaPresentacion
                 $this->fallar('El alumno no tiene seguro facultativo (IMSS) vigente.');
             }
 
+            // La coordinación debe haber revisado y validado la constancia IMSS
+            if (!$alumno->documentoValidado('constancia_imss')) {
+                $this->fallar('Primero valida la constancia de vigencia IMSS del alumno.');
+            }
+
+            if ($postulacion->documentoVigente('kardex')?->getCustomProperty('estado') === ValidacionEstado::Rechazada->value) {
+                $this->fallar('El kardex fue rechazado: el alumno debe subir uno nuevo.');
+            }
+
+            // La carta se imprime con estos datos
+            if ($alumno->grado === null || $alumno->turno === null) {
+                $this->fallar('El alumno no ha capturado su grado y turno en su perfil.');
+            }
+
             if ($programa->cuposOcupados() >= $programa->cupos_totales) {
                 $this->fallar('El programa ya no tiene cupos disponibles.');
             }
@@ -80,6 +100,12 @@ class EmitirCartaPresentacion
                 'estado' => PostulacionEstado::CartaPresentacionEmitida,
                 'validado_por' => $por->id,
             ]);
+
+            // Carta de Presentación (.docx) con carrera, grado y turno del alumno
+            $ruta = $this->generador->generar($postulacion->setRelation('alumno', $alumno)->setRelation('programa', $programa), $por);
+            $postulacion->addMedia($ruta)
+                ->usingFileName("carta-presentacion-{$alumno->num_control}.docx")
+                ->toMediaCollection('carta_presentacion');
 
             $empresa = $programa->convenio?->empresa;
 

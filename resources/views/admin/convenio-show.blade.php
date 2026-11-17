@@ -131,7 +131,32 @@
 
         {{-- Dictámenes por carrera --}}
         <div class="{{ $card }}">
-            <h4 class="mb-4 text-base font-bold text-gray-900">Dictámenes de pertinencia por carrera</h4>
+            <h4 class="mb-1 text-base font-bold text-gray-900">Turno académico y dictámenes por carrera</h4>
+            <p class="mb-4 text-xs text-gray-500">Secretaría Académica y la División solo turnan el oficio; cada Coordinación de carrera emite su dictamen desde su panel.</p>
+
+            {{-- Paso por Secretaría Académica y División (canales administrativos) --}}
+            <div class="mb-4 rounded-lg border border-gray-100 bg-gray-50/60 p-4">
+                <div class="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                    <p><span class="text-gray-500">Turnado a Secretaría Académica:</span>
+                        <span class="font-semibold text-gray-800">{{ $convenio->fecha_turno_secretaria?->format('d/m/Y') ?? 'Sin registrar' }}</span></p>
+                    <p><span class="text-gray-500">Turnado a la División:</span>
+                        <span class="font-semibold text-gray-800">{{ $convenio->fecha_turno_division?->format('d/m/Y') ?? 'Sin registrar' }}</span></p>
+                </div>
+                @if ($estado === E::EnValidacionAcademica)
+                    <form method="POST" action="{{ route('admin.convenios.turnos', $convenio) }}" class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+                        @csrf
+                        <label class="text-xs text-gray-600">Secretaría Académica
+                            <input type="date" name="fecha_turno_secretaria" max="{{ today()->toDateString() }}"
+                                value="{{ old('fecha_turno_secretaria', $convenio->fecha_turno_secretaria?->toDateString()) }}" class="{{ $input }}">
+                        </label>
+                        <label class="text-xs text-gray-600">División
+                            <input type="date" name="fecha_turno_division" max="{{ today()->toDateString() }}"
+                                value="{{ old('fecha_turno_division', $convenio->fecha_turno_division?->toDateString()) }}" class="{{ $input }}">
+                        </label>
+                        <div class="flex items-end"><button class="{{ $btn }}">Guardar fechas de turno</button></div>
+                    </form>
+                @endif
+            </div>
             <div class="divide-y divide-gray-100">
                 @foreach ($convenio->dictamenes as $d)
                     <div class="py-3">
@@ -147,17 +172,7 @@
                                 class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $d->dictamen === Dictamen::Aprobatorio ? 'bg-green-50 text-green-700' : ($d->dictamen === Dictamen::Negativo ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700') }}">{{ ucfirst($d->dictamen->value) }}</span>
                         </div>
                         @if ($estado === E::EnValidacionAcademica && $d->dictamen === Dictamen::Pendiente)
-                            <form method="POST" enctype="multipart/form-data" action="{{ route('admin.dictamenes.registrar', $d) }}"
-                                class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-5"> @csrf
-                                <select name="dictamen" required class="{{ $input }}">
-                                    <option value="aprobatorio">Aprobatorio</option>
-                                    <option value="negativo">Negativo</option>
-                                </select>
-                                <input type="text" name="observaciones" placeholder="Observaciones (obligatorio si es negativo)"
-                                    class="{{ $input }} md:col-span-2">
-                                <input type="file" name="documento" accept="application/pdf" class="{{ $input }}">
-                                <button class="{{ $btn }}">Registrar</button>
-                            </form>
+                            <p class="mt-1 text-xs text-yellow-700">Esperando el dictamen de la Coordinación de {{ $d->carrera->carrera_clave }}.</p>
                         @endif
                     </div>
                 @endforeach

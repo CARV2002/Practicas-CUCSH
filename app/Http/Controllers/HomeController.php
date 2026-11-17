@@ -40,9 +40,15 @@ class HomeController extends Controller
 
     public function estudiantes(): View
     {
+        $vigentes = $this->conveniosVigentes()->load([
+            'dictamenes' => fn ($d) => $d->where('dictamen', \App\Enums\Dictamen::Aprobatorio->value)->with('carrera'),
+        ]);
+
         return view('pages.home.estudiantes', [
             'divisiones' => $this->divisionesConCarreras(),
-            'organizaciones' => $this->conveniosVigentes()->count(),
+            'organizaciones' => $vigentes->count(),
+            // Lista pública de convenios vigentes por carrera (antes se enviaba por correo)
+            'conveniosVigentes' => $vigentes->sortBy(fn ($c) => $c->empresa->razon_social)->values(),
             'programasAbiertos' => Programa::abiertos()->count(),
             ...$this->conteosDePracticas(),
         ]);

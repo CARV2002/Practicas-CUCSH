@@ -82,8 +82,11 @@ beforeEach(function () {
     $this->anaUser = notUser(Rol::Alumno);
     $this->ana = Alumno::create([
         'user_id' => $this->anaUser->id, 'carrera_id' => $this->abog->id, 'num_control' => '215000001',
-        'vigencia_imss' => now()->addYear()->toDateString(),
+        'grado' => 7, 'turno' => 'matutino', 'vigencia_imss' => now()->addYear()->toDateString(),
     ]);
+    // Constancia IMSS ya validada por su coordinación (requisito para emitir la carta)
+    $imss = $this->ana->addMedia(notPdf())->toMediaCollection('constancia_imss');
+    $this->ana->resolverDocumento($imss, \App\Enums\ValidacionEstado::Validada, null, $this->adminAbog->id);
 });
 
 test('una postulación avisa solo a la coordinación de esa carrera (no a Vinculación)', function () {
@@ -192,7 +195,7 @@ test('una solicitud de convenio avisa por correo y campana solo a Vinculación a
 
     $u = notUser(Rol::Empresa);
     $nueva = Empresa::create(['user_id' => $u->id, 'rfc' => 'EPB020202CD2', 'razon_social' => 'Empresa Nueva',
-        'tipo_organismo' => TipoOrganismo::Privado, 'contacto_nombre' => 'Contacto']);
+        'tipo_organismo' => TipoOrganismo::Privado, 'contacto_nombre' => 'Contacto', 'representante_legal' => 'Lic. Representante']);
 
     // Para solicitar, el expediente debe estar subido (aún sin validar: el correo lo marca como incompleto)
     foreach (Empresa::coleccionesObligatorias() as $coleccion) {

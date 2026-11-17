@@ -38,6 +38,8 @@
                     @error('carrera_id')<p class="text-error-500 mt-1 text-sm">{{ $message }}</p>@enderror
                 </div>
 
+                <x-alumno.grado-turno />
+
                 <div>
                     <label class="flex items-start gap-2 text-sm text-gray-700">
                         <input type="checkbox" name="aviso_privacidad" value="1" class="mt-0.5 rounded border-gray-300" @checked(old('aviso_privacidad')) required>

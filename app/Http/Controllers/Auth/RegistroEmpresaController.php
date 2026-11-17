@@ -41,6 +41,7 @@ class RegistroEmpresaController extends Controller
                 'rfc' => $datos['rfc'],
                 'razon_social' => $datos['razon_social'],
                 'tipo_organismo' => $datos['tipo_organismo'],
+                'representante_legal' => $datos['representante_legal'],
                 'contacto_nombre' => $datos['name'],
                 'contacto_cargo' => $datos['contacto_cargo'] ?? null,
                 'contacto_telefono' => $datos['contacto_telefono'] ?? null,

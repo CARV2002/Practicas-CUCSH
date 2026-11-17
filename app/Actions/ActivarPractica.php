@@ -50,6 +50,11 @@ class ActivarPractica
                 $this->fallar('El profesor supervisor no pertenece a la división de la carrera del alumno.');
             }
 
+            // Modalidad interna (sin convenio): el área receptora de la UdeG firma un Oficio de Aceptación Interno
+            if ($programa->esInterno() && !$postulacion->media()->where('collection_name', 'oficio_aceptacion_interno')->exists()) {
+                $this->fallar('Falta el Oficio de Aceptación Interno firmado por el Jefe de Departamento o Director de División.');
+            }
+
             // Un convenio que vence a mitad de la práctica invalida las horas
             if (!$programa->esInterno() && !$programa->convenio?->cubreHasta($fechaFin)) {
                 $this->fallar('El convenio no está vigente durante todo el periodo de la práctica.');
