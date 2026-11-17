@@ -69,7 +69,8 @@ class AppServiceProvider extends ServiceProvider
 
         Event::subscribe(\App\Listeners\RegistrarAccesos::class);
 
-        Gate::define('ver-auditoria', fn(User $u) => $u->hasAnyRole(Rol::deVinculacion())
+        // Auditoría: solo el administrador técnico del sistema
+        Gate::define('ver-auditoria', fn(User $u) => $u->hasRole(Rol::Administrador->value)
             && $u->personal?->tieneAlcanceGlobal() === true);
     }
 }

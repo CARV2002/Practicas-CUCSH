@@ -11,9 +11,11 @@
         ['tipo' => 'convenios', 'titulo' => 'Convenios', 'desc' => 'Estado, vigencia, días para vencer y carreras aprobadas.', 'fechas' => 'Fecha de recepción', 'ciclo' => false],
         ['tipo' => 'programas', 'titulo' => 'Programas', 'desc' => 'Ofertas con cupos totales, ocupados y disponibles.', 'fechas' => null, 'ciclo' => true],
     ];
+    // Vinculación solo ve y exporta convenios; lo académico es del administrador técnico
+    $exportes = $completo ? $exportes : array_values(array_filter($exportes, fn ($e) => $e['tipo'] === 'convenios'));
 @endphp
 
-<x-common.page-breadcrumb pageTitle="Informes" />
+<x-common.page-breadcrumb pageTitle="{{ $completo ? 'Informes' : 'Informes de convenios' }}" />
 
 <div class="space-y-6">
     @if ($errors->any())
@@ -22,7 +24,8 @@
         </div>
     @endif
 
-    {{-- Resumen de prácticas --}}
+    {{-- Resumen de prácticas (solo administrador técnico) --}}
+    @if ($completo)
     <div class="{{ $card }}">
         <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -81,6 +84,8 @@
             </table>
         </div>
     </div>
+
+    @endif
 
     {{-- Convenios y cuellos de botella --}}
     <div class="{{ $card }}">

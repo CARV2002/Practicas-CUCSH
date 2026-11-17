@@ -34,6 +34,18 @@ class Avisos
         });
     }
 
+    /** Correo a una dirección sin cuenta (p. ej. el buzón institucional de Prácticas). Solo canal mail. */
+    public static function enviarCorreo(string $correo, AvisoPracticas $aviso): void
+    {
+        DB::afterCommit(function () use ($correo, $aviso) {
+            try {
+                Notification::route('mail', $correo)->notify($aviso);
+            } catch (Throwable $e) {
+                report($e);
+            }
+        });
+    }
+
     /**
      * Coordinación de carrera activa con alcance sobre esa carrera (o su división).
      * Postulaciones, reportes y cierres van SOLO aquí: ni Vinculación ni el administrador técnico.

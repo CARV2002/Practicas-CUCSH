@@ -9,16 +9,17 @@ use Illuminate\Console\Command;
 use Spatie\Permission\Models\Role;
 
 /**
- * Alta de la cuenta de la Coordinación de Prácticas (rol administrador).
+ * Alta del administrador técnico del sistema (superusuario). Desde «Usuarios y coordinadores»
+ * da de alta a Vinculación y a cada coordinación de carrera.
  * Es la forma de crear al administrador en producción: pide la contraseña, no queda en ningún archivo.
  *
  *   php artisan practicas:crear-administrador correo@udg.mx --nombre="Nombre Apellido"
  */
 class CrearAdministrador extends Command
 {
-    protected $signature = 'practicas:crear-administrador {email : Correo de la cuenta} {--nombre=Coordinación de Prácticas : Nombre de la persona}';
+    protected $signature = 'practicas:crear-administrador {email : Correo de la cuenta} {--nombre=Administrador del sistema : Nombre de la persona}';
 
-    protected $description = 'Crea o actualiza la cuenta de un administrador de la Coordinación de Prácticas con su perfil de Personal';
+    protected $description = 'Crea o actualiza la cuenta de un administrador técnico del sistema con su perfil de Personal';
 
     public function handle(): int
     {
@@ -47,7 +48,7 @@ class CrearAdministrador extends Command
 
         // Sin división ni carrera = alcance global: es el perfil que reciben todos los pasos de ConvenioWorkflow
         Personal::firstOrCreate(['user_id' => $user->id], [
-            'puesto' => 'Coordinación de Prácticas Profesionales',
+            'puesto' => 'Administración técnica del sistema',
         ]);
 
         $this->info("Administrador listo: {$user->email}");

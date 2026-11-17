@@ -82,7 +82,7 @@ class DashboardController extends Controller
                 'texto' => 'Vence el '.$alumno->vigencia_imss->format('d/m/Y').'.']);
         }
         if ($activa && $practica->supervisor === null) {
-            $alertas->push(['tipo' => 'info', 'titulo' => 'Supervisor por asignar', 'texto' => 'La Coordinación te asignará un profesor supervisor.']);
+            $alertas->push(['tipo' => 'info', 'titulo' => 'Supervisor por asignar', 'texto' => 'Tu coordinación te asignará un profesor supervisor.']);
         }
         if ($alertas->isEmpty()) {
             $alertas->push(['tipo' => 'info', 'titulo' => 'Todo en orden', 'texto' => 'No tienes pendientes por atender.']);
@@ -114,8 +114,8 @@ class DashboardController extends Controller
 
         return match (true) {
             $p->estado === PracticaEstado::Acreditada => '¡Tu práctica profesional quedó acreditada! Misión cumplida. 🎓',
-            $p->estado === PracticaEstado::Cancelada => 'Tu práctica fue cancelada. Consulta a la Coordinación si necesitas aclararlo.',
-            $p->estado === PracticaEstado::EnCierre => 'Tu carta de término fue validada. Solo falta que la Coordinación capture tu acreditación.',
+            $p->estado === PracticaEstado::Cancelada => 'Tu práctica fue cancelada. Consulta a tu coordinación si necesitas aclararlo.',
+            $p->estado === PracticaEstado::EnCierre => 'Tu carta de término fue validada. Solo falta que tu coordinación envíe tu oficio y Control Escolar capture tu acreditación en SIIAU.',
             $rechazados > 0 => "Tienes {$rechazados} reporte(s) rechazado(s). Corrígelos y vuelve a subirlos para que tus horas cuenten.",
             $sinArchivo > 0 => "Tienes {$sinArchivo} reporte(s) pendiente(s) de entregar firmado".($supervisor ? ". Tu supervisor es {$supervisor}." : '.'),
             $horas >= $req => '¡Completaste tus horas! Sube tu carta de término en Mis documentos.',
@@ -129,11 +129,11 @@ class DashboardController extends Controller
         if ($enTramite) {
             return $enTramite->estado === PostulacionEstado::CartaPresentacionEmitida
                 ? 'Tu carta de presentación está lista. Preséntate con '.($enTramite->programa->convenio?->empresa->razon_social ?? 'el programa').' y sube la carta de aceptación en Mis documentos.'
-                : 'La Coordinación registrará tu carta de aceptación y activará tu práctica en breve.';
+                : 'Tu coordinación registrará tu carta de aceptación y activará tu práctica en breve.';
         }
 
         if ($alumno->postulaciones()->where('estado', PostulacionEstado::Pendiente->value)->exists()) {
-            return 'Tu postulación está en revisión. La Coordinación validará tus créditos y te emitirá tu carta de presentación.';
+            return 'Tu postulación está en revisión. Tu coordinación validará tus créditos y te emitirá tu carta de presentación.';
         }
 
         return $tieneImss

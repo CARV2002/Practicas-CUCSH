@@ -122,7 +122,7 @@
                                 @if ($presentacion)<a href="{{ route('alumno.documentos.descargar', $presentacion) }}"
                                     class="text-brand-600 text-xs font-semibold">Descargar PDF</a>
                                 @elseif ($po->estado === PE::Pendiente)
-                                    <p class="text-xs text-gray-400">Pendiente de validación por la Coordinación</p>
+                                    <p class="text-xs text-gray-400">Pendiente de validación por tu coordinación</p>
                                 @else<p class="text-xs text-gray-400">Sin archivo</p>@endif
                             </div>
 

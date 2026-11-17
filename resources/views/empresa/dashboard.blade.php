@@ -41,7 +41,7 @@
             <div class="{{ $card }}">
                 <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Programas publicados</p>
                 <h3 class="mt-1 text-2xl font-bold text-gray-900">{{ $kpis['programas_publicados'] }}</h3>
-                <p class="mt-1 text-xs text-gray-500">{{ $programasSinPublicar }} en revisión de la Coordinación</p>
+                <p class="mt-1 text-xs text-gray-500">{{ $programasSinPublicar }} en revisión de la coordinación de la carrera</p>
             </div>
             <div class="{{ $card }}">
                 <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Ocupación de cupos</p>
@@ -119,7 +119,7 @@
         {{-- Candidatos con carta de presentación --}}
         <div class="{{ $panel }}">
             <h4 class="text-base font-bold text-gray-900">Alumnos con carta de presentación</h4>
-            <p class="mb-4 text-xs text-gray-500">Alumnos validados por la Coordinación que se presentarán en tus
+            <p class="mb-4 text-xs text-gray-500">Alumnos validados por su coordinación de carrera que se presentarán en tus
                 programas. Al aceptarlos, entrega la carta de aceptación sellada al alumno.</p>
             <div class="divide-y divide-gray-100">
                 @forelse ($candidatos as $po)

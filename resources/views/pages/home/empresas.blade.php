@@ -535,7 +535,7 @@ html {
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
                 </div>
                 <h3>Talento por carrera</h3>
-                <p>Usted elige las carreras de su interés y publica programas dirigidos a ellas. Solo se postulan alumnos de la carrera del programa que cumplen el porcentaje mínimo de créditos que exige su plan.</p>
+                <p>Usted elige las carreras de su interés y propone vacantes dirigidas a ellas, que publica la coordinación de cada carrera. Solo se postulan alumnos de la carrera del programa que cumplen el porcentaje mínimo de créditos que exige su plan.</p>
             </div>
 
             <div class="b2b-benefit-card">
@@ -551,7 +551,7 @@ html {
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                 </div>
                 <h3>Gestión en una sola plataforma</h3>
-                <p>Dé seguimiento a su convenio, publique programas, consulte postulantes y practicantes y retroalimente sus reportes desde un mismo lugar, con notificaciones en cada cambio de etapa.</p>
+                <p>Dé seguimiento a su convenio, proponga vacantes, consulte postulantes y practicantes y retroalimente sus reportes desde un mismo lugar, con notificaciones en cada cambio de etapa.</p>
             </div>
         </div>
     </div>
@@ -574,14 +574,14 @@ html {
 
             <div class="b2b-step-card">
                 <div class="b2b-step-badge">Paso 02</div>
-                <h3>Publique sus programas</h3>
-                <p>Con el convenio formalizado, publique programas para las carreras aprobadas en él: ciclo, actividades, perfil requerido, horario, sede y cupos. Puede guardarlos como borrador, publicarlos o cerrarlos.</p>
+                <h3>Proponga sus vacantes</h3>
+                <p>Con el convenio formalizado, registre vacantes para las carreras aprobadas en él: ciclo, actividades, perfil requerido, horario, sede y cupos. La coordinación de cada carrera revisa horario y actividades y la publica para sus alumnos; usted puede cerrarla cuando se cubra.</p>
             </div>
 
             <div class="b2b-step-card">
                 <div class="b2b-step-badge">Paso 03</div>
                 <h3>Reciba practicantes y retroalimente</h3>
-                <p>Consulte a los postulantes con carta de presentación y entregue a cada alumno su carta de aceptación. Durante la práctica puede retroalimentar los reportes; la Coordinación valida las horas y da el cierre.</p>
+                <p>Consulte a los postulantes con carta de presentación y entregue a cada alumno su carta de aceptación. Durante la práctica puede retroalimentar los reportes; la coordinación de cada carrera valida las horas y da el cierre.</p>
             </div>
         </div>
     </div>
@@ -627,7 +627,7 @@ html {
                 <div class="b2b-field-item">
                     <span class="field-tag">Renovación</span>
                     <h3>Convenio vigente</h3>
-                    <p>Mientras el convenio esté vigente puede publicar programas. La renovación se solicita dentro de los 60 días previos al vencimiento.</p>
+                    <p>Mientras el convenio esté vigente puede proponer vacantes. La renovación se solicita dentro de los 60 días previos al vencimiento.</p>
                 </div>
             </div>
         </div>
@@ -641,7 +641,7 @@ html {
             <div class="b2b-fields-sticky">
                 <span class="b2b-badge">Perfiles Disponibles</span>
                 <h2>Carreras con las que puede colaborar</h2>
-                <p>Al solicitar su convenio elige las carreras de su interés. Cada una se valida académicamente y solo para las aprobadas podrá publicar programas.</p>
+                <p>Al solicitar su convenio elige las carreras de su interés. Cada una se valida académicamente y solo para las aprobadas podrá proponer vacantes.</p>
             </div>
 
             <div class="b2b-fields-list">
@@ -688,7 +688,7 @@ html {
         <div class="b2b-lead-wrapper">
             <div class="b2b-lead-info">
                 <h2>Inicie hoy la alianza con el CUCSH</h2>
-                <p>Cree la cuenta de su organización y solicite su convenio directamente en la plataforma. La Coordinación de Prácticas Profesionales dará seguimiento a su solicitud en cada fase.</p>
+                <p>Cree la cuenta de su organización y solicite su convenio directamente en la plataforma. Vinculación del CUCSH dará seguimiento a su solicitud en cada fase.</p>
                 <div class="b2b-support-notice">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                     <span>Atención directa: <a href="{{ App\Support\Correo::gmail(config('practicas.contacto.correo')) }}" target="_blank" rel="noopener" style="color: inherit; text-decoration: underline;">{{ config('practicas.contacto.correo') }}</a></span>

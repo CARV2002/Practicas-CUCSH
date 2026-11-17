@@ -51,14 +51,8 @@ class OfertaController extends Controller
 
         $misPostulaciones = $alumno->postulaciones()->pluck('estado', 'programa_id');
 
-        $bloqueo = match (true) {
-            $alumno->yaAcreditado() => 'Ya tienes una práctica acreditada.',
-            $alumno->tienePracticaActiva() => 'Ya tienes una práctica activa.',
-            $alumno->tienePracticaCancelada() => 'Tu práctica fue cancelada, por lo que no puedes postularte a otro programa. Consulta a tu coordinación de carrera.',
-            $alumno->postulaciones()->whereIn('estado', PostulacionEstado::valores(PostulacionEstado::enTramite()))->exists()
-            => 'Ya tienes una empresa en trámite; termina ese proceso antes de postularte a otra.',
-            default => null,
-        };
+        // Por qué no puede postularse todavía (null = sí puede): práctica, trámite, grado/turno o IMSS
+        $bloqueo = \App\Support\Requisitos::alumnoPostularse($alumno);
 
         return view('alumno.oferta-programas', [
             'alumno' => $alumno,
@@ -86,6 +80,10 @@ class OfertaController extends Controller
 
         if ($alumno->postulaciones()->where('programa_id', $programa->id)->exists()) {
             throw ValidationException::withMessages(['postulacion' => 'Ya te postulaste a este programa.']);
+        }
+
+        if ($motivo = \App\Support\Requisitos::alumnoPostularse($alumno)) {
+            throw ValidationException::withMessages(['postulacion' => $motivo]);
         }
 
         if ($alumno->yaAcreditado()) {
@@ -131,7 +129,7 @@ class OfertaController extends Controller
 
         return redirect()
             ->route('alumno.oferta-programas', ['programa' => $programa->id])
-            ->with('status', 'Postulación enviada. La Coordinación la validará y te emitirá tu carta de presentación.');
+            ->with('status', 'Postulación enviada. Tu coordinación la validará y te emitirá tu carta de presentación.');
     }
 }
 

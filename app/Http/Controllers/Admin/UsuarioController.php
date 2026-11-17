@@ -42,9 +42,8 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Alta de personal. Vinculación solo da de alta coordinadores (con su carrera o división);
-     * el administrador técnico puede crear también Vinculación y otros administradores.
-     * Alumnos y empresas se registran solos.
+     * Alta de personal (solo el administrador técnico): coordinadores con su carrera o división,
+     * la cuenta de Vinculación y otros administradores. Alumnos y empresas se registran solos.
      */
     public function store(Request $request): RedirectResponse
     {
@@ -105,8 +104,6 @@ class UsuarioController extends Controller
             return back()->withErrors(['usuario' => 'No puedes desactivar tu propia cuenta.']);
         }
 
-        $this->autorizarSobre($request->user(), $usuario);
-
         $usuario->update(['activo' => !$usuario->activo]);
 
         return back()->with('status', $usuario->activo ? 'Cuenta activada.' : 'Cuenta desactivada.');
@@ -115,10 +112,6 @@ class UsuarioController extends Controller
     /** Restablece la contraseña de una cuenta. */
     public function restablecerPassword(Request $request, User $usuario): RedirectResponse
     {
-        if ($usuario->id !== $request->user()->id) {
-            $this->autorizarSobre($request->user(), $usuario);
-        }
-
         $datos = $request->validate([
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
@@ -128,10 +121,8 @@ class UsuarioController extends Controller
         return back()->with('status', 'Contraseña actualizada.');
     }
 
-    public function verificarCorreo(Request $request, User $usuario): RedirectResponse
+    public function verificarCorreo(User $usuario): RedirectResponse
     {
-        $this->autorizarSobre($request->user(), $usuario);
-
         if (!$usuario->hasVerifiedEmail()) {
             $usuario->markEmailAsVerified();
         }
@@ -139,21 +130,9 @@ class UsuarioController extends Controller
         return back()->with('status', 'Correo marcado como verificado.');
     }
 
-    /** @return Rol[] */
+    /** @return Rol[] Roles de personal que se dan de alta aquí (el coordinador, primero: es el alta más común). */
     private function rolesQuePuedeCrear(User $actor): array
     {
-        return $actor->hasRole(Rol::Administrador->value)
-            ? [Rol::Coordinador, Rol::Vinculacion, Rol::Administrador]
-            : [Rol::Coordinador];
-    }
-
-    /** Evita escalar privilegios: Vinculación no toca cuentas de Vinculación ni del administrador técnico. */
-    private function autorizarSobre(User $actor, User $usuario): void
-    {
-        if ($actor->hasRole(Rol::Administrador->value)) {
-            return;
-        }
-
-        abort_if($usuario->hasAnyRole(Rol::deVinculacion()), 403, 'Solo el administrador técnico gestiona esa cuenta.');
+        return [Rol::Coordinador, Rol::Vinculacion, Rol::Administrador];
     }
 }

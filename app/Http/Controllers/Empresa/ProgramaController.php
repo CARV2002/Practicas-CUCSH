@@ -46,11 +46,16 @@ class ProgramaController extends Controller
             'convenios' => $convenios,
             'estados' => ProgramaEstado::cases(),
             'puedeCrear' => $convenios->isNotEmpty(),
+            'motivoBloqueo' => \App\Support\Requisitos::empresaProponerVacantes($empresa),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
+        if ($motivo = \App\Support\Requisitos::empresaProponerVacantes($request->user()->empresa)) {
+            throw ValidationException::withMessages(['programa' => $motivo]);
+        }
+
         $datos = $this->validar($request);
 
         $this->convenioPropio($request, (int) $datos['convenio_id']);

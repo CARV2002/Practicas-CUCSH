@@ -129,7 +129,7 @@ class MisPracticasController extends Controller
             return 'Esta práctica fue cancelada. Si crees que es un error, consulta a tu coordinación de carrera.';
         }
         if ($p->estado === PracticaEstado::EnCierre) {
-            return 'Tu carta de término ya fue validada. Solo falta que la Coordinación capture tu acreditación; no tienes que hacer nada más.';
+            return 'Tu carta de término ya fue validada. Solo falta que tu coordinación envíe tu oficio y Control Escolar capture tu acreditación en SIIAU; no tienes que hacer nada más.';
         }
         if ($rechazados > 0) {
             return 'Un reporte fue rechazado. Revísalo, corrígelo y súbelo de nuevo para que tus horas cuenten.';
@@ -171,7 +171,7 @@ class MisPracticasController extends Controller
                 PostulacionEstado::CartaPresentacionEmitida => ['icono' => '📨', 'titulo' => 'Tu carta de presentación está lista',
                     'texto' => 'Preséntate con '.($enTramite->programa->convenio?->empresa->razon_social ?? 'el programa').' y sube la carta de aceptación en Mis documentos.'],
                 default => ['icono' => '⏳', 'titulo' => 'Tu práctica está por activarse',
-                    'texto' => 'La Coordinación registrará tu carta de aceptación y activará tu práctica en breve.'],
+                    'texto' => 'Tu coordinación registrará tu carta de aceptación y activará tu práctica en breve.'],
             };
         }
 

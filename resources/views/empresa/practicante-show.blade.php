@@ -61,7 +61,7 @@
         <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
             <div class="border-b border-gray-100 px-6 py-4">
                 <h4 class="text-base font-bold text-gray-900">Reportes de horas</h4>
-                <p class="text-xs text-gray-500">La Coordinación valida las horas; tú aportas tu retroalimentación sobre el
+                <p class="text-xs text-gray-500">La coordinación de la carrera valida las horas; tú aportas tu retroalimentación sobre el
                     desempeño.</p>
             </div>
 

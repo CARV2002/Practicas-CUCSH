@@ -29,7 +29,7 @@
             <div class="mb-5 flex flex-col gap-4 px-6 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h3 class="text-lg font-bold text-gray-900">Practicantes asignados</h3>
-                    <p class="mt-0.5 text-sm text-gray-500">Horas validadas por la Coordinación y estado de cada práctica.
+                    <p class="mt-0.5 text-sm text-gray-500">Horas validadas por la coordinación de la carrera y estado de cada práctica.
                     </p>
                 </div>
                 <form method="GET" class="flex flex-wrap items-center gap-2">

@@ -6,7 +6,7 @@
     $input = 'focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 focus:ring-3 focus:outline-hidden';
     $filtro = 'focus:border-brand-300 focus:ring-brand-500/10 h-10 rounded-lg border border-gray-300 px-3 text-sm focus:ring-3 focus:outline-hidden';
     $label = 'mb-1.5 block text-sm font-medium text-gray-700';
-    $vacio = ['id' => null, 'modalidad' => 'externa', 'convenio_id' => '', 'carrera_id' => '', 'ciclo' => '', 'titulo' => '', 'descripcion' => '', 'actividades' => '', 'perfil_requerido' => '', 'horario' => '', 'sede' => '', 'cupos_totales' => ''];
+    $vacio = ['id' => null, 'modalidad' => 'interna', 'convenio_id' => '', 'carrera_id' => '', 'ciclo' => '', 'titulo' => '', 'descripcion' => '', 'actividades' => '', 'perfil_requerido' => '', 'horario' => '', 'sede' => '', 'cupos_totales' => ''];
     $conveniosJs = $convenios->map(fn ($c) => [
         'id' => $c->id,
         'nombre' => $c->empresa->razon_social.' · '.$c->folio,
@@ -76,7 +76,7 @@
                     </select>
                     <button class="h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">Filtrar</button>
                 </form>
-                <button type="button" @click="nuevo()" class="bg-brand-500 hover:bg-brand-600 h-10 rounded-lg px-4 text-sm font-medium text-white">+ Crear programa</button>
+                <button type="button" @click="nuevo()" class="bg-brand-500 hover:bg-brand-600 h-10 rounded-lg px-4 text-sm font-medium text-white">+ Proyecto interno</button>
             </div>
         </div>
 
@@ -133,8 +133,12 @@
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-right">
                                 <div class="flex items-center justify-end gap-3">
-                                    <button type="button" @click="editar(@js($datos))" class="text-brand-600 hover:text-brand-700 text-xs font-semibold">Editar</button>
-                                    @if ($pendiente)
+                                    @if ($pr->esInterno())
+                                        <button type="button" @click="editar(@js($datos))" class="text-brand-600 hover:text-brand-700 text-xs font-semibold">Editar</button>
+                                    @endif
+                                    @if ($pendiente && ($faltaAprobar = \App\Support\Requisitos::aprobarVacante($pr)))
+                                        <x-ui.accion-bloqueada :motivo="$faltaAprobar" tamano="chico">Aprobar</x-ui.accion-bloqueada>
+                                    @elseif ($pendiente)
                                         <form method="POST" action="{{ route('coordinacion.programas.aprobar', $pr) }}">
                                             @csrf
                                             <button class="text-xs font-semibold text-green-600 hover:text-green-700">Aprobar y publicar</button>
@@ -161,10 +165,12 @@
                                         @endif
                                     </form>
                                     @endunless
-                                    <form method="POST" action="{{ route('coordinacion.programas.destroy', $pr) }}" onsubmit="return confirm('¿Eliminar este programa?')">
-                                        @csrf @method('DELETE')
-                                        <button class="text-xs font-semibold text-red-600 hover:text-red-700">Eliminar</button>
-                                    </form>
+                                    @if ($pr->esInterno())
+                                        <form method="POST" action="{{ route('coordinacion.programas.destroy', $pr) }}" onsubmit="return confirm('¿Eliminar este programa?')">
+                                            @csrf @method('DELETE')
+                                            <button class="text-xs font-semibold text-red-600 hover:text-red-700">Eliminar</button>
+                                        </form>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -184,16 +190,11 @@
         <form method="POST" :action="action" @click.stop class="relative my-8 w-full max-w-2xl space-y-5 rounded-2xl bg-white p-6 shadow-theme-xl">
             @csrf
             <template x-if="p.id"><input type="hidden" name="_method" value="PUT"></template>
-            <h3 class="text-lg font-semibold text-gray-800" x-text="p.id ? 'Editar programa' : 'Nuevo programa'"></h3>
+            <h3 class="text-lg font-semibold text-gray-800" x-text="p.id ? 'Editar proyecto interno' : 'Nuevo proyecto interno'"></h3>
+            <p class="text-xs text-gray-500">Proyectos dentro de la UdeG (bufetes, revistas, centros de investigación). No llevan convenio: al activar la práctica se exige el Oficio de Aceptación Interno del área receptora. Las vacantes externas las registra la empresa y aquí solo las apruebas.</p>
+            <input type="hidden" name="modalidad" value="interna">
 
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div>
-                    <label class="{{ $label }}">Modalidad</label>
-                    <select name="modalidad" x-model="p.modalidad" required class="{{ $input }}">
-                        <option value="externa">Externa (con convenio)</option>
-                        <option value="interna">Interna (proyecto universitario)</option>
-                    </select>
-                </div>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                     <label class="{{ $label }}">Carrera</label>
                     <select name="carrera_id" x-model="p.carrera_id" required class="{{ $input }}">
@@ -209,16 +210,7 @@
                 </div>
             </div>
 
-            <div x-show="p.modalidad === 'externa'">
-                <label class="{{ $label }}">Convenio vigente <span class="text-xs font-normal text-gray-400">(solo los que aprobaron la carrera elegida)</span></label>
-                <select name="convenio_id" x-model="p.convenio_id" :disabled="p.modalidad !== 'externa'" class="{{ $input }}">
-                    <option value="">Selecciona un convenio</option>
-                    <template x-for="c in conveniosDeCarrera" :key="c.id">
-                        <option :value="c.id" x-text="c.nombre" :selected="c.id == p.convenio_id"></option>
-                    </template>
-                </select>
-            </div>
-
+            {{-- Proyecto interno: sin convenio --}}
             <div>
                 <label class="{{ $label }}">Título</label>
                 <input type="text" name="titulo" x-model="p.titulo" required maxlength="255" class="{{ $input }}">

@@ -1,4 +1,5 @@
 import './bootstrap';
+import './validacion';
 import Alpine from 'alpinejs';
 
 // flatpickr (selector de fechas de x-form.date-picker)

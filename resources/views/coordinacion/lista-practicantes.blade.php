@@ -119,10 +119,15 @@
                                 <td class="px-6 py-4">
                                     <div class="flex flex-col items-end gap-2">
                                         @if ($po->estado === PE::Pendiente)
-                                            <form method="POST" action="{{ route('coordinacion.postulaciones.carta', $po) }}">
-                                                @csrf
-                                                <button class="{{ $btn }} !py-1.5 text-xs">Emitir carta de presentación</button>
-                                            </form>
+                                            @php $faltaCarta = \App\Support\Requisitos::emitirCarta($po); @endphp
+                                            @if ($faltaCarta)
+                                                <x-ui.accion-bloqueada :motivo="$faltaCarta" tamano="chico">Emitir carta de presentación</x-ui.accion-bloqueada>
+                                            @else
+                                                <form method="POST" action="{{ route('coordinacion.postulaciones.carta', $po) }}">
+                                                    @csrf
+                                                    <button class="{{ $btn }} !py-1.5 text-xs">Emitir carta de presentación</button>
+                                                </form>
+                                            @endif
                                         @elseif ($po->estado === PE::CartaPresentacionEmitida)
                                             <form method="POST" enctype="multipart/form-data"
                                                 action="{{ route('coordinacion.postulaciones.aceptacion', $po) }}"
@@ -133,6 +138,8 @@
                                                 <button
                                                     class="{{ $btn }} !py-1.5 text-xs">{{ $aceptacion ? 'Confirmar carta del alumno' : 'Registrar aceptación' }}</button>
                                             </form>
+                                        @elseif ($po->estado === PE::CartaAceptacionRecibida && ($faltaActivar = \App\Support\Requisitos::activarPractica($po)))
+                                            <x-ui.accion-bloqueada :motivo="$faltaActivar" tamano="chico">Activar práctica</x-ui.accion-bloqueada>
                                         @elseif ($po->estado === PE::CartaAceptacionRecibida)
                                             <form method="POST" action="{{ route('coordinacion.postulaciones.activar', $po) }}"
                                                 class="grid grid-cols-2 gap-2">

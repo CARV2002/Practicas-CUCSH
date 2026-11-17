@@ -16,7 +16,7 @@ class MenuHelper
 
         // El administrador técnico ve ambos paneles; Vinculación y Coordinación solo el suyo
         if ($user->hasRole(Rol::Administrador->value)) {
-            return [...self::vinculacionMenu(), ...self::coordinacionMenu()];
+            return [...self::sistemaMenu(), ...self::vinculacionMenu(), ...self::coordinacionMenu()];
         }
 
         if ($user->hasRole(Rol::Vinculacion->value)) {
@@ -40,6 +40,10 @@ class MenuHelper
 
     private static function empresaMenu()
     {
+        $empresa = auth()->user()->empresa;
+        $sinConvenio = $empresa ? \App\Support\Requisitos::empresaProponerVacantes($empresa) : null;
+        $sinPracticantes = $empresa ? \App\Support\Requisitos::empresaVerPracticantes($empresa) : null;
+
         return [
             [
                 'title' => 'Empresa',
@@ -53,6 +57,7 @@ class MenuHelper
                         'name' => 'Practicantes',
                         'icon' => 'user-profile',
                         'path' => '/empresa/lista-practicantes',
+                        'bloqueado' => $sinPracticantes,
                     ],
                     [
                         'name' => 'Convenio CUCSH',
@@ -63,6 +68,7 @@ class MenuHelper
                         'name' => 'Programas',
                         'icon' => 'forms',
                         'path' => '/empresa/lista-programas',
+                        'bloqueado' => $sinConvenio,
                     ],
                     [
                         'name' => 'Documentos',
@@ -76,6 +82,9 @@ class MenuHelper
 
     private static function alumnoMenu()
     {
+        $alumno = auth()->user()->alumno;
+        $sinPostulacion = $alumno ? \App\Support\Requisitos::alumnoVerPracticas($alumno) : null;
+
         return [
             [
                 'title' => 'Alumno',
@@ -91,14 +100,10 @@ class MenuHelper
                         'path' => '/alumno/oferta-programas',
                     ],
                     [
-                        'name' => 'Convenios vigentes',
-                        'icon' => 'ui-elements',
-                        'path' => '/alumno/convenios-vigentes',
-                    ],
-                    [
                         'name' => 'Mis prácticas',
                         'icon' => 'task',
                         'path' => '/alumno/mis-practicas',
+                        'bloqueado' => $sinPostulacion,
                     ],
                     [
                         'name' => 'Mis documentos',
@@ -110,7 +115,7 @@ class MenuHelper
         ];
     }
 
-    /** Vinculación (Lorena): solo el trámite de convenios y el alta de coordinadores. */
+    /** Vinculación (Lorena): solo el trámite de convenios con organizaciones. */
     private static function vinculacionMenu()
     {
         $items = [
@@ -118,22 +123,28 @@ class MenuHelper
             ['name' => 'Convenios', 'icon' => 'pages', 'path' => '/admin/lista-convenios'],
             ['name' => 'Dictámenes', 'icon' => 'task', 'path' => '/admin/lista-dictamenes'],
             ['name' => 'Empresas', 'icon' => 'ui-elements', 'path' => '/admin/lista-empresas'],
-            ['name' => 'Informes', 'icon' => 'charts', 'path' => '/admin/informes'],
-            ['name' => 'Usuarios', 'icon' => 'authentication', 'path' => '/admin/lista-usuarios'],
+            ['name' => 'Informes de convenios', 'icon' => 'charts', 'path' => '/admin/informes'],
         ];
-
-        if (auth()->user()?->hasRole(Rol::Administrador->value)) {
-            $items[] = ['name' => 'Divisiones y carreras', 'icon' => 'tables', 'path' => '/admin/catalogos'];
-        }
-
-        if (auth()->user()?->can('ver-auditoria')) {
-            $items[] = ['name' => 'Auditoría', 'icon' => 'authentication', 'path' => '/admin/auditoria'];
-        }
 
         return [
             [
                 'title' => 'Vinculación',
                 'items' => $items,
+            ],
+        ];
+    }
+
+    /** Administrador técnico: cuentas de personal (incluye alta de coordinadores), catálogo y auditoría. */
+    private static function sistemaMenu()
+    {
+        return [
+            [
+                'title' => 'Administración del sistema',
+                'items' => [
+                    ['name' => 'Usuarios y coordinadores', 'icon' => 'authentication', 'path' => '/admin/lista-usuarios'],
+                    ['name' => 'Divisiones y carreras', 'icon' => 'tables', 'path' => '/admin/catalogos'],
+                    ['name' => 'Auditoría', 'icon' => 'authentication', 'path' => '/admin/auditoria'],
+                ],
             ],
         ];
     }

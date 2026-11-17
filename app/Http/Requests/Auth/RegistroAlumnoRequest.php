@@ -57,12 +57,12 @@ class RegistroAlumnoRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'required' => 'El campo :attribute es obligatorio.',
-            'email.email' => 'Escribe un correo electrónico válido.',
-            'email.unique' => 'Ya existe una cuenta con ese correo.',
+            'required' => 'Falta :attribute: este campo es obligatorio.',
+            'email.email' => 'Escribe un correo válido, por ejemplo nombre@dominio.com.',
+            'email.unique' => 'Ya existe una cuenta con ese correo. Inicia sesión o recupera tu contraseña.',
             'num_control.unique' => 'Ya existe una cuenta con ese código de alumno.',
             'carrera_id.exists' => 'Selecciona una carrera válida.',
-            'password.confirmed' => 'La confirmación de la contraseña no coincide.',
+            'password.confirmed' => 'Las contraseñas no coinciden. Escribe la misma en ambos campos.',
             'aviso_privacidad.accepted' => 'Debes aceptar el aviso de privacidad para registrarte.',
         ];
     }

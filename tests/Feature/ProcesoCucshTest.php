@@ -348,7 +348,7 @@ test('la empresa no solicita convenio sin representante legal', function () {
         ->and($e->convenios()->count())->toBe(1);
 });
 
-test('el alumno consulta convenios vigentes de su carrera y ve a su coordinación', function () {
+test('los convenios vigentes son públicos y el alumno ve a su coordinación', function () {
     $this->abog->update(['coordinacion_correo' => 'coordinacion.abogado@csh.udg.mx', 'coordinacion_telefono' => '33 3819 3300 ext. 23500']);
     $alumno = pcAlumno($this->abog, '215100008');
 
@@ -359,10 +359,8 @@ test('el alumno consulta convenios vigentes de su carrera y ve a su coordinació
         'objetivos' => 'x', 'actividades_propuestas' => 'y', 'plazas_estimadas' => 1]);
     $cv->dictamenes()->create(['carrera_id' => $this->crim->id, 'dictamen' => Dictamen::Aprobatorio]);
 
-    $this->actingAs($alumno->user)->get(route('alumno.convenios-vigentes'))
-        ->assertOk()->assertSee('Despacho Ejemplo S.C.')->assertDontSee('Solo Criminologia A.C.');
-    $this->actingAs($alumno->user)->get(route('alumno.convenios-vigentes', ['carrera_id' => $this->crim->id]))
-        ->assertOk()->assertSee('Solo Criminologia A.C.');
+    // El panel del alumno ya no lleva lista de convenios: la oferta de programas muestra las empresas de su carrera
+    expect(\Illuminate\Support\Facades\Route::has('alumno.convenios-vigentes'))->toBeFalse();
 
     $this->actingAs($alumno->user)->get(route('alumno.dashboard'))
         ->assertOk()->assertSee('Tu coordinación')->assertSee('coordinacion.abogado@csh.udg.mx')
@@ -370,6 +368,26 @@ test('el alumno consulta convenios vigentes de su carrera y ve a su coordinació
         ->assertSee('Copiar correo');
 
     // El sitio público muestra el directorio y la lista de convenios vigentes
-    $this->get(route('estudiantes'))->assertOk()->assertSee('Despacho Ejemplo S.C.')->assertSee('coordinacion.abogado@csh.udg.mx');
+    $this->get(route('estudiantes'))->assertOk()
+        ->assertSee('Despacho Ejemplo S.C.')->assertSee('Solo Criminologia A.C.')->assertSee('coordinacion.abogado@csh.udg.mx');
     $this->get(route('contacto'))->assertOk()->assertSee('Escribe a tu coordinación')->assertSee('coordinacion.abogado@csh.udg.mx');
+});
+
+test('la coordinación solo registra proyectos internos; las vacantes externas son de la empresa', function () {
+    $datos = ['carrera_id' => $this->abog->id, 'ciclo' => '2027A', 'titulo' => 'Revista jurídica', 'descripcion' => 'x',
+        'actividades' => "Corregir\nEditar", 'perfil_requerido' => 'p', 'cupos_totales' => 2];
+
+    // Aunque intente mandarla como externa con convenio, se guarda como interna
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.programas.store'), $datos + ['modalidad' => 'externa', 'convenio_id' => $this->convenio->id])
+        ->assertSessionHasNoErrors();
+    $interno = Programa::where('titulo', 'Revista jurídica')->firstOrFail();
+    expect($interno->esInterno())->toBeTrue()->and($interno->convenio_id)->toBeNull()
+        ->and($interno->estado)->toBe(ProgramaEstado::Borrador);
+
+    // La vacante de la empresa no la edita ni la borra la coordinación: la aprueba, rechaza o cierra
+    $externa = ($this->programa)();
+    $this->actingAs($this->coordAbog)->put(route('coordinacion.programas.update', $externa), $datos)->assertSessionHasErrors('programa');
+    $this->actingAs($this->coordAbog)->delete(route('coordinacion.programas.destroy', $externa))->assertSessionHasErrors('programa');
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.programas.estado', $externa), ['estado' => 'cerrado'])->assertSessionHasNoErrors();
+    expect($externa->refresh()->estado)->toBe(ProgramaEstado::Cerrado);
 });

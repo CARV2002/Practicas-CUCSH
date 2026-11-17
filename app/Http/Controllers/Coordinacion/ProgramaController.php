@@ -57,12 +57,16 @@ class ProgramaController extends Controller
 
         Programa::create($datos);
 
-        return back()->with('status', 'Programa creado como borrador.');
+        return back()->with('status', 'Proyecto interno creado como borrador.');
     }
 
     public function update(Request $request, Programa $programa): RedirectResponse
     {
         $this->authorize('gestionar', $programa);
+
+        if (!$programa->esInterno()) {
+            return back()->withErrors(['programa' => 'Las vacantes externas las edita la empresa; tú las apruebas o rechazas.']);
+        }
 
         $datos = $this->validar($request, $programa);
 
@@ -176,6 +180,10 @@ class ProgramaController extends Controller
     {
         $this->authorize('gestionar', $programa);
 
+        if (!$programa->esInterno()) {
+            return back()->withErrors(['programa' => 'Las vacantes externas las elimina la empresa; tú puedes rechazarlas o cerrarlas.']);
+        }
+
         if ($programa->postulaciones()->exists()) {
             return back()->withErrors(['programa' => 'No se puede eliminar: ya tiene postulaciones. Ciérralo en su lugar.']);
         }
@@ -188,9 +196,11 @@ class ProgramaController extends Controller
     /** @return array<string, mixed> */
     private function validar(Request $request, ?Programa $programa = null): array
     {
+        // La coordinación solo registra proyectos internos: las vacantes externas las ofrece la empresa
+        $request->merge(['modalidad' => Modalidad::Interna->value]);
+
         $datos = $request->validate([
-            'modalidad' => ['required', Rule::enum(Modalidad::class)],
-            'convenio_id' => ['nullable', 'integer', Rule::exists('convenios', 'id')],
+            'modalidad' => ['required', Rule::in([Modalidad::Interna->value])],
             'carrera_id' => ['required', 'integer', Rule::exists('carreras', 'id')],
             'ciclo' => ['required', 'string', 'regex:/^\d{4}[AB]$/'],
             'titulo' => ['required', 'string', 'max:255'],
@@ -204,9 +214,7 @@ class ProgramaController extends Controller
             'ciclo.regex' => 'El ciclo debe tener el formato 2027A o 2027B.',
         ]);
 
-        if ($datos['modalidad'] === Modalidad::Interna->value) {
-            $datos['convenio_id'] = null;
-        }
+        $datos['convenio_id'] = null;
 
         // El textarea trae un punto por línea; se guarda como lista JSON
         $datos['actividades'] = collect(preg_split('/\R/', $datos['actividades']))

@@ -121,7 +121,11 @@
                 @endforeach
             </div>
 
-            @if ($estado === E::Solicitado)
+            @if ($estado === E::Solicitado && ($faltaTurnar = \App\Support\Requisitos::turnarAValidacionAcademica($convenio)))
+                <div class="mt-4 flex justify-end">
+                    <x-ui.accion-bloqueada :motivo="$faltaTurnar">Turnar a las carreras</x-ui.accion-bloqueada>
+                </div>
+            @elseif ($estado === E::Solicitado)
                 <form method="POST" action="{{ route('admin.convenios.validacion-academica', $convenio) }}" class="mt-4">
                     @csrf
                     <button class="{{ $btn }}">Turnar a las carreras</button>
@@ -259,10 +263,14 @@
                             <button
                                 class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700">Adjuntar</button>
                         </form>
-                        <form method="POST" action="{{ route('admin.convenios.juridica.turnar', $convenio) }}">
-                            @csrf
-                            <button class="{{ $btn }}">Turnar a Jurídica</button>
-                        </form>
+                        @if ($borradores->isEmpty())
+                            <x-ui.accion-bloqueada motivo="Genera o adjunta el borrador del convenio antes de turnarlo a Jurídica.">Turnar a Jurídica</x-ui.accion-bloqueada>
+                        @else
+                            <form method="POST" action="{{ route('admin.convenios.juridica.turnar', $convenio) }}">
+                                @csrf
+                                <button class="{{ $btn }}">Turnar a Jurídica</button>
+                            </form>
+                        @endif
                     </div>
                 @endif
 

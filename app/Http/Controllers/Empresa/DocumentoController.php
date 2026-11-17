@@ -70,13 +70,13 @@ class DocumentoController extends Controller
             && $vigente?->getCustomProperty('estado') !== ValidacionEstado::Rechazada->value
         ) {
             throw ValidationException::withMessages([
-                'archivo' => 'Tu convenio está en revisión. Podrás modificar tus documentos si la Coordinación rechaza alguno o rechaza la solicitud.',
+                'archivo' => 'Tu convenio está en revisión. Podrás modificar tus documentos si Vinculación rechaza alguno o rechaza la solicitud.',
             ]);
         }
 
         if ($vigente?->getCustomProperty('estado') === ValidacionEstado::Validada->value) {
             throw ValidationException::withMessages([
-                'archivo' => 'Este documento ya fue validado. Contacta a la Coordinación si necesitas cambiarlo.',
+                'archivo' => 'Este documento ya fue validado. Contacta a Vinculación si necesitas cambiarlo.',
             ]);
         }
 

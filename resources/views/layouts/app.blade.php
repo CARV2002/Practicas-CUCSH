@@ -9,6 +9,7 @@
     <title>{{ $title ?? 'Panel' }} | Prácticas Profesionales CUCSH</title>
 
     <!-- Scripts -->
+    @include('partials.errores-servidor')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <!-- Alpine.js -->
@@ -128,27 +129,7 @@
         </div>
 
     </div>
-    <script>
-        document.addEventListener('invalid', (e) => {
-            const c = e.target, v = c.validity;
-            c.setCustomValidity('');
-            if (v.valueMissing) {
-                c.setCustomValidity(c.type === 'file' ? 'Selecciona un archivo.'
-                    : c.type === 'checkbox' ? 'Debes marcar esta casilla.'
-                        : c.tagName === 'SELECT' ? 'Selecciona una opción.'
-                            : 'Completa este campo.');
-            } else if (v.typeMismatch && c.type === 'email') {
-                c.setCustomValidity('Escribe un correo electrónico válido.');
-            } else if (v.rangeUnderflow) {
-                c.setCustomValidity('El valor debe ser mayor o igual a ' + c.min + '.');
-            } else if (v.rangeOverflow) {
-                c.setCustomValidity('El valor debe ser menor o igual a ' + c.max + '.');
-            } else if (v.tooShort) {
-                c.setCustomValidity('Escribe al menos ' + c.minLength + ' caracteres.');
-            }
-        }, true);
-        document.addEventListener('input', (e) => e.target.setCustomValidity && e.target.setCustomValidity(''));
-    </script>
+    {{-- La validación de formularios en español vive en resources/js/validacion.js --}}
 </body>
 
 @stack('scripts')

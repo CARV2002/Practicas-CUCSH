@@ -45,6 +45,8 @@ class ConvenioController extends Controller
             'puedeSolicitar' => $vigente === null && $enTramite === null,
             'carreras' => Carrera::with('division')->orderBy('nombre')->get(),
             'expedienteCompleto' => $empresa->expedienteEnOrden(),
+            // Motivo por el que el botón de enviar aparece deshabilitado (null = se puede enviar)
+            'motivoSolicitud' => \App\Support\Requisitos::empresaSolicitarConvenio($empresa),
         ]);
     }
 
@@ -52,33 +54,9 @@ class ConvenioController extends Controller
     public function solicitar(Request $request): RedirectResponse
     {
         $empresa = $request->user()->empresa;
-        $convenios = $empresa->convenios()->get();
-
-        if ($convenios->contains(fn(Convenio $c) => !$c->estado->esFinal())) {
-            throw ValidationException::withMessages(['convenio' => 'Ya tienes una solicitud de convenio en trámite.']);
-        }
-
-        $vigente = $convenios->first(fn(Convenio $c) => $c->estaVigente());
-
-        if ($vigente && now()->diffInDays($vigente->fecha_fin_vigencia, false) > 60) {
-            throw ValidationException::withMessages([
-                'convenio' => 'Tu convenio sigue vigente; podrás renovarlo 60 días antes de su vencimiento.',
-            ]);
-        }
-
-        $faltantes = collect(\App\Models\Empresa::coleccionesObligatorias())
-            ->filter(fn($col) => $empresa->documentoVigente($col) === null);
-
-        if (blank($empresa->representante_legal)) {
-            throw ValidationException::withMessages([
-                'convenio' => 'Captura el nombre del representante legal en la sección Documentos antes de solicitar el convenio.',
-            ]);
-        }
-
-        if ($faltantes->isNotEmpty()) {
-            throw ValidationException::withMessages([
-                'convenio' => 'Antes de solicitar el convenio sube todos los documentos obligatorios en la sección Documentos.',
-            ]);
+        // Mismas reglas que deshabilitan el botón en la vista (App\Support\Requisitos)
+        if ($motivo = \App\Support\Requisitos::empresaSolicitarConvenio($empresa)) {
+            throw ValidationException::withMessages(['convenio' => $motivo]);
         }
 
         $datos = $request->validate([

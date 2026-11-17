@@ -13,7 +13,6 @@ use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\Coordinacion\CierreController;
 use App\Http\Controllers\Coordinacion\DictamenController as CoordinacionDictamenController;
 use App\Http\Controllers\Coordinacion\ExpedienteController;
-use App\Http\Controllers\Alumno\ConvenioVigenteController;
 use App\Http\Controllers\Alumno\DatosEscolaresController;
 use App\Http\Controllers\Coordinacion\PracticanteController;
 use App\Http\Controllers\Coordinacion\ProgramaController;
@@ -91,9 +90,6 @@ Route::prefix('alumno')
 
         // Grado y turno (se imprimen en la Carta de Presentación)
         Route::put('/datos-escolares', [DatosEscolaresController::class, 'update'])->name('datos-escolares');
-
-        // Convenios vigentes por carrera (antes Vinculación los enviaba por correo)
-        Route::get('/convenios-vigentes', [ConvenioVigenteController::class, 'index'])->name('convenios-vigentes');
     });
 
 /*
@@ -175,22 +171,23 @@ Route::prefix('admin')
         Route::put('/empresas/{empresa}', [EmpresaController::class, 'update'])->name('empresas.update');
         Route::post('/empresas/{empresa}/activo', [EmpresaController::class, 'toggleActivo'])->name('empresas.activo');
 
-        // Cuentas: Vinculación da de alta coordinadores; el administrador técnico, cualquier personal
-        Route::get('/lista-usuarios', [UsuarioController::class, 'index'])->name('lista-usuarios');
-        Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
-        Route::post('/usuarios/{usuario}/activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.activo');
-        Route::post('/usuarios/{usuario}/password', [UsuarioController::class, 'restablecerPassword'])->name('usuarios.password');
-        Route::post('/usuarios/{usuario}/verificar', [UsuarioController::class, 'verificarCorreo'])->name('usuarios.verificar');
-
-        // Auditoría e informes de consulta: solo personal con alcance global
-        Route::get('/auditoria', [AuditoriaController::class, 'index'])->name('auditoria');
+        // Informes de consulta: Vinculación ve convenios; el administrador técnico, todo
         Route::get('/informes', [InformeController::class, 'index'])->name('informes');
         Route::get('/informes/{tipo}/exportar', [InformeController::class, 'exportar'])
             ->whereIn('tipo', ['practicas', 'postulaciones', 'convenios', 'programas'])
             ->name('informes.exportar');
 
-        // Estructura del catálogo (divisiones y carreras): solo el administrador técnico
+        // Administración del sistema: solo el administrador técnico
+        // (cuentas de personal y alta de coordinadores, auditoría y estructura del catálogo)
         Route::middleware('role:' . Rol::Administrador->value)->group(function () {
+            Route::get('/lista-usuarios', [UsuarioController::class, 'index'])->name('lista-usuarios');
+            Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
+            Route::post('/usuarios/{usuario}/activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.activo');
+            Route::post('/usuarios/{usuario}/password', [UsuarioController::class, 'restablecerPassword'])->name('usuarios.password');
+            Route::post('/usuarios/{usuario}/verificar', [UsuarioController::class, 'verificarCorreo'])->name('usuarios.verificar');
+
+            Route::get('/auditoria', [AuditoriaController::class, 'index'])->name('auditoria');
+
             Route::get('/catalogos', [CatalogoController::class, 'index'])->name('catalogos');
             Route::post('/catalogos/divisiones', [CatalogoController::class, 'storeDivision'])->name('catalogos.divisiones.store');
             Route::put('/catalogos/divisiones/{division}', [CatalogoController::class, 'updateDivision'])->name('catalogos.divisiones.update');

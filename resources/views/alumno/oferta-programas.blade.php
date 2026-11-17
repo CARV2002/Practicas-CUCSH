@@ -605,8 +605,10 @@
                         <div class="detail-action-bar">
                             @if ($puede)
                                 <button type="button" class="btn-action-primary" @click="abierto = !abierto" x-text="abierto ? 'Cancelar' : 'Postularme ahora'"></button>
+                            @elseif ($postulado)
+                                <button type="button" class="btn-action-primary" disabled style="opacity:.55;cursor:not-allowed;">Ya te postulaste</button>
                             @else
-                                <button type="button" class="btn-action-primary" disabled>{{ $postulado ? 'Ya te postulaste' : 'No disponible' }}</button>
+                                <x-ui.accion-bloqueada :motivo="$bloqueo">Postularme</x-ui.accion-bloqueada>
                             @endif
                         </div>
 

@@ -58,7 +58,9 @@ class DocumentoController extends Controller
         $alumno->addMediaFromRequest('archivo')->toMediaCollection('constancia_imss');
         $alumno->update(['vigencia_imss' => $datos['vigencia_imss']]);
 
-        return back()->with('status', 'Constancia IMSS enviada a revisión.');
+        $this->avisarCoordinacion($request, 'subió su constancia de vigencia IMSS para validar.', 'coordinacion.lista-practicantes');
+
+        return back()->with('status', 'Constancia IMSS enviada a tu coordinación para su validación.');
     }
 
     public function subirKardex(Request $request, Postulacion $postulacion): RedirectResponse
@@ -86,7 +88,7 @@ class DocumentoController extends Controller
 
         $this->avisarCoordinacion($request, 'subió su carta de aceptación de «' . $postulacion->programa->titulo . '»; regístrala para activar su práctica.', 'coordinacion.lista-practicantes');
 
-        return back()->with('status', 'Carta de aceptación enviada; la Coordinación la registrará.');
+        return back()->with('status', 'Carta de aceptación enviada; tu coordinación la registrará.');
     }
 
     public function subirReporte(Request $request, Reporte $reporte): RedirectResponse
@@ -222,7 +224,7 @@ class DocumentoController extends Controller
 
         $this->avisarCoordinacion($request, "envió un reporte {$datos['tipo']} de {$datos['horas_reportadas']} h por validar.", 'coordinacion.lista-reportes');
 
-        return back()->with('status', 'Reporte enviado. La Coordinación lo validará para que cuenten tus horas.');
+        return back()->with('status', 'Reporte enviado. Tu coordinación lo validará para que cuenten tus horas.');
     }
 
     private function avisarCoordinacion(Request $request, string $mensaje, string $ruta): void

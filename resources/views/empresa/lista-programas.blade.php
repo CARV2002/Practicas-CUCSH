@@ -42,12 +42,12 @@
         </div>
     @endif
 
-    @unless ($puedeCrear)
+    @if ($motivoBloqueo)
         <div class="rounded-xl border border-yellow-500 bg-yellow-50 p-4 text-sm text-yellow-800">
-            Para ofertar programas necesitas un convenio formalizado y vigente.
+            {{ $motivoBloqueo }}
             <a href="{{ route('empresa.convenio') }}" class="font-semibold underline">Ver estado de mi convenio</a>
         </div>
-    @endunless
+    @endif
 
     <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white pt-5">
         <div class="mb-5 flex flex-col gap-4 px-6 lg:flex-row lg:items-center lg:justify-between">
@@ -67,7 +67,9 @@
                     <button class="h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">Filtrar</button>
                 </form>
                 @if ($puedeCrear)
-                    <button type="button" @click="nuevo()" class="bg-brand-500 hover:bg-brand-600 h-10 rounded-lg px-4 text-sm font-medium text-white">+ Crear programa</button>
+                    <button type="button" @click="nuevo()" class="bg-brand-500 hover:bg-brand-600 h-10 rounded-lg px-4 text-sm font-medium text-white">+ Proponer vacante</button>
+                @else
+                    <x-ui.accion-bloqueada :motivo="$motivoBloqueo">+ Proponer vacante</x-ui.accion-bloqueada>
                 @endif
             </div>
         </div>
@@ -118,7 +120,7 @@
                                 @if ($pr->estado === PE::Rechazado && $pr->motivo_rechazo)
                                     <span class="mt-1 block max-w-[220px] whitespace-normal text-xs text-red-600">Motivo: {{ $pr->motivo_rechazo }}</span>
                                 @elseif ($pr->estado === PE::PendienteAprobacion)
-                                    <span class="mt-1 block text-xs text-gray-500">En revisión por la Coordinación</span>
+                                    <span class="mt-1 block text-xs text-gray-500">En revisión por la coordinación de la carrera</span>
                                 @endif
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-right">

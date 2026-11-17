@@ -30,8 +30,6 @@ function pantallasPorRol(): array
             'admin.lista-convenios',
             'admin.lista-dictamenes',
             'admin.lista-empresas',
-            'admin.lista-usuarios',
-            'admin.auditoria',
             'admin.informes',
         ],
         Rol::Coordinador->value => [
@@ -45,13 +43,19 @@ function pantallasPorRol(): array
     ];
 }
 
-/** El administrador técnico entra a Vinculación, a Coordinación y al catálogo. */
+/** Administración del sistema: solo el administrador técnico. */
+function pantallasDelSistema(): array
+{
+    return ['admin.lista-usuarios', 'admin.auditoria', 'admin.catalogos'];
+}
+
+/** El administrador técnico entra a Vinculación, a Coordinación y a la administración del sistema. */
 function pantallasDelAdministrador(): array
 {
     return [
         ...pantallasPorRol()[Rol::Vinculacion->value],
         ...pantallasPorRol()[Rol::Coordinador->value],
-        'admin.catalogos',
+        ...pantallasDelSistema(),
     ];
 }
 
@@ -93,7 +97,7 @@ test('cada rol entra a todas sus pantallas y se renderizan', function () {
     }
 });
 
-test('el administrador técnico entra a Vinculación, Coordinación y catálogos', function () {
+test('el administrador técnico entra a Vinculación, Coordinación y a la administración del sistema', function () {
     $admin = usuarioConRol(Rol::Administrador->value);
 
     foreach (pantallasDelAdministrador() as $ruta) {
@@ -131,9 +135,20 @@ test('Vinculación no opera prácticas y Coordinación no opera convenios ni cat
         $this->actingAs($coordinador)->get(route($ruta))->assertForbidden();
     }
 
-    // La estructura del catálogo es solo del administrador técnico
-    $this->actingAs($vinculacion)->get(route('admin.catalogos'))->assertForbidden();
-    $this->actingAs($coordinador)->get(route('admin.catalogos'))->assertForbidden();
+    // Usuarios, auditoría y catálogo son solo del administrador técnico
+    foreach (pantallasDelSistema() as $ruta) {
+        $this->actingAs($vinculacion)->get(route($ruta))->assertForbidden();
+        $this->actingAs($coordinador)->get(route($ruta))->assertForbidden();
+    }
+    $this->actingAs($vinculacion)->post(route('admin.usuarios.store'), [])->assertForbidden();
+
+    // Informes: Vinculación solo ve y exporta convenios
+    $this->actingAs($vinculacion)->get(route('admin.informes'))->assertOk()
+        ->assertSee('Informes de convenios')->assertDontSee('Resumen de prácticas');
+    $this->actingAs($vinculacion)->get(route('admin.informes.exportar', 'convenios'))->assertOk();
+    foreach (['practicas', 'postulaciones', 'programas'] as $tipo) {
+        $this->actingAs($vinculacion)->get(route('admin.informes.exportar', $tipo))->assertForbidden();
+    }
 });
 
 test('un visitante sin sesión es enviado al login', function () {
@@ -209,27 +224,31 @@ test('un coordinador solo ve en sus pantallas las carreras de su alcance', funct
         ->and($otra->fresh()->horas_requeridas)->toBe(300);
 });
 
-test('Vinculación da de alta coordinadores con alcance obligatorio y no puede crear otros roles', function () {
-    $vinculacion = usuarioConRol(Rol::Vinculacion->value);
+test('el administrador técnico da de alta coordinadores con alcance obligatorio y a Vinculación', function () {
+    $admin = usuarioConRol(Rol::Administrador->value);
     $datos = ['name' => 'Coord Nueva', 'email' => 'coord.nueva@udg.mx', 'password' => 'Secreta123!', 'password_confirmation' => 'Secreta123!'];
 
-    // Sin carrera ni división: se rechaza
-    $this->actingAs($vinculacion)->post(route('admin.usuarios.store'), $datos + ['rol' => 'coordinador'])
+    // Un coordinador sin carrera ni división se rechaza
+    $this->actingAs($admin)->post(route('admin.usuarios.store'), $datos + ['rol' => 'coordinador'])
         ->assertSessionHasErrors('carrera_id');
 
-    // No puede crear administradores ni otra Vinculación
-    $this->actingAs($vinculacion)->post(route('admin.usuarios.store'), $datos + ['rol' => 'administrador'])
-        ->assertSessionHasErrors('rol');
-
-    $this->actingAs($vinculacion)->post(route('admin.usuarios.store'), $datos + ['rol' => 'coordinador', 'carrera_id' => carreraDePrueba()->id])
+    $this->actingAs($admin)->post(route('admin.usuarios.store'), $datos + ['rol' => 'coordinador', 'carrera_id' => carreraDePrueba()->id])
         ->assertSessionHasNoErrors();
 
     $nuevo = User::where('email', 'coord.nueva@udg.mx')->first();
     expect($nuevo->hasRole(Rol::Coordinador->value))->toBeTrue()
         ->and($nuevo->personal->carrera_id)->toBe(carreraDePrueba()->id);
 
-    // Vinculación no toca la cuenta del administrador técnico
-    $admin = usuarioConRol(Rol::Administrador->value);
-    $this->actingAs($vinculacion)->post(route('admin.usuarios.activo', $admin))->assertForbidden();
-    expect($admin->fresh()->activo)->not->toBeFalse();
+    // Vinculación nace con alcance global aunque se mande una carrera
+    $this->actingAs($admin)->post(route('admin.usuarios.store'), [
+        'name' => 'Lorena', 'email' => 'vinculacion@udg.mx', 'password' => 'Secreta123!', 'password_confirmation' => 'Secreta123!',
+        'rol' => 'vinculacion', 'carrera_id' => carreraDePrueba()->id,
+    ])->assertSessionHasNoErrors();
+
+    $lorena = User::where('email', 'vinculacion@udg.mx')->first();
+    expect($lorena->hasRole(Rol::Vinculacion->value))->toBeTrue()
+        ->and($lorena->personal->tieneAlcanceGlobal())->toBeTrue();
+
+    $this->actingAs($lorena)->get(route('admin.dashboard'))->assertOk();
+    $this->actingAs($nuevo)->get(route('coordinacion.dashboard'))->assertOk();
 });

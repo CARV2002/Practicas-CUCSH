@@ -133,7 +133,7 @@
                 <div>
                     <h4 class="text-base font-bold text-gray-900">
                         {{ $puedeRenovar ? 'Solicitar renovación' : 'Solicitar convenio con el CUCSH' }}</h4>
-                    <p class="text-xs text-gray-500">Describe la colaboración propuesta. La Coordinación revisará tu expediente
+                    <p class="text-xs text-gray-500">Describe la colaboración propuesta. Vinculación revisará tu expediente
                         y lo turnará a las carreras.</p>
                 </div>
 
@@ -190,9 +190,13 @@
                 </div>
 
                 <div class="flex justify-end">
-                    <button class="bg-brand-500 hover:bg-brand-600 rounded-lg px-5 py-2.5 text-sm font-medium text-white">
-                        {{ $puedeRenovar ? 'Enviar renovación' : 'Enviar solicitud' }}
-                    </button>
+                    @if ($motivoSolicitud)
+                        <x-ui.accion-bloqueada :motivo="$motivoSolicitud">{{ $puedeRenovar ? 'Enviar renovación' : 'Enviar solicitud' }}</x-ui.accion-bloqueada>
+                    @else
+                        <button class="bg-brand-500 hover:bg-brand-600 rounded-lg px-5 py-2.5 text-sm font-medium text-white">
+                            {{ $puedeRenovar ? 'Enviar renovación' : 'Enviar solicitud' }}
+                        </button>
+                    @endif
                 </div>
             </form>
         @endif

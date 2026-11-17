@@ -283,6 +283,13 @@ test('una empresa no puede tocar los programas de otra', function () {
 });
 
 test('una empresa no puede crear programas bajo el convenio de otra', function () {
+    // La otra empresa tiene su propio convenio vigente (si no, ni siquiera puede proponer vacantes)
+    Convenio::create([
+        'empresa_id' => $this->otraEmpresa->id, 'estado' => ConvenioEstado::Formalizado, 'folio' => 'CV-T-002',
+        'fecha_recepcion' => now()->subMonths(3), 'fecha_inicio_vigencia' => now()->subMonth(),
+        'fecha_fin_vigencia' => now()->addYears(3), 'objetivos' => 'x', 'actividades_propuestas' => 'y', 'plazas_estimadas' => 1,
+    ]);
+
     $this->actingAs($this->otraEmpresaUser)->post(route('empresa.programas.store'), [
         'convenio_id' => $this->convenio->id,
         'carrera_id' => $this->abogado->id,

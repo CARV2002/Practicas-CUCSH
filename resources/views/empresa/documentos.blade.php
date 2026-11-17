@@ -46,7 +46,7 @@
         @if ($bloqueado)
             <div class="rounded-xl border border-blue-500 bg-blue-50 p-4 text-sm text-blue-800">
                 Tu convenio está en revisión, por lo que los documentos están bloqueados. Se habilitarán de nuevo si la
-                Coordinación rechaza un documento o la solicitud.
+                Vinculación rechaza un documento o la solicitud.
             </div>
         @endif
 
@@ -55,7 +55,7 @@
                 <div>
                     <h3 class="text-lg font-bold text-gray-900">Expediente de la empresa</h3>
                     <p class="mt-0.5 text-sm text-gray-500">Sube tus documentos en PDF (el currículum también acepta Word).
-                        La Coordinación los validará.</p>
+                        Vinculación los validará.</p>
                 </div>
                 <span
                     class="rounded-full px-3 py-1 text-xs font-semibold {{ $expedienteEnOrden ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700' }}">
@@ -122,7 +122,7 @@
 
         <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5 text-xs leading-relaxed text-gray-500">
             <strong>¿Necesitas cambiar un documento ya validado?</strong> (cambio de apoderado, domicilio fiscal, etc.)
-            Contacta a la Coordinación de Prácticas Profesionales: {{ config('practicas.contacto.correo') }}
+            Contacta a Vinculación (convenios): {{ config('practicas.contacto.correo') }}
         </div>
     </div>
 @endsection

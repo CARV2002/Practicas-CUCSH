@@ -68,6 +68,7 @@ class ConvenioWorkflow
 
             $this->abrirEtapa($convenio, EtapaConvenio::RevisionDocumentos, null);
             $this->avisarAdministradores($convenio);
+            $this->avisarEmpresa($convenio, 'Recibimos tu solicitud de convenio. Vinculación revisará tu expediente.');
 
             return $convenio;
         });
@@ -328,7 +329,7 @@ class ConvenioWorkflow
             ]);
 
             $this->cerrarEtapa($convenio, EtapaConvenio::ArchivoDistribucion, SeguimientoEstado::Aprobado, $por, $comentario);
-            $this->avisarEmpresa($convenio, "Tu convenio quedó formalizado (folio {$folio}), vigente del {$inicio->format('d/m/Y')} al {$fin->format('d/m/Y')}. Ya puedes publicar tus ofertas.");
+            $this->avisarEmpresa($convenio, "Tu convenio quedó formalizado (folio {$folio}), vigente del {$inicio->format('d/m/Y')} al {$fin->format('d/m/Y')}. Ya puedes proponer vacantes para las carreras aprobadas.");
 
             return $convenio;
         });
@@ -399,6 +400,7 @@ class ConvenioWorkflow
         // Jurídica regresa el Word: Lorena corrige y vuelve a turnar. Queda el historial completo.
         $this->cerrarEtapa($convenio, EtapaConvenio::DictamenJuridico, SeguimientoEstado::Observado, $por, $comentario);
         $this->abrirEtapa($convenio, EtapaConvenio::RedaccionBorrador, null, 'Corregir el borrador según las observaciones de Jurídica.');
+        $this->avisarEmpresa($convenio, 'La Unidad Jurídica hizo observaciones al borrador. Vinculación lo está corrigiendo.');
     }
 
     /**
@@ -414,10 +416,19 @@ class ConvenioWorkflow
         });
     }
 
-    /** Avisa a la Coordinación (alcance global) que llegó una solicitud nueva: campana + correo. */
+    /**
+     * Avisa a Vinculación que llegó una solicitud nueva: campana + correo de cada cuenta de Vinculación
+     * y, además, correo al buzón institucional de Prácticas (config practicas.contacto.correo).
+     */
     private function avisarAdministradores(Convenio $convenio): void
     {
-        Avisos::enviar(Avisos::vinculacion(), new NuevaSolicitudConvenio($convenio));
+        $vinculacion = Avisos::vinculacion();
+        Avisos::enviar($vinculacion, new NuevaSolicitudConvenio($convenio));
+
+        $buzon = config('practicas.contacto.correo');
+        if ($buzon && !$vinculacion->contains(fn($u) => strcasecmp($u->email, $buzon) === 0)) {
+            Avisos::enviarCorreo($buzon, new NuevaSolicitudConvenio($convenio));
+        }
     }
 
     private function abrirEtapa(Convenio $convenio, EtapaConvenio $etapa, ?Personal $por, ?string $comentario = null): ConvenioSeguimiento

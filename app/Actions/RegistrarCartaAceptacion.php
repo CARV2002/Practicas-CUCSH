@@ -36,7 +36,7 @@ class RegistrarCartaAceptacion
             $postulacion->update(['estado' => PostulacionEstado::CartaAceptacionRecibida]);
 
             Avisos::enviar($postulacion->alumno->user, new AvisoOperativo(
-                mensaje: 'La Coordinación registró tu carta de aceptación de «' . $postulacion->programa->titulo . '». En breve activará tu práctica.',
+                mensaje: 'Tu coordinación registró tu carta de aceptación de «' . $postulacion->programa->titulo . '». En breve activará tu práctica.',
                 url: route('alumno.mis-practicas', absolute: false),
             ));
 

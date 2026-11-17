@@ -60,7 +60,7 @@ class PracticanteController extends Controller
         ]);
     }
 
-    /** La empresa solo escribe su retroalimentación; la validación de horas es de la Coordinación. */
+    /** La empresa solo escribe su retroalimentación; la validación de horas es de la coordinación de la carrera. */
     public function retroalimentar(Request $request, Reporte $reporte): RedirectResponse
     {
         $this->authorize('retroalimentar', $reporte);

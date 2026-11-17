@@ -62,7 +62,7 @@ abstract class AvisoPracticas extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject($this->asunto())
-            ->greeting('Hola '.$notifiable->name)
+            ->greeting('Hola ' . data_get($notifiable, 'name', 'equipo de Prácticas Profesionales'))
             ->line($this->texto())
             ->action('Abrir en la plataforma', url($this->ruta()))
             ->salutation('Prácticas Profesionales · CUCSH');

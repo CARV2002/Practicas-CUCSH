@@ -194,6 +194,21 @@
                                                 @endforeach
                                             </ul>
                                         </div>
+                                    @elseif (!empty($item['bloqueado']))
+                                        <!-- Pestaña deshabilitada: se ve, pero explica por qué aún no se puede usar -->
+                                        <span role="link" aria-disabled="true" tabindex="0" title="{{ $item['bloqueado'] }}"
+                                            class="menu-item group menu-item-inactive cursor-not-allowed opacity-60"
+                                            :class="(!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen) ? 'xl:justify-center' : 'justify-start'">
+                                            <span class="menu-item-icon-inactive">{!! MenuHelper::getIconSvg($item['icon']) !!}</span>
+                                            <span x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen"
+                                                class="menu-item-text flex flex-col items-start">
+                                                <span class="flex items-center gap-1.5">
+                                                    {{ $item['name'] }}
+                                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                                                </span>
+                                                <span class="text-[11px] font-normal leading-tight text-gray-500">{{ $item['bloqueado'] }}</span>
+                                            </span>
+                                        </span>
                                     @else
                                         <!-- Simple Menu Item -->
                                         <a href="{{ $item['path'] }}" class="menu-item group"

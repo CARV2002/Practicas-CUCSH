@@ -5,16 +5,19 @@ namespace App\Enums;
 /**
  * Roles del sistema (spatie/laravel-permission).
  *
- *  - Administrador: superusuario técnico. Entra a todo (Vinculación y Coordinación) y da de alta personal.
- *  - Vinculacion:   Vinculación / Prácticas Profesionales (Lorena). Solo el trámite de convenios:
- *                   empresas, expedientes, turnos, dictámenes capturados, firmas, formalización y alta de coordinadores.
- *  - Coordinador:   Coordinación de carrera (o Dirección de división). Todo lo académico del alumno:
- *                   programas/vacantes, postulaciones, reportes, cierres y reglas de su carrera.
+ *  - Administrador: superusuario técnico. Entra a todo (Vinculación y Coordinación) y es el único que administra
+ *                   cuentas de personal (alta de Vinculación y de cada coordinación), catálogo y auditoría.
+ *  - Vinculacion:   Vinculación / Prácticas Profesionales (Lorena). Solo el trámite de convenios: empresas y
+ *                   expedientes, turno a Secretaría/División, seguimiento de dictámenes, Jurídica, firmas y formalización.
+ *  - Coordinador:   Coordinación de carrera (o de división). Dictamina la pertinencia de los convenios de su carrera
+ *                   y lleva todo lo académico del alumno: aprueba vacantes, proyectos internos, expediente (IMSS/kardex),
+ *                   carta de presentación, reportes, cierre y reglas de su carrera.
  *                   Su perfil de Personal DEBE tener carrera_id o division_id (alcance).
  *  - Empresa:       tramita su convenio y ofrece vacantes.
  *  - Alumno:        consulta ofertas y gestiona su práctica.
  *
- * Secretaría Académica, Jurídica, Rectoría y Control Escolar no usan el sistema: Vinculación captura sus turnos y firmas.
+ * Secretaría Académica, División, Jurídica, Rectoría y Control Escolar no usan el sistema: Vinculación registra
+ * los turnos, el dictamen jurídico y las firmas; la coordinación registra el envío a Control Escolar y la captura en SIIAU.
  */
 enum Rol: string
 {

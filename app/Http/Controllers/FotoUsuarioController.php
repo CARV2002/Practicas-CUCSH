@@ -24,8 +24,13 @@ class FotoUsuarioController extends Controller
 
     private function puedeVer(User $viewer, User $dueno): bool
     {
-        if ($viewer->is($dueno) || $viewer->hasAnyRole(Rol::deVinculacion())) {
+        if ($viewer->is($dueno) || $viewer->hasRole(Rol::Administrador->value)) {
             return true;
+        }
+
+        // Vinculación trata con empresas y personal, no con alumnos
+        if ($viewer->hasRole(Rol::Vinculacion->value)) {
+            return $dueno->alumno === null;
         }
 
         // La coordinación ve a los alumnos de su carrera/división

@@ -31,9 +31,11 @@ class InformeController extends Controller
 
         $personal = $request->user()->personal;
         $ids = $personal->carreraIdsEnAlcance();
+        $completo = $this->esAdministrador($request);
 
-        // --- Resumen de prácticas (con los filtros de carrera y fechas)
-        $practicas = $this->practicas($request, $personal)->get();
+        // --- Resumen de prácticas: es información académica, solo la ve el administrador técnico
+        // (Vinculación no opera el proceso del alumno; cada coordinación lo ve en su panel)
+        $practicas = $completo ? $this->practicas($request, $personal)->get() : collect();
 
         $porCarrera = $practicas
             ->groupBy(fn (Practica $p) => $p->postulacion->alumno->carrera_id)
@@ -95,6 +97,7 @@ class InformeController extends Controller
         ])->all();
 
         return view('admin.informes', [
+            'completo' => $completo,
             'resumen' => $resumen,
             'porCarrera' => $porCarrera,
             'conveniosResumen' => $conveniosResumen,
@@ -112,6 +115,9 @@ class InformeController extends Controller
 
     public function exportar(Request $request, string $tipo): StreamedResponse
     {
+        // Vinculación solo exporta convenios; prácticas, postulaciones y programas son del ámbito académico
+        abort_unless($tipo === 'convenios' || $this->esAdministrador($request), 403);
+
         $this->validar($request);
 
         $personal = $request->user()->personal;
@@ -250,6 +256,11 @@ class InformeController extends Controller
     }
 
     /* ------------------------------- Helpers ------------------------------- */
+
+    private function esAdministrador(Request $request): bool
+    {
+        return $request->user()->hasRole(\App\Enums\Rol::Administrador->value);
+    }
 
     private function validar(Request $request): void
     {

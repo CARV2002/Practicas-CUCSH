@@ -11,6 +11,12 @@ class ConvenioActualizado extends AvisoPracticas
     {
     }
 
+    /** La empresa sigue cada etapa de su convenio en la campana de la plataforma (sin correo por etapa). */
+    protected function porCorreo(): bool
+    {
+        return false;
+    }
+
     protected function texto(): string
     {
         return $this->mensaje;

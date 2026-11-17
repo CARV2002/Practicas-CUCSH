@@ -47,7 +47,7 @@ class NuevaSolicitudConvenio extends AvisoPracticas
 
         $mensaje = (new MailMessage)
             ->subject($this->asunto())
-            ->greeting('Hola '.$notifiable->name)
+            ->greeting('Hola ' . data_get($notifiable, 'name', 'equipo de Prácticas Profesionales'))
             ->line("La empresa **{$e->razon_social}** ({$e->rfc}, {$e->tipo_organismo->label()}) envió una solicitud de convenio.")
             ->line("**Contacto:** {$contacto}")
             ->line('**Carreras de interés:** '.$c->dictamenes->map(fn ($d) => $d->carrera->nombre)->join('; '))

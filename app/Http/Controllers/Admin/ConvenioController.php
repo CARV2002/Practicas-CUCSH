@@ -106,7 +106,7 @@ class ConvenioController extends Controller
             ));
         } elseif ($empresa->fresh()->expedienteCompleto()) {
             Avisos::enviar($empresa->user, new AvisoOperativo(
-                mensaje: 'Tu expediente quedó completo y validado. La Coordinación turnará tu solicitud a las carreras.',
+                mensaje: 'Tu expediente quedó completo y validado. Vinculación turnará tu solicitud a las carreras.',
                 url: route('empresa.convenio', absolute: false),
             ));
         }

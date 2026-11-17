@@ -130,9 +130,14 @@
                                                     @csrf
                                                     <input type="text" name="motivo" placeholder="Motivo (obligatorio si rechaza)"
                                                         maxlength="1000" class="{{ $input }} !w-56 text-xs">
-                                                    <div class="flex gap-2">
-                                                        <button name="estado" value="validada"
-                                                            class="rounded-lg border border-green-500 px-3 py-1.5 text-xs font-medium text-green-700">Validar</button>
+                                                    @php $faltaValidar = \App\Support\Requisitos::validarCartaTermino($pr); @endphp
+                                                    <div class="flex items-start gap-2">
+                                                        @if ($faltaValidar)
+                                                            <x-ui.accion-bloqueada :motivo="$faltaValidar" tamano="chico">Validar</x-ui.accion-bloqueada>
+                                                        @else
+                                                            <button name="estado" value="validada" formnovalidate
+                                                                class="rounded-lg border border-green-500 px-3 py-1.5 text-xs font-medium text-green-700">Validar</button>
+                                                        @endif
                                                         <button name="estado" value="rechazada"
                                                             class="rounded-lg border border-red-500 px-3 py-1.5 text-xs font-medium text-red-700">Rechazar</button>
                                                     </div>
