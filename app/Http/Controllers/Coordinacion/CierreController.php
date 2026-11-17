@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Coordinacion;
 
 use App\Enums\PracticaEstado;
 use App\Enums\ValidacionEstado;
@@ -48,7 +48,7 @@ class CierreController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        return view('admin.lista-cierres', ['practicas' => $practicas, 'ver' => $todas ? 'todas' : 'pendientes']);
+        return view('coordinacion.lista-cierres', ['practicas' => $practicas, 'ver' => $todas ? 'todas' : 'pendientes']);
     }
 
     /** Valida o rechaza la carta de término. Validarla exige horas completas (lo aplica CartaTerminoObserver). */

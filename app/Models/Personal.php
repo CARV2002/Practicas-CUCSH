@@ -8,11 +8,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\Concerns\Auditable;
 
 /**
- * Personal institucional. El rol (vinculación, coordinador, director, jurídico...) está en Spatie;
+ * Personal institucional. El rol (administrador, vinculación, coordinador) está en Spatie;
  * esta tabla solo define el ALCANCE:
  *   carrera_id  -> coordinador de esa carrera
- *   division_id -> director de esa división (ve todas sus carreras)
- *   ninguno     -> alcance global
+ *   division_id -> coordinación de división (ve todas sus carreras)
+ *   ninguno     -> alcance global (solo Vinculación y Administrador; un Coordinador SIEMPRE tiene alcance)
  */
 class Personal extends Model
 {
@@ -50,6 +50,12 @@ class Personal extends Model
     public function tieneAlcanceGlobal(): bool
     {
         return $this->carrera_id === null && $this->division_id === null;
+    }
+
+    /** Un Coordinador siempre debe tener carrera o división: nunca alcance global. */
+    public function tieneAlcanceDeCoordinacion(): bool
+    {
+        return $this->carrera_id !== null || $this->division_id !== null;
     }
 
     /** @return int[]|null null = todas las carreras */

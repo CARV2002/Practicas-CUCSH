@@ -54,7 +54,7 @@ class AvisosProgramados extends Command
                 $enviados++;
             }
 
-            foreach (Avisos::administradoresDe($c) as $admin) {
+            foreach (Avisos::vinculacionDe($c) as $admin) {
                 if (! $this->yaAvisado($admin, $clave)) {
                     Avisos::enviar($admin, new AvisoOperativo(
                         mensaje: $texto,
@@ -80,7 +80,7 @@ class AvisosProgramados extends Command
                 $clave = "espera-{$s->id}";
                 $max = $s->etapa->diasHabilesDocumentados()[1];
 
-                foreach (Avisos::administradoresDe($s->convenio) as $admin) {
+                foreach (Avisos::vinculacionDe($s->convenio) as $admin) {
                     if (! $this->yaAvisado($admin, $clave)) {
                         Avisos::enviar($admin, new AvisoOperativo(
                             mensaje: "{$s->convenio->empresa->razon_social}: «{$s->etapa->label()}» lleva {$s->diasHabiles()} días hábiles (máximo documentado: {$max}). Pendiente de: {$s->etapa->responsable()}.",

@@ -33,7 +33,7 @@ class MediaPolicy
 
         return match (true) {
             $dueno instanceof Alumno => $this->alumnoId($user) === (int) $dueno->id
-                || $this->adminVeCarrera($user, (int) $dueno->carrera_id),
+                || $this->coordinaCarrera($user, (int) $dueno->carrera_id),
 
             $dueno instanceof Postulacion => $user->can('subirDocumento', $dueno) || $user->can('gestionar', $dueno),
 
@@ -46,16 +46,17 @@ class MediaPolicy
 
             $dueno instanceof OficioAcreditacion => $user->can('gestionar', $dueno->practica),
 
-            $dueno instanceof Empresa => $this->esAdmin($user) || $this->empresaId($user) === (int) $dueno->id,
+            $dueno instanceof Empresa => $this->esVinculacion($user) || $this->empresaId($user) === (int) $dueno->id,
 
             // La empresa solo ve el firmado; los borradores (versiones de Jurídica) son internos
-            $dueno instanceof Convenio => $this->esAdmin($user)
+            $dueno instanceof Convenio => $this->esVinculacion($user)
                 ? $user->can('view', $dueno)
                 : ($media->collection_name === 'convenio_firmado' && $user->can('descargarFirmado', $dueno)),
 
-            $dueno instanceof ConvenioCarrera => $this->adminVeCarrera($user, (int) $dueno->carrera_id),
+            $dueno instanceof ConvenioCarrera => ($this->esVinculacion($user) && $user->personal->puedeVerCarrera((int) $dueno->carrera_id))
+                || $this->coordinaCarrera($user, (int) $dueno->carrera_id),
 
-            $dueno instanceof ConvenioSeguimiento => $this->esAdmin($user) && $user->can('view', $dueno->convenio),
+            $dueno instanceof ConvenioSeguimiento => $this->esVinculacion($user) && $user->can('view', $dueno->convenio),
 
             default => false,
         };

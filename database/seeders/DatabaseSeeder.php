@@ -31,22 +31,20 @@ class DatabaseSeeder extends Seeder
         $this->call(ConvenioSeeder::class);
 
         // En producción NO se siembran cuentas con contraseña conocida:
-        // el administrador se crea con `php artisan practicas:crear-administrador correo@udg.mx`.
+        // el administrador técnico se crea con `php artisan practicas:crear-administrador correo@udg.mx`
+        // y desde Usuarios da de alta a Vinculación; Vinculación da de alta a cada coordinación.
         if (! app()->environment('local')) {
             return;
         }
 
-        // Lorena (Coordinación de Prácticas): rol administrador + perfil de Personal SIN alcance (= global).
-        // Todos los pasos de ConvenioWorkflow reciben este perfil.
-        $lorena = $this->usuario('admin@test.com', 'Administradora de Prácticas', Rol::Administrador);
-        Personal::firstOrCreate(['user_id' => $lorena->id], [
-            'puesto' => 'Coordinación de Prácticas Profesionales',
-        ]);
-
         // Datos ficticios para probar el flujo en local. Las divisiones y carreras reales
         // (con sus horas y % de créditos) se capturan desde el catálogo de la aplicación.
         $this->datosDemo();
-        $this->call(DemoOperacionSeeder::class); 
+
+        // Administrador técnico, Vinculación (Lorena) y una coordinación por carrera demo (ABOG, CRIM, DEMO)
+        $this->call(PersonalSeeder::class);
+
+        $this->call(DemoOperacionSeeder::class);
     }
 
     private function datosDemo(): void

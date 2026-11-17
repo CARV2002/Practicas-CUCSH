@@ -18,9 +18,9 @@ class PostulacionPolicy
         return $alumnoId !== null && (int) $postulacion->alumno_id === $alumnoId;
     }
 
-    /** Validar, emitir carta, activar, rechazar: la Coordinación con alcance sobre la carrera del alumno. */
+    /** Validar, emitir carta, activar, rechazar: la Coordinación de la carrera del alumno (Vinculación no). */
     public function gestionar(User $user, Postulacion $postulacion): bool
     {
-        return $this->adminVeCarrera($user, (int) $postulacion->alumno->carrera_id);
+        return $this->coordinaCarrera($user, (int) $postulacion->alumno->carrera_id);
     }
 }

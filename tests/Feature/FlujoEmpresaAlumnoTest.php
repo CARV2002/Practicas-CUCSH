@@ -80,8 +80,11 @@ beforeEach(function () {
     $this->abogado = Carrera::create($datos + ['carrera_clave' => 'ABOG', 'nombre' => 'Abogado']);
     $this->historia = Carrera::create($datos + ['carrera_clave' => 'HIST', 'nombre' => 'Historia']);
 
-    $this->adminUser = escUsuario(Rol::Administrador);
-    $this->lorena = Personal::create(['user_id' => $this->adminUser->id, 'puesto' => 'Coordinación']);
+    // Vinculación (Lorena) lleva convenios; la coordinación de Abogado opera el proceso del alumno
+    $this->adminUser = escUsuario(Rol::Vinculacion);
+    $this->lorena = Personal::create(['user_id' => $this->adminUser->id, 'puesto' => 'Vinculación']);
+    $this->coordUser = escUsuario(Rol::Coordinador);
+    Personal::create(['user_id' => $this->coordUser->id, 'carrera_id' => $this->abogado->id, 'puesto' => 'Coordinación ABOG']);
 
     [$this->empresaUser, $this->empresa] = escEmpresa('EPA010101AB1');
     [$this->otraEmpresaUser, $this->otraEmpresa] = escEmpresa('EPB020202CD2');
@@ -156,7 +159,7 @@ test('empresa publica, alumno se postula y la práctica llega a acreditada', fun
         ->and($po->getMedia('kardex'))->toHaveCount(1);
 
     // 3. Coordinación emite la carta de presentación (reserva cupo)
-    $this->actingAs($this->adminUser)->post(route('admin.postulaciones.carta', $po))->assertSessionHasNoErrors()->assertRedirect();
+    $this->actingAs($this->coordUser)->post(route('coordinacion.postulaciones.carta', $po))->assertSessionHasNoErrors()->assertRedirect();
     expect($po->refresh()->estado)->toBe(PostulacionEstado::CartaPresentacionEmitida)
         ->and($programa->refresh()->cupos_disponibles)->toBe(1);
 
@@ -164,12 +167,12 @@ test('empresa publica, alumno se postula y la práctica llega a acreditada', fun
     $this->actingAs($this->empresaUser)->get(route('empresa.programas.postulantes', $programa))->assertSee('215000001');
 
     // 4. Se registra la carta de aceptación y se activa la práctica
-    $this->actingAs($this->adminUser)
-        ->post(route('admin.postulaciones.aceptacion', $po), ['archivo' => escPdf('aceptacion.pdf')])
+    $this->actingAs($this->coordUser)
+        ->post(route('coordinacion.postulaciones.aceptacion', $po), ['archivo' => escPdf('aceptacion.pdf')])
         ->assertSessionHasNoErrors()->assertRedirect();
     expect($po->refresh()->estado)->toBe(PostulacionEstado::CartaAceptacionRecibida);
 
-    $this->actingAs($this->adminUser)->post(route('admin.postulaciones.activar', $po), [
+    $this->actingAs($this->coordUser)->post(route('coordinacion.postulaciones.activar', $po), [
         'fecha_inicio' => today()->toDateString(),
         'fecha_fin' => today()->addMonths(6)->toDateString(),
     ])->assertSessionHasNoErrors()->assertRedirect();
@@ -190,8 +193,8 @@ test('empresa publica, alumno se postula y la práctica llega a acreditada', fun
     $reporte = Reporte::firstOrFail();
     expect($reporte->getMedia('reporte_firmado'))->toHaveCount(1);
 
-    $this->actingAs($this->adminUser)
-        ->post(route('admin.reportes.resolver', $reporte), ['estado' => 'validado', 'evaluacion_profesor' => 'Bien'])
+    $this->actingAs($this->coordUser)
+        ->post(route('coordinacion.reportes.resolver', $reporte), ['estado' => 'validado', 'evaluacion_profesor' => 'Bien'])
         ->assertSessionHasNoErrors()->assertRedirect();
     expect($practica->refresh()->progresoTexto())->toBe('250/250');
 
@@ -206,16 +209,16 @@ test('empresa publica, alumno se postula y la práctica llega a acreditada', fun
         ->assertSessionHasNoErrors()->assertRedirect();
 
    // Coordinación valida la carta, registra el oficio y confirma Control Escolar / SIIAU
-    $admin = $this->actingAs($this->adminUser);
+    $admin = $this->actingAs($this->coordUser);
 
-    $admin->post(route('admin.cierres.carta', $practica), ['estado' => 'validada'])->assertSessionHasNoErrors()->assertRedirect();
+    $admin->post(route('coordinacion.cierres.carta', $practica), ['estado' => 'validada'])->assertSessionHasNoErrors()->assertRedirect();
     expect($practica->refresh()->estado)->toBe(PracticaEstado::EnCierre);
 
-    $admin->post(route('admin.cierres.oficio', $practica), ['archivo' => escPdf('oficio.pdf')])->assertSessionHasNoErrors()->assertRedirect();
-    $admin->post(route('admin.cierres.enviar', $practica))->assertSessionHasNoErrors()->assertRedirect();
+    $admin->post(route('coordinacion.cierres.oficio', $practica), ['archivo' => escPdf('oficio.pdf')])->assertSessionHasNoErrors()->assertRedirect();
+    $admin->post(route('coordinacion.cierres.enviar', $practica))->assertSessionHasNoErrors()->assertRedirect();
     expect($practica->refresh()->estado)->toBe(PracticaEstado::EnCierre);   // aún no acreditada
 
-    $admin->post(route('admin.cierres.siiau', $practica))->assertSessionHasNoErrors()->assertRedirect();
+    $admin->post(route('coordinacion.cierres.siiau', $practica))->assertSessionHasNoErrors()->assertRedirect();
     expect($practica->refresh()->estado)->toBe(PracticaEstado::Acreditada);
     $this->actingAs($this->anaUser)->get(route('alumno.mis-practicas'))->assertSee('Acreditada');
 });
@@ -392,30 +395,30 @@ test('la carta de término no se valida si faltan horas y el cierre respeta su o
     $practica = Practica::create(['postulacion_id' => $po->id, 'modalidad' => 'externa', 'fecha_inicio' => today()->subMonth(),
         'fecha_fin' => today()->addMonths(5), 'horas_requeridas' => 250, 'estado' => PracticaEstado::EnCurso]);
 
+    // Sin horas completas el alumno ni siquiera puede subir la carta de término
     $this->actingAs($this->anaUser)
         ->post(route('alumno.documentos.termino', $practica), ['archivo' => escPdf('termino.pdf')])
-        ->assertSessionHasNoErrors();
+        ->assertSessionHasErrors('archivo');
+    expect(CartaTermino::count())->toBe(0);
 
-    $admin = $this->actingAs($this->adminUser);
+    // Aun si la carta llega por otra vía (p. ej. captura previa), la coordinación no puede validarla sin horas
+    $carta = CartaTermino::create(['practica_id' => $practica->id]);
+    $carta->addMedia(escPdf('termino.pdf'))->toMediaCollection('carta_termino');
 
-    // Sin horas completas no se puede validar
-    $admin->post(route('admin.cierres.carta', $practica), ['estado' => 'validada'])->assertSessionHasErrors('carta_termino');
+    $admin = $this->actingAs($this->coordUser);
+
+    $admin->post(route('coordinacion.cierres.carta', $practica), ['estado' => 'validada'])->assertSessionHasErrors('carta_termino');
     expect($practica->refresh()->estado)->toBe(PracticaEstado::EnCurso);
 
-    // Un rechazo exige motivo; con motivo, el alumno puede reenviar y vuelve a "pendiente"
-    $admin->post(route('admin.cierres.carta', $practica), ['estado' => 'rechazada'])->assertSessionHasErrors('motivo');
-    $admin->post(route('admin.cierres.carta', $practica), ['estado' => 'rechazada', 'motivo' => 'Falta la firma'])->assertSessionHasNoErrors();
+    // Un rechazo exige motivo
+    $admin->post(route('coordinacion.cierres.carta', $practica), ['estado' => 'rechazada'])->assertSessionHasErrors('motivo');
+    $admin->post(route('coordinacion.cierres.carta', $practica), ['estado' => 'rechazada', 'motivo' => 'Falta la firma'])->assertSessionHasNoErrors();
     expect($practica->cartaTermino->refresh()->estado_validacion)->toBe(ValidacionEstado::Rechazada);
 
-    $this->actingAs($this->anaUser)
-        ->post(route('alumno.documentos.termino', $practica), ['archivo' => escPdf('termino2.pdf')])
-        ->assertSessionHasNoErrors();
-    expect($practica->cartaTermino->refresh()->estado_validacion)->toBe(ValidacionEstado::Pendiente);
-
     // El oficio y SIIAU no se pueden adelantar
-    $admin->post(route('admin.cierres.oficio', $practica), ['archivo' => escPdf('oficio.pdf')])->assertSessionHasErrors('oficio');
-    $admin->post(route('admin.cierres.enviar', $practica))->assertSessionHasErrors('oficio');
-    $admin->post(route('admin.cierres.siiau', $practica))->assertSessionHasErrors('oficio');
+    $admin->post(route('coordinacion.cierres.oficio', $practica), ['archivo' => escPdf('oficio.pdf')])->assertSessionHasErrors('oficio');
+    $admin->post(route('coordinacion.cierres.enviar', $practica))->assertSessionHasErrors('oficio');
+    $admin->post(route('coordinacion.cierres.siiau', $practica))->assertSessionHasErrors('oficio');
 
     expect(OficioAcreditacion::count())->toBe(0)->and($practica->refresh()->estado)->toBe(PracticaEstado::EnCurso);
 });
@@ -443,6 +446,6 @@ test('una coordinación solo descarga archivos de cierre de su propia práctica'
     $propio = $carta->addMedia(escPdf('termino.pdf'))->toMediaCollection('carta_termino');
     $ajeno = $this->ana->addMedia(escPdf('imss.pdf'))->toMediaCollection('constancia_imss');
 
-    $this->actingAs($this->adminUser)->get(route('admin.cierres.archivos', [$practica, $propio]))->assertOk();
-    $this->actingAs($this->adminUser)->get(route('admin.cierres.archivos', [$practica, $ajeno]))->assertNotFound();
+    $this->actingAs($this->coordUser)->get(route('coordinacion.cierres.archivos', [$practica, $propio]))->assertOk();
+    $this->actingAs($this->coordUser)->get(route('coordinacion.cierres.archivos', [$practica, $ajeno]))->assertNotFound();
 });

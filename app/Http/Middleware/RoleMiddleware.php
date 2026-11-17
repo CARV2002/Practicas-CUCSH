@@ -8,7 +8,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class RoleMiddleware
 {
-    /** Acepta uno o varios roles: `role:alumno` o `role:administrador,empresa`. */
+    /** Acepta uno o varios roles: `role:alumno` o `role:coordinador,administrador`. */
     public function handle($request, Closure $next, string ...$roles): Response
     {
         if (! auth()->check()) {
@@ -21,9 +21,17 @@ class RoleMiddleware
             abort(403);
         }
 
+        $deRuta = array_values(array_filter($roles, fn(string $r) => $user->hasRole($r)));
+        $esPersonal = collect($deRuta)->contains(fn(string $r) => Rol::tryFrom($r)?->esPersonal() === true);
+
         // Sin perfil de Personal no hay alcance definido: se niega con mensaje claro
-        if (in_array(Rol::Administrador->value, $roles, true) && $user->personal === null) {
-            abort(403, 'Tu cuenta de administrador no tiene perfil de Coordinación. Contacta al responsable del sistema.');
+        if ($esPersonal && $user->personal === null) {
+            abort(403, 'Tu cuenta no tiene perfil de personal institucional. Contacta al responsable del sistema.');
+        }
+
+        // Un coordinador (que no es además administrador técnico) debe tener carrera o división asignada
+        if ($deRuta === [Rol::Coordinador->value] && ! $user->personal->tieneAlcanceDeCoordinacion()) {
+            abort(403, 'Tu cuenta de coordinación no tiene carrera ni división asignada. Contacta a Vinculación.');
         }
 
         return $next($request);

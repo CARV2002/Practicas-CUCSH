@@ -95,7 +95,7 @@
                                     <span
                                         class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $cartaColor }}">{{ ucfirst($carta->estado_validacion->value) }}</span>
                                     @if ($cartaPdf)
-                                        <a href="{{ route('admin.cierres.archivos', [$pr, $cartaPdf]) }}"
+                                        <a href="{{ route('coordinacion.cierres.archivos', [$pr, $cartaPdf]) }}"
                                             class="text-brand-600 mt-1 block text-xs font-semibold">Descargar PDF</a>
                                         @if ($cartaPdf->getCustomProperty('motivo'))<span
                                         class="block max-w-[200px] text-xs text-red-600">{{ $cartaPdf->getCustomProperty('motivo') }}</span>@endif
@@ -103,7 +103,7 @@
                                 </td>
                                 <td class="px-4 py-4 text-xs text-gray-600">
                                     @if ($oficio)
-                                        @if ($oficioPdf)<a href="{{ route('admin.cierres.archivos', [$pr, $oficioPdf]) }}"
+                                        @if ($oficioPdf)<a href="{{ route('coordinacion.cierres.archivos', [$pr, $oficioPdf]) }}"
                                         class="text-brand-600 block font-semibold">Descargar PDF</a>@endif
                                         <span class="block">Enviado a Control Escolar:
                                             {{ $oficio->enviado_control_escolar_at?->format('d/m/Y') ?? '—' }}</span>
@@ -125,7 +125,7 @@
                                             @elseif (!$cartaPdf)
                                                 <span class="text-xs text-gray-400">Esperando la carta del alumno</span>
                                             @else
-                                                <form method="POST" action="{{ route('admin.cierres.carta', $pr) }}"
+                                                <form method="POST" action="{{ route('coordinacion.cierres.carta', $pr) }}"
                                                     class="flex flex-col items-end gap-2">
                                                     @csrf
                                                     <input type="text" name="motivo" placeholder="Motivo (obligatorio si rechaza)"
@@ -142,7 +142,7 @@
                                         @elseif ($pr->estado === PrE::EnCierre)
                                             @if (!$oficio || $oficio->enviado_control_escolar_at === null)
                                                 <form method="POST" enctype="multipart/form-data"
-                                                    action="{{ route('admin.cierres.oficio', $pr) }}" class="flex items-center gap-2">
+                                                    action="{{ route('coordinacion.cierres.oficio', $pr) }}" class="flex items-center gap-2">
                                                     @csrf
                                                     <input type="file" name="archivo" accept="application/pdf" required
                                                         class="{{ $input }} !w-44 !py-1 text-xs">
@@ -152,12 +152,12 @@
                                             @endif
 
                                             @if ($oficio && $oficio->enviado_control_escolar_at === null)
-                                                <form method="POST" action="{{ route('admin.cierres.enviar', $pr) }}">
+                                                <form method="POST" action="{{ route('coordinacion.cierres.enviar', $pr) }}">
                                                     @csrf
                                                     <button class="{{ $btn }}">Marcar enviado a Control Escolar</button>
                                                 </form>
                                             @elseif ($oficio && $oficio->capturado_siiau_at === null)
-                                                <form method="POST" action="{{ route('admin.cierres.siiau', $pr) }}"
+                                                <form method="POST" action="{{ route('coordinacion.cierres.siiau', $pr) }}"
                                                     onsubmit="return confirm('¿Control Escolar confirmó la captura en SIIAU? La práctica quedará acreditada.')">
                                                     @csrf
                                                     <button class="{{ $btn }}">Registrar captura en SIIAU</button>

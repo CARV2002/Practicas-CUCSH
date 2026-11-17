@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Coordinacion;
 
 use App\Enums\PostulacionEstado;
 use App\Enums\PracticaEstado;
@@ -52,12 +52,14 @@ class PracticanteController extends Controller
             ->paginate(10, ['*'], 'postulaciones')
             ->withQueryString();
 
-        return view('admin.lista-practicantes', [
+        return view('coordinacion.lista-practicantes', [
             'practicas' => $practicas,
             'postulaciones' => $postulaciones,
-            'carreras' => Carrera::orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
+            'carreras' => Carrera::enAlcance($personal)->orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
             'estados' => PracticaEstado::cases(),
-            'profesores' => Profesor::with('division')->orderBy('nombre')->get(),
+            'profesores' => Profesor::with('division')
+                ->whereIn('division_id', Carrera::enAlcance($personal)->select('division_id'))
+                ->orderBy('nombre')->get(),
         ]);
     }
 

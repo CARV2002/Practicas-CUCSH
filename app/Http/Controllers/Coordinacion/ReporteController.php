@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Coordinacion;
 
 use App\Enums\PracticaEstado;
 use App\Enums\ReporteEstado;
@@ -58,11 +58,11 @@ class ReporteController extends Controller
             ->sortBy('fecha_fin')
             ->values();
 
-        return view('admin.lista-reportes', [
+        return view('coordinacion.lista-reportes', [
             'reportes' => $reportes,
             'avance' => $avance,
             'porCerrar' => $porCerrar,
-            'carreras' => Carrera::orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
+            'carreras' => Carrera::enAlcance($personal)->orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
             'estados' => ReporteEstado::cases(),
             'tipos' => ReporteTipo::cases(),
             'pendientes' => Reporte::where('estado', ReporteEstado::Pendiente->value)

@@ -8,10 +8,14 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\CatalogoController;
 use App\Http\Controllers\Admin\ConvenioController;
 use App\Http\Controllers\Admin\EmpresaController;
-use App\Http\Controllers\Admin\ProgramaController;
-use App\Http\Controllers\Admin\PracticanteController;
-use App\Http\Controllers\Admin\ReporteController;
+use App\Http\Controllers\Admin\DictamenController;
 use App\Http\Controllers\Admin\UsuarioController;
+use App\Http\Controllers\Coordinacion\CierreController;
+use App\Http\Controllers\Coordinacion\PracticanteController;
+use App\Http\Controllers\Coordinacion\ProgramaController;
+use App\Http\Controllers\Coordinacion\ReglaController;
+use App\Http\Controllers\Coordinacion\ReporteController;
+use App\Http\Controllers\Coordinacion\DashboardController as CoordinacionDashboardController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\Empresa\ProgramaController as EmpresaProgramaController;
@@ -23,7 +27,6 @@ use App\Http\Controllers\Alumno\DocumentoController as AlumnoDocumentoController
 use App\Http\Controllers\Alumno\MisPracticasController;
 use App\Http\Controllers\Alumno\OfertaController;
 use App\Http\Controllers\Alumno\DashboardController as AlumnoDashboardController;
-use App\Http\Controllers\Admin\CierreController;
 use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\InformeController;
 use App\Http\Controllers\FotoUsuarioController;
@@ -122,26 +125,23 @@ Route::prefix('empresa')
 
 /*
 |--------------------------------------------------------------------------
-| Administrador (Coordinación de Prácticas): lleva el proceso de convenio
+| Vinculación (Lorena) + administrador técnico: SOLO el trámite de convenios
 |--------------------------------------------------------------------------
+| Convenios, empresas y sus expedientes, dictámenes capturados, turnos a Jurídica,
+| firmas, formalización y alta de coordinadores. Lo académico vive en coordinacion/.
 */
 Route::prefix('admin')
     ->name('admin.')
-    ->middleware(['auth', 'verified', 'role:' . Rol::Administrador->value])
+    ->middleware(['auth', 'verified', 'role:' . implode(',', Rol::deVinculacion())])
     ->group(function () {
-        //verificar correo de usuario nuevo (no requiere que el usuario esté activo)
-        Route::post('/usuarios/{usuario}/verificar', [UsuarioController::class, 'verificarCorreo'])->name('usuarios.verificar');
-        //Route::view('/dashboard', 'admin.dashboard')->name('dashboard');
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
-        //Route::view('/lista-convenios', 'admin.lista-convenios')->name('lista-convenios');
         Route::get('/lista-convenios', [ConvenioController::class, 'index'])->name('lista-convenios');
         Route::prefix('convenios/{convenio}')->name('convenios.')->group(function () {
             Route::get('/', [ConvenioController::class, 'show'])->name('show');
             Route::post('/documentos/{media}', [ConvenioController::class, 'resolverDocumento'])->name('documentos.resolver');
             Route::get('/archivos/{media}', [ConvenioController::class, 'descargar'])->name('archivos.descargar');
             Route::post('/validacion-academica', [ConvenioController::class, 'enviarAValidacionAcademica'])->name('validacion-academica');
-            //Route::post('/dictamenes/{dictamen}', [ConvenioController::class, 'registrarDictamenCarrera'])->name('dictamenes.registrar');
             Route::post('/borrador', [ConvenioController::class, 'subirBorrador'])->name('borrador');
             Route::post('/juridica/turnar', [ConvenioController::class, 'turnarAJuridica'])->name('juridica.turnar');
             Route::post('/juridica/dictamen', [ConvenioController::class, 'registrarDictamenJuridico'])->name('juridica.dictamen');
@@ -151,27 +151,61 @@ Route::prefix('admin')
             Route::post('/borrador/generar', [ConvenioController::class, 'generarBorrador'])->name('borrador.generar');
         });
 
+        // Dictámenes por carrera: Vinculación turna y captura el voto de cada coordinación
+        Route::get('/lista-dictamenes', [DictamenController::class, 'index'])->name('lista-dictamenes');
+        Route::post('/dictamenes/{dictamen}', [DictamenController::class, 'registrar'])->name('dictamenes.registrar');
+        Route::get('/dictamenes/{dictamen}/archivos/{media}', [DictamenController::class, 'descargar'])->name('dictamenes.archivos.descargar');
 
-        //Route::view('/lista-dictamenes', 'admin.lista-dictamenes')->name('lista-dictamenes');
-        Route::get('/lista-dictamenes', [App\Http\Controllers\Admin\DictamenController::class, 'index'])->name('lista-dictamenes');
-        Route::post('/dictamenes/{dictamen}', [App\Http\Controllers\Admin\DictamenController::class, 'registrar'])->name('dictamenes.registrar');
-        Route::get('/dictamenes/{dictamen}/archivos/{media}', [App\Http\Controllers\Admin\DictamenController::class, 'descargar'])->name('dictamenes.archivos.descargar');
-
-        //Route::view('/lista-empresas', 'admin.lista-empresas')->name('lista-empresas');
+        // Empresas y su expediente
         Route::get('/lista-empresas', [EmpresaController::class, 'index'])->name('lista-empresas');
         Route::get('/empresas/{empresa}', [EmpresaController::class, 'show'])->name('empresas.show');
         Route::put('/empresas/{empresa}', [EmpresaController::class, 'update'])->name('empresas.update');
         Route::post('/empresas/{empresa}/activo', [EmpresaController::class, 'toggleActivo'])->name('empresas.activo');
 
-        // Route::view('/lista-programas', 'admin.lista-programas')->name('lista-programas');
+        // Cuentas: Vinculación da de alta coordinadores; el administrador técnico, cualquier personal
+        Route::get('/lista-usuarios', [UsuarioController::class, 'index'])->name('lista-usuarios');
+        Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
+        Route::post('/usuarios/{usuario}/activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.activo');
+        Route::post('/usuarios/{usuario}/password', [UsuarioController::class, 'restablecerPassword'])->name('usuarios.password');
+        Route::post('/usuarios/{usuario}/verificar', [UsuarioController::class, 'verificarCorreo'])->name('usuarios.verificar');
+
+        // Auditoría e informes de consulta: solo personal con alcance global
+        Route::get('/auditoria', [AuditoriaController::class, 'index'])->name('auditoria');
+        Route::get('/informes', [InformeController::class, 'index'])->name('informes');
+        Route::get('/informes/{tipo}/exportar', [InformeController::class, 'exportar'])
+            ->whereIn('tipo', ['practicas', 'postulaciones', 'convenios', 'programas'])
+            ->name('informes.exportar');
+
+        // Estructura del catálogo (divisiones y carreras): solo el administrador técnico
+        Route::middleware('role:' . Rol::Administrador->value)->group(function () {
+            Route::get('/catalogos', [CatalogoController::class, 'index'])->name('catalogos');
+            Route::post('/catalogos/divisiones', [CatalogoController::class, 'storeDivision'])->name('catalogos.divisiones.store');
+            Route::put('/catalogos/divisiones/{division}', [CatalogoController::class, 'updateDivision'])->name('catalogos.divisiones.update');
+            Route::post('/catalogos/carreras', [CatalogoController::class, 'storeCarrera'])->name('catalogos.carreras.store');
+            Route::put('/catalogos/carreras/{carrera}', [CatalogoController::class, 'updateCarrera'])->name('catalogos.carreras.update');
+        });
+    });
+
+/*
+|--------------------------------------------------------------------------
+| Coordinación de carrera (+ administrador técnico): el proceso académico del alumno
+|--------------------------------------------------------------------------
+| Todo se filtra por el alcance de carrera/división del perfil de Personal.
+*/
+Route::prefix('coordinacion')
+    ->name('coordinacion.')
+    ->middleware(['auth', 'verified', 'role:' . implode(',', Rol::deCoordinacion())])
+    ->group(function () {
+        Route::get('/dashboard', [CoordinacionDashboardController::class, 'index'])->name('dashboard');
+
+        // Programas / vacantes de su carrera
         Route::get('/lista-programas', [ProgramaController::class, 'index'])->name('lista-programas');
         Route::post('/programas', [ProgramaController::class, 'store'])->name('programas.store');
         Route::put('/programas/{programa}', [ProgramaController::class, 'update'])->name('programas.update');
         Route::post('/programas/{programa}/estado', [ProgramaController::class, 'cambiarEstado'])->name('programas.estado');
         Route::delete('/programas/{programa}', [ProgramaController::class, 'destroy'])->name('programas.destroy');
 
-
-        //Route::view('/lista-practicantes', 'admin.lista-practicantes')->name('lista-practicantes');
+        // Practicantes y postulaciones
         Route::get('/lista-practicantes', [PracticanteController::class, 'index'])->name('lista-practicantes');
         Route::prefix('postulaciones/{postulacion}')->name('postulaciones.')->group(function () {
             Route::post('/carta-presentacion', [PracticanteController::class, 'emitirCarta'])->name('carta');
@@ -180,6 +214,15 @@ Route::prefix('admin')
             Route::post('/activar', [PracticanteController::class, 'activar'])->name('activar');
             Route::get('/archivos/{media}', [PracticanteController::class, 'descargar'])->name('archivos');
         });
+        Route::post('/practicas/{practica}/supervisor', [PracticanteController::class, 'asignarSupervisor'])->name('practicas.supervisor');
+        Route::post('/practicas/{practica}/cancelar', [PracticanteController::class, 'cancelar'])->name('practicas.cancelar');
+
+        // Reportes de horas
+        Route::get('/lista-reportes', [ReporteController::class, 'index'])->name('lista-reportes');
+        Route::post('/reportes/{reporte}', [ReporteController::class, 'resolver'])->name('reportes.resolver');
+        Route::get('/reportes/{reporte}/archivos/{media}', [ReporteController::class, 'descargar'])->name('reportes.archivos');
+
+        // Cierre: carta de término -> oficio -> Control Escolar -> SIIAU
         Route::get('/lista-cierres', [CierreController::class, 'index'])->name('lista-cierres');
         Route::prefix('cierres/{practica}')->name('cierres.')->group(function () {
             Route::post('/carta', [CierreController::class, 'resolverCarta'])->name('carta');
@@ -189,35 +232,9 @@ Route::prefix('admin')
             Route::get('/archivos/{media}', [CierreController::class, 'descargar'])->name('archivos');
         });
 
-        Route::post('/practicas/{practica}/supervisor', [PracticanteController::class, 'asignarSupervisor'])->name('practicas.supervisor');
-        Route::post('/practicas/{practica}/cancelar', [PracticanteController::class, 'cancelar'])->name('practicas.cancelar');
-
-        // Route::view('/lista-reportes', 'admin.lista-reportes')->name('lista-reportes');
-        Route::get('/lista-reportes', [ReporteController::class, 'index'])->name('lista-reportes');
-        Route::post('/reportes/{reporte}', [ReporteController::class, 'resolver'])->name('reportes.resolver');
-        Route::get('/reportes/{reporte}/archivos/{media}', [ReporteController::class, 'descargar'])->name('reportes.archivos');
-
-        //Route::view('/catalogos', 'admin.catalogos')->name('catalogos');
-        Route::get('/catalogos', [CatalogoController::class, 'index'])->name('catalogos');
-        Route::post('/catalogos/divisiones', [CatalogoController::class, 'storeDivision'])->name('catalogos.divisiones.store');
-        Route::put('/catalogos/divisiones/{division}', [CatalogoController::class, 'updateDivision'])->name('catalogos.divisiones.update');
-        Route::post('/catalogos/carreras', [CatalogoController::class, 'storeCarrera'])->name('catalogos.carreras.store');
-        Route::put('/catalogos/carreras/{carrera}', [CatalogoController::class, 'updateCarrera'])->name('catalogos.carreras.update');
-
-        //Route::view('/lista-usuarios', 'admin.lista-usuarios')->name('lista-usuarios');
-        Route::get('/lista-usuarios', [UsuarioController::class, 'index'])->name('lista-usuarios');
-        Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
-        Route::post('/usuarios/{usuario}/activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.activo');
-        Route::post('/usuarios/{usuario}/password', [UsuarioController::class, 'restablecerPassword'])->name('usuarios.password');
-
-        //auditoría: solo administradores con alcance global
-        Route::get('/auditoria', [AuditoriaController::class, 'index'])->name('auditoria');
-
-        //informes: solo administradores con alcance global
-        Route::get('/informes', [InformeController::class, 'index'])->name('informes');
-        Route::get('/informes/{tipo}/exportar', [InformeController::class, 'exportar'])
-            ->whereIn('tipo', ['practicas', 'postulaciones', 'convenios', 'programas'])
-            ->name('informes.exportar');
+        // Reglas académicas de su carrera (horas y créditos)
+        Route::get('/reglas', [ReglaController::class, 'index'])->name('reglas');
+        Route::put('/reglas/{carrera}', [ReglaController::class, 'update'])->name('reglas.update');
     });
 
 /*

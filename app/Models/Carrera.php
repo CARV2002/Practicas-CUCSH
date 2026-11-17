@@ -65,6 +65,14 @@ class Carrera extends Model
             ->withTimestamps();
     }
 
+    /** Carreras dentro del alcance de ese personal (global ve todas). */
+    public function scopeEnAlcance(\Illuminate\Database\Eloquent\Builder $query, Personal $personal): \Illuminate\Database\Eloquent\Builder
+    {
+        $ids = $personal->carreraIdsEnAlcance();
+
+        return $ids === null ? $query : $query->whereIn('id', $ids);
+    }
+
     public function auditoriaNombre(): ?string
     {
         return $this->carrera_clave;

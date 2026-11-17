@@ -173,7 +173,8 @@ test('empresas ofrece ir al panel cuando ya hay sesión', function () {
 test('contacto muestra los datos de la Coordinación tomados de la configuración', function () {
     $this->get(route('contacto'))
         ->assertOk()
-        ->assertSee(config('practicas.contacto.correo'))
+        ->assertSee('mail.google.com/mail/?view=cm', false)
+        ->assertSee('to=' . rawurlencode(config('practicas.contacto.correo')), false)
         ->assertSee(config('practicas.contacto.telefono'))
         ->assertSee('23549')
         ->assertSee('23404')
@@ -205,7 +206,8 @@ test('todas las páginas públicas muestran el mismo correo de contacto', functi
     foreach (['inicio', 'estudiantes', 'empresas', 'contacto'] as $ruta) {
         $this->get(route($ruta))
             ->assertOk()
-            ->assertSee(config('practicas.contacto.correo'))
+            ->assertSee('mail.google.com/mail/?view=cm', false)
+        ->assertSee('to=' . rawurlencode(config('practicas.contacto.correo')), false)
             ->assertDontSee('vinculacion.cucsh@academicos.udg.mx');
     }
 });

@@ -12,6 +12,8 @@
 
     <div x-data="{
             modalAlta: false,
+            rolAlta: @js($rolesAlta[0]->value),
+            alcance: 'carrera',
             modalPass: false,
             pass: { id: null, nombre: '' },
             urlPass: '{{ route('admin.usuarios.password', 0) }}',
@@ -34,7 +36,7 @@
             <div class="mb-5 flex flex-col gap-4 px-6 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h3 class="text-lg font-bold text-gray-900">Usuarios del sistema</h3>
-                    <p class="mt-0.5 text-sm text-gray-500">Alumnos y empresas se registran solos; los administradores se
+                    <p class="mt-0.5 text-sm text-gray-500">Alumnos y empresas se registran solos; las coordinaciones de carrera se
                         dan de alta aquí.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
@@ -44,7 +46,7 @@
                         <select name="rol" class="{{ $filtro }}">
                             <option value="">Todos los roles</option>
                             @foreach ($roles as $r)
-                                <option value="{{ $r->value }}" @selected(request('rol') === $r->value)>{{ ucfirst($r->value) }}
+                                <option value="{{ $r->value }}" @selected(request('rol') === $r->value)>{{ $r->label() }}
                                 </option>
                             @endforeach
                         </select>
@@ -57,8 +59,8 @@
                             class="h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">Filtrar</button>
                     </form>
                     <button type="button" @click="modalAlta = true"
-                        class="bg-brand-500 hover:bg-brand-600 h-10 rounded-lg px-4 text-sm font-medium text-white">+ Nuevo
-                        administrador</button>
+                        class="bg-brand-500 hover:bg-brand-600 h-10 rounded-lg px-4 text-sm font-medium text-white">+ Nueva
+                        cuenta de personal</button>
                 </div>
             </div>
 
@@ -81,11 +83,15 @@
                                 $rol = $u->roles->first()?->name;
                                 $colorRol = match ($rol) {
                                     'administrador' => 'bg-purple-50 text-purple-700',
+                                    'vinculacion' => 'bg-orange-50 text-orange-700',
+                                    'coordinador' => 'bg-teal-50 text-teal-700',
                                     'empresa' => 'bg-blue-50 text-blue-700',
                                     'alumno' => 'bg-green-50 text-green-700',
                                     default => 'bg-gray-100 text-gray-600',
                                 };
                                 $esYo = $u->id === auth()->id();
+                                // Vinculación no gestiona cuentas de Vinculación ni del administrador técnico
+                                $gestionable = $esYo || auth()->user()->hasRole(\App\Enums\Rol::Administrador->value) || ! $u->hasAnyRole(\App\Enums\Rol::deVinculacion());
                             @endphp
                             <tr class="transition-colors hover:bg-gray-50/40">
                                 <td class="px-6 py-4">
@@ -100,7 +106,10 @@
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-4">
                                     <span
-                                        class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $colorRol }}">{{ $rol ? ucfirst($rol) : 'Sin rol' }}</span>
+                                        class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $colorRol }}">{{ $rol ? (\App\Enums\Rol::tryFrom($rol)?->label() ?? ucfirst($rol)) : 'Sin rol' }}</span>
+                                    @if ($u->personal && ($u->personal->carrera || $u->personal->division))
+                                        <span class="mt-1 block text-xs text-gray-500">{{ $u->personal->carrera?->carrera_clave ?? $u->personal->division?->nombre }}</span>
+                                    @endif
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-4 text-xs text-gray-600">
                                     {{ $u->email_verified_at ? $u->email_verified_at->format('d/m/Y') : 'Pendiente' }}
@@ -113,6 +122,7 @@
                                 </td>
                                 <td class="whitespace-nowrap px-6 py-4 text-right">
                                     <div class="flex items-center justify-end gap-3">
+                                        @if ($gestionable)
                                         <button type="button" @click="cambiar({{ $u->id }}, @js($u->name))"
                                             class="text-brand-600 hover:text-brand-700 text-xs font-semibold">Contraseña</button>
                                         @unless ($esYo)
@@ -133,6 +143,9 @@
                                                     correo</button>
                                             </form>
                                         @endunless
+                                        @else
+                                            <span class="text-xs text-gray-400">Solo administrador técnico</span>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
@@ -156,13 +169,47 @@
             <form method="POST" action="{{ route('admin.usuarios.store') }}" @click.stop
                 class="relative w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-theme-xl">
                 @csrf
-                <h3 class="text-lg font-semibold text-gray-800">Nuevo administrador</h3>
+                <h3 class="text-lg font-semibold text-gray-800">Nueva cuenta de personal</h3>
                 <div><label class="{{ $label }}">Nombre</label><input type="text" name="name" required maxlength="255"
                         class="{{ $input }}"></div>
                 <div><label class="{{ $label }}">Correo</label><input type="email" name="email" required maxlength="255"
                         class="{{ $input }}"></div>
+                <div>
+                    <label class="{{ $label }}">Rol</label>
+                    <select name="rol" x-model="rolAlta" class="{{ $input }}">
+                        @foreach ($rolesAlta as $r)
+                            <option value="{{ $r->value }}">{{ $r->label() }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <template x-if="rolAlta === 'coordinador'">
+                    <div class="space-y-3">
+                        <div class="flex gap-4 text-sm text-gray-700">
+                            <label class="flex items-center gap-1.5"><input type="radio" value="carrera" x-model="alcance"> Coordina una carrera</label>
+                            <label class="flex items-center gap-1.5"><input type="radio" value="division" x-model="alcance"> Toda una división</label>
+                        </div>
+                        <div x-show="alcance === 'carrera'">
+                            <label class="{{ $label }}">Carrera</label>
+                            <select name="carrera_id" :disabled="alcance !== 'carrera'" :required="alcance === 'carrera'" class="{{ $input }}">
+                                <option value="">Selecciona...</option>
+                                @foreach ($carreras as $c)
+                                    <option value="{{ $c->id }}">{{ $c->carrera_clave }} · {{ $c->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div x-show="alcance === 'division'">
+                            <label class="{{ $label }}">División</label>
+                            <select name="division_id" :disabled="alcance !== 'division'" :required="alcance === 'division'" class="{{ $input }}">
+                                <option value="">Selecciona...</option>
+                                @foreach ($divisiones as $d)
+                                    <option value="{{ $d->id }}">{{ $d->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </template>
                 <div><label class="{{ $label }}">Puesto</label><input type="text" name="puesto" maxlength="255"
-                        placeholder="Coordinación de Prácticas Profesionales" class="{{ $input }}"></div>
+                        placeholder="Coordinación de la Licenciatura en..." class="{{ $input }}"></div>
                 <div><label class="{{ $label }}">Contraseña</label><input type="password" name="password" required
                         autocomplete="new-password" class="{{ $input }}"></div>
                 <div><label class="{{ $label }}">Confirmar contraseña</label><input type="password"

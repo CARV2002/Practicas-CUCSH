@@ -34,19 +34,37 @@ class Avisos
         });
     }
 
-    /** Coordinación activa; con $carreraId, solo quien tiene alcance sobre esa carrera. */
-    public static function administradores(?int $carreraId = null): Collection
+    /**
+     * Coordinación de carrera activa con alcance sobre esa carrera (o su división).
+     * Postulaciones, reportes y cierres van SOLO aquí: ni Vinculación ni el administrador técnico.
+     */
+    public static function coordinadores(int $carreraId): Collection
     {
-        return User::role(Rol::Administrador->value)->where('activo', true)->with('personal')->get()
+        return User::role(Rol::Coordinador->value)->where('activo', true)->with('personal')->get()
             ->filter(fn(User $u) => $u->personal !== null
-                && ($carreraId === null || $u->personal->puedeVerCarrera($carreraId)))
+                && $u->personal->tieneAlcanceDeCoordinacion()
+                && $u->personal->puedeVerCarrera($carreraId))
             ->values();
     }
 
-    /** Coordinación que puede ver ese convenio (misma regla que ConvenioPolicy). */
-    public static function administradoresDe(Convenio $convenio): Collection
+    /** Coordinación de la carrera del alumno de esa práctica. */
+    public static function coordinadoresDe(Practica $practica): Collection
     {
-        return User::role(Rol::Administrador->value)->where('activo', true)->with('personal')->get()
+        return self::coordinadores((int) $practica->postulacion->alumno->carrera_id);
+    }
+
+    /** Vinculación activa (Lorena): quien lleva el trámite de convenios. */
+    public static function vinculacion(): Collection
+    {
+        return User::role(Rol::Vinculacion->value)->where('activo', true)->with('personal')->get()
+            ->filter(fn(User $u) => $u->personal !== null)
+            ->values();
+    }
+
+    /** Vinculación que puede ver ese convenio (misma regla que ConvenioPolicy). */
+    public static function vinculacionDe(Convenio $convenio): Collection
+    {
+        return self::vinculacion()
             ->filter(fn(User $u) => $u->can('view', $convenio))
             ->values();
     }
@@ -59,13 +77,5 @@ class Avisos
     public static function empresaDe(Practica $practica): ?User
     {
         return $practica->postulacion->programa->convenio?->empresa?->user;
-    }
-
-    /** Coordinación activa con alcance global (Lorena): quien lleva el trámite de convenios. */
-    public static function coordinacionGlobal(): Collection
-    {
-        return self::administradores()
-            ->filter(fn(User $u) => $u->personal->tieneAlcanceGlobal())
-            ->values();
     }
 }

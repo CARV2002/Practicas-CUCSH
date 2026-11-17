@@ -7,26 +7,51 @@ use Illuminate\Support\Str;
 use App\Models\{Alumno, Carrera, Division, Empresa, Personal};
 use App\Enums\TipoOrganismo;
 
-/** Pantallas de cada rol (nombres de ruta de routes/web.php). */
+/** Carrera de prueba (la usan el alumno y el coordinador). */
+function carreraDePrueba(): Carrera
+{
+    return Carrera::firstOrCreate(['carrera_clave' => 'TEST'], [
+        'division_id' => Division::firstOrCreate(['nombre' => 'División de prueba'])->id,
+        'nombre' => 'Carrera de prueba',
+        'horas_requeridas' => 250,
+        'porcentaje_creditos_minimo' => 50,
+        'creditos_otorgados' => 8,
+    ]);
+}
+
+/** Pantallas EXCLUSIVAS de cada rol (nombres de ruta de routes/web.php). */
 function pantallasPorRol(): array
 {
     return [
         Rol::Alumno->value => ['alumno.dashboard', 'alumno.oferta-programas', 'alumno.mis-practicas', 'alumno.mis-documentos'],
         Rol::Empresa->value => ['empresa.dashboard', 'empresa.convenio', 'empresa.documentos', 'empresa.lista-programas', 'empresa.lista-practicantes'],
-        Rol::Administrador->value => [
+        Rol::Vinculacion->value => [
             'admin.dashboard',
             'admin.lista-convenios',
             'admin.lista-dictamenes',
             'admin.lista-empresas',
-            'admin.lista-programas',
-            'admin.lista-practicantes',
-            'admin.lista-reportes',
-            'admin.catalogos',
             'admin.lista-usuarios',
-            'admin.lista-cierres',
             'admin.auditoria',
-            'admin.informes'
+            'admin.informes',
         ],
+        Rol::Coordinador->value => [
+            'coordinacion.dashboard',
+            'coordinacion.lista-programas',
+            'coordinacion.lista-practicantes',
+            'coordinacion.lista-reportes',
+            'coordinacion.lista-cierres',
+            'coordinacion.reglas',
+        ],
+    ];
+}
+
+/** El administrador técnico entra a Vinculación, a Coordinación y al catálogo. */
+function pantallasDelAdministrador(): array
+{
+    return [
+        ...pantallasPorRol()[Rol::Vinculacion->value],
+        ...pantallasPorRol()[Rol::Coordinador->value],
+        'admin.catalogos',
     ];
 }
 
@@ -36,7 +61,9 @@ function usuarioConRol(string $rol): User
     $user->assignRole($rol);
 
     match ($rol) {
-        Rol::Administrador->value => Personal::create(['user_id' => $user->id, 'puesto' => 'Coordinación']),
+        Rol::Administrador->value => Personal::create(['user_id' => $user->id, 'puesto' => 'Administración técnica']),
+        Rol::Vinculacion->value => Personal::create(['user_id' => $user->id, 'puesto' => 'Vinculación']),
+        Rol::Coordinador->value => Personal::create(['user_id' => $user->id, 'carrera_id' => carreraDePrueba()->id, 'puesto' => 'Coordinación TEST']),
         Rol::Empresa->value => Empresa::create([
             'user_id' => $user->id,
             'rfc' => 'T' . Str::upper(Str::random(11)),
@@ -47,13 +74,7 @@ function usuarioConRol(string $rol): User
         Rol::Alumno->value => Alumno::create([
             'user_id' => $user->id,
             'num_control' => Str::random(9),
-            'carrera_id' => Carrera::firstOrCreate(['carrera_clave' => 'TEST'], [
-                'division_id' => Division::firstOrCreate(['nombre' => 'División de prueba'])->id,
-                'nombre' => 'Carrera de prueba',
-                'horas_requeridas' => 250,
-                'porcentaje_creditos_minimo' => 50,
-                'creditos_otorgados' => 8,
-            ])->id,
+            'carrera_id' => carreraDePrueba()->id,
         ]),
     };
 
@@ -69,6 +90,14 @@ test('cada rol entra a todas sus pantallas y se renderizan', function () {
         foreach ($rutas as $ruta) {
             $this->actingAs($user)->get(route($ruta))->assertOk();
         }
+    }
+});
+
+test('el administrador técnico entra a Vinculación, Coordinación y catálogos', function () {
+    $admin = usuarioConRol(Rol::Administrador->value);
+
+    foreach (pantallasDelAdministrador() as $ruta) {
+        $this->actingAs($admin)->get(route($ruta))->assertOk();
     }
 });
 
@@ -88,7 +117,30 @@ test('ningún rol entra a las pantallas de otro rol', function () {
     }
 });
 
+test('Vinculación no opera prácticas y Coordinación no opera convenios ni catálogos', function () {
+    $vinculacion = usuarioConRol(Rol::Vinculacion->value);
+    $coordinador = usuarioConRol(Rol::Coordinador->value);
+
+    // Lorena ya no emite cartas, valida reportes ni cierra prácticas
+    foreach (['coordinacion.lista-practicantes', 'coordinacion.lista-reportes', 'coordinacion.lista-cierres', 'coordinacion.lista-programas'] as $ruta) {
+        $this->actingAs($vinculacion)->get(route($ruta))->assertForbidden();
+    }
+
+    // La coordinación no lleva el trámite de convenios
+    foreach (['admin.lista-convenios', 'admin.lista-empresas', 'admin.lista-usuarios'] as $ruta) {
+        $this->actingAs($coordinador)->get(route($ruta))->assertForbidden();
+    }
+
+    // La estructura del catálogo es solo del administrador técnico
+    $this->actingAs($vinculacion)->get(route('admin.catalogos'))->assertForbidden();
+    $this->actingAs($coordinador)->get(route('admin.catalogos'))->assertForbidden();
+});
+
 test('un visitante sin sesión es enviado al login', function () {
+    foreach (pantallasDelAdministrador() as $ruta) {
+        $this->get(route($ruta))->assertRedirect(route('login'));
+    }
+
     foreach (pantallasPorRol() as $rutas) {
         foreach ($rutas as $ruta) {
             $this->get(route($ruta))->assertRedirect(route('login'));
@@ -102,6 +154,9 @@ test('el dashboard envía a cada usuario al panel de su rol', function () {
             ->get('/dashboard')
             ->assertRedirect(route($rol->panel()));
     }
+
+    expect(Rol::Vinculacion->panel())->toBe('admin.dashboard')
+        ->and(Rol::Coordinador->panel())->toBe('coordinacion.dashboard');
 });
 
 test('una cuenta sin rol no entra a ningún panel', function () {
@@ -114,9 +169,67 @@ test('el sitio público se muestra sin iniciar sesión', function () {
     }
 });
 
-test('un administrador sin perfil de Coordinación recibe un 403 y no un error', function () {
-    $user = User::factory()->create();
-    $user->assignRole(Rol::Administrador->value);
+test('personal sin perfil de Personal recibe un 403 y no un error', function () {
+    foreach ([Rol::Administrador, Rol::Vinculacion, Rol::Coordinador] as $rol) {
+        $user = User::factory()->create();
+        $user->assignRole($rol->value);
 
-    $this->actingAs($user)->get(route('admin.dashboard'))->assertForbidden();
+        $this->actingAs($user)->get(route($rol->panel()))->assertForbidden();
+    }
+});
+
+test('un coordinador sin carrera ni división asignada no entra a Coordinación', function () {
+    $user = User::factory()->create();
+    $user->assignRole(Rol::Coordinador->value);
+    Personal::create(['user_id' => $user->id, 'puesto' => 'Coordinación sin alcance']);
+
+    $this->actingAs($user)->get(route('coordinacion.dashboard'))->assertForbidden();
+});
+
+test('un coordinador solo ve en sus pantallas las carreras de su alcance', function () {
+    $coordinador = usuarioConRol(Rol::Coordinador->value);
+    $otra = Carrera::create([
+        'division_id' => carreraDePrueba()->division_id, 'carrera_clave' => 'OTRA', 'nombre' => 'Carrera ajena',
+        'horas_requeridas' => 300, 'porcentaje_creditos_minimo' => 60, 'creditos_otorgados' => 10,
+    ]);
+
+    $this->actingAs($coordinador)->get(route('coordinacion.reglas'))
+        ->assertOk()->assertSee('Carrera de prueba')->assertDontSee('Carrera ajena');
+
+    // No puede cambiar las reglas de otra carrera
+    $this->actingAs($coordinador)
+        ->put(route('coordinacion.reglas.update', $otra), ['horas_requeridas' => 1, 'porcentaje_creditos_minimo' => 1, 'creditos_otorgados' => 1])
+        ->assertForbidden();
+
+    $this->actingAs($coordinador)
+        ->put(route('coordinacion.reglas.update', carreraDePrueba()), ['horas_requeridas' => 320, 'porcentaje_creditos_minimo' => 55, 'creditos_otorgados' => 9])
+        ->assertRedirect();
+
+    expect(carreraDePrueba()->fresh()->horas_requeridas)->toBe(320)
+        ->and($otra->fresh()->horas_requeridas)->toBe(300);
+});
+
+test('Vinculación da de alta coordinadores con alcance obligatorio y no puede crear otros roles', function () {
+    $vinculacion = usuarioConRol(Rol::Vinculacion->value);
+    $datos = ['name' => 'Coord Nueva', 'email' => 'coord.nueva@udg.mx', 'password' => 'Secreta123!', 'password_confirmation' => 'Secreta123!'];
+
+    // Sin carrera ni división: se rechaza
+    $this->actingAs($vinculacion)->post(route('admin.usuarios.store'), $datos + ['rol' => 'coordinador'])
+        ->assertSessionHasErrors('carrera_id');
+
+    // No puede crear administradores ni otra Vinculación
+    $this->actingAs($vinculacion)->post(route('admin.usuarios.store'), $datos + ['rol' => 'administrador'])
+        ->assertSessionHasErrors('rol');
+
+    $this->actingAs($vinculacion)->post(route('admin.usuarios.store'), $datos + ['rol' => 'coordinador', 'carrera_id' => carreraDePrueba()->id])
+        ->assertSessionHasNoErrors();
+
+    $nuevo = User::where('email', 'coord.nueva@udg.mx')->first();
+    expect($nuevo->hasRole(Rol::Coordinador->value))->toBeTrue()
+        ->and($nuevo->personal->carrera_id)->toBe(carreraDePrueba()->id);
+
+    // Vinculación no toca la cuenta del administrador técnico
+    $admin = usuarioConRol(Rol::Administrador->value);
+    $this->actingAs($vinculacion)->post(route('admin.usuarios.activo', $admin))->assertForbidden();
+    expect($admin->fresh()->activo)->not->toBeFalse();
 });

@@ -1,4 +1,4 @@
-{{-- resources/views/admin/lista-practicantes.blade.php --}}
+{{-- resources/views/coordinacion/lista-practicantes.blade.php --}}
 @extends('layouts.app')
 
 @section('content')
@@ -84,7 +84,7 @@
                                     <span class="text-xs text-gray-400">/ mín.
                                         {{ rtrim(rtrim((string) $min, '0'), '.') }}%</span>
                                     @if ($kardex)
-                                        <a href="{{ route('admin.postulaciones.archivos', [$po, $kardex]) }}"
+                                        <a href="{{ route('coordinacion.postulaciones.archivos', [$po, $kardex]) }}"
                                             class="text-brand-600 block text-xs font-semibold">Kardex</a>
                                     @endif
                                 </td>
@@ -92,20 +92,20 @@
                                     <span
                                         class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{{ $po->estado->label() }}</span>
                                     @if ($aceptacion)
-                                        <a href="{{ route('admin.postulaciones.archivos', [$po, $aceptacion]) }}"
+                                        <a href="{{ route('coordinacion.postulaciones.archivos', [$po, $aceptacion]) }}"
                                             class="text-brand-600 mt-1 block text-xs font-semibold">Carta de aceptación</a>
                                     @endif
                                 </td>
                                 <td class="px-6 py-4">
                                     <div class="flex flex-col items-end gap-2">
                                         @if ($po->estado === PE::Pendiente)
-                                            <form method="POST" action="{{ route('admin.postulaciones.carta', $po) }}">
+                                            <form method="POST" action="{{ route('coordinacion.postulaciones.carta', $po) }}">
                                                 @csrf
                                                 <button class="{{ $btn }} !py-1.5 text-xs">Emitir carta de presentación</button>
                                             </form>
                                         @elseif ($po->estado === PE::CartaPresentacionEmitida)
                                             <form method="POST" enctype="multipart/form-data"
-                                                action="{{ route('admin.postulaciones.aceptacion', $po) }}"
+                                                action="{{ route('coordinacion.postulaciones.aceptacion', $po) }}"
                                                 class="flex items-center gap-2">
                                                 @csrf
                                                 <input type="file" name="archivo" accept="application/pdf" @required(!$aceptacion)
@@ -114,7 +114,7 @@
                                                     class="{{ $btn }} !py-1.5 text-xs">{{ $aceptacion ? 'Confirmar carta del alumno' : 'Registrar aceptación' }}</button>
                                             </form>
                                         @elseif ($po->estado === PE::CartaAceptacionRecibida)
-                                            <form method="POST" action="{{ route('admin.postulaciones.activar', $po) }}"
+                                            <form method="POST" action="{{ route('coordinacion.postulaciones.activar', $po) }}"
                                                 class="grid grid-cols-2 gap-2">
                                                 @csrf
                                                 <input type="date" name="fecha_inicio" required class="{{ $input }} text-xs">
@@ -130,7 +130,7 @@
                                         @endif
 
                                         @if (in_array($po->estado, [PE::Pendiente, PE::CartaPresentacionEmitida], true))
-                                            <form method="POST" action="{{ route('admin.postulaciones.rechazar', $po) }}"
+                                            <form method="POST" action="{{ route('coordinacion.postulaciones.rechazar', $po) }}"
                                                 onsubmit="return confirm('¿Rechazar esta postulación?')">
                                                 @csrf
                                                 <button
@@ -241,7 +241,7 @@
                                 </td>
                                 <td class="px-4 py-4 text-sm text-gray-700">
                                     @if ($activa)
-                                        <form method="POST" action="{{ route('admin.practicas.supervisor', $pr) }}"
+                                        <form method="POST" action="{{ route('coordinacion.practicas.supervisor', $pr) }}"
                                             class="flex items-center gap-1">
                                             @csrf
                                             <select name="profesor_id" required class="{{ $input }} !w-40 text-xs">
@@ -262,7 +262,7 @@
                                 </td>
                                 <td class="whitespace-nowrap px-6 py-4 text-right">
                                     @if ($activa)
-                                        <form method="POST" action="{{ route('admin.practicas.cancelar', $pr) }}"
+                                        <form method="POST" action="{{ route('coordinacion.practicas.cancelar', $pr) }}"
                                             onsubmit="return confirm('¿Cancelar esta práctica?')">
                                             @csrf
                                             <button class="text-xs font-semibold text-red-600 hover:text-red-700">Cancelar</button>

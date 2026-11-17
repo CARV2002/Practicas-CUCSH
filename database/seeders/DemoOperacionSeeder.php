@@ -42,6 +42,9 @@ class DemoOperacionSeeder extends Seeder
 {
     private Personal $lorena;
 
+    /** @var array<string, Personal> Coordinación de cada carrera demo (ABOG, CRIM, DEMO) */
+    private array $coordinacion = [];
+
     /** @var \Illuminate\Support\Collection<string, Carrera> */
     private $carreras;
 
@@ -68,6 +71,7 @@ class DemoOperacionSeeder extends Seeder
         }
 
         $this->lorena = $this->perfilLorena();
+        $this->coordinacion = $this->perfilesCoordinacion();
 
         $this->profesores();
         $this->expedientesParciales();
@@ -81,15 +85,29 @@ class DemoOperacionSeeder extends Seeder
     }
 
 
-    /* ----------------------------- Coordinación ----------------------------- */
+    /* -------------------------- Vinculación y coordinación -------------------------- */
 
+    /** Lorena (Vinculación): gestiona y registra el trámite de convenios. */
     private function perfilLorena(): Personal
     {
-        $user = $this->usuario('admin@test.com', 'Administradora de Prácticas', Rol::Administrador);
+        $this->call(PersonalSeeder::class);   // administrador técnico, Vinculación y coordinadores demo
 
-        return Personal::firstOrCreate(['user_id' => $user->id], [
-            'puesto' => 'Coordinación de Prácticas Profesionales',
-        ]);
+        return PersonalSeeder::vinculacion();
+    }
+
+    /** @return array<string, Personal> La coordinación de carrera valida, autoriza y acredita a sus alumnos. */
+    private function perfilesCoordinacion(): array
+    {
+        return collect(array_keys(PersonalSeeder::COORDINADORES))
+            ->mapWithKeys(fn(string $clave) => [$clave => PersonalSeeder::coordinador($clave)])
+            ->all();
+    }
+
+    private function coordinacionDe(Alumno $alumno): Personal
+    {
+        $clave = $this->carreras->firstWhere('id', $alumno->carrera_id)->carrera_clave;
+
+        return $this->coordinacion[$clave];
     }
 
     private function profesores(): void
@@ -294,7 +312,7 @@ class DemoOperacionSeeder extends Seeder
         $this->adjuntar($carta, 'carta_termino', 'carta-termino.pdf', ValidacionEstado::Validada);
 
         $oficio = OficioAcreditacion::firstOrCreate(['practica_id' => $practica->id], [
-            'emitido_por' => $this->lorena->id,
+            'emitido_por' => $this->coordinacion['CRIM']->id,   // el oficio lo emite la coordinación de la carrera
             'estado_validacion' => ValidacionEstado::Validada,
             'enviado_control_escolar_at' => now()->subMonths(2),
             'capturado_siiau_at' => now()->subMonths(2)->addDays(5),
@@ -397,7 +415,7 @@ class DemoOperacionSeeder extends Seeder
             ['alumno_id' => $alumno->id, 'programa_id' => $programa->id],
             [
                 'estado' => $estado,
-                'validado_por' => $validada ? $this->lorena->id : null,
+                'validado_por' => $validada ? $this->coordinacionDe($alumno)->id : null,
                 'porcentaje_creditos_declarado' => $creditos,
                 'fecha_postulacion' => now()->subDays(20)->toDateString(),
             ]
@@ -413,7 +431,7 @@ class DemoOperacionSeeder extends Seeder
     private function practica(Postulacion $po, string $clave, PracticaEstado $estado, Carbon $inicio, Carbon $fin, ?Profesor $supervisor): Practica
     {
         return Practica::firstOrCreate(['postulacion_id' => $po->id], [
-            'autorizado_por' => $this->lorena->id,
+            'autorizado_por' => $this->coordinacion[$clave]->id,
             'profesor_supervisor_id' => $supervisor?->id,
             'modalidad' => Modalidad::Externa,
             'fecha_inicio' => $inicio->toDateString(),

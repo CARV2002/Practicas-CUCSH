@@ -1,12 +1,7 @@
 @php
     $usuario = auth()->user();
     $rolActual = $usuario->roles->first()?->name;
-    $etiquetaRol = match ($rolActual) {
-        'administrador' => 'Administrador',
-        'empresa' => 'Empresa',
-        'alumno' => 'Alumno',
-        default => null,
-    };
+    $etiquetaRol = $rolActual ? \App\Enums\Rol::tryFrom($rolActual)?->label() : null;
 @endphp
 
 <div class="relative" x-data="{ dropdownOpen: false }" @click.away="dropdownOpen = false">

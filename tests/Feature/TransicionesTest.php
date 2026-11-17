@@ -117,7 +117,7 @@ test('cancelar una práctica libera el cupo y anula solo los reportes pendientes
 
     expect($this->programa->refresh()->cupos_disponibles)->toBe(0);
 
-    $this->actingAs($this->adminUser)->post(route('admin.practicas.cancelar', $this->practica))->assertSessionHasNoErrors();
+    $this->actingAs($this->adminUser)->post(route('coordinacion.practicas.cancelar', $this->practica))->assertSessionHasNoErrors();
 
     expect($this->practica->refresh()->estado)->toBe(PracticaEstado::Cancelada)
         ->and($this->poAna->refresh()->estado)->toBe(PostulacionEstado::Cancelada)
@@ -131,7 +131,7 @@ test('no se cancela una práctica cuyo oficio ya se envió a Control Escolar', f
     OficioAcreditacion::create(['practica_id' => $this->practica->id, 'emitido_por' => $this->admin->id,
         'estado_validacion' => 'validada', 'enviado_control_escolar_at' => now()]);
 
-    $this->actingAs($this->adminUser)->post(route('admin.practicas.cancelar', $this->practica))
+    $this->actingAs($this->adminUser)->post(route('coordinacion.practicas.cancelar', $this->practica))
         ->assertSessionHasErrors('practica');
 
     expect($this->practica->refresh()->estado)->toBe(PracticaEstado::EnCierre);
@@ -141,7 +141,7 @@ test('con la práctica en cierre no se tocan reportes ni se crean nuevos', funct
     $validado = ($this->reporte)(ReporteEstado::Validado, 250);
     $this->practica->update(['estado' => PracticaEstado::EnCierre]);
 
-    $this->actingAs($this->adminUser)->post(route('admin.reportes.resolver', $validado), ['estado' => 'rechazado'])
+    $this->actingAs($this->adminUser)->post(route('coordinacion.reportes.resolver', $validado), ['estado' => 'rechazado'])
         ->assertSessionHasErrors('reporte');
     expect($validado->refresh()->estado)->toBe(ReporteEstado::Validado);
 
@@ -160,11 +160,11 @@ test('la carta de término no se valida mientras haya reportes pendientes', func
 
     $admin = $this->actingAs($this->adminUser);
 
-    $admin->post(route('admin.cierres.carta', $this->practica), ['estado' => 'validada'])->assertSessionHasErrors('carta');
+    $admin->post(route('coordinacion.cierres.carta', $this->practica), ['estado' => 'validada'])->assertSessionHasErrors('carta');
     expect($this->practica->refresh()->estado)->toBe(PracticaEstado::EnCurso);
 
-    $admin->post(route('admin.reportes.resolver', $pendiente), ['estado' => 'rechazado'])->assertSessionHasNoErrors();
-    $admin->post(route('admin.cierres.carta', $this->practica), ['estado' => 'validada'])->assertSessionHasNoErrors();
+    $admin->post(route('coordinacion.reportes.resolver', $pendiente), ['estado' => 'rechazado'])->assertSessionHasNoErrors();
+    $admin->post(route('coordinacion.cierres.carta', $this->practica), ['estado' => 'validada'])->assertSessionHasNoErrors();
 
     expect($this->practica->refresh()->estado)->toBe(PracticaEstado::EnCierre);
 });
@@ -221,7 +221,7 @@ test('acciones fuera de etapa: supervisor, borrador y documentos de un convenio 
     $profesor = Profesor::create(['division_id' => $this->abog->division_id, 'nombre' => 'Dr. Prueba']);
     $admin = $this->actingAs($this->adminUser);
 
-    $admin->post(route('admin.practicas.supervisor', $this->practica), ['profesor_id' => $profesor->id])
+    $admin->post(route('coordinacion.practicas.supervisor', $this->practica), ['profesor_id' => $profesor->id])
         ->assertSessionHasErrors('practica');
 
     $admin->post(route('admin.convenios.borrador', $this->convenio), ['borrador' => trnPdf()])

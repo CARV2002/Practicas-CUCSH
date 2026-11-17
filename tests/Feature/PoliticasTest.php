@@ -78,12 +78,14 @@ beforeEach(function () {
     $this->abog = Carrera::create($datos + ['carrera_clave' => 'ABOG', 'nombre' => 'Abogado']);
     $this->hist = Carrera::create($datos + ['carrera_clave' => 'HIST', 'nombre' => 'Historia']);
 
-    // Tres tipos de administrador: global, con alcance solo a ABOG, y uno sin perfil de Personal
-    $this->adminGlobal = polUser(Rol::Administrador);
-    Personal::create(['user_id' => $this->adminGlobal->id, 'puesto' => 'Coordinación']);
-    $this->adminAbog = polUser(Rol::Administrador);
-    Personal::create(['user_id' => $this->adminAbog->id, 'carrera_id' => $this->abog->id, 'puesto' => 'Coordinador ABOG']);
-    $this->adminSinPerfil = polUser(Rol::Administrador);
+    // Personal: Vinculación (Lorena, global), coordinación de ABOG, administrador técnico y un coordinador sin perfil
+    $this->vinculacion = polUser(Rol::Vinculacion);
+    Personal::create(['user_id' => $this->vinculacion->id, 'puesto' => 'Vinculación']);
+    $this->adminTecnico = polUser(Rol::Administrador);
+    Personal::create(['user_id' => $this->adminTecnico->id, 'puesto' => 'Administración técnica']);
+    $this->coordAbog = polUser(Rol::Coordinador);
+    Personal::create(['user_id' => $this->coordAbog->id, 'carrera_id' => $this->abog->id, 'puesto' => 'Coordinador ABOG']);
+    $this->coordSinPerfil = polUser(Rol::Coordinador);
 
     [$this->userA, $this->empresaA] = polEmpresa('EPA010101AB1');
     [$this->userB, $this->empresaB] = polEmpresa('EPB020202CD2');
@@ -122,16 +124,18 @@ beforeEach(function () {
     ]);
 });
 
-test('convenio: solo la empresa dueña y la coordinación con alcance lo ven', function () {
+test('convenio: lo ven la empresa dueña, Vinculación y la coordinación participante; solo Vinculación lo gestiona', function () {
     expect($this->userA->can('view', $this->convenio))->toBeTrue()
         ->and($this->userB->can('view', $this->convenio))->toBeFalse()
         ->and($this->anaUser->can('view', $this->convenio))->toBeFalse()
-        ->and($this->adminGlobal->can('view', $this->convenio))->toBeTrue()
-        ->and($this->adminAbog->can('view', $this->convenio))->toBeTrue()            // ABOG aprobó en este convenio
-        ->and($this->adminAbog->can('view', $this->convenioEnTramite))->toBeFalse()  // no lo solicitó su carrera
-        ->and($this->adminSinPerfil->can('view', $this->convenio))->toBeFalse()      // sin perfil: se niega, no truena
+        ->and($this->vinculacion->can('view', $this->convenio))->toBeTrue()
+        ->and($this->coordAbog->can('view', $this->convenio))->toBeTrue()            // ABOG aprobó en este convenio
+        ->and($this->coordAbog->can('view', $this->convenioEnTramite))->toBeFalse()  // no lo solicitó su carrera
+        ->and($this->coordSinPerfil->can('view', $this->convenio))->toBeFalse()      // sin perfil: se niega, no truena
         ->and($this->userA->can('gestionar', $this->convenio))->toBeFalse()          // la empresa no avanza su propio trámite
-        ->and($this->adminGlobal->can('gestionar', $this->convenio))->toBeTrue();
+        ->and($this->vinculacion->can('gestionar', $this->convenio))->toBeTrue()
+        ->and($this->adminTecnico->can('gestionar', $this->convenio))->toBeTrue()
+        ->and($this->coordAbog->can('gestionar', $this->convenio))->toBeFalse();       // la coordinación no avanza el trámite
 });
 
 test('la empresa solo descarga el convenio firmado cuando está formalizado', function () {
@@ -144,9 +148,10 @@ test('programas: la empresa dueña y la coordinación de esa carrera', function 
     expect($this->userA->can('gestionar', $this->programaAbog))->toBeTrue()
         ->and($this->userB->can('gestionar', $this->programaAbog))->toBeFalse()
         ->and($this->anaUser->can('gestionar', $this->programaAbog))->toBeFalse()
-        ->and($this->adminAbog->can('gestionar', $this->programaAbog))->toBeTrue()
-        ->and($this->adminAbog->can('gestionar', $this->programaHist))->toBeFalse()
-        ->and($this->adminGlobal->can('gestionar', $this->programaHist))->toBeTrue();
+        ->and($this->coordAbog->can('gestionar', $this->programaAbog))->toBeTrue()
+        ->and($this->coordAbog->can('gestionar', $this->programaHist))->toBeFalse()
+        ->and($this->vinculacion->can('gestionar', $this->programaHist))->toBeFalse()   // Vinculación no opera vacantes
+        ->and($this->adminTecnico->can('gestionar', $this->programaHist))->toBeTrue();
 });
 
 test('postulaciones: el alumno sube documentos pero no se valida a sí mismo', function () {
@@ -154,8 +159,11 @@ test('postulaciones: el alumno sube documentos pero no se valida a sí mismo', f
         ->and($this->luisUser->can('subirDocumento', $this->poAna))->toBeFalse()
         ->and($this->anaUser->can('gestionar', $this->poAna))->toBeFalse()
         ->and($this->userA->can('gestionar', $this->poAna))->toBeFalse()
-        ->and($this->adminAbog->can('gestionar', $this->poAna))->toBeTrue()
-        ->and($this->adminAbog->can('gestionar', $this->poLuis))->toBeFalse();
+        ->and($this->coordAbog->can('gestionar', $this->poAna))->toBeTrue()
+        ->and($this->coordAbog->can('gestionar', $this->poLuis))->toBeFalse()
+        ->and($this->vinculacion->can('gestionar', $this->poAna))->toBeFalse()          // Lorena no emite cartas
+        ->and($this->coordSinPerfil->can('gestionar', $this->poAna))->toBeFalse()
+        ->and($this->adminTecnico->can('gestionar', $this->poLuis))->toBeTrue();
 });
 
 test('prácticas y reportes: cada actor toca solo lo que le corresponde', function () {
@@ -163,16 +171,19 @@ test('prácticas y reportes: cada actor toca solo lo que le corresponde', functi
         ->and($this->userA->can('view', $this->practicaAna))->toBeTrue()
         ->and($this->userB->can('view', $this->practicaAna))->toBeFalse()
         ->and($this->luisUser->can('view', $this->practicaAna))->toBeFalse()
-        ->and($this->adminAbog->can('view', $this->practicaLuis))->toBeFalse()
+        ->and($this->coordAbog->can('view', $this->practicaLuis))->toBeFalse()
         ->and($this->anaUser->can('entregarDocumentos', $this->practicaAna))->toBeTrue()
         ->and($this->userA->can('entregarDocumentos', $this->practicaAna))->toBeFalse()
         ->and($this->anaUser->can('gestionar', $this->practicaAna))->toBeFalse()
         ->and($this->userA->can('retroalimentar', $this->reporteAna))->toBeTrue()
         ->and($this->userB->can('retroalimentar', $this->reporteAna))->toBeFalse()
         ->and($this->anaUser->can('retroalimentar', $this->reporteAna))->toBeFalse()
-        ->and($this->adminAbog->can('resolver', $this->reporteAna))->toBeTrue()
+        ->and($this->coordAbog->can('resolver', $this->reporteAna))->toBeTrue()
         ->and($this->anaUser->can('resolver', $this->reporteAna))->toBeFalse()
-        ->and($this->anaUser->can('subirArchivo', $this->reporteAna))->toBeTrue();
+        ->and($this->anaUser->can('subirArchivo', $this->reporteAna))->toBeTrue()
+        ->and($this->vinculacion->can('resolver', $this->reporteAna))->toBeFalse()     // Lorena no valida reportes
+        ->and($this->vinculacion->can('gestionar', $this->practicaAna))->toBeFalse()
+        ->and($this->vinculacion->can('view', $this->practicaAna))->toBeFalse();
 });
 
 test('descargas: matriz de quién puede bajar qué', function () {
@@ -182,14 +193,16 @@ test('descargas: matriz de quién puede bajar qué', function () {
     $firmado = $this->convenio->addMedia(polPdf())->toMediaCollection('convenio_firmado');
     $borrador = $this->convenio->addMedia(polPdf())->toMediaCollection('borrador_convenio');
     $reporte = $this->reporteAna->addMedia(polPdf())->toMediaCollection('reporte_firmado');
-    $oficio = OficioAcreditacion::create(['practica_id' => $this->practicaAna->id, 'emitido_por' => $this->adminGlobal->personal->id]);
+    $oficio = OficioAcreditacion::create(['practica_id' => $this->practicaAna->id, 'emitido_por' => $this->coordAbog->personal->id]);
     $oficioPdf = $oficio->addMedia(polPdf())->toMediaCollection('oficio_acreditacion');
 
     // Datos del alumno
     expect($this->anaUser->can('download', $kardex))->toBeTrue()
         ->and($this->luisUser->can('download', $kardex))->toBeFalse()
         ->and($this->userA->can('download', $kardex))->toBeFalse()          // la empresa no ve el kardex
-        ->and($this->adminAbog->can('download', $kardex))->toBeTrue()
+        ->and($this->coordAbog->can('download', $kardex))->toBeTrue()
+        ->and($this->vinculacion->can('download', $kardex))->toBeFalse()   // Lorena no revisa expedientes de alumnos
+        ->and($this->vinculacion->can('download', $imss))->toBeFalse()
         ->and($this->anaUser->can('download', $imss))->toBeTrue()
         ->and($this->luisUser->can('download', $imss))->toBeFalse();
 
@@ -197,18 +210,22 @@ test('descargas: matriz de quién puede bajar qué', function () {
     expect($this->userA->can('download', $acta))->toBeTrue()
         ->and($this->userB->can('download', $acta))->toBeFalse()
         ->and($this->anaUser->can('download', $acta))->toBeFalse()
-        ->and($this->adminGlobal->can('download', $acta))->toBeTrue()
+        ->and($this->vinculacion->can('download', $acta))->toBeTrue()
+        ->and($this->coordAbog->can('download', $acta))->toBeFalse()      // el expediente de la empresa es de Vinculación
         ->and($this->userA->can('download', $firmado))->toBeTrue()
         ->and($this->userB->can('download', $firmado))->toBeFalse()
         ->and($this->userA->can('download', $borrador))->toBeFalse()        // el borrador es interno
-        ->and($this->adminGlobal->can('download', $borrador))->toBeTrue();
+        ->and($this->vinculacion->can('download', $borrador))->toBeTrue()
+        ->and($this->coordAbog->can('download', $borrador))->toBeFalse()
+        ->and($this->coordAbog->can('download', $firmado))->toBeTrue();   // su carrera participa en el convenio formalizado
 
     // Reportes y oficio
     expect($this->userA->can('download', $reporte))->toBeTrue()             // la empresa ve los reportes de sus practicantes
         ->and($this->userB->can('download', $reporte))->toBeFalse()
-        ->and($this->adminAbog->can('download', $oficioPdf))->toBeTrue()
+        ->and($this->coordAbog->can('download', $oficioPdf))->toBeTrue()
         ->and($this->anaUser->can('download', $oficioPdf))->toBeFalse()
-        ->and($this->adminSinPerfil->can('download', $oficioPdf))->toBeFalse();
+        ->and($this->coordSinPerfil->can('download', $oficioPdf))->toBeFalse()
+        ->and($this->vinculacion->can('download', $oficioPdf))->toBeFalse();
 
     // Lo denegado responde 404 (no confirma que el archivo exista)
     expect(Gate::forUser($this->luisUser)->inspect('download', $imss)->status())->toBe(404);

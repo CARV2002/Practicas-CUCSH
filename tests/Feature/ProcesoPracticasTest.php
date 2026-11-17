@@ -77,8 +77,8 @@ beforeEach(function () {
     $this->historia = Carrera::create($datosCarrera + ['carrera_clave' => 'HIST', 'nombre' => 'Historia']);
 
     $this->userLorena = User::factory()->create();
-    $this->userLorena->assignRole(Rol::Administrador->value);
-    $this->lorena = Personal::create(['user_id' => $this->userLorena->id, 'puesto' => 'Coordinación de Prácticas']);
+    $this->userLorena->assignRole(Rol::Vinculacion->value);
+    $this->lorena = Personal::create(['user_id' => $this->userLorena->id, 'puesto' => 'Vinculación']);
 
     $this->userEmpresa = User::factory()->create();
     $this->userEmpresa->assignRole(Rol::Empresa->value);

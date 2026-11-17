@@ -1,4 +1,4 @@
-{{-- resources/views/admin/lista-programas.blade.php --}}
+{{-- resources/views/coordinacion/lista-programas.blade.php --}}
 @extends('layouts.app')
 
 @section('content')
@@ -21,8 +21,8 @@
     p: @js($vacio),
     vacio: @js($vacio),
     convenios: @js($conveniosJs),
-    urlUpdate: '{{ route('admin.programas.update', 0) }}',
-    urlStore: '{{ route('admin.programas.store') }}',
+    urlUpdate: '{{ route('coordinacion.programas.update', 0) }}',
+    urlStore: '{{ route('coordinacion.programas.store') }}',
     nuevo() { this.p = { ...this.vacio }; this.modal = true; },
     editar(d) { this.p = { ...this.vacio, ...d }; this.modal = true; },
     get action() { return this.p.id ? this.urlUpdate.replace(/0$/, this.p.id) : this.urlStore; },
@@ -133,7 +133,7 @@
                             <td class="whitespace-nowrap px-6 py-4 text-right">
                                 <div class="flex items-center justify-end gap-3">
                                     <button type="button" @click="editar(@js($datos))" class="text-brand-600 hover:text-brand-700 text-xs font-semibold">Editar</button>
-                                    <form method="POST" action="{{ route('admin.programas.estado', $pr) }}" class="flex gap-2">
+                                    <form method="POST" action="{{ route('coordinacion.programas.estado', $pr) }}" class="flex gap-2">
                                         @csrf
                                         @if ($pr->estado !== \App\Enums\ProgramaEstado::Publicado)
                                             <button name="estado" value="publicado" class="text-xs font-semibold text-green-600 hover:text-green-700">Publicar</button>
@@ -145,7 +145,7 @@
                                             <button name="estado" value="borrador" class="text-xs font-semibold text-gray-500 hover:text-gray-700">A borrador</button>
                                         @endif
                                     </form>
-                                    <form method="POST" action="{{ route('admin.programas.destroy', $pr) }}" onsubmit="return confirm('¿Eliminar este programa?')">
+                                    <form method="POST" action="{{ route('coordinacion.programas.destroy', $pr) }}" onsubmit="return confirm('¿Eliminar este programa?')">
                                         @csrf @method('DELETE')
                                         <button class="text-xs font-semibold text-red-600 hover:text-red-700">Eliminar</button>
                                     </form>

@@ -51,7 +51,7 @@ class NotificacionController extends Controller
         // Avisos anteriores a `url`
         $convenioId = $n->data['convenio_id'] ?? null;
 
-        if ($convenioId && $request->user()->hasRole('administrador')) {
+        if ($convenioId && $request->user()->hasAnyRole(\App\Enums\Rol::deVinculacion())) {
             return redirect()->route('admin.convenios.show', $convenioId);
         }
 

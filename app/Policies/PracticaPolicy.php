@@ -10,7 +10,7 @@ class PracticaPolicy
 {
     use ResuelveActores;
 
-    /** Alumno dueño, empresa donde la realiza o Coordinación con alcance. */
+    /** Alumno dueño, empresa donde la realiza o la Coordinación de su carrera. */
     public function view(User $user, Practica $practica): bool
     {
         if ($this->gestionar($user, $practica)) {
@@ -28,7 +28,7 @@ class PracticaPolicy
 
     public function gestionar(User $user, Practica $practica): bool
     {
-        return $this->adminVeCarrera($user, (int) $practica->postulacion->alumno->carrera_id);
+        return $this->coordinaCarrera($user, (int) $practica->postulacion->alumno->carrera_id);
     }
 
     /** Crear reportes y subir la carta de término. */

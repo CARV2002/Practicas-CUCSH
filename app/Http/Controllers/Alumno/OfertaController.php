@@ -123,9 +123,9 @@ class OfertaController extends Controller
 
         $postulacion->addMediaFromRequest('kardex')->toMediaCollection('kardex');
 
-        Avisos::enviar(Avisos::administradores((int) $alumno->carrera_id), new AvisoOperativo(
+        Avisos::enviar(Avisos::coordinadores((int) $alumno->carrera_id), new AvisoOperativo(
             mensaje: "{$request->user()->name} ({$alumno->carrera->carrera_clave}) se postuló a «{$programa->titulo}». Valida créditos e IMSS.",
-            url: route('admin.lista-practicantes', absolute: false),
+            url: route('coordinacion.lista-practicantes', absolute: false),
             detalle: $programa->titulo,
         ));
 

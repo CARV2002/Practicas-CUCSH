@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Coordinacion;
 
 use App\Enums\Modalidad;
 use App\Enums\ProgramaEstado;
@@ -15,10 +15,15 @@ use Illuminate\View\View;
 
 class ProgramaController extends Controller
 {
+    /** Programas y vacantes de las carreras de la coordinación (internos y de empresas con convenio). */
     public function index(Request $request): View
     {
+        $personal = $request->user()->personal;
+        $ids = $personal->carreraIdsEnAlcance();
+
         $programas = Programa::with(['convenio.empresa', 'carrera'])
             ->conCuposOcupados()
+            ->when($ids !== null, fn ($q) => $q->whereIn('carrera_id', $ids))
             ->when($request->filled('q'), fn ($q) => $q->where(fn ($w) => $w
                 ->where('titulo', 'like', '%'.$request->string('q').'%')
                 ->orWhereHas('convenio.empresa', fn ($e) => $e->where('razon_social', 'like', '%'.$request->string('q').'%'))))
@@ -30,19 +35,25 @@ class ProgramaController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        return view('admin.lista-programas', [
+        return view('coordinacion.lista-programas', [
             'programas' => $programas,
-            'carreras' => Carrera::orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
+            'carreras' => Carrera::enAlcance($personal)->orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
             'estados' => ProgramaEstado::cases(),
             'modalidades' => Modalidad::cases(),
-            'ciclos' => Programa::select('ciclo')->distinct()->orderByDesc('ciclo')->pluck('ciclo'),
-            'convenios' => Convenio::vigentes()->with(['empresa', 'dictamenes.carrera'])->get(),
+            'ciclos' => Programa::select('ciclo')->distinct()
+                ->when($ids !== null, fn ($q) => $q->whereIn('carrera_id', $ids))
+                ->orderByDesc('ciclo')->pluck('ciclo'),
+            'convenios' => Convenio::vigentes()->visiblesPara($personal)->with(['empresa', 'dictamenes.carrera'])->get(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        Programa::create($this->validar($request));
+        $datos = $this->validar($request);
+
+        abort_unless($request->user()->personal->puedeVerCarrera((int) $datos['carrera_id']), 403);
+
+        Programa::create($datos);
 
         return back()->with('status', 'Programa creado como borrador.');
     }
@@ -51,7 +62,12 @@ class ProgramaController extends Controller
     {
         $this->authorize('gestionar', $programa);
 
-        $programa->update($this->validar($request, $programa));
+        $datos = $this->validar($request, $programa);
+
+        // No se puede "mover" un programa a una carrera fuera de su alcance
+        abort_unless($request->user()->personal->puedeVerCarrera((int) $datos['carrera_id']), 403);
+
+        $programa->update($datos);
 
         return back()->with('status', 'Programa actualizado.');
     }

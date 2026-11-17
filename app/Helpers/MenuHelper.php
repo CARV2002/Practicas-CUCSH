@@ -14,8 +14,17 @@ class MenuHelper
     {
         $user = auth()->user();
 
+        // El administrador técnico ve ambos paneles; Vinculación y Coordinación solo el suyo
         if ($user->hasRole(Rol::Administrador->value)) {
-            return self::administradorMenu();
+            return [...self::vinculacionMenu(), ...self::coordinacionMenu()];
+        }
+
+        if ($user->hasRole(Rol::Vinculacion->value)) {
+            return self::vinculacionMenu();
+        }
+
+        if ($user->hasRole(Rol::Coordinador->value)) {
+            return self::coordinacionMenu();
         }
 
         if ($user->hasRole(Rol::Empresa->value)) {
@@ -96,83 +105,51 @@ class MenuHelper
         ];
     }
 
-    /** Coordinación de Prácticas Profesionales (Lorena): el proceso de convenio y su seguimiento. */
-    private static function administradorMenu()
+    /** Vinculación (Lorena): solo el trámite de convenios y el alta de coordinadores. */
+    private static function vinculacionMenu()
     {
         $items = [
-            [
-                'name' => 'Dashboard',
-                'icon' => 'dashboard',
-                'path' => '/admin/dashboard',
-            ],
-            [
-                'name' => 'Convenios',
-                'icon' => 'pages',
-                'path' => '/admin/lista-convenios',
-            ],
-            [
-                'name' => 'Dictámenes',
-                'icon' => 'task',
-                'path' => '/admin/lista-dictamenes',
-            ],
-            [
-                'name' => 'Empresas',
-                'icon' => 'ui-elements',
-                'path' => '/admin/lista-empresas',
-            ],
-            [
-                'name' => 'Programas',
-                'icon' => 'forms',
-                'path' => '/admin/lista-programas',
-            ],
-            [
-                'name' => 'Practicantes',
-                'icon' => 'user-profile',
-                'path' => '/admin/lista-practicantes',
-            ],
-            [
-                'name' => 'Cierre de prácticas',
-                'icon' => 'calendar',
-                'path' => '/admin/lista-cierres',
-            ],
-            [
-                'name' => 'Reportes',
-                'icon' => 'charts',
-                'path' => '/admin/lista-reportes',
-            ],
-            [
-                'name' => 'Informes',
-                'icon' => 'charts',
-                'path' => '/admin/informes',
-            ],
-            [
-                'name' => 'Divisiones y carreras',
-                'icon' => 'tables',
-                'path' => '/admin/catalogos',
-            ],
-            [
-                'name' => 'Usuarios',
-                'icon' => 'authentication',
-                'path' => '/admin/lista-usuarios',
-            ],
+            ['name' => 'Panel de convenios', 'icon' => 'dashboard', 'path' => '/admin/dashboard'],
+            ['name' => 'Convenios', 'icon' => 'pages', 'path' => '/admin/lista-convenios'],
+            ['name' => 'Dictámenes', 'icon' => 'task', 'path' => '/admin/lista-dictamenes'],
+            ['name' => 'Empresas', 'icon' => 'ui-elements', 'path' => '/admin/lista-empresas'],
+            ['name' => 'Informes', 'icon' => 'charts', 'path' => '/admin/informes'],
+            ['name' => 'Usuarios', 'icon' => 'authentication', 'path' => '/admin/lista-usuarios'],
         ];
 
+        if (auth()->user()?->hasRole(Rol::Administrador->value)) {
+            $items[] = ['name' => 'Divisiones y carreras', 'icon' => 'tables', 'path' => '/admin/catalogos'];
+        }
+
         if (auth()->user()?->can('ver-auditoria')) {
-            $items[] = [
-                'name' => 'Auditoría',
-                'icon' => 'authentication',
-                'path' => '/admin/auditoria',
-            ];
+            $items[] = ['name' => 'Auditoría', 'icon' => 'authentication', 'path' => '/admin/auditoria'];
         }
 
         return [
             [
-                'title' => 'Coordinación de Prácticas',
+                'title' => 'Vinculación',
                 'items' => $items,
             ],
         ];
     }
 
+    /** Coordinación de carrera: el proceso académico del alumno, filtrado por su alcance. */
+    private static function coordinacionMenu()
+    {
+        return [
+            [
+                'title' => 'Coordinación de carrera',
+                'items' => [
+                    ['name' => 'Panel de coordinación', 'icon' => 'dashboard', 'path' => '/coordinacion/dashboard'],
+                    ['name' => 'Programas', 'icon' => 'forms', 'path' => '/coordinacion/lista-programas'],
+                    ['name' => 'Practicantes', 'icon' => 'user-profile', 'path' => '/coordinacion/lista-practicantes'],
+                    ['name' => 'Reportes', 'icon' => 'charts', 'path' => '/coordinacion/lista-reportes'],
+                    ['name' => 'Cierre de prácticas', 'icon' => 'calendar', 'path' => '/coordinacion/lista-cierres'],
+                    ['name' => 'Reglas de mi carrera', 'icon' => 'tables', 'path' => '/coordinacion/reglas'],
+                ],
+            ],
+        ];
+    }
 
     public static function isActive($path)
     {

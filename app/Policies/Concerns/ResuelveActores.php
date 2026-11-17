@@ -7,15 +7,29 @@ use App\Models\User;
 
 trait ResuelveActores
 {
-    /** Administrador con perfil de Personal (sin perfil no tiene alcance: se le niega, no truena). */
-    protected function esAdmin(User $user): bool
+    /**
+     * Vinculación (o el administrador técnico) con perfil de Personal: lleva el trámite de convenios.
+     * Sin perfil no tiene alcance: se le niega, no truena.
+     */
+    protected function esVinculacion(User $user): bool
     {
-        return $user->hasRole(Rol::Administrador->value) && $user->personal !== null;
+        return $user->hasAnyRole(Rol::deVinculacion()) && $user->personal !== null;
     }
 
-    protected function adminVeCarrera(User $user, int $carreraId): bool
+    /** Coordinación de carrera/división (con alcance obligatorio) o administrador técnico. */
+    protected function esCoordinacion(User $user): bool
     {
-        return $this->esAdmin($user) && $user->personal->puedeVerCarrera($carreraId);
+        if (! $user->hasAnyRole(Rol::deCoordinacion()) || $user->personal === null) {
+            return false;
+        }
+
+        return $user->hasRole(Rol::Administrador->value) || $user->personal->tieneAlcanceDeCoordinacion();
+    }
+
+    /** Coordinación con alcance sobre esa carrera: la única que opera el proceso del alumno. */
+    protected function coordinaCarrera(User $user, int $carreraId): bool
+    {
+        return $this->esCoordinacion($user) && $user->personal->puedeVerCarrera($carreraId);
     }
 
     protected function empresaId(User $user): ?int

@@ -69,7 +69,7 @@ class AppServiceProvider extends ServiceProvider
 
         Event::subscribe(\App\Listeners\RegistrarAccesos::class);
 
-        Gate::define('ver-auditoria', fn(User $u) => $u->hasRole(Rol::Administrador->value)
+        Gate::define('ver-auditoria', fn(User $u) => $u->hasAnyRole(Rol::deVinculacion())
             && $u->personal?->tieneAlcanceGlobal() === true);
     }
 }

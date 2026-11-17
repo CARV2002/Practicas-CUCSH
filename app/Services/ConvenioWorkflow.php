@@ -378,7 +378,7 @@ class ConvenioWorkflow
     /** Avisa a la Coordinación (alcance global) que llegó una solicitud nueva: campana + correo. */
     private function avisarAdministradores(Convenio $convenio): void
     {
-        Avisos::enviar(Avisos::coordinacionGlobal(), new NuevaSolicitudConvenio($convenio));
+        Avisos::enviar(Avisos::vinculacion(), new NuevaSolicitudConvenio($convenio));
     }
 
     private function abrirEtapa(Convenio $convenio, EtapaConvenio $etapa, ?Personal $por, ?string $comentario = null): ConvenioSeguimiento

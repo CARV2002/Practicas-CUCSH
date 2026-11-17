@@ -25,10 +25,8 @@ class ConvenioSeeder extends Seeder
 
         $this->call([RolesSeeder::class, CarreraSeeder::class]);
 
-        $lorena = Personal::firstOrCreate(
-            ['user_id' => $this->usuario('admin@test.com', 'Administradora de Prácticas', Rol::Administrador)->id],
-            ['puesto' => 'Coordinación de Prácticas Profesionales']
-        );
+        // Vinculación (Lorena) es quien registra cada etapa del trámite
+        $lorena = PersonalSeeder::vinculacion();
 
         $abog = Carrera::where('carrera_clave', 'ABOG')->first();
         $crim = Carrera::where('carrera_clave', 'CRIM')->first();

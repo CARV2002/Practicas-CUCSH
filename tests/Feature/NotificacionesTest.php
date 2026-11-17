@@ -38,9 +38,10 @@ function notUser(Rol $rol): User
     return $u;
 }
 
+/** Sin carrera: Vinculación (Lorena, global). Con carrera: coordinación de esa carrera. */
 function notAdmin(?int $carreraId = null): User
 {
-    $u = notUser(Rol::Administrador);
+    $u = notUser($carreraId === null ? Rol::Vinculacion : Rol::Coordinador);
     Personal::create(['user_id' => $u->id, 'carrera_id' => $carreraId, 'puesto' => 'Coordinación']);
 
     return $u;
@@ -85,14 +86,14 @@ beforeEach(function () {
     ]);
 });
 
-test('una postulación avisa solo a la coordinación con alcance sobre la carrera', function () {
+test('una postulación avisa solo a la coordinación de esa carrera (no a Vinculación)', function () {
     Notification::fake();
 
     $this->actingAs($this->anaUser)->post(route('alumno.oferta-programas.postular', $this->programa), [
         'porcentaje_creditos_declarado' => 70, 'kardex' => notPdf(),
     ])->assertSessionHasNoErrors();
 
-    Notification::assertSentTo($this->adminGlobal, AvisoOperativo::class);
+    Notification::assertNotSentTo($this->adminGlobal, AvisoOperativo::class);   // Vinculación no opera prácticas
     Notification::assertSentTo($this->adminAbog, AvisoOperativo::class);
     Notification::assertNotSentTo($this->adminHist, AvisoOperativo::class);   // Historia no tiene nada que ver
     Notification::assertNotSentTo($this->anaUser, AvisoOperativo::class);
@@ -104,7 +105,7 @@ test('al emitir la carta de presentación se avisa por correo al alumno y en pla
 
     Notification::fake();
 
-    $this->actingAs($this->adminGlobal)->post(route('admin.postulaciones.carta', $po))->assertSessionHasNoErrors();
+    $this->actingAs($this->adminAbog)->post(route('coordinacion.postulaciones.carta', $po))->assertSessionHasNoErrors();
 
     Notification::assertSentTo($this->anaUser, AvisoOperativo::class, fn ($n, $canales) => in_array('mail', $canales, true));
     Notification::assertSentTo($this->userEmpresa, AvisoOperativo::class, fn ($n, $canales) => $canales === ['database']);
@@ -117,7 +118,7 @@ test('las cuentas desactivadas no reciben avisos', function () {
 
     Notification::fake();
 
-    $this->actingAs($this->adminGlobal)->post(route('admin.postulaciones.carta', $po))->assertSessionHasNoErrors();
+    $this->actingAs($this->adminAbog)->post(route('coordinacion.postulaciones.carta', $po))->assertSessionHasNoErrors();
 
     Notification::assertSentTo($this->anaUser, AvisoOperativo::class);
     Notification::assertNotSentTo($this->userEmpresa, AvisoOperativo::class);
@@ -136,25 +137,25 @@ test('un reporte rechazado avisa por correo y uno validado solo en la plataforma
 
     Notification::fake();
 
-    $this->actingAs($this->adminGlobal)
-        ->post(route('admin.reportes.resolver', $malo), ['estado' => 'rechazado', 'evaluacion_profesor' => 'Horas inconsistentes'])
+    $this->actingAs($this->adminAbog)
+        ->post(route('coordinacion.reportes.resolver', $malo), ['estado' => 'rechazado', 'evaluacion_profesor' => 'Horas inconsistentes'])
         ->assertSessionHasNoErrors();
     Notification::assertSentTo($this->anaUser, AvisoOperativo::class, fn ($n, $c) => in_array('mail', $c, true));
 
-    $this->actingAs($this->adminGlobal)
-        ->post(route('admin.reportes.resolver', $bueno), ['estado' => 'validado'])
+    $this->actingAs($this->adminAbog)
+        ->post(route('coordinacion.reportes.resolver', $bueno), ['estado' => 'validado'])
         ->assertSessionHasNoErrors();
     Notification::assertSentTo($this->anaUser, AvisoOperativo::class, fn ($n, $c) => $c === ['database']);
 });
 
-test('el aviso de vencimiento se envía una sola vez y respeta el alcance', function () {
+test('el aviso de vencimiento se envía una sola vez y solo a la empresa y a Vinculación', function () {
     $this->convenio->update(['fecha_fin_vigencia' => now()->addDays(25)]);
 
     $this->artisan('practicas:avisos-programados')->assertSuccessful();
 
     expect($this->userEmpresa->notifications()->count())->toBe(1)
         ->and($this->adminGlobal->notifications()->count())->toBe(1)
-        ->and($this->adminAbog->notifications()->count())->toBe(1)    // su carrera participa en el convenio
+        ->and($this->adminAbog->notifications()->count())->toBe(0)    // el convenio es trámite de Vinculación
         ->and($this->adminHist->notifications()->count())->toBe(0);
 
     $this->artisan('practicas:avisos-programados')->assertSuccessful();   // segunda corrida: sin duplicados
@@ -185,13 +186,18 @@ test('la campana abre el destino del aviso y nunca un dominio externo', function
     $this->actingAs($this->anaUser)->get(route('notificaciones.abrir', $externo->id))->assertRedirect(route('notificaciones.index'));
 });
 
-test('una solicitud de convenio avisa por correo y campana solo a la coordinación global activa', function () {
+test('una solicitud de convenio avisa por correo y campana solo a Vinculación activa', function () {
     $inactivo = notAdmin();
     $inactivo->update(['activo' => false]);
 
     $u = notUser(Rol::Empresa);
     $nueva = Empresa::create(['user_id' => $u->id, 'rfc' => 'EPB020202CD2', 'razon_social' => 'Empresa Nueva',
         'tipo_organismo' => TipoOrganismo::Privado, 'contacto_nombre' => 'Contacto']);
+
+    // Para solicitar, el expediente debe estar subido (aún sin validar: el correo lo marca como incompleto)
+    foreach (Empresa::coleccionesObligatorias() as $coleccion) {
+        $nueva->addMedia(notPdf())->toMediaCollection($coleccion);
+    }
 
     Notification::fake();
 

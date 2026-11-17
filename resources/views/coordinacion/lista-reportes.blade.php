@@ -152,7 +152,7 @@
                                     <span class="block text-xs text-gray-500">{{ $r->periodo_inicio->format('d/m/Y') }} –
                                         {{ $r->periodo_fin->format('d/m/Y') }}</span>
                                     @if ($pdf)
-                                        <a href="{{ route('admin.reportes.archivos', [$r, $pdf]) }}"
+                                        <a href="{{ route('coordinacion.reportes.archivos', [$r, $pdf]) }}"
                                             class="text-brand-600 text-xs font-semibold">Descargar PDF</a>
                                     @endif
                                 </td>
@@ -172,7 +172,7 @@
                                 </td>
                                 <td class="px-6 py-4 text-right">
                                     @if ($r->estado === RE::Pendiente)
-                                        <form method="POST" action="{{ route('admin.reportes.resolver', $r) }}"
+                                        <form method="POST" action="{{ route('coordinacion.reportes.resolver', $r) }}"
                                             class="flex flex-col items-end gap-2">
                                             @csrf
                                             <input type="text" name="evaluacion_profesor" placeholder="Evaluación / motivo"

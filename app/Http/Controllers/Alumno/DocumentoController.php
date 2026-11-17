@@ -84,7 +84,7 @@ class DocumentoController extends Controller
 
         $postulacion->addMediaFromRequest('archivo')->toMediaCollection('carta_aceptacion');
 
-        $this->avisarCoordinacion($request, 'subió su carta de aceptación de «' . $postulacion->programa->titulo . '»; regístrala para activar su práctica.', 'admin.lista-practicantes');
+        $this->avisarCoordinacion($request, 'subió su carta de aceptación de «' . $postulacion->programa->titulo . '»; regístrala para activar su práctica.', 'coordinacion.lista-practicantes');
 
         return back()->with('status', 'Carta de aceptación enviada; la Coordinación la registrará.');
     }
@@ -106,7 +106,7 @@ class DocumentoController extends Controller
         $reporte->addMediaFromRequest('archivo')->toMediaCollection('reporte_firmado');
         $reporte->update(['estado' => ReporteEstado::Pendiente]);   // un rechazado vuelve a revisión
 
-        $this->avisarCoordinacion($request, 'reenvió su reporte firmado del ' . $reporte->periodo_inicio->format('d/m/Y') . ' para revisión.', 'admin.lista-reportes');
+        $this->avisarCoordinacion($request, 'reenvió su reporte firmado del ' . $reporte->periodo_inicio->format('d/m/Y') . ' para revisión.', 'coordinacion.lista-reportes');
 
 
         return back()->with('status', 'Reporte firmado enviado.');
@@ -126,7 +126,7 @@ class DocumentoController extends Controller
         $carta->addMediaFromRequest('archivo')->toMediaCollection('carta_termino');
         $carta->update(['estado_validacion' => ValidacionEstado::Pendiente]);   // vuelve a revisión
 
-        $this->avisarCoordinacion($request, 'subió su carta de término para revisión.', 'admin.lista-cierres');
+        $this->avisarCoordinacion($request, 'subió su carta de término para revisión.', 'coordinacion.lista-cierres');
 
 
         return back()->with('status', 'Carta de término enviada.');
@@ -212,7 +212,7 @@ class DocumentoController extends Controller
             $reporte->addMediaFromRequest('archivo')->toMediaCollection('reporte_firmado');
         });
 
-        $this->avisarCoordinacion($request, "envió un reporte {$datos['tipo']} de {$datos['horas_reportadas']} h por validar.", 'admin.lista-reportes');
+        $this->avisarCoordinacion($request, "envió un reporte {$datos['tipo']} de {$datos['horas_reportadas']} h por validar.", 'coordinacion.lista-reportes');
 
         return back()->with('status', 'Reporte enviado. La Coordinación lo validará para que cuenten tus horas.');
     }
@@ -221,7 +221,7 @@ class DocumentoController extends Controller
     {
         $user = $request->user();
 
-        Avisos::enviar(Avisos::administradores((int) $user->alumno->carrera_id), new AvisoOperativo(
+        Avisos::enviar(Avisos::coordinadores((int) $user->alumno->carrera_id), new AvisoOperativo(
             mensaje: "{$user->name} {$mensaje}",
             url: route($ruta, absolute: false),
             detalle: $user->alumno->num_control,

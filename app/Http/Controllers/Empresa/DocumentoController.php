@@ -85,7 +85,7 @@ class DocumentoController extends Controller
         $solicitud = $empresa->convenios()->where('estado', ConvenioEstado::Solicitado->value)->first();
 
         if ($solicitud) {   // solo avisa si Lorena está esperando documentos
-            Avisos::enviar(Avisos::administradoresDe($solicitud), new AvisoOperativo(
+            Avisos::enviar(Avisos::vinculacionDe($solicitud), new AvisoOperativo(
                 mensaje: "{$empresa->razon_social} subió «" . Str::headline($coleccion) . '» a su expediente.',
                 url: route('admin.convenios.show', $solicitud, false),
                 detalle: $empresa->razon_social,
