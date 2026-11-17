@@ -1,5 +1,5 @@
 <div>
-    <label class="mb-1.5 block text-sm font-medium text-gray-700">
+    <label class="etiqueta">
         Multiple Select Options
     </label>
 

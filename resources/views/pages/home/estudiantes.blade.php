@@ -20,8 +20,8 @@
 .badge-category {
     display: inline-block;
     padding: 6px 14px;
-    background-color: var(--color-brand-50);
-    color: var(--color-brand-600);
+    background-color: var(--color-oro-50);
+    color: var(--color-oro-700);
     border-radius: 99px;
     font-size: var(--text-theme-xs);
     font-weight: 600;
@@ -383,7 +383,7 @@
 
 .form-group input, 
 .form-group textarea {
-    font-family: var(--font-outfit);
+    font-family: var(--font-sans);
     font-size: var(--text-theme-sm);
     padding: 12px 16px;
     border: 1px solid var(--color-gray-300);
@@ -402,8 +402,8 @@
 }
 
 .btn-primary-submit {
-    font-family: var(--font-outfit);
-    background: var(--color-brand-600);
+    font-family: var(--font-sans);
+    background: var(--color-udg-800);
     color: var(--color-white);
     font-size: var(--text-theme-sm);
     font-weight: 600;
@@ -418,7 +418,7 @@
 }
 
 .btn-primary-submit:hover {
-    background: var(--color-brand-700);
+    background: var(--color-udg-700);
     transform: translateY(-1px);
 }
 
@@ -630,6 +630,53 @@
   </section>
   @endif
 
+  {{-- Accesos: la lista completa de convenios y el directorio viven en sus propias páginas --}}
+  <section class="bg-gray-50 !py-16 sm:!py-20" aria-labelledby="titulo-donde">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6">
+      <div class="max-w-2xl">
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-oro-700">Antes de postularte</p>
+        <h2 id="titulo-donde" class="mt-2 font-display text-2xl font-bold text-udg-900 sm:text-3xl">¿Dónde hago mis prácticas y a quién acudo?</h2>
+      </div>
+
+      <div class="mt-8 grid gap-5 md:grid-cols-2">
+        <a href="{{ route('convenios-vigentes') }}"
+          class="group flex flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs transition duration-200 hover:-translate-y-0.5 hover:border-udg-200 hover:shadow-theme-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-8">
+          <span class="flex size-12 items-center justify-center rounded-xl bg-udg-50 text-udg-900 ring-1 ring-udg-100" aria-hidden="true">
+            <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 21v-4h6v4M8 7h.01M12 7h.01M16 7h.01M8 11h.01M12 11h.01M16 11h.01"/></svg>
+          </span>
+          <h3 class="mt-5 font-display text-xl font-bold text-gray-900">Organizaciones con convenio vigente</h3>
+          <p class="mt-2 text-sm leading-relaxed text-gray-600">
+            Las prácticas externas solo pueden hacerse en una organización con convenio <strong class="font-semibold text-gray-800">vigente para tu carrera</strong>.
+            Consulta la lista completa, filtra por tu carrera y revisa hasta cuándo es válido cada convenio.
+            @if ($organizaciones > 0)
+              Hoy hay <strong class="font-semibold text-gray-800">{{ $organizaciones }} {{ $organizaciones === 1 ? 'organización' : 'organizaciones' }}</strong> con convenio vigente.
+            @endif
+          </p>
+          <span class="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-semibold text-real-600 group-hover:text-real-700">
+            Ver organizaciones con convenio
+            <svg class="size-4 transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transition-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-6-6 6 6-6 6"/></svg>
+          </span>
+        </a>
+
+        <a href="{{ route('contacto') }}#directorio"
+          class="group flex flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-theme-xs transition duration-200 hover:-translate-y-0.5 hover:border-udg-200 hover:shadow-theme-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25 motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-8">
+          <span class="flex size-12 items-center justify-center rounded-xl bg-oro-50 text-oro-700 ring-1 ring-oro-100" aria-hidden="true">
+            <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="12" cy="10" r="3"/><path d="M7.5 17a5 5 0 0 1 9 0"/></svg>
+          </span>
+          <h3 class="mt-5 font-display text-xl font-bold text-gray-900">Directorio de coordinaciones de carrera</h3>
+          <p class="mt-2 text-sm leading-relaxed text-gray-600">
+            Tu postulación, carta de presentación, reportes, carta de término y liberación los atiende
+            <strong class="font-semibold text-gray-800">la coordinación de tu carrera</strong>. Encuentra su correo y teléfono en la página de Contacto.
+          </p>
+          <span class="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-semibold text-real-600 group-hover:text-real-700">
+            Buscar mi coordinación
+            <svg class="size-4 transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transition-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-6-6 6 6-6 6"/></svg>
+          </span>
+        </a>
+      </div>
+    </div>
+  </section>
+
   @guest
   <div class="cta-band">
     <h2>¿Listo para empezar tus prácticas?</h2>
@@ -643,7 +690,7 @@
         <div class="contact-card-wrapper">
             <div class="contact-info-side">
                 <h2>¿Necesitas ayuda con tu proceso?</h2>
-                <p>Si tienes dudas con la carga de documentos, con el estado de tu postulación o con tu práctica, comunícate con la coordinación de tu carrera (directorio más abajo). Vinculación solo atiende convenios con organizaciones.</p>
+                <p>Si tienes dudas con la carga de documentos, con el estado de tu postulación o con tu práctica, comunícate con la coordinación de tu carrera (directorio en la página de Contacto). Vinculación solo atiende convenios con organizaciones.</p>
                 @auth
                 <div class="quick-contact-meta">
                     <p>También puedes consultar la <a href="{{ route('ayuda') }}" style="color: inherit; text-decoration: underline;">sección de ayuda</a> dentro de la plataforma.</p>
@@ -663,46 +710,13 @@
                     <label>Dirección</label>
                     <span style="font-size: var(--text-theme-sm); color: var(--color-black);">{{ config('practicas.domicilio_cucsh') }}</span>
                 </div>
-                <a href="#directorio-coordinaciones" class="btn-primary-submit" style="text-decoration: none;">
+                <a href="{{ route('contacto') }}#directorio" class="btn-primary-submit" style="text-decoration: none;">
                     Buscar mi coordinación
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 </a>
             </div>
         </div>
     </div>
-  </section>
-
-  {{-- Convenios vigentes por carrera: reemplaza la lista que Vinculación enviaba por correo --}}
-  <section style="padding: 60px 20px 0;" x-data="{ carrera: '' }">
-    <div class="mx-auto w-full max-w-5xl">
-      <h2 class="mb-1 text-2xl font-bold text-gray-900">Organizaciones con convenio vigente</h2>
-      <p class="mb-4 text-sm text-gray-600">Solo puedes hacer prácticas externas en una organización con convenio vigente para tu carrera.</p>
-      <label for="filtro-carrera-convenios" class="sr-only">Filtrar por carrera</label>
-      <select id="filtro-carrera-convenios" x-model="carrera" class="mb-4 h-11 w-full max-w-md rounded-lg border border-gray-300 px-3 text-sm">
-        <option value="">Todas las carreras</option>
-        @foreach ($divisiones as $division)
-          @foreach ($division->carreras as $c)
-            <option value="{{ $c->carrera_clave }}">{{ $c->nombre }}</option>
-          @endforeach
-        @endforeach
-      </select>
-      <ul class="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-        @forelse ($conveniosVigentes as $cv)
-          @php $claves = $cv->dictamenes->map(fn ($d) => $d->carrera->carrera_clave)->values(); @endphp
-          <li class="flex flex-col gap-1 px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
-              x-show="carrera === '' || @js($claves).includes(carrera)">
-            <span class="text-sm font-semibold text-gray-900">{{ $cv->empresa->razon_social }}</span>
-            <span class="text-xs text-gray-500">{{ $claves->join(' · ') }} · vigente hasta {{ $cv->fecha_fin_vigencia->format('d/m/Y') }}</span>
-          </li>
-        @empty
-          <li class="px-5 py-6 text-center text-sm text-gray-400">Aún no hay convenios vigentes.</li>
-        @endforelse
-      </ul>
-    </div>
-  </section>
-
-  <section id="directorio-coordinaciones" style="padding: 60px 20px;">
-    <x-directorio-coordinaciones />
   </section>
 
 @endsection

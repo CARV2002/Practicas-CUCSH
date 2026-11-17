@@ -11,11 +11,11 @@
                 <x-auth.input name="representante_legal" label="Nombre del representante legal" placeholder="Quien firmará el convenio" />
 
                 <div>
-                    <label for="tipo_organismo" class="mb-1.5 block text-sm font-medium text-gray-700">
+                    <label for="tipo_organismo" class="etiqueta">
                         Tipo de organismo<span class="text-error-500">*</span>
                     </label>
                     <select id="tipo_organismo" name="tipo_organismo" required
-                        class="dark:bg-dark-900 shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-hidden">
+                        class="dark:bg-dark-900 shadow-theme-xs focus:border-real-500 focus:ring-real-500/20 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-hidden">
                         <option value="">Selecciona una opción</option>
                         @foreach ($tiposOrganismo as $tipo)
                             <option value="{{ $tipo->value }}" @selected(old('tipo_organismo') === $tipo->value)>
@@ -41,9 +41,9 @@
                         <input type="checkbox" name="aviso_privacidad" value="1" class="mt-0.5 rounded border-gray-300"
                             @checked(old('aviso_privacidad')) required>
                         <span>Acepto el <a href="{{ route('privacidad') }}" target="_blank" rel="noopener"
-                                class="text-brand-500 underline">aviso de privacidad</a>
+                                class="text-real-600 underline">aviso de privacidad</a>
                             y los <a href="{{ route('terminos') }}" target="_blank" rel="noopener"
-                                class="text-brand-500 underline">términos y condiciones</a>,
+                                class="text-real-600 underline">términos y condiciones</a>,
                             y el tratamiento de mis datos personales.</span>
                     </label>
                     @error('aviso_privacidad')
@@ -55,7 +55,7 @@
 
                 <p class="text-center text-sm text-gray-500">
                     ¿Ya tienes cuenta?
-                    <a href="{{ route('login') }}" class="text-brand-500 hover:text-brand-600">Inicia sesión</a>
+                    <a href="{{ route('login') }}" class="text-real-600 hover:text-real-700">Inicia sesión</a>
                 </p>
             </div>
         </form>

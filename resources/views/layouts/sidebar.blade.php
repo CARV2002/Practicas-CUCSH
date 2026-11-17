@@ -7,23 +7,12 @@
     $currentPath = request()->path();
 @endphp
 
-<style>
-    .menu-item-inactive, .menu-item-icon-inactive{
-        color: #dbdbdb;
-    }
+{{-- Colores del menú: utilidades menu-item-* en resources/css/app.css (DESIGN_SYSTEM.md §4) --}}
 
-    .menu-item-inactive:hover{
-        background-color: #27375b;
-    }
-
-    .menu-item-inactive:hover, .menu-item-icon-inactive:hover{
-        color: #fff;
-    }
-
-</style>
-
-<aside id="sidebar"
-    class="fixed flex flex-col mt-0 top-0 px-5 left-0 bg-primary bg-[#ffffff] text-gray-900 h-screen transition-all duration-300 ease-in-out z-99999 border-r border-gray-200"
+<aside id="sidebar" x-cloak
+    class="fixed left-0 top-0 z-[100001] mt-0 flex h-dvh flex-col border-r border-gray-200 bg-white px-4 text-gray-900 shadow-theme-xl transition-all duration-300 ease-in-out motion-reduce:transition-none xl:shadow-none"
+    aria-label="Menú principal"
+    @keydown.escape.window="$store.sidebar.setMobileOpen(false)"
     x-data="{
         openSubmenus: {},
         init() {
@@ -73,33 +62,36 @@
     }"
     @mouseenter="if (!$store.sidebar.isExpanded) $store.sidebar.setHovered(true)"
     @mouseleave="$store.sidebar.setHovered(false)"
-    style="background-color: #ffffff;"
     >
     <!-- Logo Section -->
-    <div class="pt-8 pb-7 flex mx-auto" 
-        :class="(!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen) ?
-        'xl:justify-center' :
-        'justify-start'">
-        <a href="/">
-            <img x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen"
-                class="dark:hidden" src="/images/home/cucsh.svg" alt="Logo" width="150" height="40" />
-            <img x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen"
-                class="hidden" src="/images/home/cucsh.svg" alt="Logo" width="150"
-                height="40" />
+    <div class="relative flex shrink-0 justify-center border-b border-gray-100 pb-5 pt-6">
+        <a href="{{ route('dashboard') }}" class="block rounded-lg px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-real-500/40">
+            <span x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen" class="flex flex-col items-center text-center">
+                <img src="{{ asset('images/home/cucsh.svg') }}" alt="CUCSH · Universidad de Guadalajara" width="170" height="46" class="h-auto w-[170px]" />
+                <span class="mt-2.5 flex items-center gap-2 whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.12em] text-oro-700">
+                    <span class="h-px w-3 bg-oro-300" aria-hidden="true"></span>Prácticas Profesionales
+                    <span class="h-px w-3 bg-oro-300" aria-hidden="true"></span>
+                </span>
+            </span>
             <img x-show="!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen"
-                src="/images/home/cucsh.svg" alt="Logo" width="32" height="32" />
-
+                src="{{ asset('images/home/cucsh.svg') }}" alt="CUCSH" width="40" height="32" class="h-8 w-auto" />
         </a>
+        <!-- Cerrar (solo menú móvil) -->
+        <button type="button" x-show="$store.sidebar.isMobileOpen" @click="$store.sidebar.setMobileOpen(false)"
+            class="absolute right-0 top-4 flex size-10 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-real-500/40 xl:hidden"
+            aria-label="Cerrar el menú">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
     </div>
 
     <!-- Navigation Menu -->
-    <div class="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
+    <div class="custom-scrollbar -mx-1 flex flex-1 flex-col overflow-y-auto px-1 pt-5">
         <nav class="mb-6">
             <div class="flex flex-col gap-4">
                 @foreach ($menuGroups as $groupIndex => $menuGroup)
                     <div>
                         <!-- Menu Group Title -->
-                        <h2 class="mb-4 text-xs uppercase flex leading-[20px] text-gray-400"
+                        <h2 class="mb-2 flex px-3 text-[11px] font-semibold uppercase leading-5 tracking-wider text-gray-500"
                             :class="(!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen) ?
                             'lg:justify-center' : 'justify-start'">
                             <template
@@ -120,7 +112,7 @@
                                     @if (isset($item['subItems']))
                                         <!-- Menu Item with Submenu -->
                                         <button @click="toggleSubmenu({{ $groupIndex }}, {{ $itemIndex }})"
-                                            class="menu-item group w-full text-white"
+                                            class="menu-item group w-full"
                                             :class="[
                                                 isSubmenuOpen({{ $groupIndex }}, {{ $itemIndex }}) ?
                                                 'menu-item-active' : 'menu-item-inactive',
@@ -153,7 +145,7 @@
                                             <svg x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen"
                                                 class="ml-auto w-5 h-5 transition-transform duration-200"
                                                 :class="{
-                                                    'rotate-180 text-blue-500': isSubmenuOpen({{ $groupIndex }},
+                                                    'rotate-180 text-udg-900': isSubmenuOpen({{ $groupIndex }},
                                                         {{ $itemIndex }})
                                                 }"
                                                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -234,7 +226,7 @@
                                                 {{ $item['name'] }}
                                                 @if (!empty($item['new']))
                                                     <span
-                                                        class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-500 text-white">
+                                                        class="ml-2 inline-flex items-center rounded-full bg-oro-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-oro-700">
                                                         new
                                                     </span>
                                                 @endif
@@ -254,5 +246,6 @@
 </aside>
 
 <!-- Mobile Overlay -->
-<div x-show="$store.sidebar.isMobileOpen" @click="$store.sidebar.setMobileOpen(false)"
-    class="fixed z-50 h-screen w-full bg-gray-900/50"></div>
+<div x-show="$store.sidebar.isMobileOpen" x-cloak @click="$store.sidebar.setMobileOpen(false)"
+    x-transition.opacity.duration.300ms aria-hidden="true"
+    class="fixed inset-0 z-[100000] bg-udg-950/50 backdrop-blur-sm xl:hidden"></div>

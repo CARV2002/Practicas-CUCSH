@@ -4,31 +4,33 @@
     $etiquetaRol = $rolActual ? \App\Enums\Rol::tryFrom($rolActual)?->label() : null;
 @endphp
 
-<div class="relative" x-data="{ dropdownOpen: false }" @click.away="dropdownOpen = false">
-    <button type="button" class="flex items-center text-gray-700" @click.prevent="dropdownOpen = !dropdownOpen">
-        <x-ui.user-avatar :user="$usuario" size="mr-3 h-11 w-11 text-sm" />
+<div class="relative" x-data="{ dropdownOpen: false }" @click.away="dropdownOpen = false" @keydown.escape.window="dropdownOpen = false">
+    <button type="button" :aria-expanded="dropdownOpen.toString()" aria-haspopup="menu"
+        class="flex items-center rounded-full py-0.5 pl-0.5 pr-2 text-white transition-colors duration-150 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oro-300"
+        @click.prevent="dropdownOpen = !dropdownOpen">
+        <x-ui.user-avatar :user="$usuario" size="mr-3 h-10 w-10 text-sm ring-2 ring-white/20" />
 
-        <span class="mr-1 hidden text-left sm:block">
-            <span class="block text-theme-sm font-medium text-white">{{ $usuario->name }}</span>
+        <span class="mr-1 min-w-0 text-left">
+            <span class="block max-w-[11rem] truncate text-theme-sm font-semibold text-white">{{ $usuario->name }}</span>
             @if ($etiquetaRol)
-                <span class="block text-theme-xs text-gray-300">{{ $etiquetaRol }}</span>
+                <span class="block text-theme-xs text-oro-300">{{ $etiquetaRol }}</span>
             @endif
         </span>
 
-        <svg class="h-5 w-5 text-white transition-transform duration-200" :class="{ 'rotate-180': dropdownOpen }"
+        <svg class="h-5 w-5 shrink-0 text-white/80 transition-transform duration-200" :class="{ 'rotate-180': dropdownOpen }"
             fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
         </svg>
     </button>
 
     <div x-show="dropdownOpen" x-cloak
-        x-transition:enter="transition ease-out duration-100"
-        x-transition:enter-start="transform opacity-0 scale-95"
-        x-transition:enter-end="transform opacity-100 scale-100"
-        x-transition:leave="transition ease-in duration-75"
-        x-transition:leave-start="transform opacity-100 scale-100"
-        x-transition:leave-end="transform opacity-0 scale-95"
-        class="absolute right-0 z-50 mt-[17px] flex w-[240px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 -translate-y-1 scale-95"
+        x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="absolute right-0 z-50 mt-3 flex w-[240px] origin-top-right flex-col tarjeta p-3 shadow-theme-lg xl:mt-[17px]"
         style="display: none;">
 
         <div class="border-b border-gray-200 pb-3">
@@ -62,8 +64,8 @@
         <form method="POST" action="{{ route('logout') }}">
             @csrf
             <button type="submit" @click="dropdownOpen = false"
-                class="group mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-theme-sm font-medium text-gray-700 hover:bg-gray-100">
-                <svg class="h-5 w-5 text-gray-500 group-hover:text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                class="group mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-theme-sm font-medium text-error-700 transition-colors hover:bg-error-50">
+                <svg class="h-5 w-5 text-error-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                 </svg>
                 Cerrar sesión

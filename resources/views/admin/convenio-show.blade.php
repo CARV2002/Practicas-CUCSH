@@ -8,9 +8,9 @@
 
         $estado = $convenio->estado;
         $etapa = $etapaAbierta?->etapa;
-        $input = 'focus:border-brand-300 focus:ring-brand-500/10 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-3 focus:outline-hidden';
-        $btn = 'bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-medium text-white';
-        $card = 'rounded-2xl border border-gray-200 bg-white p-6';
+        $input = 'campo';
+        $btn = 'boton boton-primario';
+        $card = 'tarjeta p-6';
     @endphp
 
     <x-common.page-breadcrumb pageTitle="Convenio · {{ $empresa->razon_social }}" />
@@ -39,8 +39,7 @@
                         Contacto: {{ $empresa->contacto_nombre }} ({{ $empresa->user?->email }})</p>
                 </div>
                 <div class="text-right">
-                    <span
-                        class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{{ $estado->label() }}</span>
+                    <x-ui.estatus :estado="$estado" tamano="normal" />
                     @if ($convenio->folio)
                         <p class="mt-2 text-xs text-gray-500">Folio {{ $convenio->folio }} ·
                             {{ $convenio->fecha_inicio_vigencia?->format('d/m/Y') }} –
@@ -64,7 +63,7 @@
             </dl>
             @can('ver-auditoria')
                 <a href="{{ route('admin.auditoria', ['entidad_tipo' => 'Convenio', 'entidad_id' => $convenio->id]) }}"
-                    class="text-brand-600 mt-3 inline-block text-xs font-semibold hover:underline">Ver historial de auditoría de
+                    class="text-real-600 mt-3 inline-block text-xs font-semibold hover:underline">Ver historial de auditoría de
                     este convenio →</a>
             @endcan
             @if ($etapaAbierta)
@@ -93,7 +92,7 @@
                             <p class="text-sm font-medium text-gray-800">{{ \Illuminate\Support\Str::headline($col) }}</p>
                             @if ($media)
                                 <a href="{{ route('admin.convenios.archivos.descargar', [$convenio, $media]) }}"
-                                    class="text-brand-600 text-xs">{{ $media->file_name }}</a>
+                                    class="text-real-600 text-xs">{{ $media->file_name }}</a>
                                 @if ($media->getCustomProperty('motivo')) <span class="text-xs text-red-600">·
                                 {{ $media->getCustomProperty('motivo') }}</span> @endif
                             @else
@@ -192,7 +191,7 @@
                     <ul class="mb-4 space-y-1 text-sm">
                         @foreach ($borradores as $i => $b)
                             <li><a href="{{ route('admin.convenios.archivos.descargar', [$convenio, $b]) }}"
-                                    class="text-brand-600">v{{ $i + 1 }} · {{ $b->file_name }}</a> <span
+                                    class="text-real-600">v{{ $i + 1 }} · {{ $b->file_name }}</a> <span
                                     class="text-xs text-gray-400">{{ $b->created_at->format('d/m/Y H:i') }}</span></li>
                         @endforeach
                     </ul>
@@ -203,7 +202,7 @@
 
                     @php $e = $empresa; @endphp
                     <details class="mb-4 rounded-lg border border-gray-200 p-4" @if ($errors->any()) open @endif>
-                        <summary class="cursor-pointer text-sm font-semibold text-brand-600">Generar borrador desde el Formato de PP
+                        <summary class="cursor-pointer text-sm font-semibold text-real-600">Generar borrador desde el Formato de PP
                         </summary>
                         <form method="POST" action="{{ route('admin.convenios.borrador.generar', $convenio) }}"
                             class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -329,7 +328,7 @@
         @if ($firmado)
             <div class="{{ $card }}">
                 <a href="{{ route('admin.convenios.archivos.descargar', [$convenio, $firmado]) }}"
-                    class="text-brand-600 text-sm font-semibold">Descargar convenio firmado ({{ $firmado->file_name }})</a>
+                    class="text-real-600 text-sm font-semibold">Descargar convenio firmado ({{ $firmado->file_name }})</a>
             </div>
         @endif
 

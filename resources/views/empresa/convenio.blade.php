@@ -3,9 +3,9 @@
 @section('content')
     @php
 
-        $input = 'focus:border-brand-300 focus:ring-brand-500/10 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-hidden';
-        $label = 'mb-1.5 block text-sm font-medium text-gray-700';
-        $card = 'rounded-2xl border border-gray-200 bg-white p-6';
+        $input = 'campo';
+        $label = 'etiqueta';
+        $card = 'tarjeta p-6';
         $mostrarForm = $puedeSolicitar || $puedeRenovar;
         $carrerasPorDivision = $carreras->groupBy(fn($c) => $c->division->nombre);
     @endphp
@@ -58,7 +58,7 @@
                         <p class="mt-0.5 text-sm font-semibold text-gray-800">
                             {{ $vigente->fecha_fin_vigencia->translatedFormat('d \d\e F \d\e Y') }}
                             <span
-                                class="bg-brand-50 text-brand-700 ml-1 rounded px-1.5 py-0.5 text-xs font-bold">{{ $diasRestantes }}
+                                class="bg-real-50 text-real-700 ml-1 rounded px-1.5 py-0.5 text-xs font-bold">{{ $diasRestantes }}
                                 días</span>
                         </p>
                     </div>
@@ -76,7 +76,7 @@
                 @if ($vigente->getMedia('convenio_firmado')->isNotEmpty())
                     <div class="border-t border-gray-100 pt-4">
                         <a href="{{ route('empresa.convenio.archivo', $vigente) }}"
-                            class="text-brand-600 text-sm font-semibold hover:underline">Descargar convenio firmado (PDF)</a>
+                            class="text-real-600 text-sm font-semibold hover:underline">Descargar convenio firmado (PDF)</a>
                     </div>
                 @endif
             </div>
@@ -91,8 +91,7 @@
                         <h4 class="text-base font-bold text-gray-900">Solicitud en trámite</h4>
                         <p class="text-xs text-gray-500">Recibida el {{ $enTramite->fecha_recepcion->format('d/m/Y') }}</p>
                     </div>
-                    <span
-                        class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{{ $enTramite->estado->etiquetaEmpresa() }}</span>
+                    <x-ui.estatus :estado="$enTramite->estado" :texto="$enTramite->estado->etiquetaEmpresa()" tamano="normal" />
                 </div>
 
                 <ol class="grid grid-cols-1 gap-3 sm:grid-cols-4">
@@ -193,7 +192,7 @@
                     @if ($motivoSolicitud)
                         <x-ui.accion-bloqueada :motivo="$motivoSolicitud">{{ $puedeRenovar ? 'Enviar renovación' : 'Enviar solicitud' }}</x-ui.accion-bloqueada>
                     @else
-                        <button class="bg-brand-500 hover:bg-brand-600 rounded-lg px-5 py-2.5 text-sm font-medium text-white">
+                        <button class="bg-udg-800 hover:bg-udg-700 rounded-lg px-5 py-2.5 text-sm font-medium text-white">
                             {{ $puedeRenovar ? 'Enviar renovación' : 'Enviar solicitud' }}
                         </button>
                     @endif
@@ -215,8 +214,7 @@
                                     @endif
                                 </p>
                             </div>
-                            <span
-                                class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $h->estado === \App\Enums\ConvenioEstado::Rechazado ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-600' }}">{{ $h->estado->etiquetaEmpresa() }}</span>
+                            <x-ui.estatus :estado="$h->estado" :texto="$h->estado->etiquetaEmpresa()" />
                         </div>
                     @endforeach
                 </div>

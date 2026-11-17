@@ -7,7 +7,7 @@
         <a href="{{ route('empresa.lista-programas') }}" class="text-sm text-gray-500 hover:text-gray-700">← Volver a mis
             programas</a>
 
-        <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        <div class="tarjeta overflow-hidden">
             <div class="border-b border-gray-100 px-6 py-4">
                 <h3 class="text-lg font-bold text-gray-900">{{ $programa->titulo }}</h3>
                 <p class="text-sm text-gray-500">{{ $programa->carrera->nombre }} · ciclo {{ $programa->ciclo }}</p>
@@ -24,8 +24,7 @@
                                     {{ $po->alumno->carrera->carrera_clave }}</p>
                             </div>
                         </div>
-                        <span
-                            class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{{ $po->estado->label() }}</span>
+                        <x-ui.estatus :estado="$po->estado" />
                     </div>
                 @empty
                     <p class="px-6 py-10 text-center text-sm text-gray-400">Aún no hay alumnos con carta de presentación en este

@@ -6,7 +6,7 @@
 
         $horas = (int) $practica->horas_acumuladas;
         $pct = $practica->horas_requeridas > 0 ? min(100, round($horas / $practica->horas_requeridas * 100)) : 0;
-        $input = 'focus:border-brand-300 focus:ring-brand-500/10 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-3 focus:outline-hidden';
+        $input = 'campo';
         $editable = in_array($practica->estado, \App\Enums\PracticaEstado::activas(), true);
     @endphp
 
@@ -27,7 +27,7 @@
             </div>
         @endif
 
-        <div class="rounded-2xl border border-gray-200 bg-white p-6">
+        <div class="tarjeta p-6">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <div class="flex items-start gap-4">
                     <x-ui.user-avatar :user="$alumno->user" size="h-14 w-14 text-base" />
@@ -42,23 +42,22 @@
                         </p>
                     </div>
                 </div>
-                <span
-                    class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{{ $practica->estado->label() }}</span>
+                <x-ui.estatus :estado="$practica->estado" tamano="normal" />
             </div>
             <div class="mt-5 max-w-md">
                 <div class="mb-1 flex items-baseline justify-between">
                     <span class="text-sm font-bold text-gray-900">{{ $horas }}<span
                             class="text-xs font-normal text-gray-400"> / {{ $practica->horas_requeridas }} h
                             validadas</span></span>
-                    <span class="text-brand-600 text-xs font-semibold">{{ $pct }}%</span>
+                    <span class="text-real-600 text-xs font-semibold">{{ $pct }}%</span>
                 </div>
                 <div class="h-2 w-full rounded-full bg-gray-100">
-                    <div class="bg-brand-500 h-2 rounded-full" style="width: {{ $pct }}%"></div>
+                    <div class="bg-udg-800 h-2 rounded-full" style="width: {{ $pct }}%"></div>
                 </div>
             </div>
         </div>
 
-        <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        <div class="tarjeta overflow-hidden">
             <div class="border-b border-gray-100 px-6 py-4">
                 <h4 class="text-base font-bold text-gray-900">Reportes de horas</h4>
                 <p class="text-xs text-gray-500">La coordinación de la carrera valida las horas; tú aportas tu retroalimentación sobre el
@@ -69,11 +68,6 @@
                 @forelse ($reportes as $r)
                     @php
                         $pdf = $r->media->firstWhere('collection_name', 'reporte_firmado');
-                        $color = match ($r->estado) {
-                            RE::Validado => 'bg-green-50 text-green-700',
-                            RE::Rechazado => 'bg-red-50 text-red-700',
-                            default => 'bg-yellow-50 text-yellow-700',
-                        };
                         $comentado = filled($r->retroalimentacion_empresa);
                     @endphp
                     <div class="px-6 py-4">
@@ -85,7 +79,7 @@
                                 <p class="text-xs text-gray-500">{{ $r->periodo_inicio->format('d/m/Y') }} –
                                     {{ $r->periodo_fin->format('d/m/Y') }}
                                     @if ($pdf) · <a href="{{ route('empresa.reportes.archivos', [$r, $pdf]) }}"
-                                    class="text-brand-600 font-semibold">Descargar PDF</a> @endif
+                                    class="text-real-600 font-semibold">Descargar PDF</a> @endif
                                 </p>
                             </div>
                             <div class="flex items-center gap-2">
@@ -93,8 +87,7 @@
                                     <span class="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600">Ya
                                         comentado</span>
                                 @endif
-                                <span
-                                    class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $color }}">{{ ucfirst($r->estado->value) }}</span>
+                                <x-ui.estatus :estado="$r->estado" />
                             </div>
                         </div>
 
@@ -106,7 +99,7 @@
                                     placeholder="Retroalimentación sobre el desempeño del practicante..."
                                     class="{{ $input }}">{{ old('retroalimentacion_empresa', $r->retroalimentacion_empresa) }}</textarea>
                                 <button
-                                    class="bg-brand-500 hover:bg-brand-600 self-start rounded-lg px-4 py-2 text-sm font-medium text-white">{{ $comentado ? 'Actualizar' : 'Guardar' }}</button>
+                                    class="bg-udg-800 hover:bg-udg-700 self-start rounded-lg px-4 py-2 text-sm font-medium text-white">{{ $comentado ? 'Actualizar' : 'Guardar' }}</button>
                             </form>
                         @elseif ($r->retroalimentacion_empresa)
                             <p class="mt-2 text-xs text-gray-600">Tu retroalimentación: {{ $r->retroalimentacion_empresa }}</p>

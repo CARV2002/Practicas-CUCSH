@@ -6,9 +6,9 @@
         use App\Enums\PracticaEstado as PrE;
         use App\Enums\ReporteEstado as RE;
 
-        $input = 'focus:border-brand-300 focus:ring-brand-500/10 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-3 focus:outline-hidden';
-        $btn = 'bg-brand-500 hover:bg-brand-600 rounded-lg px-3 py-2 text-xs font-medium text-white';
-        $card = 'overflow-hidden rounded-2xl border border-gray-200 bg-white';
+        $input = 'campo';
+        $btn = 'boton boton-chico boton-primario';
+        $card = 'tarjeta overflow-hidden';
         $head = 'border-b border-gray-100 px-6 py-4';
 
         $estadoDoc = fn($m) => $m ? ($m->getCustomProperty('estado') ?? 'pendiente') : null;
@@ -46,7 +46,7 @@
                 <div>
                     @if ($imss)
                         <a href="{{ route('alumno.documentos.descargar', $imss) }}"
-                            class="text-brand-600 text-sm font-semibold hover:underline">{{ $imss->file_name }}</a>
+                            class="text-real-600 text-sm font-semibold hover:underline">{{ $imss->file_name }}</a>
                         <p class="text-xs text-gray-500">Vigencia declarada:
                             {{ $alumno->vigencia_imss?->format('d/m/Y') ?? '—' }}
                             @if ($imssSt === 'rechazada' && $imss->getCustomProperty('motivo')) · <span
@@ -96,15 +96,14 @@
                                     {{ $po->programa->ciclo }}
                                 </p>
                             </div>
-                            <span
-                                class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{{ $po->estado->label() }}</span>
+                            <x-ui.estatus :estado="$po->estado" />
                         </div>
 
                         <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
                             <div class="rounded-lg border border-gray-100 p-3">
                                 <p class="text-xs font-bold uppercase text-gray-400">Kardex</p>
                                 @if ($kardex)<a href="{{ route('alumno.documentos.descargar', $kardex) }}"
-                                class="text-brand-600 text-xs font-semibold">{{ $kardex->file_name }}</a>@else<p
+                                class="text-real-600 text-xs font-semibold">{{ $kardex->file_name }}</a>@else<p
                                     class="text-xs text-gray-400">Sin archivo</p>@endif
                                 @if ($abierta)
                                     <form method="POST" enctype="multipart/form-data"
@@ -120,7 +119,7 @@
                             <div class="rounded-lg border border-gray-100 p-3">
                                 <p class="text-xs font-bold uppercase text-gray-400">Carta de presentación</p>
                                 @if ($presentacion)<a href="{{ route('alumno.documentos.descargar', $presentacion) }}"
-                                    class="text-brand-600 text-xs font-semibold">Descargar PDF</a>
+                                    class="text-real-600 text-xs font-semibold">Descargar PDF</a>
                                 @elseif ($po->estado === PE::Pendiente)
                                     <p class="text-xs text-gray-400">Pendiente de validación por tu coordinación</p>
                                 @else<p class="text-xs text-gray-400">Sin archivo</p>@endif
@@ -129,7 +128,7 @@
                             <div class="rounded-lg border border-gray-100 p-3">
                                 <p class="text-xs font-bold uppercase text-gray-400">Carta de aceptación</p>
                                 @if ($aceptacion)<a href="{{ route('alumno.documentos.descargar', $aceptacion) }}"
-                                class="text-brand-600 text-xs font-semibold">{{ $aceptacion->file_name }}</a>@else<p
+                                class="text-real-600 text-xs font-semibold">{{ $aceptacion->file_name }}</a>@else<p
                                     class="text-xs text-gray-400">Sin archivo</p>@endif
                                 @if ($po->estado === PE::CartaPresentacionEmitida)
                                     <form method="POST" enctype="multipart/form-data"
@@ -165,8 +164,7 @@
                             {{ $pr->fecha_fin->format('d/m/Y') }} · reportes y carta de término
                         </p>
                     </div>
-                    <span
-                        class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{{ $pr->estado->label() }}</span>
+                    <x-ui.estatus :estado="$pr->estado" />
                 </div>
 
                 @if ($pr->estado === PrE::EnCurso)
@@ -194,7 +192,6 @@
                     @forelse ($pr->reportes->sortByDesc('periodo_fin') as $r)
                         @php
                             $pdf = $r->media->firstWhere('collection_name', 'reporte_firmado');
-                            $c = match ($r->estado) { RE::Validado => 'bg-green-50 text-green-700', RE::Rechazado => 'bg-red-50 text-red-700', RE::Anulado => 'bg-gray-100 text-gray-600', default => 'bg-yellow-50 text-yellow-700'};
                         @endphp
                         <div class="flex flex-col gap-3 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
                             <div>
@@ -204,14 +201,13 @@
                                 <p class="text-xs text-gray-500">{{ $r->periodo_inicio->format('d/m/Y') }} –
                                     {{ $r->periodo_fin->format('d/m/Y') }}
                                     @if ($pdf) · <a href="{{ route('alumno.documentos.descargar', $pdf) }}"
-                                    class="text-brand-600 font-semibold">{{ $pdf->file_name }}</a> @endif
+                                    class="text-real-600 font-semibold">{{ $pdf->file_name }}</a> @endif
                                 </p>
                                 @if ($r->evaluacion_profesor)
                                 <p class="text-xs text-gray-500">Evaluación: {{ $r->evaluacion_profesor }}</p>@endif
                             </div>
                             <div class="flex flex-wrap items-center gap-3">
-                                <span
-                                    class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $c }}">{{ ucfirst($r->estado->value) }}</span>
+                                <x-ui.estatus :estado="$r->estado" />
                                 @if ($pr->estado === PrE::EnCurso && in_array($r->estado, [RE::Pendiente, RE::Rechazado], true))
                                     <form method="POST" enctype="multipart/form-data"
                                         action="{{ route('alumno.documentos.reporte', $r) }}" class="flex gap-2">
@@ -232,7 +228,7 @@
                         <div>
                             <p class="text-sm font-semibold text-gray-800">Carta de término</p>
                             @if ($carta)<a href="{{ route('alumno.documentos.descargar', $carta) }}"
-                                class="text-brand-600 text-xs font-semibold">{{ $carta->file_name }}</a>
+                                class="text-real-600 text-xs font-semibold">{{ $carta->file_name }}</a>
                             @else<p class="text-xs text-gray-400">Se sube al completar tus horas.</p>@endif
                         </div>
                         <div class="flex flex-wrap items-center gap-3">

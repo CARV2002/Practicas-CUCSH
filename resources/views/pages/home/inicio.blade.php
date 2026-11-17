@@ -88,7 +88,7 @@
             <div class="dot dot-green"></div>
           </div>
           <div class="body" style="padding: 20px;">
-            <div style="background: var(--navy); color:#fff; border-radius:6px; padding: 12px; margin-bottom: 10px; font-size: 10px; font-weight: 700; font-family: 'Montserrat', sans-serif;">
+            <div style="background: var(--navy); color:#fff; border-radius:6px; padding: 12px; margin-bottom: 10px; font-size: 10px; font-weight: 700; font-family: var(--font-display);">
               Modalidades disponibles:
             </div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -115,7 +115,7 @@
           <div style="width: 120px; background: #111; border-radius: 18px; padding: 10px 6px; box-shadow: 0 12px 40px rgba(0,0,0,0.25);">
             <div style="background: #fff; border-radius: 12px; overflow: hidden; height: 220px;">
               <div style="background: var(--navy); padding: 8px; text-align: center;">
-                <div style="font-family:'Montserrat',sans-serif; font-size: 7px; color:#fff; font-weight:700; letter-spacing:1px;">Alumnos</div>
+                <div style="font-family:var(--font-display); font-size: 7px; color:#fff; font-weight:700; letter-spacing:1px;">Alumnos</div>
               </div>
               <div style="padding: 8px; font-size: 8px; color: #333;">
                 <div style="font-weight:700; margin-bottom:6px; color: var(--navy);">Panel del alumno</div>
@@ -129,7 +129,7 @@
           <div style="width: 120px; background: #111; border-radius: 18px; padding: 10px 6px; box-shadow: 0 12px 40px rgba(0,0,0,0.25);">
             <div style="background: #fff; border-radius: 12px; overflow: hidden; height: 220px;">
               <div style="background: var(--rust); padding: 8px; text-align: center;">
-                <div style="font-family:'Montserrat',sans-serif; font-size: 7px; color:#fff; font-weight:700; letter-spacing:1px;">Empresas</div>
+                <div style="font-family:var(--font-display); font-size: 7px; color:#fff; font-weight:700; letter-spacing:1px;">Empresas</div>
               </div>
               <div style="padding: 8px; font-size: 8px; color: #333;">
                 <div style="font-weight:700; margin-bottom:6px; color: var(--navy);">Panel de la empresa</div>
@@ -163,12 +163,13 @@
     </div>
   </section>
 
-<section class="partners-grid-section" style="background: #1b2a4a; padding: 80px 0; border-top: 1px solid #e9ecef;">
-    <div class="container" style="max-width: 1100px; margin: 0 auto; padding: 0 20px; text-align: center;">
-      <h3 style="font-family: 'Montserrat', sans-serif; font-size: 28px; color: #fff; margin-bottom: 12px; font-weight: 700;">
+<section class="!py-16 sm:!py-20 bg-udg-900" aria-labelledby="titulo-organizaciones">
+    <div class="mx-auto max-w-6xl px-4 text-center sm:px-6">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-oro-300">Convenios vigentes</p>
+      <h2 id="titulo-organizaciones" class="mt-2 font-display text-2xl font-bold text-white sm:text-3xl">
         ¿Dónde puedes realizar tus Prácticas Profesionales?
-      </h3>
-      <p style="font-size: 16px; color: #cdcdcd; max-width: 600px; margin: 0 auto 40px auto; line-height: 1.6;">
+      </h2>
+      <p class="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-white/75">
         @if ($organizaciones->isNotEmpty())
           Estas son algunas de las organizaciones con convenio vigente con el CUCSH.
         @else
@@ -177,30 +178,40 @@
       </p>
 
       @if ($organizaciones->isNotEmpty())
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 35px;">
+        <ul class="mt-10 grid gap-4 text-left sm:grid-cols-2 lg:grid-cols-3">
           @foreach ($organizaciones as $empresa)
             @php
-              $estiloTipo = match ($empresa->tipo_organismo?->value) {
-                'publico' => 'color: var(--navy); background: #eef2f7;',
-                'privado' => 'color: var(--rust); background: #fff3f2;',
-                'sociedad_civil' => 'color: #2a7a2a; background: #edf7ed;',
-                default => 'color: #495057; background: #f1f3f5;',
+              $familiaTipo = match ($empresa->tipo_organismo?->value) {
+                'publico' => 'cielo',
+                'privado' => 'lavanda',
+                'sociedad_civil' => 'menta',
+                default => 'gris',
               };
             @endphp
-            <div style="background: #fff; border: 1px solid #e3e6e8; border-radius: 8px; padding: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">
-              <span style="font-size: 12px; font-weight: 700; color: #495057; text-align: center; letter-spacing: 0.5px; text-transform: uppercase;">{{ $empresa->razon_social }}</span>
-              @if ($empresa->tipo_organismo)
-                <span style="font-size: 9px; {{ $estiloTipo }} font-weight: 600; margin-top: 6px; text-transform: uppercase; padding: 2px 8px; border-radius: 4px;">{{ $empresa->tipo_organismo->label() }}</span>
-              @endif
-            </div>
+            <li class="group flex items-start gap-4 rounded-xl border border-white/10 bg-white p-5 shadow-theme-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-theme-lg motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+              <span class="flex size-11 shrink-0 items-center justify-center rounded-lg bg-udg-50 font-display text-base font-bold text-udg-900 ring-1 ring-udg-100" aria-hidden="true">
+                {{ mb_strtoupper(mb_substr($empresa->razon_social, 0, 1)) }}
+              </span>
+              <span class="min-w-0">
+                <span class="block font-semibold leading-snug text-gray-900">{{ $empresa->razon_social }}</span>
+                @if ($empresa->tipo_organismo)
+                  <x-ui.estatus :familia="$familiaTipo" :texto="$empresa->tipo_organismo->label()" class="mt-2" />
+                @endif
+              </span>
+            </li>
           @endforeach
-        </div>
+        </ul>
 
-        @if ($totalOrganizaciones > $organizaciones->count())
-          <p style="font-family: 'Montserrat', sans-serif; font-size: 14px; color: #fff; font-weight: 600;">
-            y {{ $totalOrganizaciones - $organizaciones->count() }} {{ ($totalOrganizaciones - $organizaciones->count()) === 1 ? 'organización más' : 'organizaciones más' }}
-          </p>
-        @endif
+        <div class="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          @if ($totalOrganizaciones > $organizaciones->count())
+            <p class="text-sm font-semibold text-white">
+              y {{ $totalOrganizaciones - $organizaciones->count() }} {{ ($totalOrganizaciones - $organizaciones->count()) === 1 ? 'organización más' : 'organizaciones más' }}
+            </p>
+          @endif
+          <a href="{{ route('convenios-vigentes') }}" class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-oro-300 underline-offset-4 hover:text-oro-100 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oro-300">
+            Ver todas por carrera <span aria-hidden="true">→</span>
+          </a>
+        </div>
       @endif
     </div>
   </section>

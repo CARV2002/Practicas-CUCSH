@@ -4,12 +4,12 @@
 @section('content')
     <x-common.page-breadcrumb pageTitle="Notificaciones" />
 
-    <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+    <div class="tarjeta overflow-hidden">
         <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
             <h3 class="text-lg font-bold text-gray-900">Todas las notificaciones</h3>
             <form method="POST" action="{{ route('notificaciones.leer-todas') }}">
                 @csrf
-                <button class="text-brand-600 text-sm font-semibold hover:underline">Marcar todas como leídas</button>
+                <button class="text-real-600 text-sm font-semibold hover:underline">Marcar todas como leídas</button>
             </form>
         </div>
 
@@ -17,7 +17,7 @@
             @forelse ($notificaciones as $n)
                 <a href="{{ route('notificaciones.abrir', $n->id) }}" class="flex items-start gap-3 px-6 py-4 hover:bg-gray-50">
                     <span
-                        class="mt-2 h-2 w-2 shrink-0 rounded-full {{ $n->read_at ? 'bg-transparent' : 'bg-brand-500' }}"></span>
+                        class="mt-2 h-2 w-2 shrink-0 rounded-full {{ $n->read_at ? 'bg-transparent' : 'bg-udg-800' }}"></span>
                     <div>
                         <p class="text-sm {{ $n->read_at ? 'text-gray-500' : 'font-medium text-gray-800' }}">
                             {{ $n->data['mensaje'] ?? 'Notificación' }}</p>

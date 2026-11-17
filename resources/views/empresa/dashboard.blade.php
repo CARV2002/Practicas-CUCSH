@@ -2,8 +2,8 @@
 
 @section('content')
     @php
-        $card = 'rounded-2xl border border-gray-200 bg-white p-5';
-        $panel = 'rounded-2xl border border-gray-200 bg-white p-6';
+        $card = 'tarjeta p-5';
+        $panel = 'tarjeta p-6';
         $ocupacion = $kpis['cupos_totales'] > 0 ? round($kpis['cupos_ocupados'] / $kpis['cupos_totales'] * 100) : 0;
     @endphp
 
@@ -47,7 +47,7 @@
                 <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Ocupación de cupos</p>
                 <h3 class="mt-1 text-2xl font-bold text-gray-900">{{ $ocupacion }}%</h3>
                 <div class="mt-2 h-1.5 w-full rounded-full bg-gray-200">
-                    <div class="bg-brand-500 h-1.5 rounded-full" style="width: {{ $ocupacion }}%"></div>
+                    <div class="bg-udg-800 h-1.5 rounded-full" style="width: {{ $ocupacion }}%"></div>
                 </div>
                 <p class="mt-1 text-xs text-gray-500">{{ $kpis['cupos_libres'] }} cupos libres</p>
             </div>
@@ -76,7 +76,7 @@
                         <p class="text-xs text-gray-500">Reportes de horas de tus practicantes que aún no has comentado.</p>
                     </div>
                     <a href="{{ route('empresa.lista-practicantes') }}"
-                        class="text-brand-600 text-xs font-semibold hover:underline">Ver practicantes</a>
+                        class="text-real-600 text-xs font-semibold hover:underline">Ver practicantes</a>
                 </div>
                 <div class="divide-y divide-gray-100">
                     @forelse ($reportesPendientes as $r)
@@ -91,7 +91,7 @@
                                 </div>
                             </div>
                             <a href="{{ route('empresa.practicantes.show', $r->practica) }}"
-                                class="bg-brand-500 hover:bg-brand-600 rounded-lg px-3 py-1.5 text-xs font-semibold text-white">Comentar</a>
+                                class="bg-udg-800 hover:bg-udg-700 rounded-lg px-3 py-1.5 text-xs font-semibold text-white">Comentar</a>
                         </div>
                     @empty
                         <p class="py-8 text-center text-sm text-gray-400">No tienes reportes pendientes de comentar.</p>
@@ -104,13 +104,13 @@
                 <h4 class="mb-3 text-base font-bold text-gray-900">Accesos rápidos</h4>
                 <div class="space-y-2">
                     <a href="{{ route('empresa.lista-programas') }}"
-                        class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-brand-300 hover:bg-gray-50">Mis
+                        class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-real-200 hover:bg-gray-50">Mis
                         programas <span>→</span></a>
                     <a href="{{ route('empresa.convenio') }}"
-                        class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-brand-300 hover:bg-gray-50">Convenio
+                        class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-real-200 hover:bg-gray-50">Convenio
                         CUCSH <span>→</span></a>
                     <a href="{{ route('empresa.documentos') }}"
-                        class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-brand-300 hover:bg-gray-50">Documentos
+                        class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-real-200 hover:bg-gray-50">Documentos
                         <span>→</span></a>
                 </div>
             </div>
@@ -134,7 +134,7 @@
                             </div>
                         </div>
                         <a href="{{ route('empresa.programas.postulantes', $po->programa) }}"
-                            class="text-brand-600 text-xs font-semibold">Ver programa →</a>
+                            class="text-real-600 text-xs font-semibold">Ver programa →</a>
                     </div>
                 @empty
                     <p class="py-6 text-center text-sm text-gray-400">Sin alumnos pendientes de presentarse.</p>

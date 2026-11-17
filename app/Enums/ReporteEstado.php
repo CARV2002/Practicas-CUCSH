@@ -21,4 +21,15 @@ enum ReporteEstado: string
             self::Anulado => [],
         };
     }
+
+    /** Familia de color pastel para la insignia de estatus (DESIGN_SYSTEM.md §1.4). */
+    public function familia(): string
+    {
+        return match ($this) {
+            self::Pendiente => 'ambar',
+            self::Validado => 'menta',
+            self::Rechazado => 'rosa',
+            self::Anulado => 'piedra',
+        };
+    }
 }

@@ -20,7 +20,7 @@
 
     // Variant map
     $variantMap = [
-        'primary' => 'bg-brand-500 text-white shadow-theme-xs hover:bg-brand-600 disabled:bg-brand-300',
+        'primary' => 'bg-udg-800 text-white shadow-theme-xs hover:bg-udg-700 disabled:bg-udg-300',
         'outline' => 'bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50',
     ];
     $variantClass = $variantMap[$variant] ?? $variantMap['primary'];

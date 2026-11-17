@@ -82,6 +82,7 @@ class DemoOperacionSeeder extends Seeder
 
         $this->alumnosYPostulaciones($p);
         $this->usuarioInactivo();
+        $this->avisosDemo();
     }
 
 
@@ -318,6 +319,41 @@ class DemoOperacionSeeder extends Seeder
             'capturado_siiau_at' => now()->subMonths(2)->addDays(5),
         ]);
         $this->adjuntar($oficio, 'oficio_acreditacion', 'oficio-acreditacion.pdf', ValidacionEstado::Validada);
+    }
+
+    /**
+     * Avisos de ejemplo para que la campana de cada panel no aparezca vacía en local.
+     * En operación real los generan las acciones (solicitudes, dictámenes, validaciones...).
+     */
+    private function avisosDemo(): void
+    {
+        $avisos = [
+            'vinculacion@test.com' => [
+                ['Nueva solicitud de convenio: Bufete Jurídico Integral S.C.', '/admin/lista-convenios?estado=solicitado', 'Bufete Jurídico Integral S.C.'],
+                ['La Coordinación de ABOG emitió dictamen aprobatorio para Comisión Estatal de Justicia. Faltan 1 carrera(s).', '/admin/lista-dictamenes', 'Comisión Estatal de Justicia'],
+            ],
+            'coord.abog@test.com' => [
+                ['Empresa Demo S.A. de C.V. registró la vacante «Apoyo en litigio civil (por aprobar)». Revisa horario y actividades para aprobarla.', '/coordinacion/lista-programas?estado=pendiente_aprobacion', 'Apoyo en litigio civil'],
+                ['Elena Elegible (ABOG) se postuló a «Auxiliar jurídico en archivo judicial». Valida créditos e IMSS.', '/coordinacion/lista-practicantes', 'Auxiliar jurídico en archivo judicial'],
+            ],
+            'empresa@test.com' => [
+                ['Tu convenio quedó formalizado (folio CV-DEMO-001). Ya puedes proponer vacantes para las carreras aprobadas.', '/empresa/convenio', 'CV-DEMO-001'],
+            ],
+            'alumno.elegible@test.com' => [
+                ['Tu coordinación validó tu constancia IMSS.', '/alumno/mis-documentos', null],
+            ],
+        ];
+
+        foreach ($avisos as $email => $lista) {
+            $user = User::where('email', $email)->first();
+            if (!$user || $user->notifications()->exists()) {
+                continue;   // idempotente
+            }
+            foreach ($lista as [$mensaje, $url, $detalle]) {
+                // Solo campana (sin correo): AvisoOperativo con correo=false
+                $user->notify(new \App\Notifications\AvisoOperativo($mensaje, $url, $detalle));
+            }
+        }
     }
 
     private function usuarioInactivo(): void

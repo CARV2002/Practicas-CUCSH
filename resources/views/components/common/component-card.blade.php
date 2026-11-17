@@ -3,7 +3,7 @@
     'desc' => '',
 ])
 
-<div {{ $attributes->merge(['class' => 'rounded-2xl border border-gray-200 bg-white']) }}>
+<div {{ $attributes->merge(['class' => 'tarjeta']) }}>
     <!-- Card Header -->
     <div class="px-6 py-5">
         <h3 class="text-base font-medium text-gray-800">

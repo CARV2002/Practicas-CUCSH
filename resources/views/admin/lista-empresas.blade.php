@@ -9,7 +9,7 @@
         <div class="rounded-xl border border-green-500 bg-green-50 p-4 text-sm text-green-700">{{ session('status') }}</div>
     @endif
 
-    <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white pt-5">
+    <div class="tarjeta overflow-hidden pt-5">
         <div class="mb-5 flex flex-col gap-4 px-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <h3 class="text-lg font-bold text-gray-900">Empresas e instituciones</h3>
@@ -17,31 +17,31 @@
             </div>
             <form method="GET" class="flex flex-wrap items-center gap-2">
                 <input type="text" name="q" value="{{ request('q') }}" placeholder="Razón social, RFC o contacto..."
-                    class="focus:border-brand-300 focus:ring-brand-500/10 h-10 w-64 rounded-lg border border-gray-300 px-3 text-sm focus:ring-3 focus:outline-hidden">
-                <select name="tipo" class="h-10 rounded-lg border border-gray-300 px-3 text-sm">
+                    class="focus:border-real-500 focus:ring-real-500/20 h-10 w-64 rounded-lg border border-gray-300 px-3 text-sm focus:ring-3 focus:outline-hidden">
+                <select name="tipo" class="campo-filtro">
                     <option value="">Todos los tipos</option>
                     @foreach ($tipos as $t)
                         <option value="{{ $t->value }}" @selected(request('tipo') === $t->value)>{{ $t->label() }}</option>
                     @endforeach
                 </select>
-                <select name="convenio" class="h-10 rounded-lg border border-gray-300 px-3 text-sm">
+                <select name="convenio" class="campo-filtro">
                     <option value="">Cualquier convenio</option>
                     <option value="vigente" @selected(request('convenio') === 'vigente')>Con convenio vigente</option>
                     <option value="sin" @selected(request('convenio') === 'sin')>Sin convenio vigente</option>
                 </select>
-                <button class="bg-brand-500 hover:bg-brand-600 h-10 rounded-lg px-4 text-sm font-medium text-white">Filtrar</button>
+                <button class="boton boton-primario w-full sm:w-auto">Filtrar</button>
             </form>
         </div>
 
-        <div class="max-w-full overflow-x-auto">
-            <table class="w-full border-collapse text-left">
+        <div class="tabla-scroll">
+            <table class="tabla">
                 <thead class="border-y border-gray-100 bg-gray-50/70">
                     <tr>
-                        <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Empresa</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Tipo</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Contacto</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Convenio</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Cuenta</th>
+                        <th class="tabla-th px-6">Empresa</th>
+                        <th class="tabla-th">Tipo</th>
+                        <th class="tabla-th">Contacto</th>
+                        <th class="tabla-th">Convenio</th>
+                        <th class="tabla-th">Cuenta</th>
                         <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Acciones</th>
                     </tr>
                 </thead>
@@ -52,7 +52,7 @@
                             $ultimo = $empresa->convenios->sortByDesc('id')->first();
                             $activo = $empresa->user?->activo ?? false;
                         @endphp
-                        <tr class="transition-colors hover:bg-gray-50/40">
+                        <tr class="tabla-fila">
                             <td class="px-6 py-4">
                                 <span class="block text-sm font-semibold text-gray-900">{{ $empresa->razon_social }}</span>
                                 <span class="font-mono text-xs text-gray-500">{{ $empresa->rfc }}</span>
@@ -67,7 +67,7 @@
                                     <span class="rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-700">Vigente</span>
                                     <span class="mt-1 block text-xs text-gray-500">hasta {{ $vigente->fecha_fin_vigencia->format('d/m/Y') }}</span>
                                 @elseif ($ultimo)
-                                    <span class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{{ $ultimo->estado->label() }}</span>
+                                    <x-ui.estatus :estado="$ultimo->estado" />
                                 @else
                                     <span class="text-xs text-gray-400">Sin solicitud</span>
                                 @endif
@@ -79,7 +79,7 @@
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-right">
                                 <div class="flex items-center justify-end gap-3">
-                                    <a href="{{ route('admin.empresas.show', $empresa) }}" class="text-brand-600 hover:text-brand-700 text-xs font-semibold">Ver</a>
+                                    <a href="{{ route('admin.empresas.show', $empresa) }}" class="text-real-600 hover:text-real-700 text-xs font-semibold">Ver</a>
                                     @if ($empresa->user)
                                         <form method="POST" action="{{ route('admin.empresas.activo', $empresa) }}"
                                             onsubmit="return confirm('{{ $activo ? '¿Desactivar' : '¿Activar' }} la cuenta de esta empresa?')">

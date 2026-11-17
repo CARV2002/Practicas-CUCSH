@@ -2,7 +2,7 @@
 
 @section('content')
 @php
-    $input = 'focus:border-brand-300 focus:ring-brand-500/10 h-10 w-full rounded-lg border border-gray-300 px-3 text-sm focus:ring-3 focus:outline-hidden';
+    $input = 'campo h-10';
     $label = 'mb-1 block text-xs font-medium text-gray-600';
 @endphp
 
@@ -30,7 +30,7 @@
     </p>
 
     @forelse ($carreras as $carrera)
-        <form method="POST" action="{{ route('coordinacion.reglas.update', $carrera) }}" class="space-y-4 rounded-2xl border border-gray-200 bg-white p-6">
+        <form method="POST" action="{{ route('coordinacion.reglas.update', $carrera) }}" class="space-y-4 tarjeta p-6">
             @csrf
             @method('PUT')
             <div>
@@ -73,11 +73,11 @@
             </div>
 
             <div class="flex justify-end">
-                <button type="submit" class="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-medium text-white">Guardar</button>
+                <button type="submit" class="boton boton-primario">Guardar</button>
             </div>
         </form>
     @empty
-        <p class="rounded-2xl border border-gray-200 bg-white px-6 py-8 text-center text-sm text-gray-400">No tienes carreras asignadas.</p>
+        <p class="tarjeta px-6 py-8 text-center text-sm text-gray-400">No tienes carreras asignadas.</p>
     @endforelse
 </div>
 @endsection

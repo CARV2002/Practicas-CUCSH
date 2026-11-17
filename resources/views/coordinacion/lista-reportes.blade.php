@@ -4,10 +4,10 @@
     @php
         use App\Enums\ReporteEstado as RE;
 
-        $input = 'focus:border-brand-300 focus:ring-brand-500/10 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-3 focus:outline-hidden';
-        $filtro = 'focus:border-brand-300 focus:ring-brand-500/10 h-10 rounded-lg border border-gray-300 px-3 text-sm focus:ring-3 focus:outline-hidden';
-        $card = 'overflow-hidden rounded-2xl border border-gray-200 bg-white pt-5';
-        $th = 'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500';
+        $input = 'campo';
+        $filtro = 'campo-filtro';
+        $card = 'tarjeta overflow-hidden pt-5';
+        $th = 'tabla-th';
     @endphp
 
     <x-common.page-breadcrumb pageTitle="Reportes" />
@@ -26,22 +26,22 @@
 
         {{-- Resumen --}}
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div class="rounded-2xl border border-gray-200 bg-white p-5">
+            <div class="tarjeta p-5">
                 <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Reportes pendientes</p>
                 <h3 class="mt-1 text-2xl font-bold text-yellow-600">{{ $pendientes }}</h3>
             </div>
-            <div class="rounded-2xl border border-gray-200 bg-white p-5">
+            <div class="tarjeta p-5">
                 <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Prácticas activas</p>
                 <h3 class="mt-1 text-2xl font-bold text-gray-900">{{ $avance->total() }}</h3>
             </div>
-            <div class="rounded-2xl border border-gray-200 bg-white p-5">
+            <div class="tarjeta p-5">
                 <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Próximas a cerrar</p>
-                <h3 class="mt-1 text-2xl font-bold text-brand-600">{{ $porCerrar->count() }}</h3>
+                <h3 class="mt-1 text-2xl font-bold text-real-600">{{ $porCerrar->count() }}</h3>
             </div>
         </div>
 
         {{-- Próximas a cerrar --}}
-        <div class="rounded-2xl border border-gray-200 bg-white p-6">
+        <div class="tarjeta p-6">
             <h4 class="text-base font-bold text-gray-900">Prácticas próximas a cerrar</h4>
             <p class="mb-4 text-xs text-gray-500">Terminan en los próximos 30 días o ya cubren las horas requeridas.</p>
             <div class="divide-y divide-gray-100">
@@ -82,7 +82,7 @@
                 </div>
                 <form method="GET" class="flex flex-wrap items-center gap-2">
                     <input type="text" name="q" value="{{ request('q') }}" placeholder="Nombre o código..."
-                        class="{{ $filtro }} w-44">
+                        class="{{ $filtro }} sm:w-44">
                     <select name="carrera_id" class="{{ $filtro }}">
                         <option value="">Todas las carreras</option>
                         @foreach ($carreras as $c)
@@ -105,15 +105,15 @@
                         @endforeach
                     </select>
                     <button
-                        class="h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">Filtrar</button>
+                        class="boton boton-secundario w-full sm:w-auto">Filtrar</button>
                 </form>
             </div>
 
-            <div class="max-w-full overflow-x-auto">
-                <table class="w-full border-collapse text-left">
+            <div class="tabla-scroll">
+                <table class="tabla">
                     <thead class="border-y border-gray-100 bg-gray-50/70">
                         <tr>
-                            <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Practicante
+                            <th class="tabla-th px-6">Practicante
                             </th>
                             <th class="{{ $th }}">Tipo / periodo</th>
                             <th class="{{ $th }}">Horas</th>
@@ -127,14 +127,8 @@
                             @php
                                 $al = $r->practica->postulacion->alumno;
                                 $pdf = $r->getFirstMedia('reporte_firmado');
-                                $color = match ($r->estado) {
-                                    RE::Validado => 'bg-green-50 text-green-700',
-                                    RE::Rechazado => 'bg-red-50 text-red-700',
-                                    RE::Anulado => 'bg-gray-100 text-gray-600',
-                                    default => 'bg-yellow-50 text-yellow-700',
-                                };
                             @endphp
-                            <tr class="align-top transition-colors hover:bg-gray-50/40">
+                            <tr class="align-top tabla-fila">
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-3">
                                         <x-ui.user-avatar :user="$al->user" size="h-9 w-9 text-xs" />
@@ -153,15 +147,14 @@
                                         {{ $r->periodo_fin->format('d/m/Y') }}</span>
                                     @if ($pdf)
                                         <a href="{{ route('coordinacion.reportes.archivos', [$r, $pdf]) }}"
-                                            class="text-brand-600 text-xs font-semibold">Descargar PDF</a>
+                                            class="text-real-600 text-xs font-semibold">Descargar PDF</a>
                                     @endif
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-4 text-sm font-bold text-gray-800">
                                     {{ $r->horas_reportadas }} h
                                 </td>
                                 <td class="px-4 py-4">
-                                    <span
-                                        class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $color }}">{{ ucfirst($r->estado->value) }}</span>
+                                    <x-ui.estatus :estado="$r->estado" />
                                     @if ($r->evaluacion_profesor)
                                         <p class="mt-1 max-w-[220px] text-xs text-gray-500">Profesor: {{ $r->evaluacion_profesor }}
                                     </p>@endif
@@ -208,11 +201,11 @@
                 <p class="mt-0.5 text-sm text-gray-500">Horas acumuladas (validadas) / horas requeridas de cada práctica
                     activa.</p>
             </div>
-            <div class="max-w-full overflow-x-auto">
-                <table class="w-full border-collapse text-left">
+            <div class="tabla-scroll">
+                <table class="tabla">
                     <thead class="border-y border-gray-100 bg-gray-50/70">
                         <tr>
-                            <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Practicante
+                            <th class="tabla-th px-6">Practicante
                             </th>
                             <th class="{{ $th }}">Progreso</th>
                             <th class="{{ $th }}">Termina</th>
@@ -226,7 +219,7 @@
                                 $pct = $p->horas_requeridas > 0 ? min(100, round($p->horas_acumuladas / $p->horas_requeridas * 100)) : 0;
                                 $atrasada = $p->fecha_fin->isPast() && !$p->horasCompletas();
                             @endphp
-                            <tr class="transition-colors hover:bg-gray-50/40">
+                            <tr class="tabla-fila">
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-3">
                                         <x-ui.user-avatar :user="$al->user" size="h-9 w-9 text-xs" />
@@ -243,10 +236,10 @@
                                             <span class="text-sm font-bold text-gray-900">{{ (int) $p->horas_acumuladas }}<span
                                                     class="text-xs font-normal text-gray-400"> / {{ $p->horas_requeridas }}
                                                     h</span></span>
-                                            <span class="text-brand-600 text-xs font-semibold">{{ $pct }}%</span>
+                                            <span class="text-real-600 text-xs font-semibold">{{ $pct }}%</span>
                                         </div>
                                         <div class="h-1.5 w-full rounded-full bg-gray-100">
-                                            <div class="bg-brand-500 h-1.5 rounded-full" style="width: {{ $pct }}%"></div>
+                                            <div class="bg-udg-800 h-1.5 rounded-full" style="width: {{ $pct }}%"></div>
                                         </div>
                                     </div>
                                 </td>
@@ -255,8 +248,7 @@
                                     {{ $p->fecha_fin->format('d/m/Y') }}
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-4">
-                                    <span
-                                        class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{{ $p->estado->label() }}</span>
+                                    <x-ui.estatus :estado="$p->estado" />
                                     @if ($atrasada)<span
                                     class="ml-1 rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-700">Vencida</span>@endif
                                 </td>

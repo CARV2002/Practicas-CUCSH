@@ -367,9 +367,11 @@ test('los convenios vigentes son públicos y el alumno ve a su coordinación', f
         ->assertSee('to=' . rawurlencode('coordinacion.abogado@csh.udg.mx'), false)
         ->assertSee('Copiar correo');
 
-    // El sitio público muestra el directorio y la lista de convenios vigentes
+    // El sitio público: Estudiantes enlaza a la lista de convenios vigentes y al directorio (en Contacto)
     $this->get(route('estudiantes'))->assertOk()
-        ->assertSee('Despacho Ejemplo S.C.')->assertSee('Solo Criminologia A.C.')->assertSee('coordinacion.abogado@csh.udg.mx');
+        ->assertSee(route('convenios-vigentes'))->assertSee(route('contacto') . '#directorio', false);
+    $this->get(route('convenios-vigentes'))->assertOk()
+        ->assertSee('Despacho Ejemplo S.C.')->assertSee('Solo Criminologia A.C.');
     $this->get(route('contacto'))->assertOk()->assertSee('Escribe a tu coordinación')->assertSee('coordinacion.abogado@csh.udg.mx');
 });
 

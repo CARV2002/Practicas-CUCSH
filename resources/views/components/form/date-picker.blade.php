@@ -36,7 +36,7 @@
     }
 }" x-init="init()" x-destroy="destroy()">
     @if($label)
-        <label for="{{ $id }}" class="mb-1.5 block text-sm font-medium text-gray-700">
+        <label for="{{ $id }}" class="etiqueta">
             {{ $label }}
         </label>
     @endif
@@ -48,7 +48,7 @@
             id="{{ $id }}"
             name="{{ $name }}"
             placeholder="{{ $placeholder }}"
-            class="h-11 w-full rounded-lg border appearance-none px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:outline-hidden focus:ring-3 bg-transparent text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-brand-500/20"
+            class="h-11 w-full rounded-lg border appearance-none px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:outline-hidden focus:ring-3 bg-transparent text-gray-800 border-gray-300 focus:border-real-500 focus:ring-real-500/20"
             autocomplete="off"
         />
         <span class="absolute text-gray-500 -translate-y-1/2 pointer-events-none right-3 top-1/2">

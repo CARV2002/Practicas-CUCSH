@@ -18,15 +18,15 @@
     @endphp
 
     <div class="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-        <div class="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-            <p class="text-brand-500 text-4xl font-bold">{{ $codigo }}</p>
+        <div class="w-full max-w-md tarjeta p-8 text-center shadow-sm">
+            <p class="text-real-600 text-4xl font-bold">{{ $codigo }}</p>
             <h1 class="mt-3 text-xl font-bold text-gray-900">{{ $titulo }}</h1>
             <p class="mt-2 text-sm text-gray-500">{{ $texto }}</p>
             <div class="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
                 @auth
-                    <a href="{{ route('dashboard') }}" class="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-medium text-white">Ir a mi panel</a>
+                    <a href="{{ route('dashboard') }}" class="boton boton-primario">Ir a mi panel</a>
                 @else
-                    <a href="{{ route('inicio') }}" class="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-medium text-white">Ir al inicio</a>
+                    <a href="{{ route('inicio') }}" class="boton boton-primario">Ir al inicio</a>
                 @endauth
             </div>
         </div>

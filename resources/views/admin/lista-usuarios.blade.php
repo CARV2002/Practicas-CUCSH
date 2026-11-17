@@ -3,9 +3,9 @@
 
 @section('content')
     @php
-        $input = 'focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 focus:ring-3 focus:outline-hidden';
-        $filtro = 'focus:border-brand-300 focus:ring-brand-500/10 h-10 rounded-lg border border-gray-300 px-3 text-sm focus:ring-3 focus:outline-hidden';
-        $label = 'mb-1.5 block text-sm font-medium text-gray-700';
+        $input = 'campo h-11';
+        $filtro = 'campo-filtro';
+        $label = 'etiqueta';
     @endphp
 
     <x-common.page-breadcrumb pageTitle="Usuarios" />
@@ -32,7 +32,7 @@
             </div>
         @endif
 
-        <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white pt-5">
+        <div class="tarjeta overflow-hidden pt-5">
             <div class="mb-5 flex flex-col gap-4 px-6 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h3 class="text-lg font-bold text-gray-900">Usuarios del sistema</h3>
@@ -42,7 +42,7 @@
                 <div class="flex flex-wrap items-center gap-2">
                     <form method="GET" class="flex flex-wrap items-center gap-2">
                         <input type="text" name="q" value="{{ request('q') }}" placeholder="Nombre o correo..."
-                            class="{{ $filtro }} w-48">
+                            class="{{ $filtro }} sm:w-48">
                         <select name="rol" class="{{ $filtro }}">
                             <option value="">Todos los roles</option>
                             @foreach ($roles as $r)
@@ -56,23 +56,23 @@
                             <option value="inactivo" @selected(request('estado') === 'inactivo')>Inactivos</option>
                         </select>
                         <button
-                            class="h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">Filtrar</button>
+                            class="boton boton-secundario w-full sm:w-auto">Filtrar</button>
                     </form>
                     <button type="button" @click="modalAlta = true"
-                        class="bg-brand-500 hover:bg-brand-600 h-10 rounded-lg px-4 text-sm font-medium text-white">+ Nueva
+                        class="boton boton-primario w-full sm:w-auto">+ Nueva
                         cuenta de personal</button>
                 </div>
             </div>
 
-            <div class="max-w-full overflow-x-auto">
-                <table class="w-full border-collapse text-left">
+            <div class="tabla-scroll">
+                <table class="tabla">
                     <thead class="border-y border-gray-100 bg-gray-50/70">
                         <tr>
-                            <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Usuario</th>
-                            <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Rol</th>
-                            <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Correo
+                            <th class="tabla-th px-6">Usuario</th>
+                            <th class="tabla-th">Rol</th>
+                            <th class="tabla-th">Correo
                                 verificado</th>
-                            <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Cuenta</th>
+                            <th class="tabla-th">Cuenta</th>
                             <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">
                                 Acciones</th>
                         </tr>
@@ -93,7 +93,7 @@
                                 // Vinculación no gestiona cuentas de Vinculación ni del administrador técnico
                                 $gestionable = $esYo || auth()->user()->hasRole(\App\Enums\Rol::Administrador->value) || ! $u->hasAnyRole(\App\Enums\Rol::deVinculacion());
                             @endphp
-                            <tr class="transition-colors hover:bg-gray-50/40">
+                            <tr class="tabla-fila">
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-3">
                                         <x-ui.user-avatar :user="$u" size="h-9 w-9 text-xs" />
@@ -124,7 +124,7 @@
                                     <div class="flex items-center justify-end gap-3">
                                         @if ($gestionable)
                                         <button type="button" @click="cambiar({{ $u->id }}, @js($u->name))"
-                                            class="text-brand-600 hover:text-brand-700 text-xs font-semibold">Contraseña</button>
+                                            class="text-real-600 hover:text-real-700 text-xs font-semibold">Contraseña</button>
                                         @unless ($esYo)
                                             <form method="POST" action="{{ route('admin.usuarios.activo', $u) }}"
                                                 onsubmit="return confirm('{{ $u->activo ? '¿Desactivar' : '¿Activar' }} esta cuenta?')">
@@ -218,7 +218,7 @@
                     <button type="button" @click="modalAlta = false"
                         class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>
                     <button type="submit"
-                        class="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2.5 text-sm font-medium text-white">Crear</button>
+                        class="bg-udg-800 hover:bg-udg-700 rounded-lg px-4 py-2.5 text-sm font-medium text-white">Crear</button>
                 </div>
             </form>
         </div>
@@ -240,7 +240,7 @@
                     <button type="button" @click="modalPass = false"
                         class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>
                     <button type="submit"
-                        class="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2.5 text-sm font-medium text-white">Guardar</button>
+                        class="bg-udg-800 hover:bg-udg-700 rounded-lg px-4 py-2.5 text-sm font-medium text-white">Guardar</button>
                 </div>
             </form>
         </div>

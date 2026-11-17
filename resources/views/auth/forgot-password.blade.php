@@ -12,7 +12,7 @@
                 <x-auth.input name="email" type="email" label="Correo electrónico" autocomplete="username" />
                 <x-auth.submit>Enviar enlace</x-auth.submit>
                 <p class="text-center text-sm text-gray-500">
-                    <a href="{{ route('login') }}" class="text-brand-500 hover:text-brand-600">Volver a iniciar sesión</a>
+                    <a href="{{ route('login') }}" class="text-real-600 hover:text-real-700">Volver a iniciar sesión</a>
                 </p>
             </div>
         </form>

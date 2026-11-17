@@ -7,9 +7,9 @@
     $esCoordinacion = ($modo ?? 'vinculacion') === 'coordinacion';
     $rutaArchivo = $esCoordinacion ? 'coordinacion.dictamenes.archivos' : 'admin.dictamenes.archivos.descargar';
 
-    $input = 'focus:border-brand-300 focus:ring-brand-500/10 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-3 focus:outline-hidden';
-    $btn = 'bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-medium text-white';
-    $card = 'rounded-2xl border border-gray-200 bg-white';
+    $input = 'campo';
+    $btn = 'boton boton-primario';
+    $card = 'tarjeta';
 @endphp
 
 <x-common.page-breadcrumb pageTitle="{{ $esCoordinacion ? 'Dictámenes de mi carrera' : 'Dictámenes por carrera' }}" />
@@ -71,42 +71,37 @@
             </form>
         </div>
 
-        <div class="max-w-full overflow-x-auto">
-            <table class="w-full border-collapse text-left">
+        <div class="tabla-scroll">
+            <table class="tabla">
                 <thead class="border-y border-gray-100 bg-gray-50/70">
                     <tr>
-                        <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Convenio / Empresa</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Carrera</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Dictamen</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Detalle</th>
+                        <th class="tabla-th px-6">Convenio / Empresa</th>
+                        <th class="tabla-th">Carrera</th>
+                        <th class="tabla-th">Dictamen</th>
+                        <th class="tabla-th">Detalle</th>
                         <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Acción</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($dictamenes as $d)
                         @php
-                            $color = match ($d->dictamen) {
-                                Dictamen::Aprobatorio => 'bg-green-50 text-green-700',
-                                Dictamen::Negativo => 'bg-red-50 text-red-700',
-                                default => 'bg-yellow-50 text-yellow-700',
-                            };
                             $pdf = $d->getFirstMedia('dictamen_pertinencia');
                             $capturable = $esCoordinacion
                                 && $d->dictamen === Dictamen::Pendiente
                                 && $d->convenio->estado === \App\Enums\ConvenioEstado::EnValidacionAcademica;
                         @endphp
-                        <tr class="align-top transition-colors hover:bg-gray-50/40">
+                        <tr class="align-top tabla-fila">
                             <td class="px-6 py-4">
                                 <span class="block text-sm font-semibold text-gray-900">{{ $d->convenio->empresa->razon_social }}</span>
                                 @if ($esCoordinacion)
                                     <span class="block text-xs text-gray-500">{{ $d->convenio->estado->label() }} · {{ $d->convenio->plazas_estimadas }} plazas</span>
                                     <details class="mt-1 text-xs text-gray-600">
-                                        <summary class="text-brand-600 cursor-pointer">Objetivos y actividades propuestas</summary>
+                                        <summary class="text-real-600 cursor-pointer">Objetivos y actividades propuestas</summary>
                                         <p class="mt-1"><strong>Objetivos:</strong> {{ $d->convenio->objetivos }}</p>
                                         <p class="mt-1"><strong>Actividades:</strong> {{ $d->convenio->actividades_propuestas }}</p>
                                     </details>
                                 @else
-                                    <a href="{{ route('admin.convenios.show', $d->convenio) }}" class="text-brand-600 text-xs">Ver convenio · {{ $d->convenio->estado->label() }}</a>
+                                    <a href="{{ route('admin.convenios.show', $d->convenio) }}" class="text-real-600 text-xs">Ver convenio · {{ $d->convenio->estado->label() }}</a>
                                 @endif
                             </td>
                             <td class="px-4 py-4">
@@ -114,7 +109,7 @@
                                 <span class="text-xs text-gray-500">{{ $d->carrera->division->nombre }}</span>
                             </td>
                             <td class="whitespace-nowrap px-4 py-4">
-                                <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $color }}">{{ ucfirst($d->dictamen->value) }}</span>
+                                <x-ui.estatus :estado="$d->dictamen" />
                             </td>
                             <td class="px-4 py-4 text-xs text-gray-600">
                                 @if ($d->fecha_dictamen)
@@ -122,13 +117,13 @@
                                 @endif
                                 @if ($d->observaciones) <span class="block">{{ $d->observaciones }}</span> @endif
                                 @if ($pdf)
-                                    <a href="{{ route($rutaArchivo, [$d, $pdf]) }}" class="text-brand-600 font-semibold">Descargar PDF</a>
+                                    <a href="{{ route($rutaArchivo, [$d, $pdf]) }}" class="text-real-600 font-semibold">Descargar PDF</a>
                                 @endif
                             </td>
                             <td class="px-6 py-4 text-right">
                                 @if ($capturable)
                                     <button type="button" onclick="document.getElementById('captura-{{ $d->id }}').classList.toggle('hidden')"
-                                        class="text-brand-600 hover:text-brand-700 text-xs font-semibold">Emitir dictamen</button>
+                                        class="text-real-600 hover:text-real-700 text-xs font-semibold">Emitir dictamen</button>
                                 @else
                                     <span class="text-xs text-gray-400">—</span>
                                 @endif
@@ -172,7 +167,7 @@
                         <p class="text-sm font-semibold text-gray-800">{{ $c->empresa->razon_social }}</p>
                         <p class="text-xs text-gray-500">{{ $c->dictamenes->map(fn ($d) => $d->carrera->carrera_clave)->join(', ') }} · {{ $c->estado->label() }}</p>
                     </div>
-                    <a href="{{ route('admin.convenios.show', $c) }}" class="text-brand-600 text-xs font-semibold">Ver →</a>
+                    <a href="{{ route('admin.convenios.show', $c) }}" class="text-real-600 text-xs font-semibold">Ver →</a>
                 </div>
             @empty
                 <p class="py-3 text-center text-sm text-gray-400">Ninguno por ahora.</p>

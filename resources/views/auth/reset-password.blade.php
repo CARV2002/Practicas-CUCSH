@@ -8,9 +8,9 @@
 
             <div class="space-y-5">
                 <div>
-                    <label for="email" class="mb-1.5 block text-sm font-medium text-gray-700">Correo electrónico<span class="text-error-500">*</span></label>
+                    <label for="email" class="etiqueta">Correo electrónico<span class="text-error-500">*</span></label>
                     <input id="email" name="email" type="email" value="{{ old('email', $request->email) }}" required autocomplete="username"
-                        class="shadow-theme-xs focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-hidden">
+                        class="shadow-theme-xs focus:border-real-500 focus:ring-real-500/20 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-hidden">
                     @error('email')<p class="text-error-500 mt-1 text-sm">{{ $message }}</p>@enderror
                 </div>
 

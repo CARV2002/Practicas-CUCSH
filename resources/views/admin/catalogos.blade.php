@@ -47,14 +47,14 @@
                 + Nueva división
             </button>
             <button type="button" @click="nuevaCarrera()"
-                class="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2.5 text-sm font-medium text-white">
+                class="bg-udg-800 hover:bg-udg-700 rounded-lg px-4 py-2.5 text-sm font-medium text-white">
                 + Nueva carrera
             </button>
         </div>
     </div>
 
     @forelse ($divisiones as $division)
-        <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        <div class="tarjeta overflow-hidden">
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
                 <div>
                     <h3 class="text-base font-semibold text-gray-800">{{ $division->nombre }}</h3>
@@ -66,27 +66,27 @@
                         Editar división
                     </button>
                     <button type="button" @click="nuevaCarrera({{ $division->id }})"
-                        class="text-brand-600 border-brand-200 hover:bg-brand-25 rounded-lg border px-3 py-1.5 text-xs font-medium">
+                        class="text-real-600 border-real-200 hover:bg-udg-50 rounded-lg border px-3 py-1.5 text-xs font-medium">
                         + Carrera
                     </button>
                 </div>
             </div>
 
-            <div class="max-w-full overflow-x-auto">
-                <table class="w-full border-collapse text-left">
+            <div class="tabla-scroll">
+                <table class="tabla">
                     <thead class="bg-gray-50/70">
                         <tr>
-                            <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Clave</th>
-                            <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Carrera</th>
-                            <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Horas</th>
-                            <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">% créditos mín.</th>
-                            <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Créditos otorgados</th>
+                            <th class="tabla-th px-6">Clave</th>
+                            <th class="tabla-th">Carrera</th>
+                            <th class="tabla-th">Horas</th>
+                            <th class="tabla-th">% créditos mín.</th>
+                            <th class="tabla-th">Créditos otorgados</th>
                             <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Acciones</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         @forelse ($division->carreras as $carrera)
-                            <tr class="transition-colors hover:bg-gray-50/40">
+                            <tr class="tabla-fila">
                                 <td class="whitespace-nowrap px-6 py-3">
                                     <span class="rounded border border-gray-200 bg-gray-50 px-2 py-0.5 font-mono text-xs font-bold text-gray-600">{{ $carrera->carrera_clave }}</span>
                                 </td>
@@ -97,7 +97,7 @@
                                 <td class="whitespace-nowrap px-6 py-3 text-right">
                                     <button type="button"
                                         @click="editarCarrera(@js($carrera->only(['id', 'division_id', 'carrera_clave', 'nombre', 'horas_requeridas', 'porcentaje_creditos_minimo', 'creditos_otorgados'])))"
-                                        class="text-brand-600 hover:text-brand-700 text-xs font-semibold">
+                                        class="text-real-600 hover:text-real-700 text-xs font-semibold">
                                         Editar
                                     </button>
                                 </td>
@@ -112,7 +112,7 @@
             </div>
         </div>
     @empty
-        <div class="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
+        <div class="tarjeta p-10 text-center text-sm text-gray-500">
             No hay divisiones registradas. Ejecuta <code>php artisan db:seed --class=CarreraSeeder</code> o crea una nueva.
         </div>
     @endforelse
@@ -126,13 +126,13 @@
             <template x-if="division.id"><input type="hidden" name="_method" value="PUT"></template>
             <h3 class="text-lg font-semibold text-gray-800" x-text="division.id ? 'Editar división' : 'Nueva división'"></h3>
             <div>
-                <label class="mb-1.5 block text-sm font-medium text-gray-700">Nombre</label>
+                <label class="etiqueta">Nombre</label>
                 <input type="text" name="nombre" x-model="division.nombre" required maxlength="255"
-                    class="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 focus:ring-3 focus:outline-hidden">
+                    class="campo h-11">
             </div>
             <div class="flex justify-end gap-2">
                 <button type="button" @click="modalDivision = false" class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>
-                <button type="submit" class="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2.5 text-sm font-medium text-white">Guardar</button>
+                <button type="submit" class="bg-udg-800 hover:bg-udg-700 rounded-lg px-4 py-2.5 text-sm font-medium text-white">Guardar</button>
             </div>
         </form>
     </div>
@@ -147,9 +147,9 @@
             <h3 class="text-lg font-semibold text-gray-800" x-text="carrera.id ? 'Editar carrera' : 'Nueva carrera'"></h3>
 
             <div>
-                <label class="mb-1.5 block text-sm font-medium text-gray-700">División</label>
+                <label class="etiqueta">División</label>
                 <select name="division_id" x-model="carrera.division_id" required
-                    class="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 focus:ring-3 focus:outline-hidden">
+                    class="campo h-11">
                     <option value="">Selecciona una división</option>
                     @foreach ($divisiones as $d)
                         <option value="{{ $d->id }}">{{ $d->nombre }}</option>
@@ -159,38 +159,38 @@
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700">Clave</label>
+                    <label class="etiqueta">Clave</label>
                     <input type="text" name="carrera_clave" x-model="carrera.carrera_clave" required maxlength="10"
-                        class="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 px-4 text-sm uppercase text-gray-800 focus:ring-3 focus:outline-hidden">
+                        class="focus:border-real-500 focus:ring-real-500/20 h-11 w-full rounded-lg border border-gray-300 px-4 text-sm uppercase text-gray-800 focus:ring-3 focus:outline-hidden">
                 </div>
                 <div class="sm:col-span-2">
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700">Nombre</label>
+                    <label class="etiqueta">Nombre</label>
                     <input type="text" name="nombre" x-model="carrera.nombre" required maxlength="255"
-                        class="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 focus:ring-3 focus:outline-hidden">
+                        class="campo h-11">
                 </div>
             </div>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700">Horas requeridas</label>
+                    <label class="etiqueta">Horas requeridas</label>
                     <input type="number" name="horas_requeridas" x-model="carrera.horas_requeridas" required min="1" max="2000"
-                        class="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 focus:ring-3 focus:outline-hidden">
+                        class="campo h-11">
                 </div>
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700">% créditos mín.</label>
+                    <label class="etiqueta">% créditos mín.</label>
                     <input type="number" step="0.01" name="porcentaje_creditos_minimo" x-model="carrera.porcentaje_creditos_minimo" required min="0" max="100"
-                        class="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 focus:ring-3 focus:outline-hidden">
+                        class="campo h-11">
                 </div>
                 <div>
-                    <label class="mb-1.5 block text-sm font-medium text-gray-700">Créditos otorgados</label>
+                    <label class="etiqueta">Créditos otorgados</label>
                     <input type="number" name="creditos_otorgados" x-model="carrera.creditos_otorgados" required min="0" max="50"
-                        class="focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 focus:ring-3 focus:outline-hidden">
+                        class="campo h-11">
                 </div>
             </div>
 
             <div class="flex justify-end gap-2">
                 <button type="button" @click="modalCarrera = false" class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>
-                <button type="submit" class="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2.5 text-sm font-medium text-white">Guardar</button>
+                <button type="submit" class="bg-udg-800 hover:bg-udg-700 rounded-lg px-4 py-2.5 text-sm font-medium text-white">Guardar</button>
             </div>
         </form>
     </div>

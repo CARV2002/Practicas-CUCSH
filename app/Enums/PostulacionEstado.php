@@ -60,4 +60,17 @@ enum PostulacionEstado: string
             self::Rechazada, self::Cancelada => [],
         };
     }
+
+    /** Familia de color pastel para la insignia de estatus (DESIGN_SYSTEM.md §1.4). */
+    public function familia(): string
+    {
+        return match ($this) {
+            self::Pendiente => 'ambar',
+            self::CartaPresentacionEmitida => 'cielo',
+            self::CartaAceptacionRecibida => 'lavanda',
+            self::Aceptada => 'menta',
+            self::Rechazada => 'rosa',
+            self::Cancelada => 'piedra',
+        };
+    }
 }

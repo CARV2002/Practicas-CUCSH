@@ -41,6 +41,7 @@ use App\Http\Controllers\FotoUsuarioController;
 */
 Route::get('/', [HomeController::class, 'inicio'])->name('inicio');
 Route::get('/estudiantes', [HomeController::class, 'estudiantes'])->name('estudiantes');
+Route::get('/convenios-vigentes', [HomeController::class, 'conveniosVigentesPublico'])->name('convenios-vigentes');
 Route::get('/empresas', [HomeController::class, 'empresas'])->name('empresas');
 Route::view('/contacto', 'pages.home.contacto')->name('contacto');
 Route::view('/terminos-y-condiciones', 'pages.home.terminos')->name('terminos');

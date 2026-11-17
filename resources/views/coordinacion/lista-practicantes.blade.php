@@ -6,11 +6,11 @@
         use App\Enums\PostulacionEstado as PE;
         use App\Enums\PracticaEstado as PrE;
 
-        $input = 'focus:border-brand-300 focus:ring-brand-500/10 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-3 focus:outline-hidden';
-        $filtro = 'focus:border-brand-300 focus:ring-brand-500/10 h-10 rounded-lg border border-gray-300 px-3 text-sm focus:ring-3 focus:outline-hidden';
-        $btn = 'bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-medium text-white';
-        $card = 'overflow-hidden rounded-2xl border border-gray-200 bg-white pt-5';
-        $th = 'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500';
+        $input = 'campo';
+        $filtro = 'campo-filtro';
+        $btn = 'boton boton-primario';
+        $card = 'tarjeta overflow-hidden pt-5';
+        $th = 'tabla-th';
     @endphp
 
     <x-common.page-breadcrumb pageTitle="Practicantes" />
@@ -35,11 +35,11 @@
                     y activar la práctica.</p>
             </div>
 
-            <div class="max-w-full overflow-x-auto">
-                <table class="w-full border-collapse text-left">
+            <div class="tabla-scroll">
+                <table class="tabla">
                     <thead class="border-y border-gray-100 bg-gray-50/70">
                         <tr>
-                            <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Alumno</th>
+                            <th class="tabla-th px-6">Alumno</th>
                             <th class="{{ $th }}">Programa</th>
                             <th class="{{ $th }}">% créditos</th>
                             <th class="{{ $th }}">Estado</th>
@@ -59,7 +59,7 @@
                                 $min = $po->alumno->carrera->porcentaje_creditos_minimo;
                                 $cumple = (float) $po->porcentaje_creditos_declarado >= (float) $min;
                             @endphp
-                            <tr class="align-top transition-colors hover:bg-gray-50/40">
+                            <tr class="align-top tabla-fila">
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-3">
                                         <x-ui.user-avatar :user="$po->alumno->user" size="h-9 w-9 text-xs" />
@@ -97,20 +97,19 @@
                                         :descarga="$kardex ? route('coordinacion.postulaciones.archivos', [$po, $kardex]) : null" />
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-4">
-                                    <span
-                                        class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{{ $po->estado->label() }}</span>
+                                    <x-ui.estatus :estado="$po->estado" />
                                     @if ($presentacion)
                                         <a href="{{ route('coordinacion.postulaciones.archivos', [$po, $presentacion]) }}"
-                                            class="text-brand-600 mt-1 block text-xs font-semibold">Carta de presentación</a>
+                                            class="text-real-600 mt-1 block text-xs font-semibold">Carta de presentación</a>
                                     @endif
                                     @if ($aceptacion)
                                         <a href="{{ route('coordinacion.postulaciones.archivos', [$po, $aceptacion]) }}"
-                                            class="text-brand-600 mt-1 block text-xs font-semibold">Carta de aceptación</a>
+                                            class="text-real-600 mt-1 block text-xs font-semibold">Carta de aceptación</a>
                                     @endif
                                     @if ($interno)
                                         @if ($oficioInterno)
                                             <a href="{{ route('coordinacion.postulaciones.archivos', [$po, $oficioInterno]) }}"
-                                                class="text-brand-600 mt-1 block text-xs font-semibold">Oficio de aceptación interno</a>
+                                                class="text-real-600 mt-1 block text-xs font-semibold">Oficio de aceptación interno</a>
                                         @elseif (in_array($po->estado, [PE::CartaPresentacionEmitida, PE::CartaAceptacionRecibida], true))
                                             <span class="mt-1 block text-xs text-red-600">Falta oficio de aceptación interno</span>
                                         @endif
@@ -200,7 +199,7 @@
                 </div>
                 <form method="GET" class="flex flex-wrap items-center gap-2">
                     <input type="text" name="q" value="{{ request('q') }}" placeholder="Nombre o código..."
-                        class="{{ $filtro }} w-44">
+                        class="{{ $filtro }} sm:w-44">
                     <select name="carrera_id" class="{{ $filtro }}">
                         <option value="">Todas las carreras</option>
                         @foreach ($carreras as $c)
@@ -215,15 +214,15 @@
                         @endforeach
                     </select>
                     <button
-                        class="h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">Filtrar</button>
+                        class="boton boton-secundario w-full sm:w-auto">Filtrar</button>
                 </form>
             </div>
 
-            <div class="max-w-full overflow-x-auto">
-                <table class="w-full border-collapse text-left">
+            <div class="tabla-scroll">
+                <table class="tabla">
                     <thead class="border-y border-gray-100 bg-gray-50/70">
                         <tr>
-                            <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Practicante
+                            <th class="tabla-th px-6">Practicante
                             </th>
                             <th class="{{ $th }}">Institución</th>
                             <th class="{{ $th }}">Progreso de horas</th>
@@ -240,15 +239,9 @@
                                 $al = $pr->postulacion->alumno;
                                 $horas = (int) $pr->horas_acumuladas;
                                 $pct = $pr->horas_requeridas > 0 ? min(100, round($horas / $pr->horas_requeridas * 100)) : 0;
-                                $color = match ($pr->estado) {
-                                    PrE::Acreditada => 'bg-green-50 text-green-700',
-                                    PrE::Cancelada => 'bg-red-50 text-red-700',
-                                    PrE::EnCierre => 'bg-yellow-50 text-yellow-700',
-                                    default => 'bg-blue-50 text-blue-700',
-                                };
                                 $activa = in_array($pr->estado, PrE::activas(), true);
                             @endphp
-                            <tr class="align-top transition-colors hover:bg-gray-50/40">
+                            <tr class="align-top tabla-fila">
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-3">
                                         <x-ui.user-avatar :user="$al->user" size="h-9 w-9 text-xs" />
@@ -268,10 +261,10 @@
                                             <span class="text-sm font-bold text-gray-900">{{ $horas }}<span
                                                     class="text-xs font-normal text-gray-400"> / {{ $pr->horas_requeridas }}
                                                     h</span></span>
-                                            <span class="text-brand-600 text-xs font-semibold">{{ $pct }}%</span>
+                                            <span class="text-real-600 text-xs font-semibold">{{ $pct }}%</span>
                                         </div>
                                         <div class="h-1.5 w-full rounded-full bg-gray-100">
-                                            <div class="bg-brand-500 h-1.5 rounded-full" style="width: {{ $pct }}%"></div>
+                                            <div class="bg-udg-800 h-1.5 rounded-full" style="width: {{ $pct }}%"></div>
                                         </div>
                                     </div>
                                 </td>
@@ -289,15 +282,14 @@
                                                     <option value="{{ $pf->id }}">{{ $pf->nombre }}</option>
                                                 @endforeach
                                             </select>
-                                            <button class="text-brand-600 text-xs font-semibold">OK</button>
+                                            <button class="text-real-600 text-xs font-semibold">OK</button>
                                         </form>
                                     @else
                                         {{ $pr->supervisor?->nombre ?? '—' }}
                                     @endif
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-4">
-                                    <span
-                                        class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $color }}">{{ $pr->estado->label() }}</span>
+                                    <x-ui.estatus :estado="$pr->estado" />
                                 </td>
                                 <td class="whitespace-nowrap px-6 py-4 text-right">
                                     @if ($activa)

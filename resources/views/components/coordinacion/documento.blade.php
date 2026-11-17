@@ -12,7 +12,7 @@
 
 <div class="text-xs" x-data="{ rechazar: false }">
     @if ($media)
-        <a href="{{ $descarga }}" class="text-brand-600 font-semibold">{{ $etiqueta }}</a>
+        <a href="{{ $descarga }}" class="text-real-600 font-semibold">{{ $etiqueta }}</a>
         <span class="{{ $color }} font-semibold">· {{ $estado ? ucfirst($estado->value) : 'Por revisar' }}</span>
         @if ($estado === \App\Enums\ValidacionEstado::Rechazada && $media->getCustomProperty('motivo'))
             <span class="block text-red-600">{{ $media->getCustomProperty('motivo') }}</span>

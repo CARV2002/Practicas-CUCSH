@@ -2,9 +2,9 @@
 
 @section('content')
 @php
-    $filtro = 'focus:border-brand-300 focus:ring-brand-500/10 h-10 w-full rounded-lg border border-gray-300 px-3 text-sm focus:ring-3 focus:outline-hidden';
-    $card = 'rounded-2xl border border-gray-200 bg-white p-6';
-    $th = 'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500';
+    $filtro = 'campo h-10';
+    $card = 'tarjeta p-6';
+    $th = 'tabla-th';
     $exportes = [
         ['tipo' => 'practicas', 'titulo' => 'Prácticas', 'desc' => 'Una fila por práctica: alumno, empresa, fechas, horas validadas y estado.', 'fechas' => 'Fecha de inicio de la práctica', 'ciclo' => false],
         ['tipo' => 'postulaciones', 'titulo' => 'Postulaciones', 'desc' => 'Quién se postuló a qué programa, con su porcentaje de créditos.', 'fechas' => 'Fecha de postulación', 'ciclo' => false],
@@ -41,7 +41,7 @@
                 </select>
                 <input type="date" name="desde" value="{{ request('desde') }}" class="{{ $filtro }} !w-40" title="Desde">
                 <input type="date" name="hasta" value="{{ request('hasta') }}" class="{{ $filtro }} !w-40" title="Hasta">
-                <button class="h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">Aplicar</button>
+                <button class="boton boton-secundario w-full sm:w-auto">Aplicar</button>
             </form>
         </div>
 
@@ -52,11 +52,11 @@
             <div class="rounded-xl bg-gray-50 p-4"><p class="text-xs font-semibold uppercase text-gray-500">Horas validadas</p><p class="mt-1 text-2xl font-bold text-gray-900">{{ number_format($resumen['horas']) }}</p></div>
         </div>
 
-        <div class="mt-5 max-w-full overflow-x-auto">
-            <table class="w-full border-collapse text-left">
+        <div class="mt-5 tabla-scroll">
+            <table class="tabla">
                 <thead class="border-y border-gray-100 bg-gray-50/70">
                     <tr>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Carrera</th>
+                        <th class="tabla-th">Carrera</th>
                         <th class="{{ $th }}">Total</th><th class="{{ $th }}">Activas</th>
                         <th class="{{ $th }}">Acreditadas</th><th class="{{ $th }}">Canceladas</th>
                         <th class="{{ $th }}">Avance de horas</th>
@@ -72,7 +72,7 @@
                             <td class="px-4 py-3 text-sm text-red-600">{{ $c['canceladas'] }}</td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
-                                    <div class="h-1.5 w-28 rounded-full bg-gray-100"><div class="bg-brand-500 h-1.5 rounded-full" style="width: {{ $c['avance'] }}%"></div></div>
+                                    <div class="h-1.5 w-28 rounded-full bg-gray-100"><div class="bg-udg-800 h-1.5 rounded-full" style="width: {{ $c['avance'] }}%"></div></div>
                                     <span class="text-xs font-semibold text-gray-600">{{ $c['avance'] }}%</span>
                                 </div>
                             </td>
@@ -98,11 +98,11 @@
 
         <h4 class="mt-6 text-sm font-bold text-gray-900">Cuánto tarda cada etapa</h4>
         <p class="mb-2 text-xs text-gray-500">Promedio real de las etapas ya cerradas, en días hábiles, contra el máximo documentado.</p>
-        <div class="max-w-full overflow-x-auto">
-            <table class="w-full border-collapse text-left">
+        <div class="tabla-scroll">
+            <table class="tabla">
                 <thead class="border-y border-gray-100 bg-gray-50/70">
                     <tr>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Etapa</th>
+                        <th class="tabla-th">Etapa</th>
                         <th class="{{ $th }}">Responsable</th><th class="{{ $th }}">Casos</th>
                         <th class="{{ $th }}">Promedio</th><th class="{{ $th }}">Máximo documentado</th>
                     </tr>
@@ -169,7 +169,7 @@
                         </div>
                     @endif
 
-                    <button class="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-medium text-white">Descargar CSV</button>
+                    <button class="boton boton-primario">Descargar CSV</button>
                 </form>
             @endforeach
         </div>

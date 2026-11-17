@@ -40,17 +40,29 @@ class HomeController extends Controller
 
     public function estudiantes(): View
     {
-        $vigentes = $this->conveniosVigentes()->load([
-            'dictamenes' => fn ($d) => $d->where('dictamen', \App\Enums\Dictamen::Aprobatorio->value)->with('carrera'),
-        ]);
+        $vigentes = $this->conveniosVigentes();
 
         return view('pages.home.estudiantes', [
             'divisiones' => $this->divisionesConCarreras(),
             'organizaciones' => $vigentes->count(),
-            // Lista pública de convenios vigentes por carrera (antes se enviaba por correo)
-            'conveniosVigentes' => $vigentes->sortBy(fn ($c) => $c->empresa->razon_social)->values(),
             'programasAbiertos' => Programa::abiertos()->count(),
             ...$this->conteosDePracticas(),
+        ]);
+    }
+
+    /**
+     * Página pública con TODAS las organizaciones con convenio vigente y las carreras que cubre cada una
+     * (antes Vinculación enviaba esta lista por correo).
+     */
+    public function conveniosVigentesPublico(): View
+    {
+        $vigentes = $this->conveniosVigentes()->load([
+            'dictamenes' => fn ($d) => $d->where('dictamen', \App\Enums\Dictamen::Aprobatorio->value)->with('carrera'),
+        ]);
+
+        return view('pages.home.convenios-vigentes', [
+            'divisiones' => $this->divisionesConCarreras(),
+            'conveniosVigentes' => $vigentes->sortBy(fn ($c) => $c->empresa->razon_social)->values(),
         ]);
     }
 

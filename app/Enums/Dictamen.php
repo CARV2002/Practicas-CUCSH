@@ -8,4 +8,14 @@ enum Dictamen: string
     case Pendiente = 'pendiente';
     case Aprobatorio = 'aprobatorio';
     case Negativo = 'negativo';
+
+    /** Familia de color pastel para la insignia de estatus (DESIGN_SYSTEM.md §1.4). */
+    public function familia(): string
+    {
+        return match ($this) {
+            self::Pendiente => 'ambar',
+            self::Aprobatorio => 'menta',
+            self::Negativo => 'rosa',
+        };
+    }
 }

@@ -14,7 +14,7 @@
             <x-alumno.tu-coordinacion :carrera="$usuario->alumno->carrera" />
         @endif
 
-        <div class="space-y-3 rounded-2xl border border-gray-200 bg-white p-6"
+        <div class="space-y-3 tarjeta p-6"
             x-data="{ copiado: false, copiar(t) { navigator.clipboard?.writeText(t).then(() => { this.copiado = true; setTimeout(() => this.copiado = false, 2000) }) } }">
             <h3 class="text-lg font-bold text-gray-900">Vinculación · convenios con organizaciones</h3>
             <p class="text-sm text-gray-600">
@@ -26,7 +26,7 @@
             </p>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="{{ \App\Support\Correo::gmail($correo) }}" target="_blank" rel="noopener"
-                    class="bg-brand-500 hover:bg-brand-600 rounded-lg px-3 py-2 text-sm font-medium text-white">Escribir por Gmail</a>
+                    class="bg-udg-800 hover:bg-udg-700 rounded-lg px-3 py-2 text-sm font-medium text-white">Escribir por Gmail</a>
                 <button type="button" @click="copiar(@js($correo))"
                     class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     <span x-show="!copiado">Copiar correo</span>
@@ -40,7 +40,7 @@
 
         @unless ($usuario->alumno)
             <p class="text-sm text-gray-500">
-                ¿Buscas a una coordinación de carrera? Consulta el <a href="{{ route('contacto') }}#directorio" class="text-brand-600 font-semibold">directorio en Contacto</a>.
+                ¿Buscas a una coordinación de carrera? Consulta el <a href="{{ route('contacto') }}#directorio" class="text-real-600 font-semibold">directorio en Contacto</a>.
             </p>
         @endunless
     </div>

@@ -383,7 +383,7 @@
 <x-common.page-breadcrumb pageTitle="Dashboard" />
 
 
-<div class="min-h-screen rounded-2xl border border-gray-200 bg-white">
+<div class="min-h-screen tarjeta">
     <div class="cucsh-dashboard-container">
 
         <header class="dashboard-welcome-hero">

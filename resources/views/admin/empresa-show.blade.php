@@ -2,9 +2,9 @@
 
 @section('content')
 @php
-    $input = 'focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 focus:ring-3 focus:outline-hidden';
-    $label = 'mb-1.5 block text-sm font-medium text-gray-700';
-    $card = 'rounded-2xl border border-gray-200 bg-white p-6';
+    $input = 'campo h-11';
+    $label = 'etiqueta';
+    $card = 'tarjeta p-6';
     $activo = $empresa->user?->activo ?? false;
 @endphp
 
@@ -106,7 +106,7 @@
         </div>
 
         <div class="flex justify-end">
-            <button class="bg-brand-500 hover:bg-brand-600 rounded-lg px-5 py-2.5 text-sm font-medium text-white">Guardar cambios</button>
+            <button class="bg-udg-800 hover:bg-udg-700 rounded-lg px-5 py-2.5 text-sm font-medium text-white">Guardar cambios</button>
         </div>
     </form>
 
@@ -151,7 +151,7 @@
                     <div>
                         <p class="text-sm font-semibold text-gray-800">
                             {{ $c->folio ?? 'Sin folio' }}
-                            <span class="ml-2 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">{{ $c->estado->label() }}</span>
+                            <x-ui.estatus :estado="$c->estado" class="ml-2" />
                         </p>
                         <p class="text-xs text-gray-500">
                             Recibido {{ $c->fecha_recepcion->format('d/m/Y') }}
@@ -159,7 +159,7 @@
                             · Carreras aprobadas: {{ $c->dictamenes->where('dictamen', \App\Enums\Dictamen::Aprobatorio)->map(fn ($d) => $d->carrera->carrera_clave)->join(', ') ?: '—' }}
                         </p>
                     </div>
-                    <a href="{{ route('admin.convenios.show', $c) }}" class="text-brand-600 hover:text-brand-700 text-xs font-semibold">Gestionar →</a>
+                    <a href="{{ route('admin.convenios.show', $c) }}" class="text-real-600 hover:text-real-700 text-xs font-semibold">Gestionar →</a>
                 </div>
             @empty
                 <p class="py-4 text-center text-sm text-gray-400">Esta empresa aún no ha solicitado convenio.</p>

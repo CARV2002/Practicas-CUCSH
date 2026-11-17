@@ -2,9 +2,9 @@
 
 @section('content')
     @php
-        $input = 'focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 focus:ring-3 focus:outline-hidden';
-        $label = 'mb-1.5 block text-sm font-medium text-gray-700';
-        $card = 'rounded-2xl border border-gray-200 bg-white p-6';
+        $input = 'campo h-11';
+        $label = 'etiqueta';
+        $card = 'tarjeta p-6';
     @endphp
 
     <x-common.page-breadcrumb pageTitle="Mi perfil" />
@@ -38,9 +38,9 @@
                     class="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
                     @csrf
                     <input type="file" name="foto" accept="image/jpeg,image/png,image/webp" required
-                        class="focus:border-brand-300 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                        class="focus:border-real-500 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
                     <button
-                        class="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2 text-sm font-medium text-white">Subir
+                        class="boton boton-primario">Subir
                         foto</button>
                 </form>
             </div>
@@ -86,7 +86,7 @@
 
             <div class="flex justify-end">
                 <button
-                    class="bg-brand-500 hover:bg-brand-600 rounded-lg px-5 py-2.5 text-sm font-medium text-white">Guardar</button>
+                    class="bg-udg-800 hover:bg-udg-700 rounded-lg px-5 py-2.5 text-sm font-medium text-white">Guardar</button>
             </div>
         </form>
 
@@ -103,7 +103,7 @@
                 </div>
                 <x-alumno.grado-turno :grado="$user->alumno->grado" :turno="$user->alumno->turno" />
                 <div class="flex justify-end">
-                    <button class="bg-brand-500 hover:bg-brand-600 rounded-lg px-5 py-2.5 text-sm font-medium text-white">Guardar datos escolares</button>
+                    <button class="bg-udg-800 hover:bg-udg-700 rounded-lg px-5 py-2.5 text-sm font-medium text-white">Guardar datos escolares</button>
                 </div>
             </form>
         @endif
@@ -137,7 +137,7 @@
 
             <div class="flex justify-end">
                 <button
-                    class="bg-brand-500 hover:bg-brand-600 rounded-lg px-5 py-2.5 text-sm font-medium text-white">Actualizar
+                    class="bg-udg-800 hover:bg-udg-700 rounded-lg px-5 py-2.5 text-sm font-medium text-white">Actualizar
                     contraseña</button>
             </div>
         </form>

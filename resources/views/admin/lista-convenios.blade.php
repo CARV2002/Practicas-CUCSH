@@ -14,7 +14,7 @@
         </div>
     @endif
 
-    <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white pt-5">
+    <div class="tarjeta overflow-hidden pt-5">
         <div class="mb-5 flex flex-col gap-4 px-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h3 class="text-lg font-bold text-gray-900">Bandeja de convenios</h3>
@@ -22,27 +22,27 @@
             </div>
             <form method="GET" class="flex flex-wrap items-center gap-2">
                 <input type="text" name="q" value="{{ request('q') }}" placeholder="Empresa o RFC..."
-                    class="focus:border-brand-300 focus:ring-brand-500/10 h-10 rounded-lg border border-gray-300 px-3 text-sm focus:ring-3 focus:outline-hidden">
-                <select name="estado" class="h-10 rounded-lg border border-gray-300 px-3 text-sm">
+                    class="campo-filtro">
+                <select name="estado" class="campo-filtro">
                     <option value="">Todos los estados</option>
                     @foreach ($estados as $e)
                         <option value="{{ $e->value }}" @selected(request('estado') === $e->value)>{{ $e->label() }}</option>
                     @endforeach
                 </select>
-                <button class="bg-brand-500 hover:bg-brand-600 h-10 rounded-lg px-4 text-sm font-medium text-white">Filtrar</button>
+                <button class="boton boton-primario w-full sm:w-auto">Filtrar</button>
             </form>
         </div>
 
-        <div class="max-w-full overflow-x-auto">
-            <table class="w-full border-collapse text-left">
+        <div class="tabla-scroll">
+            <table class="tabla">
                 <thead class="border-y border-gray-100 bg-gray-50/70">
                     <tr>
-                        <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Empresa</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Folio</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Estado</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Etapa abierta</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Días hábiles</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Vigencia</th>
+                        <th class="tabla-th px-6">Empresa</th>
+                        <th class="tabla-th">Folio</th>
+                        <th class="tabla-th">Estado</th>
+                        <th class="tabla-th">Etapa abierta</th>
+                        <th class="tabla-th">Días hábiles</th>
+                        <th class="tabla-th">Vigencia</th>
                         <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500"></th>
                     </tr>
                 </thead>
@@ -52,20 +52,15 @@
                             $abierta = $convenio->seguimientos
                                 ->filter(fn ($s) => $s->estado === \App\Enums\SeguimientoEstado::Pendiente)
                                 ->last();
-                            $color = match ($convenio->estado) {
-                                \App\Enums\ConvenioEstado::Formalizado => 'bg-green-50 text-green-700',
-                                \App\Enums\ConvenioEstado::Rechazado => 'bg-red-50 text-red-700',
-                                default => 'bg-blue-50 text-blue-700',
-                            };
                         @endphp
-                        <tr class="transition-colors hover:bg-gray-50/40">
+                        <tr class="tabla-fila">
                             <td class="px-6 py-4">
                                 <span class="block text-sm font-semibold text-gray-900">{{ $convenio->empresa->razon_social }}</span>
                                 <span class="text-xs text-gray-500">{{ $convenio->empresa->rfc }} · recibido {{ $convenio->fecha_recepcion->format('d/m/Y') }}</span>
                             </td>
                             <td class="whitespace-nowrap px-4 py-4 text-sm text-gray-600">{{ $convenio->folio ?? '—' }}</td>
                             <td class="whitespace-nowrap px-4 py-4">
-                                <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $color }}">{{ $convenio->estado->label() }}</span>
+                                <x-ui.estatus :estado="$convenio->estado" />
                             </td>
                             <td class="px-4 py-4 text-sm text-gray-700">
                                 @if ($abierta)
@@ -93,7 +88,7 @@
                                 @endif
                             </td>
                             <td class="whitespace-nowrap px-6 py-4 text-right">
-                                <a href="{{ route('admin.convenios.show', $convenio) }}" class="text-brand-600 hover:text-brand-700 text-xs font-semibold">Gestionar →</a>
+                                <a href="{{ route('admin.convenios.show', $convenio) }}" class="text-real-600 hover:text-real-700 text-xs font-semibold">Gestionar →</a>
                             </td>
                         </tr>
                     @empty

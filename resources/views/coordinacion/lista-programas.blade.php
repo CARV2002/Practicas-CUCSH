@@ -3,9 +3,9 @@
 
 @section('content')
 @php
-    $input = 'focus:border-brand-300 focus:ring-brand-500/10 h-11 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 focus:ring-3 focus:outline-hidden';
-    $filtro = 'focus:border-brand-300 focus:ring-brand-500/10 h-10 rounded-lg border border-gray-300 px-3 text-sm focus:ring-3 focus:outline-hidden';
-    $label = 'mb-1.5 block text-sm font-medium text-gray-700';
+    $input = 'campo h-11';
+    $filtro = 'campo-filtro';
+    $label = 'etiqueta';
     $vacio = ['id' => null, 'modalidad' => 'interna', 'convenio_id' => '', 'carrera_id' => '', 'ciclo' => '', 'titulo' => '', 'descripcion' => '', 'actividades' => '', 'perfil_requerido' => '', 'horario' => '', 'sede' => '', 'cupos_totales' => ''];
     $conveniosJs = $convenios->map(fn ($c) => [
         'id' => $c->id,
@@ -41,7 +41,7 @@
         </div>
     @endif
 
-    <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white pt-5">
+    <div class="tarjeta overflow-hidden pt-5">
         <div class="mb-5 flex flex-col gap-4 px-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <h3 class="text-lg font-bold text-gray-900">Programas de prácticas</h3>
@@ -49,7 +49,7 @@
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <form method="GET" class="flex flex-wrap items-center gap-2">
-                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Título o empresa..." class="{{ $filtro }} w-44">
+                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Título o empresa..." class="{{ $filtro }} sm:w-44">
                     <select name="carrera_id" class="{{ $filtro }}">
                         <option value="">Todas las carreras</option>
                         @foreach ($carreras as $c)
@@ -74,22 +74,22 @@
                             <option value="{{ $c }}" @selected(request('ciclo') === $c)>{{ $c }}</option>
                         @endforeach
                     </select>
-                    <button class="h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">Filtrar</button>
+                    <button class="boton boton-secundario w-full sm:w-auto">Filtrar</button>
                 </form>
-                <button type="button" @click="nuevo()" class="bg-brand-500 hover:bg-brand-600 h-10 rounded-lg px-4 text-sm font-medium text-white">+ Proyecto interno</button>
+                <button type="button" @click="nuevo()" class="boton boton-primario w-full sm:w-auto">+ Proyecto interno</button>
             </div>
         </div>
 
-        <div class="max-w-full overflow-x-auto">
-            <table class="w-full border-collapse text-left">
+        <div class="tabla-scroll">
+            <table class="tabla">
                 <thead class="border-y border-gray-100 bg-gray-50/70">
                     <tr>
-                        <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Programa / Empresa</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Carrera</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Ciclo</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Modalidad</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Cupos</th>
-                        <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Estado</th>
+                        <th class="tabla-th px-6">Programa / Empresa</th>
+                        <th class="tabla-th">Carrera</th>
+                        <th class="tabla-th">Ciclo</th>
+                        <th class="tabla-th">Modalidad</th>
+                        <th class="tabla-th">Cupos</th>
+                        <th class="tabla-th">Estado</th>
                         <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Acciones</th>
                     </tr>
                 </thead>
@@ -98,7 +98,6 @@
                         @php
                             $ocupados = (int) $pr->cupos_ocupados;
                             $pct = $pr->cupos_totales > 0 ? min(100, round($ocupados / $pr->cupos_totales * 100)) : 0;
-                            $color = $pr->estado->color();
                             $pendiente = $pr->estado === \App\Enums\ProgramaEstado::PendienteAprobacion;
                             $deEmpresa = in_array($pr->estado, [\App\Enums\ProgramaEstado::PendienteAprobacion, \App\Enums\ProgramaEstado::Rechazado], true);
                             $datos = [
@@ -109,7 +108,7 @@
                                 'sede' => $pr->sede ?? '', 'cupos_totales' => $pr->cupos_totales,
                             ];
                         @endphp
-                        <tr class="transition-colors hover:bg-gray-50/40">
+                        <tr class="tabla-fila">
                             <td class="max-w-[300px] px-6 py-4">
                                 <span class="block truncate text-sm font-semibold text-gray-900">{{ $pr->titulo }}</span>
                                 <span class="text-xs text-gray-500">{{ $pr->convenio?->empresa->razon_social ?? 'Proyecto interno' }}</span>
@@ -122,11 +121,11 @@
                             <td class="whitespace-nowrap px-4 py-4">
                                 <div class="flex items-center gap-2">
                                     <span class="text-sm font-bold text-gray-800">{{ $ocupados }}/{{ $pr->cupos_totales }}</span>
-                                    <div class="h-1.5 w-16 rounded-full bg-gray-100"><div class="bg-brand-500 h-1.5 rounded-full" style="width: {{ $pct }}%"></div></div>
+                                    <div class="h-1.5 w-16 rounded-full bg-gray-100"><div class="bg-udg-800 h-1.5 rounded-full" style="width: {{ $pct }}%"></div></div>
                                 </div>
                             </td>
                             <td class="whitespace-nowrap px-4 py-4">
-                                <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $color }}">{{ $pr->estado->label() }}</span>
+                                <x-ui.estatus :estado="$pr->estado" />
                                 @if ($pr->motivo_rechazo && $pr->estado === \App\Enums\ProgramaEstado::Rechazado)
                                     <span class="mt-1 block max-w-[200px] truncate text-xs text-red-600" title="{{ $pr->motivo_rechazo }}">{{ $pr->motivo_rechazo }}</span>
                                 @endif
@@ -134,7 +133,7 @@
                             <td class="whitespace-nowrap px-6 py-4 text-right">
                                 <div class="flex items-center justify-end gap-3">
                                     @if ($pr->esInterno())
-                                        <button type="button" @click="editar(@js($datos))" class="text-brand-600 hover:text-brand-700 text-xs font-semibold">Editar</button>
+                                        <button type="button" @click="editar(@js($datos))" class="text-real-600 hover:text-real-700 text-xs font-semibold">Editar</button>
                                     @endif
                                     @if ($pendiente && ($faltaAprobar = \App\Support\Requisitos::aprobarVacante($pr)))
                                         <x-ui.accion-bloqueada :motivo="$faltaAprobar" tamano="chico">Aprobar</x-ui.accion-bloqueada>
@@ -238,7 +237,7 @@
 
             <div class="flex justify-end gap-2">
                 <button type="button" @click="modal = false" class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>
-                <button type="submit" class="bg-brand-500 hover:bg-brand-600 rounded-lg px-4 py-2.5 text-sm font-medium text-white">Guardar</button>
+                <button type="submit" class="bg-udg-800 hover:bg-udg-700 rounded-lg px-4 py-2.5 text-sm font-medium text-white">Guardar</button>
             </div>
         </form>
     </div>

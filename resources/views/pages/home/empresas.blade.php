@@ -31,8 +31,8 @@ html {
 .b2b-badge {
     display: inline-block;
     padding: 6px 14px;
-    background-color: var(--color-brand-50);
-    color: var(--color-brand-700);
+    background-color: var(--color-oro-50);
+    color: var(--color-oro-700);
     border-radius: 99px;
     font-size: var(--text-theme-xs);
     font-weight: 600;
@@ -425,7 +425,7 @@ html {
 .b2b-field-group input,
 .b2b-field-group textarea,
 .b2b-select-custom {
-    font-family: var(--font-outfit);
+    font-family: var(--font-sans);
     font-size: var(--text-theme-sm);
     padding: 12px 16px;
     border: 1px solid var(--color-gray-300);
@@ -449,8 +449,8 @@ html {
 }
 
 .b2b-btn-primary {
-    font-family: var(--font-outfit);
-    background: var(--color-brand-600);
+    font-family: var(--font-sans);
+    background: var(--color-udg-800);
     color: var(--color-white);
     font-size: var(--text-theme-sm);
     font-weight: 600;
@@ -465,7 +465,7 @@ html {
 }
 
 .b2b-btn-primary:hover {
-    background: var(--color-brand-700);
+    background: var(--color-udg-700);
     transform: translateY(-1px);
 }
 

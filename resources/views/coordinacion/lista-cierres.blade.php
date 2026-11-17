@@ -5,10 +5,10 @@
         use App\Enums\PracticaEstado as PrE;
         use App\Enums\ValidacionEstado as VE;
 
-        $input = 'focus:border-brand-300 focus:ring-brand-500/10 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-3 focus:outline-hidden';
-        $filtro = 'focus:border-brand-300 focus:ring-brand-500/10 h-10 rounded-lg border border-gray-300 px-3 text-sm focus:ring-3 focus:outline-hidden';
-        $btn = 'bg-brand-500 hover:bg-brand-600 rounded-lg px-3 py-1.5 text-xs font-medium text-white';
-        $th = 'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500';
+        $input = 'campo';
+        $filtro = 'campo-filtro';
+        $btn = 'boton boton-chico boton-primario';
+        $th = 'tabla-th';
     @endphp
 
     <x-common.page-breadcrumb pageTitle="Cierre de prácticas" />
@@ -25,7 +25,7 @@
             </div>
         @endif
 
-        <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white pt-5">
+        <div class="tarjeta overflow-hidden pt-5">
             <div class="mb-5 flex flex-col gap-4 px-6 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h3 class="text-lg font-bold text-gray-900">Carta de término y acreditación</h3>
@@ -34,21 +34,21 @@
                 </div>
                 <form method="GET" class="flex flex-wrap items-center gap-2">
                     <input type="text" name="q" value="{{ request('q') }}" placeholder="Nombre o código..."
-                        class="{{ $filtro }} w-44">
+                        class="{{ $filtro }} sm:w-44">
                     <select name="ver" class="{{ $filtro }}">
                         <option value="pendientes" @selected($ver === 'pendientes')>Pendientes</option>
                         <option value="todas" @selected($ver === 'todas')>Incluir acreditadas</option>
                     </select>
                     <button
-                        class="h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50">Filtrar</button>
+                        class="boton boton-secundario w-full sm:w-auto">Filtrar</button>
                 </form>
             </div>
 
-            <div class="max-w-full overflow-x-auto">
-                <table class="w-full border-collapse text-left">
+            <div class="tabla-scroll">
+                <table class="tabla">
                     <thead class="border-y border-gray-100 bg-gray-50/70">
                         <tr>
-                            <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Practicante
+                            <th class="tabla-th px-6">Practicante
                             </th>
                             <th class="{{ $th }}">Horas</th>
                             <th class="{{ $th }}">Carta de término</th>
@@ -65,13 +65,8 @@
                                 $cartaPdf = $carta?->documentoVigente('carta_termino');
                                 $oficio = $pr->oficioAcreditacion;
                                 $oficioPdf = $oficio?->getFirstMedia('oficio_acreditacion');
-                                $cartaColor = match ($carta?->estado_validacion) {
-                                    VE::Validada => 'bg-green-50 text-green-700',
-                                    VE::Rechazada => 'bg-red-50 text-red-700',
-                                    default => 'bg-yellow-50 text-yellow-700',
-                                };
                             @endphp
-                            <tr class="align-top transition-colors hover:bg-gray-50/40">
+                            <tr class="align-top tabla-fila">
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-3">
                                         <x-ui.user-avatar :user="$al->user" size="h-9 w-9 text-xs" />
@@ -92,11 +87,10 @@
                                         h</span>
                                 </td>
                                 <td class="px-4 py-4">
-                                    <span
-                                        class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $cartaColor }}">{{ ucfirst($carta->estado_validacion->value) }}</span>
+                                    <x-ui.estatus :estado="$carta->estado_validacion" />
                                     @if ($cartaPdf)
                                         <a href="{{ route('coordinacion.cierres.archivos', [$pr, $cartaPdf]) }}"
-                                            class="text-brand-600 mt-1 block text-xs font-semibold">Descargar PDF</a>
+                                            class="text-real-600 mt-1 block text-xs font-semibold">Descargar PDF</a>
                                         @if ($cartaPdf->getCustomProperty('motivo'))<span
                                         class="block max-w-[200px] text-xs text-red-600">{{ $cartaPdf->getCustomProperty('motivo') }}</span>@endif
                                     @endif
@@ -104,7 +98,7 @@
                                 <td class="px-4 py-4 text-xs text-gray-600">
                                     @if ($oficio)
                                         @if ($oficioPdf)<a href="{{ route('coordinacion.cierres.archivos', [$pr, $oficioPdf]) }}"
-                                        class="text-brand-600 block font-semibold">Descargar PDF</a>@endif
+                                        class="text-real-600 block font-semibold">Descargar PDF</a>@endif
                                         <span class="block">Enviado a Control Escolar:
                                             {{ $oficio->enviado_control_escolar_at?->format('d/m/Y') ?? '—' }}</span>
                                         <span class="block">Captura en SIIAU:

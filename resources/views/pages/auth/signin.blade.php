@@ -1,48 +1,48 @@
 @extends('layouts.fullscreen-layout')
 
 @section('content')
-    <x-auth.split title="Iniciar sesión" subtitle="Ingresa tus credenciales para entrar.">
+    <x-auth.split title="Te damos la bienvenida"
+        subtitle="Accede para dar seguimiento a tus convenios, postulaciones y prácticas desde un solo lugar.">
         @if (session('status'))
-            <div class="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">{{ session('status') }}</div>
+            <div class="mb-5 flex items-start gap-2 rounded-xl border border-success-200 bg-success-50 p-3.5 text-sm text-success-800" role="status">
+                <svg class="mt-0.5 size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m5 12 5 5L20 7"/></svg>
+                {{ session('status') }}
+            </div>
         @endif
 
         @if ($errors->has('google'))
-            <div class="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{{ $errors->first('google') }}</div>
+            <div class="mb-5 rounded-xl border border-error-200 bg-error-50 p-3.5 text-sm text-error-700" role="alert">{{ $errors->first('google') }}</div>
         @endif
 
         <form method="POST" action="{{ route('login') }}">
             @csrf
             <div class="space-y-5">
-                <x-auth.input name="email" type="email" label="Correo electrónico" placeholder="correo@ejemplo.com"
+                <x-auth.input name="email" type="email" label="Correo electrónico" placeholder="nombre@correo.com"
                     autocomplete="username" />
 
-                <x-auth.input name="password" type="password" label="Contraseña" placeholder="Ingresa tu contraseña"
+                <x-auth.input name="password" type="password" label="Contraseña" placeholder="Tu contraseña"
                     autocomplete="current-password" />
 
-                <div class="flex items-center justify-between">
-                    <label class="flex items-center gap-2 text-sm text-gray-700">
-                        <input type="checkbox" name="remember" class="rounded border-gray-300"> Recordarme
+                <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                    <label class="group flex cursor-pointer items-center gap-2.5 whitespace-nowrap text-sm text-gray-700 select-none">
+                        <input type="checkbox" name="remember"
+                            class="size-4 cursor-pointer rounded border-gray-300 text-udg-800 transition focus:ring-2 focus:ring-real-500/30 focus:ring-offset-0">
+                        <span class="group-hover:text-gray-900">Mantener la sesión</span>
                     </label>
-                    <a href="{{ route('password.request') }}" class="text-brand-500 hover:text-brand-600 text-sm">
-                        Recuperar contraseña
-                    </a>
+                    <a href="{{ route('password.request') }}" class="enlace whitespace-nowrap text-sm">¿Olvidaste tu contraseña?</a>
                 </div>
 
-                <x-auth.submit>Iniciar sesión</x-auth.submit>
-
-                <p class="text-center text-sm text-gray-500">
-                    ¿No tienes cuenta?
-                    <a href="{{ route('register') }}" class="text-brand-500 hover:text-brand-600">Regístrate</a>
-                </p>
+                <x-auth.submit>Entrar a mi cuenta</x-auth.submit>
             </div>
         </form>
-        <div class="my-5 flex items-center gap-3 text-xs text-gray-400">
+
+        <div class="my-6 flex items-center gap-3 text-xs font-medium uppercase tracking-wider text-gray-400">
             <span class="h-px flex-1 bg-gray-200"></span>o<span class="h-px flex-1 bg-gray-200"></span>
         </div>
 
         <a href="{{ route('google.redirect') }}"
-            class="flex h-11 w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
-            <svg class="h-5 w-5" viewBox="0 0 48 48" aria-hidden="true">
+            class="group flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white px-4 text-[15px] font-semibold text-gray-800 shadow-theme-xs transition duration-200 ease-out hover:-translate-y-px hover:border-gray-400 hover:shadow-theme-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/20 active:translate-y-0 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+            <svg class="size-5 transition-transform duration-200 group-hover:scale-110 motion-reduce:transition-none" viewBox="0 0 48 48" aria-hidden="true">
                 <path fill="#EA4335"
                     d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
                 <path fill="#4285F4"
@@ -54,8 +54,13 @@
             </svg>
             Continuar con correo institucional UdG
         </a>
-        <p class="mt-2 text-center text-xs text-gray-500">
-            Para alumnos y personal con correo institucional. Las empresas inician con su correo y contraseña.
+        <p class="mt-2.5 text-center text-xs leading-relaxed text-gray-500">
+            Para alumnos y personal con correo institucional. Las organizaciones entran con su correo y contraseña.
+        </p>
+
+        <p class="mt-8 rounded-xl bg-gray-50 px-4 py-3.5 text-center text-sm text-gray-600 ring-1 ring-inset ring-gray-200">
+            ¿Aún no tienes cuenta?
+            <a href="{{ route('register') }}" class="enlace">Crea tu cuenta</a>
         </p>
     </x-auth.split>
 @endsection

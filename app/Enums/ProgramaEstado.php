@@ -29,11 +29,19 @@ enum ProgramaEstado: string
 
     public function color(): string
     {
+        // Compatibilidad: mismas clases pastel que <x-ui.estatus>
+        return \App\Support\Estatus::chip($this->familia()).' ring-1 ring-inset';
+    }
+
+    /** Familia de color pastel para la insignia de estatus (DESIGN_SYSTEM.md §1.4). */
+    public function familia(): string
+    {
         return match ($this) {
-            self::Publicado => 'bg-green-50 text-green-700',
-            self::PendienteAprobacion => 'bg-yellow-50 text-yellow-700',
-            self::Rechazado, self::Cerrado => 'bg-red-50 text-red-700',
-            self::Borrador => 'bg-gray-100 text-gray-600',
+            self::Borrador => 'gris',
+            self::PendienteAprobacion => 'ambar',
+            self::Publicado => 'menta',
+            self::Rechazado => 'rosa',
+            self::Cerrado => 'piedra',
         };
     }
 }

@@ -41,4 +41,15 @@ enum PracticaEstado: string
             self::Acreditada, self::Cancelada => [],
         };
     }
+
+    /** Familia de color pastel para la insignia de estatus (DESIGN_SYSTEM.md §1.4). */
+    public function familia(): string
+    {
+        return match ($this) {
+            self::EnCurso => 'turquesa',
+            self::EnCierre => 'ambar',
+            self::Acreditada => 'menta',
+            self::Cancelada => 'piedra',
+        };
+    }
 }

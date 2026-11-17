@@ -10,7 +10,7 @@
     $telefono = $carrera->coordinacion_telefono;
 @endphp
 
-<section {{ $attributes->merge(['class' => 'rounded-2xl border border-gray-200 bg-white p-5']) }} aria-labelledby="tu-coordinacion-titulo"
+<section {{ $attributes->merge(['class' => 'tarjeta p-5']) }} aria-labelledby="tu-coordinacion-titulo"
     x-data="{ copiado: false, copiar(t) { navigator.clipboard?.writeText(t).then(() => { this.copiado = true; setTimeout(() => this.copiado = false, 2000) }) } }">
     <h2 id="tu-coordinacion-titulo" class="text-xs font-semibold uppercase tracking-wider text-gray-500">Tu coordinación</h2>
     <p class="mt-1 text-base font-bold text-gray-900">Coordinación de {{ $carrera->nombre }}</p>
@@ -22,7 +22,7 @@
     @if ($correo)
         <div class="mt-3 flex flex-wrap items-center gap-2">
             <a href="{{ \App\Support\Correo::gmail($correo, 'Prácticas profesionales · ' . $carrera->carrera_clave) }}" target="_blank" rel="noopener"
-                class="bg-brand-500 hover:bg-brand-600 rounded-lg px-3 py-2 text-sm font-medium text-white">Escribir por Gmail</a>
+                class="bg-udg-800 hover:bg-udg-700 rounded-lg px-3 py-2 text-sm font-medium text-white">Escribir por Gmail</a>
             <button type="button" @click="copiar(@js($correo))"
                 class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 <span x-show="!copiado">Copiar correo</span>

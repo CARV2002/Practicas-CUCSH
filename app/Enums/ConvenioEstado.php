@@ -59,4 +59,17 @@ enum ConvenioEstado: string
             self::Rechazado => -1,
         };
     }
+
+    /** Familia de color pastel para la insignia de estatus (DESIGN_SYSTEM.md §1.4). */
+    public function familia(): string
+    {
+        return match ($this) {
+            self::Solicitado => 'cielo',
+            self::EnValidacionAcademica => 'lavanda',
+            self::EnRevisionJuridica => 'indigo',
+            self::EnFirmas => 'ambar',
+            self::Formalizado => 'menta',
+            self::Rechazado => 'rosa',
+        };
+    }
 }
