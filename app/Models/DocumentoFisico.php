@@ -91,6 +91,22 @@ class DocumentoFisico extends Model
         return $q->fuera()->whereDate('fecha_compromiso', '<', today()->toDateString());
     }
 
+    /** Papeles de trámites que siguen vivos: un convenio rechazado ya no genera recordatorios. */
+    public function scopeDeTramiteVivo(Builder $q): Builder
+    {
+        return $q->whereHas('convenio', fn ($c) => $c->where('estado', '!=', \App\Enums\ConvenioEstado::Rechazado->value));
+    }
+
+    /** Texto del recordatorio a la empresa (manual o automático). */
+    public static function mensajeJuegosEmpresa(\Illuminate\Support\Collection $juegos): string
+    {
+        $n = $juegos->count();
+        $fecha = $juegos->min('fecha_compromiso');
+        $cuando = $fecha ? ' a más tardar el ' . \Illuminate\Support\Carbon::parse($fecha)->format('d/m/Y') : '';
+
+        return "Tienes {$n} " . ($n === 1 ? 'juego original' : 'juegos originales') . " del convenio por firmar. Fírmalos al calce y entrégalos en Vinculación{$cuando}.";
+    }
+
     public function scopeActivos(Builder $q): Builder
     {
         return $q->whereNotIn('estado', EstadoDocumentoFisico::concluidos());

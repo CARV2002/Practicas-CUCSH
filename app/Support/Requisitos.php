@@ -63,6 +63,13 @@ class Requisitos
             return 'Captura el nombre del representante legal en la sección Documentos.';
         }
 
+        // Las declaraciones van tal cual al Formato de PP: sin ellas Vinculación tendría que pedirlas
+        $faltanLegales = collect(['representante_cargo', 'domicilio_fiscal', 'constitucion', 'objeto_social', 'facultad_firmante'])
+            ->filter(fn ($campo) => blank($empresa->{$campo}));
+        if ($faltanLegales->isNotEmpty()) {
+            return 'Completa tus datos legales para el convenio en la sección Documentos (faltan ' . $faltanLegales->count() . ').';
+        }
+
         $faltantes = collect(Empresa::coleccionesObligatorias())
             ->filter(fn($col) => $empresa->documentoVigente($col) === null);
 

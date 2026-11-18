@@ -137,7 +137,7 @@ class DocumentoFisicoController extends Controller
         }
 
         Avisos::enviar($convenio->empresa->user, new AvisoOperativo(
-            mensaje: self::mensajeEmpresa($juegos),
+            mensaje: DocumentoFisico::mensajeJuegosEmpresa($juegos),
             url: route('empresa.convenio', absolute: false),
             detalle: 'Convenio con el CUCSH',
             correo: true,
@@ -145,14 +145,5 @@ class DocumentoFisicoController extends Controller
         ));
 
         return back()->with('status', "Recordatorio enviado a {$convenio->empresa->razon_social}.");
-    }
-
-    public static function mensajeEmpresa($juegos): string
-    {
-        $n = $juegos->count();
-        $fecha = $juegos->min('fecha_compromiso');
-        $cuando = $fecha ? ' a más tardar el ' . Carbon::parse($fecha)->format('d/m/Y') : '';
-
-        return "Tienes {$n} " . ($n === 1 ? 'juego original' : 'juegos originales') . " del convenio por firmar. Fírmalos al calce y entrégalos en Vinculación{$cuando}.";
     }
 }

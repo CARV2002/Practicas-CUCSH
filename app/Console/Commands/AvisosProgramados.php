@@ -6,7 +6,6 @@ use App\Enums\ConvenioEstado;
 use App\Enums\Dictamen;
 use App\Enums\EstadoDocumentoFisico;
 use App\Enums\EtapaConvenio;
-use App\Http\Controllers\Admin\DocumentoFisicoController;
 use App\Models\Convenio;
 use App\Models\ConvenioCarrera;
 use App\Models\ConvenioSeguimiento;
@@ -144,7 +143,7 @@ class AvisosProgramados extends Command
     {
         $enviados = 0;
 
-        DocumentoFisico::fuera()->with('convenio.empresa')
+        DocumentoFisico::fuera()->deTramiteVivo()->with('convenio.empresa')
             ->whereNotNull('fecha_compromiso')
             ->whereDate('fecha_compromiso', '<=', today()->addWeekday()->toDateString())
             ->get()
@@ -181,7 +180,7 @@ class AvisosProgramados extends Command
     {
         $enviados = 0;
 
-        DocumentoFisico::where('estado', EstadoDocumentoFisico::ConEmpresa->value)
+        DocumentoFisico::deTramiteVivo()->where('estado', EstadoDocumentoFisico::ConEmpresa->value)
             ->with('convenio.empresa.user')
             ->whereDate('fecha_compromiso', '<=', today()->addWeekdays(2)->toDateString())
             ->get()
@@ -194,7 +193,7 @@ class AvisosProgramados extends Command
 
                 if ($user->activo && ! $this->yaAvisado($user, $clave)) {
                     Avisos::enviar($user, new AvisoOperativo(
-                        mensaje: DocumentoFisicoController::mensajeEmpresa($juegos),
+                        mensaje: DocumentoFisico::mensajeJuegosEmpresa($juegos),
                         url: route('empresa.convenio', absolute: false),
                         detalle: 'Convenio con el CUCSH',
                         correo: true,

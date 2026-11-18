@@ -82,9 +82,9 @@ class DashboardController extends Controller
             ],
             'prioritarios' => $prioritarios,
             'fisicos' => [
-                'fuera' => DocumentoFisico::fuera()->count(),
-                'vencidos' => DocumentoFisico::vencidos()->count(),
-                'por_imprimir' => DocumentoFisico::where('estado', EstadoDocumentoFisico::PorElaborar->value)->count(),
+                'fuera' => DocumentoFisico::deTramiteVivo()->fuera()->count(),
+                'vencidos' => DocumentoFisico::deTramiteVivo()->vencidos()->count(),
+                'por_imprimir' => DocumentoFisico::deTramiteVivo()->where('estado', EstadoDocumentoFisico::PorElaborar->value)->count(),
             ],
             'convenios_recientes' => Convenio::with('empresa')->latest('id')->limit(5)->get(),
             'convenios_por_vencer' => Convenio::with('empresa')

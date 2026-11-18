@@ -27,8 +27,8 @@ use Illuminate\Validation\ValidationException;
  * Cada método = un paso del documento; abre/cierra etapas en la bitácora (convenio_seguimientos)
  * y bloquea la fila del convenio para que dos personas no avancen el mismo trámite a la vez.
  *
- * Quién usa el sistema: Lorena (rol administrador) ejecuta los pasos y CAPTURA lo que resuelven las divisiones,
- * Jurídica y Rectoría (que no entran al sistema). La empresa recibe un aviso en cada cambio de etapa.
+ * Quién usa el sistema: Vinculación (rol vinculacion; el administrador técnico también puede) ejecuta los pasos y CAPTURA lo que resuelven
+ * Secretaría, divisiones, Jurídica y Rectoría (que no entran al sistema); cada coordinación emite su dictamen desde su panel. La empresa recibe un aviso en cada cambio de etapa.
  *
  *   solicitar → enviarAValidacionAcademica → registrarDictamenCarrera (por carrera)
  *   → turnarAJuridica → registrarDictamenJuridico → registrarFirma (empresa, Rectoría) → formalizar
@@ -118,7 +118,7 @@ class ConvenioWorkflow
      */
     public function registrarTurnos(Convenio $convenio, Personal $por, ?CarbonInterface $secretaria, ?CarbonInterface $division): Convenio
     {
-        return DB::transaction(function () use ($convenio, $secretaria, $division) {
+        return DB::transaction(function () use ($convenio, $por, $secretaria, $division) {
             $convenio = $this->bloquear($convenio);
             $this->exigirEstado($convenio, ConvenioEstado::EnValidacionAcademica);
 
@@ -127,8 +127,29 @@ class ConvenioWorkflow
                 'fecha_turno_division' => $division?->toDateString(),
             ]);
 
+            // Una sola captura: las fechas de turno también mueven el oficio físico (solo hacia adelante)
+            if ($division) {
+                $this->avanzarFisico($convenio, TipoDocumentoFisico::OficioTurno, EstadoDocumentoFisico::EnDivision, $por, 'Turno registrado en la División.', $division);
+            } elseif ($secretaria) {
+                $this->avanzarFisico($convenio, TipoDocumentoFisico::OficioTurno, EstadoDocumentoFisico::EnSecretaria, $por, 'Turno registrado en Secretaría Académica.', $secretaria);
+            }
+
             return $convenio;
         });
+    }
+
+    /** Mueve el papel solo si el nuevo estado va después del actual en su recorrido. */
+    private function avanzarFisico(Convenio $convenio, TipoDocumentoFisico $tipo, EstadoDocumentoFisico $estado, ?Personal $por, string $nota, CarbonInterface $fecha): void
+    {
+        $doc = $convenio->documentosFisicos()->where('tipo', $tipo->value)->first();
+        if ($doc === null) {
+            return;
+        }
+
+        $camino = $tipo->estados();
+        if (array_search($estado, $camino, true) > array_search($doc->estado, $camino, true)) {
+            $doc->mover($estado, $por, $nota, null, $fecha);
+        }
     }
 
     /** Fase 2.2 — El coordinador emite el Dictamen de Pertinencia de SU carrera. */

@@ -154,3 +154,28 @@ test('el estado detallado explica la revisión de documentos', function () {
 
     expect($d['texto'])->toBe('Expediente incompleto')->and($d['responsable'])->toBe('Empresa');
 });
+
+test('registrar el turno a la División mueve el oficio físico sin capturarlo dos veces', function () {
+    $this->convenio->update(['estado' => ConvenioEstado::EnValidacionAcademica, 'fecha_recepcion' => today()->subDays(10)]);
+    $this->convenio->prepararDocumentosFisicos($this->personal);
+
+    app(ConvenioWorkflow::class)->registrarTurnos($this->convenio, $this->personal, today()->subDays(5), today()->subDays(2));
+
+    $oficio = $this->convenio->documentosFisicos()->where('tipo', TF::OficioTurno->value)->first();
+    expect($oficio->estado)->toBe(EF::EnDivision)
+        ->and($oficio->fecha_estado->toDateString())->toBe(today()->subDays(2)->toDateString());
+});
+
+test('un convenio rechazado ya no genera recordatorios de sus papeles', function () {
+    Notification::fake();
+    $this->convenio->update(['estado' => ConvenioEstado::EnFirmas]);
+    $this->convenio->prepararDocumentosFisicos($this->personal);
+    $this->convenio->documentosFisicos()->where('tipo', TF::JuegoConvenio->value)->get()
+        ->each(fn (DocumentoFisico $d) => $d->mover(EF::ConEmpresa, $this->personal, null, today()->subDay(), today()->subWeekdays(8)));
+
+    app(ConvenioWorkflow::class)->rechazar($this->convenio, $this->personal, 'La empresa desistió.');
+    $this->artisan('practicas:avisos-programados')->assertSuccessful();
+
+    Notification::assertNotSentTo($this->empresaUser, AvisoOperativo::class);
+    Notification::assertNotSentTo($this->lorena, AvisoOperativo::class);
+});

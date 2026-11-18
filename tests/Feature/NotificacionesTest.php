@@ -195,7 +195,7 @@ test('una solicitud de convenio avisa por correo y campana solo a Vinculación a
 
     $u = notUser(Rol::Empresa);
     $nueva = Empresa::create(['user_id' => $u->id, 'rfc' => 'EPB020202CD2', 'razon_social' => 'Empresa Nueva',
-        'tipo_organismo' => TipoOrganismo::Privado, 'contacto_nombre' => 'Contacto', 'representante_legal' => 'Lic. Representante']);
+        'tipo_organismo' => TipoOrganismo::Privado, 'contacto_nombre' => 'Contacto', 'representante_legal' => 'Lic. Representante', 'representante_cargo' => 'Director', 'domicilio_fiscal' => 'Av. 1', 'constitucion' => 'escritura 1', 'objeto_social' => 'servicios', 'facultad_firmante' => 'poder 2']);
 
     // Para solicitar, el expediente debe estar subido (aún sin validar: el correo lo marca como incompleto)
     foreach (Empresa::coleccionesObligatorias() as $coleccion) {

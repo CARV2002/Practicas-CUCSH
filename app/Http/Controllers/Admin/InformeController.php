@@ -42,7 +42,7 @@ class InformeController extends Controller
             ->map(function ($grupo) {
                 $carrera = $grupo->first()->postulacion->alumno->carrera;
                 $requeridas = (int) $grupo->sum('horas_requeridas');
-                $validadas = (int) $grupo->sum(fn (Practica $p) => (int) $p->horas_acumuladas);
+                $validadas = (int) $grupo->sum(fn (Practica $p) => (int) $p->horas_acumuladas - (int) $p->horas_reconocidas);
 
                 return [
                     'clave' => $carrera->carrera_clave,
@@ -61,7 +61,7 @@ class InformeController extends Controller
             'total' => $practicas->count(),
             'activas' => $porCarrera->sum('activas'),
             'acreditadas' => $porCarrera->sum('acreditadas'),
-            'horas' => (int) $practicas->sum(fn (Practica $p) => (int) $p->horas_acumuladas),
+            'horas' => (int) $practicas->sum(fn (Practica $p) => (int) $p->horas_acumuladas - (int) $p->horas_reconocidas),
         ];
 
         // --- Convenios

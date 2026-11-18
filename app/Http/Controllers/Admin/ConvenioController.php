@@ -30,7 +30,7 @@ class ConvenioController extends Controller
 
     public function index(Request $request): View
     {
-        $convenios = Convenio::with(['empresa', 'seguimientos', 'dictamenes', 'documentosFisicos'])
+        $convenios = Convenio::with(['empresa.media', 'seguimientos', 'dictamenes', 'documentosFisicos'])
             ->visiblesPara($request->user()->personal)
             ->when($request->filled('estado'), fn($q) => $q->where('estado', $request->string('estado')))
             ->when($request->filled('q'), fn($q) => $q->whereHas('empresa', fn($e) => $e

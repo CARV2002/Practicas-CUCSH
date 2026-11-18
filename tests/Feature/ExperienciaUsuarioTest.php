@@ -59,7 +59,7 @@ beforeEach(function () {
 
     $this->empresaUser = uxUsuario(Rol::Empresa);
     $this->empresa = Empresa::create(['user_id' => $this->empresaUser->id, 'rfc' => 'EUX010101AB1', 'razon_social' => 'Empresa UX',
-        'tipo_organismo' => TipoOrganismo::Privado, 'contacto_nombre' => 'Contacto', 'representante_legal' => 'Lic. Firma']);
+        'tipo_organismo' => TipoOrganismo::Privado, 'contacto_nombre' => 'Contacto', 'representante_legal' => 'Lic. Firma', 'representante_cargo' => 'Director', 'domicilio_fiscal' => 'Av. 1', 'constitucion' => 'escritura 1', 'objeto_social' => 'servicios', 'facultad_firmante' => 'poder 2']);
 });
 
 /* ----------------------------- Mensajes en español ----------------------------- */
