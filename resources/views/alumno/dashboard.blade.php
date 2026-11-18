@@ -176,6 +176,13 @@
         <aside class="space-y-6" aria-label="Contacto y avisos">
             <x-alumno.tu-coordinacion :carrera="$alumno->carrera" />
 
+            @unless ($alumno->yaAcreditado())
+                <x-ui.aviso tipo="advertencia" titulo="Agenda la materia en SIIAU">
+                    Inscribe la asignatura de Prácticas Profesionales en SIIAU dentro del calendario escolar oficial. Sin ella, Control Escolar no puede asentar tus créditos al terminar.
+                    Al postularte te pediremos confirmarlo.
+                </x-ui.aviso>
+            @endunless
+
             <x-dashboard.panel titulo="Avisos" icono="alerta">
                 <div class="space-y-3">
                     @forelse ($alertas as $a)

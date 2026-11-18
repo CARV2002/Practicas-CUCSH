@@ -42,6 +42,12 @@ class RegistroEmpresaRequest extends FormRequest
             'tipo_organismo' => ['required', Rule::enum(TipoOrganismo::class)],
             // Quien firma el convenio por parte de la empresa
             'representante_legal' => ['required', 'string', 'max:255'],
+            // Declaraciones de la ENTIDAD del Formato de PP (van tal cual al convenio)
+            'representante_cargo' => ['required', 'string', 'max:255'],
+            'domicilio_fiscal' => ['required', 'string', 'max:500'],
+            'constitucion' => ['required', 'string', 'max:1500'],
+            'objeto_social' => ['required', 'string', 'max:1500'],
+            'facultad_firmante' => ['required', 'string', 'max:1500'],
 
             'aviso_privacidad' => ['accepted'],
         ];
@@ -60,6 +66,11 @@ class RegistroEmpresaRequest extends FormRequest
             'rfc' => 'RFC',
             'tipo_organismo' => 'tipo de organismo',
             'representante_legal' => 'representante legal',
+            'representante_cargo' => 'cargo del representante',
+            'domicilio_fiscal' => 'domicilio legal',
+            'constitucion' => 'acta o decreto de creación',
+            'objeto_social' => 'objeto social o atribuciones',
+            'facultad_firmante' => 'facultad de quien firma',
             'aviso_privacidad' => 'aviso de privacidad',
         ];
     }

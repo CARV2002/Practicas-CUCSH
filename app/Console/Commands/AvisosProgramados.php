@@ -67,6 +67,8 @@ class AvisosProgramados extends Command
                         mensaje: $texto,
                         url: route('admin.convenios.show', $c, false),
                         detalle: $c->empresa->razon_social,
+                        correo: true,
+                        asunto: "Convenio por vencer: {$c->empresa->razon_social}",
                         clave: $clave,
                     ));
                     $enviados++;

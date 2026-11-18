@@ -199,23 +199,37 @@ class PracticanteController extends Controller
             return back()->withErrors(['practica' => 'Solo se cancelan prácticas activas.']);
         }
 
-        $practica->update(['estado' => PracticaEstado::Cancelada]);
+        $datos = $request->validate([
+            'motivo_baja' => ['required', \Illuminate\Validation\Rule::in(array_keys(\App\Models\Practica::MOTIVOS_BAJA))],
+            'detalle_baja' => ['required', 'string', 'max:1000'],
+            'conserva_horas' => ['required', 'boolean'],
+        ], [
+            'motivo_baja.required' => 'Indica el motivo de la baja.',
+            'detalle_baja.required' => 'Describe brevemente lo que pasó.',
+            'conserva_horas.required' => 'Decide si el alumno conserva sus horas validadas o reinicia en cero.',
+        ]);
+
+        $horas = $practica->horas_acumuladas;
+        $practica->update(['estado' => PracticaEstado::Cancelada] + $datos);
 
         $titulo = $practica->postulacion->programa->titulo;
+        $decision = $datos['conserva_horas']
+            ? "Conservas tus {$horas} horas validadas para tu siguiente plaza."
+            : 'Tus horas se reinician: empezarás de cero en tu siguiente plaza.';
 
         Avisos::enviar(Avisos::alumnoDe($practica), new AvisoOperativo(
-            mensaje: "Tu práctica en «{$titulo}» fue cancelada. Si crees que es un error, contacta a la Coordinación.",
+            mensaje: "Tu práctica en «{$titulo}» se dio de baja ({$practica->motivoBajaTexto()}). {$decision} Ya puedes postularte a otra vacante.",
             url: route('alumno.mis-practicas', absolute: false),
             correo: true,
             asunto: 'Tu práctica fue cancelada',
         ));
 
         Avisos::enviar(Avisos::empresaDe($practica), new AvisoOperativo(
-            mensaje: "La práctica de {$practica->postulacion->alumno->user->name} en «{$titulo}» fue cancelada por la Coordinación.",
+            mensaje: "La práctica de {$practica->postulacion->alumno->user->name} en «{$titulo}» se dio de baja por la Coordinación ({$practica->motivoBajaTexto()}).",
             url: route('empresa.practicantes.show', $practica, false),
         ));
 
-        return back()->with('status', 'Práctica cancelada.');
+        return back()->with('status', 'Baja registrada: ' . ($datos['conserva_horas'] ? "el alumno conserva {$horas} horas." : 'las horas se reinician.'));
     }
 
     /** Descarga de archivos de una postulación (kardex, cartas). */

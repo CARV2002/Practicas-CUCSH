@@ -101,16 +101,27 @@ class DocumentoController extends Controller
         $empresa = $request->user()->empresa;
 
         if ($empresa->documentosBloqueados()) {
-            return back()->withErrors(['representante_legal' => 'Tu convenio está en revisión: no puedes cambiar el representante legal.']);
+            return back()->withErrors(['representante_legal' => 'Tu convenio está en revisión: no puedes cambiar tus datos legales.']);
         }
 
+        // Declaraciones de la ENTIDAD del Formato de PP: van tal cual al convenio
         $empresa->update($request->validate([
             'representante_legal' => ['required', 'string', 'max:255'],
+            'representante_cargo' => ['required', 'string', 'max:255'],
+            'domicilio_fiscal' => ['required', 'string', 'max:500'],
+            'constitucion' => ['required', 'string', 'max:1500'],
+            'objeto_social' => ['required', 'string', 'max:1500'],
+            'facultad_firmante' => ['required', 'string', 'max:1500'],
         ], [
             'representante_legal.required' => 'Escribe el nombre del representante legal.',
+            'representante_cargo.required' => 'Escribe el cargo del representante legal.',
+            'domicilio_fiscal.required' => 'Escribe el domicilio legal.',
+            'constitucion.required' => 'Escribe los datos del acta o decreto de creación.',
+            'objeto_social.required' => 'Escribe el objeto social o las atribuciones.',
+            'facultad_firmante.required' => 'Escribe la facultad de quien firma.',
         ]));
 
-        return back()->with('status', 'Representante legal actualizado.');
+        return back()->with('status', 'Datos legales actualizados.');
     }
 
     /** Descarga de un archivo propio (disco privado). */

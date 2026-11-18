@@ -215,7 +215,11 @@
                                     </span>
                                     <span class="flex shrink-0 items-center gap-2">
                                         <span class="hidden text-xs text-gray-500 sm:inline">{{ $b->created_at->format('d/m/Y H:i') }}</span>
-                                        <x-ui.boton-icono :href="route('admin.convenios.archivos.descargar', [$convenio, $b])" icono="descargar" etiqueta="Descargar borrador" />
+                                        @php $pdfVersion = $convenio->getMedia('borrador_pdf')->first(fn ($p) => $p->getCustomProperty('version') === $b->getCustomProperty('version') && $b->getCustomProperty('version') !== null); @endphp
+                                        @if ($pdfVersion)
+                                            <x-ui.boton-icono :href="route('admin.convenios.archivos.descargar', [$convenio, $pdfVersion])" icono="documento" etiqueta="PDF para imprimir" tono="primario" con-texto />
+                                        @endif
+                                        <x-ui.boton-icono :href="route('admin.convenios.archivos.descargar', [$convenio, $b])" icono="descargar" etiqueta="Descargar Word" />
                                     </span>
                                 </li>
                             @endforeach
@@ -231,18 +235,44 @@
                                 <span class="flex items-center gap-2"><x-dashboard.icono nombre="documento" clase="size-4" /> Generar borrador desde el Formato de PP</span>
                                 <svg class="size-4 text-gray-400 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
                             </summary>
-                            <form method="POST" action="{{ route('admin.convenios.borrador.generar', $convenio) }}" class="grid grid-cols-1 gap-4 border-t border-gray-100 p-4 md:grid-cols-2">
+                            @php
+                                $faltanDecl = collect([$e->representante_legal, $e->representante_cargo, $e->constitucion, $e->objeto_social, $e->facultad_firmante, $e->domicilio_fiscal])->filter(fn ($v) => blank($v))->count();
+                            @endphp
+                            <form method="POST" action="{{ route('admin.convenios.borrador.generar', $convenio) }}" class="space-y-4 border-t border-gray-100 p-4">
                                 @csrf
-                                <div><label class="etiqueta" for="b-rep">Representante (nombre completo)</label><input id="b-rep" type="text" name="representante_nombre" required value="{{ old('representante_nombre', $e->representante_legal ?? $e->contacto_nombre) }}" class="campo h-11"></div>
-                                <div><label class="etiqueta" for="b-cargo">Cargo</label><input id="b-cargo" type="text" name="representante_cargo" required value="{{ old('representante_cargo', $e->contacto_cargo) }}" class="campo h-11"></div>
-                                <div class="md:col-span-2"><label class="etiqueta" for="b-const">Creación o constitución</label><textarea id="b-const" name="constitucion" rows="2" required class="campo">{{ old('constitucion') }}</textarea><p class="ayuda">Ley o decreto con fecha de publicación; o escritura pública, fecha y notario.</p></div>
-                                <div class="md:col-span-2"><label class="etiqueta" for="b-atr">Atribuciones u objeto social relacionados con el convenio</label><textarea id="b-atr" name="atribuciones" rows="2" required class="campo">{{ old('atribuciones') }}</textarea></div>
-                                <div class="md:col-span-2"><label class="etiqueta" for="b-fac">Facultad de quien firma</label><textarea id="b-fac" name="facultad_firmante" rows="2" required class="campo">{{ old('facultad_firmante') }}</textarea><p class="ayuda">Norma, poder o «manifiesta bajo protesta de decir verdad que cuenta con autorización».</p></div>
-                                <div class="md:col-span-2"><label class="etiqueta" for="b-dom">Domicilio legal</label><input id="b-dom" type="text" name="domicilio_legal" required value="{{ old('domicilio_legal', $e->domicilio_fiscal) }}" class="campo h-11"></div>
-                                <div><label class="etiqueta" for="b-lugar">Ciudad de firma</label><input id="b-lugar" type="text" name="lugar_firma" required value="{{ old('lugar_firma', 'Guadalajara') }}" class="campo h-11"></div>
-                                <div><label class="etiqueta" for="b-fecha">Fecha de firma</label><input id="b-fecha" type="date" name="fecha_firma" required value="{{ old('fecha_firma', now()->toDateString()) }}" class="campo h-11"></div>
-                                <div class="md:col-span-2"><label class="etiqueta" for="b-apoyo">Ayuda o estímulo económico (opcional)</label><input id="b-apoyo" type="text" name="apoyo_economico" value="{{ old('apoyo_economico') }}" class="campo h-11"><p class="ayuda">Si lo dejas vacío se usa el texto estándar.</p></div>
-                                <div class="md:col-span-2 flex justify-end"><button class="boton boton-primario">Generar y adjuntar borrador (.docx)</button></div>
+                                {{-- Declaraciones de la ENTIDAD: las capturó la empresa; aquí solo se revisan contra el acta --}}
+                                <details class="group/decl rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-100" @if ($faltanDecl > 0 || $errors->hasAny(['representante_nombre', 'representante_cargo', 'constitucion', 'atribuciones', 'facultad_firmante', 'domicilio_legal'])) open @endif>
+                                    <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                                        <span>
+                                            <span class="block text-sm font-semibold text-gray-900">Declaraciones de la entidad</span>
+                                            <span class="block text-xs {{ $faltanDecl ? 'font-medium text-amber-700' : 'text-gray-500' }}">{{ $faltanDecl ? "La empresa no capturó {$faltanDecl} dato(s): complétalos aquí o pídeselos" : 'Capturadas por la empresa · revísalas contra el acta constitutiva' }}</span>
+                                        </span>
+                                        <span class="text-xs font-semibold text-real-600 group-open/decl:hidden">Revisar o corregir</span>
+                                    </summary>
+                                    <div class="grid grid-cols-1 gap-4 border-t border-gray-100 p-4 md:grid-cols-2">
+                                        <div><label class="etiqueta" for="b-rep">Representante (nombre completo)</label><input id="b-rep" type="text" name="representante_nombre" required value="{{ old('representante_nombre', $e->representante_legal) }}" class="campo h-11"></div>
+                                        <div><label class="etiqueta" for="b-cargo">Cargo</label><input id="b-cargo" type="text" name="representante_cargo" required value="{{ old('representante_cargo', $e->representante_cargo) }}" class="campo h-11"></div>
+                                        <div class="md:col-span-2"><label class="etiqueta" for="b-const">I. Creación o constitución</label><textarea id="b-const" name="constitucion" rows="2" required class="campo">{{ old('constitucion', $e->constitucion) }}</textarea></div>
+                                        <div class="md:col-span-2"><label class="etiqueta" for="b-atr">II. Atribuciones u objeto social</label><textarea id="b-atr" name="atribuciones" rows="2" required class="campo">{{ old('atribuciones', $e->objeto_social) }}</textarea></div>
+                                        <div class="md:col-span-2"><label class="etiqueta" for="b-fac">III. Facultad de quien firma</label><textarea id="b-fac" name="facultad_firmante" rows="2" required class="campo">{{ old('facultad_firmante', $e->facultad_firmante) }}</textarea></div>
+                                        <div class="md:col-span-2"><label class="etiqueta" for="b-dom">IV. Domicilio legal</label><input id="b-dom" type="text" name="domicilio_legal" required value="{{ old('domicilio_legal', $e->domicilio_fiscal) }}" class="campo h-11"><p class="ayuda">V. RFC: <span class="font-mono font-semibold text-gray-700">{{ $e->rfc }}</span></p></div>
+                                    </div>
+                                </details>
+
+                                <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                    <div>
+                                        <label class="etiqueta" for="b-anios">Vigencia pactada (cláusula UNDÉCIMA)</label>
+                                        <select id="b-anios" name="vigencia_anios" required class="campo h-11">
+                                            @foreach (\App\Models\Convenio::DURACIONES as $a)
+                                                <option value="{{ $a }}" @selected((int) old('vigencia_anios', $convenio->duracionAnios()) === $a)>{{ $a }} {{ $a === 1 ? 'año' : 'años' }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div><label class="etiqueta" for="b-lugar">Ciudad de firma</label><input id="b-lugar" type="text" name="lugar_firma" required value="{{ old('lugar_firma', 'Guadalajara') }}" class="campo h-11"></div>
+                                    <div><label class="etiqueta" for="b-fecha">Fecha de firma</label><input id="b-fecha" type="date" name="fecha_firma" required value="{{ old('fecha_firma', now()->toDateString()) }}" class="campo h-11"></div>
+                                    <div class="md:col-span-3"><label class="etiqueta" for="b-apoyo">Ayuda o estímulo económico (opcional)</label><input id="b-apoyo" type="text" name="apoyo_economico" value="{{ old('apoyo_economico') }}" class="campo h-11"><p class="ayuda">Si lo dejas vacío se usa el texto estándar.</p></div>
+                                </div>
+                                <div class="flex justify-end"><button class="boton boton-primario"><x-dashboard.icono nombre="documento" clase="size-4" /> Generar borrador (Word + PDF)</button></div>
                             </form>
                         </details>
 
@@ -293,11 +323,21 @@
                             <button class="boton boton-primario h-11"><x-dashboard.icono nombre="firma" clase="size-4" /> Registrar: {{ $etapa->label() }}</button>
                         </form>
                     @elseif ($etapa === Et::ArchivoDistribucion)
-                        <form method="POST" enctype="multipart/form-data" action="{{ route('admin.convenios.formalizar', $convenio) }}" class="grid grid-cols-1 gap-4 md:grid-cols-4">
+                        <form method="POST" enctype="multipart/form-data" action="{{ route('admin.convenios.formalizar', $convenio) }}" class="grid grid-cols-1 gap-4 md:grid-cols-4"
+                            x-data="{ inicio: '', anios: {{ $convenio->duracionAnios() }},
+                                get fin() { if (!this.inicio) return ''; const d = new Date(this.inicio + 'T00:00:00'); d.setFullYear(d.getFullYear() + Number(this.anios)); d.setDate(d.getDate() - 1); return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }); } }">
                             @csrf
                             <div><label class="etiqueta" for="fo-folio">Folio</label><input id="fo-folio" type="text" name="folio" required maxlength="30" class="campo h-11"></div>
-                            <div><label class="etiqueta" for="fo-ini">Inicio de vigencia</label><input id="fo-ini" type="date" name="fecha_inicio_vigencia" required class="campo h-11"></div>
-                            <div><label class="etiqueta" for="fo-fin">Fin de vigencia</label><input id="fo-fin" type="date" name="fecha_fin_vigencia" required class="campo h-11"></div>
+                            <div><label class="etiqueta" for="fo-ini">Inicio de vigencia (fecha de firma)</label><input id="fo-ini" type="date" name="fecha_inicio_vigencia" required x-model="inicio" class="campo h-11"></div>
+                            <div>
+                                <label class="etiqueta" for="fo-anios">Duración pactada</label>
+                                <select id="fo-anios" name="vigencia_anios" x-model="anios" class="campo h-11">
+                                    @foreach (\App\Models\Convenio::DURACIONES as $a)
+                                        <option value="{{ $a }}">{{ $a }} {{ $a === 1 ? 'año' : 'años' }}</option>
+                                    @endforeach
+                                </select>
+                                <p class="ayuda" x-text="fin ? 'Vence el ' + fin + ' (avisos a 60 y 30 días)' : 'La fecha de fin se calcula sola'"></p>
+                            </div>
                             <div><label class="etiqueta" for="fo-pdf">Escaneo firmado (PDF)</label><input id="fo-pdf" type="file" name="convenio_firmado" accept="application/pdf" class="campo h-11 py-2 file:mr-2 file:rounded-md file:border-0 file:bg-udg-50 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-udg-900"></div>
                             <div class="md:col-span-3"><label class="etiqueta" for="fo-com">Comentario (opcional)</label><input id="fo-com" type="text" name="comentario" class="campo h-11"></div>
                             <div class="flex items-end"><button class="boton boton-exito h-11 w-full"><x-dashboard.icono nombre="vigente" clase="size-4" /> Formalizar convenio</button></div>

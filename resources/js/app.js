@@ -1,4 +1,3 @@
-import './bootstrap';
 import './validacion';
 import './tablas';
 import Alpine from 'alpinejs';

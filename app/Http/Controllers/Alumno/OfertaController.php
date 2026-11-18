@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Alumno;
 use App\Enums\Modalidad;
 use App\Enums\PostulacionEstado;
 use App\Http\Controllers\Controller;
+use App\Models\Convenio;
 use App\Models\Postulacion;
 use App\Models\Programa;
 use Illuminate\Http\RedirectResponse;
@@ -28,6 +29,9 @@ class OfertaController extends Controller
             ->conCuposOcupados()
             ->with(['convenio.empresa', 'carrera'])
             ->where('carrera_id', $alumno->carrera_id)
+            // Convenios a punto de vencer ya no reciben practicantes nuevos
+            ->where(fn ($q) => $q->whereNull('convenio_id')->orWhereHas('convenio', fn ($c) => $c
+                ->whereDate('fecha_fin_vigencia', '>=', now()->addDays(Convenio::DIAS_MINIMOS_POSTULACION)->toDateString())))
             ->when($request->filled('q'), function ($q) use ($request) {
                 $t = '%' . $request->string('q') . '%';
                 $q->where(fn($w) => $w
@@ -90,9 +94,17 @@ class OfertaController extends Controller
             throw ValidationException::withMessages(['postulacion' => 'Ya acreditaste tus prácticas profesionales.']);
         }
 
-        if ($alumno->tienePracticaCancelada()) {
+        if ($alumno->tieneBajaSinResolver()) {
             throw ValidationException::withMessages([
                 'postulacion' => 'Tu práctica fue cancelada, por lo que no puedes postularte a otro programa. Consulta a tu coordinación de carrera.',
+            ]);
+        }
+
+        // Un convenio que vence pronto pondría en riesgo las horas: no admite postulaciones nuevas
+        if (!$programa->esInterno() && !$programa->convenio?->admitePostulaciones()) {
+            throw ValidationException::withMessages([
+                'postulacion' => 'El convenio de esta organización vence el ' . $programa->convenio?->fecha_fin_vigencia?->format('d/m/Y')
+                    . ' y ya no admite postulaciones nuevas: tus horas quedarían en riesgo.',
             ]);
         }
 
@@ -108,8 +120,10 @@ class OfertaController extends Controller
         $datos = $request->validate([
             'porcentaje_creditos_declarado' => ['required', 'numeric', 'min:' . $minimo, 'max:100'],
             'kardex' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'siiau' => ['accepted'],
         ], [
             'porcentaje_creditos_declarado.min' => "Tu carrera exige al menos {$minimo}% de créditos para postularte.",
+            'siiau.accepted' => 'Confirma que ya inscribiste la materia de prácticas profesionales en SIIAU.',
         ]);
 
         $postulacion = Postulacion::create([
@@ -117,6 +131,7 @@ class OfertaController extends Controller
             'programa_id' => $programa->id,
             'porcentaje_creditos_declarado' => $datos['porcentaje_creditos_declarado'],
             'fecha_postulacion' => today(),
+            'siiau_confirmado_at' => now(),
         ]);
 
         $postulacion->addMediaFromRequest('kardex')->toMediaCollection('kardex');

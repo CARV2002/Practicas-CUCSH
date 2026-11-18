@@ -81,7 +81,7 @@ class Requisitos
         return match (true) {
             $alumno->yaAcreditado() => 'Ya acreditaste tus prácticas profesionales.',
             $alumno->tienePracticaActiva() => 'Ya tienes una práctica activa.',
-            $alumno->tienePracticaCancelada() => 'Tu práctica fue cancelada; consulta a tu coordinación de carrera antes de postularte de nuevo.',
+            $alumno->tieneBajaSinResolver() => 'Tu práctica fue cancelada; consulta a tu coordinación de carrera antes de postularte de nuevo.',
             $alumno->postulaciones()->whereIn('estado', PostulacionEstado::valores(PostulacionEstado::enTramite()))->exists()
                 => 'Ya tienes una empresa en trámite; termina ese proceso antes de postularte a otra.',
             $alumno->grado === null || $alumno->turno === null

@@ -341,7 +341,7 @@ test('la empresa no solicita convenio sin representante legal', function () {
 
     $this->actingAs($u)->post(route('empresa.convenio.solicitar'), $solicitud)->assertSessionHasErrors('convenio');
 
-    $this->actingAs($u)->put(route('empresa.datos-legales'), ['representante_legal' => 'Ing. Pedro Firma'])->assertSessionHasNoErrors();
+    $this->actingAs($u)->put(route('empresa.datos-legales'), ['representante_legal' => 'Ing. Pedro Firma', 'representante_cargo' => 'Director', 'domicilio_fiscal' => 'Av. 1', 'constitucion' => 'escritura 1', 'objeto_social' => 'servicios', 'facultad_firmante' => 'poder 2'])->assertSessionHasNoErrors();
     $this->actingAs($u)->post(route('empresa.convenio.solicitar'), $solicitud)->assertSessionHasNoErrors();
 
     expect($e->refresh()->representante_legal)->toBe('Ing. Pedro Firma')

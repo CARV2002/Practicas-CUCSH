@@ -68,6 +68,29 @@ class Alumno extends Model implements HasMedia
             ->exists();
     }
 
+    /**
+     * Baja sin decisión de la coordinación (cancelaciones anteriores al flujo formal):
+     * el alumno espera a que su coordinación la resuelva antes de postularse de nuevo.
+     */
+    public function tieneBajaSinResolver(): bool
+    {
+        return $this->practicas()
+            ->where('practicas.estado', PracticaEstado::Cancelada->value)
+            ->whereNull('practicas.conserva_horas')
+            ->exists();
+    }
+
+    /** Horas validadas que la coordinación decidió conservar de la última baja (0 si se reiniciaron). */
+    public function horasConservadas(): int
+    {
+        $ultima = $this->practicas()
+            ->where('practicas.estado', PracticaEstado::Cancelada->value)
+            ->latest('practicas.id')
+            ->first();
+
+        return $ultima && $ultima->conserva_horas ? $ultima->horas_acumuladas : 0;
+    }
+
     public function tieneImssVigenteHasta(CarbonInterface $fecha): bool
     {
         return $this->vigencia_imss !== null

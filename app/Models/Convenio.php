@@ -39,6 +39,7 @@ class Convenio extends Model implements HasMedia
         'experiencia_previa',
         'fecha_turno_secretaria',
         'fecha_turno_division',
+        'vigencia_anios',
         'fecha_inicio_vigencia',
         'fecha_fin_vigencia',
     ];
@@ -78,6 +79,11 @@ class Convenio extends Model implements HasMedia
 
         // Escaneo de los 3 juegos originales firmados por ambas partes
         $this->addMediaCollection('convenio_firmado')
+            ->useDisk('local')
+            ->acceptsMimeTypes(['application/pdf']);
+
+        // PDF limpio de cada versión generada (para imprimir los 3 juegos)
+        $this->addMediaCollection('borrador_pdf')
             ->useDisk('local')
             ->acceptsMimeTypes(['application/pdf']);
     }
@@ -187,6 +193,27 @@ class Convenio extends Model implements HasMedia
         return $ids === null
             ? $query
             : $query->whereHas('dictamenes', fn(Builder $q) => $q->whereIn('carrera_id', $ids));
+    }
+
+    /**
+     * Días de vigencia que debe tener el convenio para recibir postulaciones nuevas
+     * (aprox. un semestre: lo que dura una práctica). Evita que las horas queden en riesgo.
+     */
+    public const DIAS_MINIMOS_POSTULACION = 180;
+
+    /** Duraciones que se pueden pactar en la cláusula UNDÉCIMA. */
+    public const DURACIONES = [1, 2, 3, 4, 5];
+
+    public function admitePostulaciones(): bool
+    {
+        return $this->estaVigente()
+            && $this->fecha_fin_vigencia->gte(now()->startOfDay()->addDays(self::DIAS_MINIMOS_POSTULACION));
+    }
+
+    /** Duración pactada en años (la del borrador, o 3 si no se definió, como el Formato de PP). */
+    public function duracionAnios(): int
+    {
+        return (int) ($this->vigencia_anios ?: 3);
     }
 
     public function estaVigente(?CarbonInterface $en = null): bool

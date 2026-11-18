@@ -93,7 +93,7 @@ test('una postulación avisa solo a la coordinación de esa carrera (no a Vincul
     Notification::fake();
 
     $this->actingAs($this->anaUser)->post(route('alumno.oferta-programas.postular', $this->programa), [
-        'porcentaje_creditos_declarado' => 70, 'kardex' => notPdf(),
+        'porcentaje_creditos_declarado' => 70, 'kardex' => notPdf(), 'siiau' => '1',
     ])->assertSessionHasNoErrors();
 
     Notification::assertNotSentTo($this->adminGlobal, AvisoOperativo::class);   // Vinculación no opera prácticas

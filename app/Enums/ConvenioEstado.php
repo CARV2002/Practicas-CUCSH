@@ -42,6 +42,22 @@ enum ConvenioEstado: string
         };
     }
 
+    /**
+     * Estimado de respuesta que ve la empresa (general, con los plazos documentados de EtapaConvenio).
+     * Vinculación ve el detalle exacto por etapa en su bandeja.
+     */
+    public function estimadoEmpresa(): string
+    {
+        return match ($this) {
+            self::Solicitado => 'de 1 a 3 días hábiles para revisar tu expediente, una vez que esté completo.',
+            self::EnValidacionAcademica => 'sin plazo fijo: depende de que cada carrera emita su dictamen de pertinencia. Te avisaremos en cuanto respondan.',
+            self::EnRevisionJuridica => 'de 5 a 15 días hábiles para el dictamen de la Unidad Jurídica.',
+            self::EnFirmas => 'de 8 a 17 días hábiles: de 3 a 7 para tu firma de los 3 juegos y de 5 a 10 para la firma de Rectoría.',
+            self::Formalizado => 'trámite concluido.',
+            self::Rechazado => 'trámite cerrado; para continuar inicia una nueva solicitud.',
+        };
+    }
+
     /** @return string[] Pasos generales que ve la empresa. */
     public static function pasosEmpresa(): array
     {

@@ -113,18 +113,33 @@
 
             <aside class="space-y-6">
                 {{-- Representante legal --}}
-                <x-dashboard.panel titulo="Representante legal" icono="firma" descripcion="Firma el convenio. Debe coincidir con la identificación y el acta o poder del expediente.">
+                @php
+                    $legales = ['representante_legal', 'representante_cargo', 'domicilio_fiscal', 'constitucion', 'objeto_social', 'facultad_firmante'];
+                    $faltanLegales = collect($legales)->filter(fn ($c) => blank($empresa->{$c}))->count();
+                @endphp
+                <x-dashboard.panel titulo="Datos legales del convenio" icono="firma" descripcion="Son tus declaraciones en el convenio; van tal cual al documento. Deben coincidir con tu acta y tu identificación.">
+                    @if ($faltanLegales > 0)
+                        <x-ui.aviso tipo="advertencia" class="mb-3">Faltan {{ $faltanLegales }} {{ $faltanLegales === 1 ? 'dato' : 'datos' }}: complétalos para que Vinculación no tenga que pedírtelos.</x-ui.aviso>
+                    @endif
                     <form method="POST" action="{{ route('empresa.datos-legales') }}" class="space-y-3">
                         @csrf
                         @method('PUT')
-                        <label for="rep" class="sr-only">Nombre del representante legal</label>
-                        <input id="rep" type="text" name="representante_legal" required maxlength="255"
-                            value="{{ old('representante_legal', $empresa->representante_legal) }}" placeholder="Nombre completo"
-                            @disabled($bloqueado) class="campo h-11">
+                        <div><label for="rep" class="etiqueta">Representante legal</label>
+                            <input id="rep" type="text" name="representante_legal" required maxlength="255" value="{{ old('representante_legal', $empresa->representante_legal) }}" placeholder="Nombre completo" @disabled($bloqueado) class="campo h-11"></div>
+                        <div><label for="rep-cargo" class="etiqueta">Cargo</label>
+                            <input id="rep-cargo" type="text" name="representante_cargo" required maxlength="255" value="{{ old('representante_cargo', $empresa->representante_cargo) }}" placeholder="Director General" @disabled($bloqueado) class="campo h-11"></div>
+                        <div><label for="dom" class="etiqueta">Domicilio legal</label>
+                            <input id="dom" type="text" name="domicilio_fiscal" required maxlength="500" value="{{ old('domicilio_fiscal', $empresa->domicilio_fiscal) }}" @disabled($bloqueado) class="campo h-11"></div>
+                        <div><label for="const" class="etiqueta">Acta o decreto de creación</label>
+                            <textarea id="const" name="constitucion" rows="2" required maxlength="1500" @disabled($bloqueado) class="campo">{{ old('constitucion', $empresa->constitucion) }}</textarea></div>
+                        <div><label for="obj" class="etiqueta">Objeto social o atribuciones</label>
+                            <textarea id="obj" name="objeto_social" rows="2" required maxlength="1500" @disabled($bloqueado) class="campo">{{ old('objeto_social', $empresa->objeto_social) }}</textarea></div>
+                        <div><label for="fac" class="etiqueta">Facultad de quien firma</label>
+                            <textarea id="fac" name="facultad_firmante" rows="2" required maxlength="1500" @disabled($bloqueado) class="campo">{{ old('facultad_firmante', $empresa->facultad_firmante) }}</textarea></div>
                         @if ($bloqueado)
-                            <p class="flex items-center gap-1 text-xs text-gray-500"><x-dashboard.icono nombre="candado" clase="size-3.5" /> No se puede cambiar mientras tu convenio está en revisión.</p>
+                            <p class="flex items-center gap-1 text-xs text-gray-500"><x-dashboard.icono nombre="candado" clase="size-3.5" /> No se pueden cambiar mientras tu convenio está en revisión.</p>
                         @else
-                            <button class="boton boton-primario w-full">Guardar representante</button>
+                            <button class="boton boton-primario w-full">Guardar datos legales</button>
                         @endif
                     </form>
                 </x-dashboard.panel>

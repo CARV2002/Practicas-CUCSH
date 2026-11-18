@@ -380,7 +380,7 @@ class ConvenioWorkflow
             }
 
             $convenio->update(['estado' => ConvenioEstado::Rechazado]);
-            $this->avisarEmpresa($convenio, "Tu solicitud de convenio fue rechazada: {$motivo}");
+            $this->avisarEmpresa($convenio, "Tu solicitud de convenio fue rechazada: {$motivo} Si deseas el convenio, deberás iniciar de nuevo todo el trámite: envía una nueva solicitud desde «Convenio CUCSH»; tu expediente se conserva, pero las carreras vuelven a dictaminar.");
 
             return $convenio;
         });
@@ -391,7 +391,7 @@ class ConvenioWorkflow
     {
         $anios = abs($inicio->diffInMonths($fin)) / 12;
 
-        return ($anios < 2 || $anios > 5)
+        return ($anios < 1.95 || $anios > 5.05)   // margen: el fin se calcula como inicio + N años - 1 día
             ? sprintf('La vigencia es de %.1f años; lo habitual es de 2 a 5.', $anios)
             : null;
     }

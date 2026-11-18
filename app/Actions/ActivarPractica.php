@@ -76,6 +76,8 @@ class ActivarPractica
                 'fecha_inicio' => $fechaInicio,
                 'fecha_fin' => $fechaFin,
                 'horas_requeridas' => $alumno->carrera->horas_requeridas,   // copia congelada
+                // Cambio de plaza: horas validadas que la coordinación decidió conservar
+                'horas_reconocidas' => min($alumno->horasConservadas(), $alumno->carrera->horas_requeridas),
                 'estado' => PracticaEstado::EnCurso,
             ]);
 

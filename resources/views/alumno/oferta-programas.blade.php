@@ -587,7 +587,7 @@
                     $postulado = $misPostulaciones->get($s->id);
                     $puede = ! $postulado && ! $bloqueo;
                 @endphp
-                <div class="saas-sticky-detail-card" x-data="{ abierto: {{ $errors->has('kardex') || $errors->has('porcentaje_creditos_declarado') ? 'true' : 'false' }} }">
+                <div class="saas-sticky-detail-card" x-data="{ abierto: {{ $errors->hasAny(['kardex', 'porcentaje_creditos_declarado', 'siiau']) ? 'true' : 'false' }} }">
 
                     <div class="detail-header-block">
                         <div class="detail-company-identity">
@@ -622,6 +622,12 @@
 
                                 <label for="kardex">Kardex (PDF o imagen)</label>
                                 <input id="kardex" type="file" name="kardex" accept=".pdf,.jpg,.jpeg,.png" required>
+
+                                <label style="display:flex;gap:.5rem;align-items:flex-start;font-weight:500;line-height:1.4;margin-top:.25rem;">
+                                    <input type="checkbox" name="siiau" value="1" required @checked(old('siiau')) style="width:auto;margin-top:.2rem;">
+                                    <span>Declaro bajo protesta de decir verdad que ya inscribí la materia de Prácticas Profesionales en SIIAU dentro del calendario escolar vigente.</span>
+                                </label>
+                                @error('siiau')<p style="color:#e11d48;font-size:.8rem;">{{ $message }}</p>@enderror
 
                                 <button class="btn-action-primary">Enviar postulación</button>
                             </form>

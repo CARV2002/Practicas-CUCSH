@@ -18,7 +18,7 @@ class GeneradorBorradorConvenio
     private $s;   // sección
 
     /**
-     * @param  array{representante_nombre:string,representante_cargo:string,constitucion:string,atribuciones:string,facultad_firmante:string,domicilio_legal:string,lugar_firma:string,fecha_firma:string,apoyo_economico?:?string}  $d
+     * @param  array{representante_nombre:string,representante_cargo:string,constitucion:string,atribuciones:string,facultad_firmante:string,domicilio_legal:string,lugar_firma:string,fecha_firma:string,apoyo_economico?:?string,vigencia_anios?:int}  $d
      * @return string ruta del archivo temporal generado
      */
     public function generar(Convenio $convenio, array $d): string
@@ -27,6 +27,8 @@ class GeneradorBorradorConvenio
         $entidad = mb_strtoupper($empresa->razon_social);
         $rectora = config('practicas.rectora');
         $fecha = Carbon::parse($d['fecha_firma'])->locale('es');
+        $anios = (int) ($d['vigencia_anios'] ?? $convenio->duracionAnios());
+        $duracion = [1 => 'un año', 2 => 'dos años', 3 => 'tres años', 4 => 'cuatro años', 5 => 'cinco años'][$anios] ?? "{$anios} años";
 
         $sector = match ($empresa->tipo_organismo) {
             TipoOrganismo::Publico => 'público',
@@ -47,8 +49,8 @@ class GeneradorBorradorConvenio
 
         // --- Antecedentes
         $this->titulo('ANTECEDENTES');
-        $this->p('Que dentro de los objetivos del Programa de Apoyo al Sector Productivo y de Servicio (PRODUCE) y del Programa de Apoyo al Desarrollo Social (COMPARTE), que forman parte del Programa General de Trabajo del Acuerdo Universitario para el Desarrollo Sostenible de Jalisco (ACUDE), se prevé fortalecer la vinculación de la Universidad de Guadalajara con el sector productivo y social; y');
-        $this->p('El Plan de Desarrollo Institucional Visión 2030 de la Universidad de Guadalajara, señala como objetivo 3.1: Consolidar los programas de vinculación con los sectores público, social y privado; y como estrategia 3.1.3: Fortalecer el desarrollo de prácticas profesionales y servicio social con los diversos sectores.');
+        $this->p('I. Que dentro de los objetivos del Programa de Apoyo al Sector Productivo y de Servicio (PRODUCE) y del Programa de Apoyo al Desarrollo Social (COMPARTE), que forman parte del Programa General de Trabajo del Acuerdo Universitario para el Desarrollo Sostenible de Jalisco (ACUDE), se prevé fortalecer la vinculación de la Universidad de Guadalajara con el sector productivo y social; y');
+        $this->p('II. El Plan de Desarrollo Institucional Visión 2030 de la Universidad de Guadalajara, señala como objetivo 3.1: Consolidar los programas de vinculación con los sectores público, social y privado; y como estrategia 3.1.3: Fortalecer el desarrollo de prácticas profesionales y servicio social con los diversos sectores.');
 
         // --- Declaraciones
         $this->titulo('DECLARACIONES');
@@ -124,7 +126,7 @@ class GeneradorBorradorConvenio
         $this->clausula('OCTAVA', 'La “ENTIDAD” y el CUCSH acuerdan que en caso de que la Universidad de Guadalajara modifique la normatividad con relación al desarrollo de las prácticas profesionales, lo anterior se le notificará a la “ENTIDAD” en forma inmediata y se realizarán las modificaciones que en su caso requiera el presente instrumento.');
         $this->clausula('NOVENA', 'Ambas partes acuerdan que la realización de las prácticas profesionales de los alumnos del CUCSH, no genera relación de tipo laboral alguno con la “ENTIDAD”.');
         $this->clausula('DÉCIMA', 'Los trabajadores de las partes que sean designados para la realización de actividades en ejecución de este convenio continuarán en forma absoluta bajo la dirección y dependencia de aquella con la cual tiene establecida su relación laboral.');
-        $this->clausula('UNDÉCIMA', 'El presente convenio entrará en vigor a partir de su fecha de firma y tendrá una vigencia por tres años, pudiendo modificarse adicionarse o darse por terminado anticipadamente por mutuo acuerdo entre las partes. Igualmente podrá darse por terminada anticipadamente por cualquiera de las partes previo aviso por escrito que haga la otra, con treinta días de anticipación, sin perjuicio del cumplimiento de las actividades que se encuentren en desarrollo.');
+        $this->clausula('UNDÉCIMA', "El presente convenio entrará en vigor a partir de su fecha de firma y tendrá una vigencia por {$duracion}, pudiendo modificarse adicionarse o darse por terminado anticipadamente por mutuo acuerdo entre las partes. Igualmente podrá darse por terminada anticipadamente por cualquiera de las partes previo aviso por escrito que haga la otra, con treinta días de anticipación, sin perjuicio del cumplimiento de las actividades que se encuentren en desarrollo.");
         $this->clausula('DUODÉCIMA', 'Las partes manifiestan que la firma de este convenio y los compromisos contraídos con el, son producto de su buena fe, por lo que realizarán todas las acciones necesarias para su debido cumplimiento; en caso de presentarse alguna discrepancia sobre su interpretación esta será resuelta por mutuo acuerdo.');
 
         $this->p("Leído el presente instrumento, enteradas las partes del contenido y alcance de cada una de sus cláusulas e indicando que en su celebración no existe dolo, mala fe, o cualquier otro motivo que vicie su consentimiento, lo firma por triplicado en la ciudad de {$d['lugar_firma']}, Jalisco, el {$fecha->translatedFormat('j \d\e F \d\e Y')}.");

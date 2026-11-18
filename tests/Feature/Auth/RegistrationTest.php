@@ -49,6 +49,11 @@ function datosEmpresa(array $extra = []): array
         'rfc' => 'epr010101ab1',          // se normaliza a mayúsculas
         'tipo_organismo' => 'privado',
         'representante_legal' => 'Lic. María Representante',
+        'representante_cargo' => 'Directora General',
+        'domicilio_fiscal' => 'Av. Juárez 100, Guadalajara, Jalisco',
+        'constitucion' => 'la escritura pública 1234 del 10 de enero de 2010, ante el notario 5 de Guadalajara',
+        'objeto_social' => 'la prestación de servicios de consultoría',
+        'facultad_firmante' => 'el poder notarial 567 del 2 de febrero de 2020',
         'aviso_privacidad' => '1',
     ], $extra);
 }

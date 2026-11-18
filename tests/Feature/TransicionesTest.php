@@ -117,7 +117,7 @@ test('cancelar una práctica libera el cupo y anula solo los reportes pendientes
 
     expect($this->programa->refresh()->cupos_disponibles)->toBe(0);
 
-    $this->actingAs($this->adminUser)->post(route('coordinacion.practicas.cancelar', $this->practica))->assertSessionHasNoErrors();
+    $this->actingAs($this->adminUser)->post(route('coordinacion.practicas.cancelar', $this->practica), ['motivo_baja' => 'renuncia', 'detalle_baja' => 'Renunció', 'conserva_horas' => '1'])->assertSessionHasNoErrors();
 
     expect($this->practica->refresh()->estado)->toBe(PracticaEstado::Cancelada)
         ->and($this->poAna->refresh()->estado)->toBe(PostulacionEstado::Cancelada)
@@ -131,7 +131,7 @@ test('no se cancela una práctica cuyo oficio ya se envió a Control Escolar', f
     OficioAcreditacion::create(['practica_id' => $this->practica->id, 'emitido_por' => $this->admin->id,
         'estado_validacion' => 'validada', 'enviado_control_escolar_at' => now()]);
 
-    $this->actingAs($this->adminUser)->post(route('coordinacion.practicas.cancelar', $this->practica))
+    $this->actingAs($this->adminUser)->post(route('coordinacion.practicas.cancelar', $this->practica), ['motivo_baja' => 'renuncia', 'detalle_baja' => 'Renunció', 'conserva_horas' => '1'])
         ->assertSessionHasErrors('practica');
 
     expect($this->practica->refresh()->estado)->toBe(PracticaEstado::EnCierre);
@@ -200,7 +200,7 @@ test('un alumno ya acreditado no puede postularse a otro programa', function () 
     $otro = ($this->nuevoPrograma)('Otro programa');
 
     $this->actingAs($this->anaUser)->post(route('alumno.oferta-programas.postular', $otro), [
-        'porcentaje_creditos_declarado' => 70, 'kardex' => trnPdf(),
+        'porcentaje_creditos_declarado' => 70, 'kardex' => trnPdf(), 'siiau' => '1',
     ])->assertSessionHasErrors('postulacion');
 
     expect(Postulacion::where('programa_id', $otro->id)->count())->toBe(0);

@@ -28,6 +28,7 @@ class Postulacion extends Model implements HasMedia
         'estado',
         'porcentaje_creditos_declarado',
         'fecha_postulacion',
+        'siiau_confirmado_at',
     ];
 
     protected function casts(): array
@@ -36,6 +37,7 @@ class Postulacion extends Model implements HasMedia
             'estado' => PostulacionEstado::class,
             'porcentaje_creditos_declarado' => 'decimal:2',
             'fecha_postulacion' => 'date',
+            'siiau_confirmado_at' => 'datetime',
         ];
     }
 

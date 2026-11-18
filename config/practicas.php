@@ -20,4 +20,11 @@ return [
     ],
 
     'auditoria' => (bool) env('AUDITORIA_ACTIVA', true),
+
+    // Exportación del convenio (Formato de PP) a PDF con LibreOffice sin interfaz
+    'pdf' => [
+        'habilitado' => (bool) env('PRACTICAS_CONVERTIR_PDF', true),
+        'soffice' => env('PRACTICAS_SOFFICE'),
+        'timeout' => (int) env('PRACTICAS_PDF_TIMEOUT', 90),
+    ],
 ];

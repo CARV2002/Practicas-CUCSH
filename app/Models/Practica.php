@@ -33,6 +33,10 @@ class Practica extends Model
         'fecha_inicio',
         'fecha_fin',
         'horas_requeridas',
+        'motivo_baja',
+        'detalle_baja',
+        'conserva_horas',
+        'horas_reconocidas',
         'estado',
     ];
 
@@ -44,6 +48,8 @@ class Practica extends Model
             'fecha_inicio' => 'date',
             'fecha_fin' => 'date',
             'horas_requeridas' => 'integer',
+            'conserva_horas' => 'boolean',
+            'horas_reconocidas' => 'integer',
         ];
     }
 
@@ -103,15 +109,32 @@ class Practica extends Model
      */
     protected function horasAcumuladas(): Attribute
     {
+        // Las horas reconocidas vienen de una práctica anterior dada de baja con «conservar horas»
         return Attribute::get(function () {
+            $reconocidas = (int) ($this->attributes['horas_reconocidas'] ?? 0);
+
             if (array_key_exists('horas_acumuladas', $this->attributes)) {
-                return (int) $this->attributes['horas_acumuladas'];
+                return (int) $this->attributes['horas_acumuladas'] + $reconocidas;
             }
 
             return (int) $this->reportes()
                 ->where('estado', ReporteEstado::Validado->value)
-                ->sum('horas_reportadas');
+                ->sum('horas_reportadas') + $reconocidas;
         });
+    }
+
+    /** Motivos formales de baja o cambio de plaza. */
+    public const MOTIVOS_BAJA = [
+        'baja_temporal' => 'Baja temporal del alumno',
+        'renuncia' => 'Renuncia del alumno',
+        'despido' => 'Terminación por la organización',
+        'cambio_plaza' => 'Cambio de plaza',
+        'otro' => 'Otro motivo',
+    ];
+
+    public function motivoBajaTexto(): ?string
+    {
+        return $this->motivo_baja ? (self::MOTIVOS_BAJA[$this->motivo_baja] ?? $this->motivo_baja) : null;
     }
 
     public function scopeConHorasAcumuladas(Builder $query): Builder

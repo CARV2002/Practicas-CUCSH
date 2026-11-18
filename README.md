@@ -62,50 +62,56 @@ Sigue estos pasos para levantar el proyecto en tu máquina local:
 
 Ya puedes acceder a la aplicación desde tu navegador en `http://127.0.0.1:8000`.
 
-## Tecnologías Utilizadas
+## Tecnologías utilizadas
 
-- **Backend:** Laravel 12
-- **Manejador de Permisos:** Spatie Laravel-Permission
-- **Gestión de Archivos:** Spatie Laravel-Medialibrary (archivos en el disco privado `local`)
-- **Frontend:** Blade + Alpine.js + Tailwind (plantilla TailAdmin como base visual)
+| Paquete | Para qué |
+|---|---|
+| Laravel 12 (PHP 8.2) | Rutas, políticas de acceso, colas, notificaciones y tareas programadas |
+| spatie/laravel-permission | Roles con sesión (`administrador`, `vinculacion`, `coordinador`, `empresa`, `alumno`) |
+| spatie/laravel-medialibrary | Expedientes y escaneos en el disco privado `local`, con estado de validación por archivo |
+| phpoffice/phpword | Llena el Formato de PP (convenio específico) y la carta de presentación en Word |
+| LibreOffice (sin interfaz) | Convierte el Formato de PP a PDF limpio para imprimir los 3 juegos (`App\Services\ConvertidorPdf`) |
+| laravel/socialite | Inicio de sesión con la cuenta institucional de Google |
+| laravel-lang/common | Mensajes de validación en español |
+| Pest 4 | Pruebas de procesos, permisos y transiciones |
+| Tailwind CSS 4 + Vite 7 + Alpine.js + flatpickr | Interfaz (ver `DESIGN_SYSTEM.md`); tipografías servidas localmente |
 
-## Quién usa el sistema
+## Quién usa el sistema (6 actores)
 
-| Rol | Quién es | Qué hace |
+| Actor | Rol | Qué hace |
 |---|---|---|
-| `administrador` | Coordinación de Prácticas Profesionales | Lleva el proceso de convenio de principio a fin y **captura** lo que resuelven divisiones, Jurídica y Rectoría |
-| `empresa` | Empresas e instituciones | Tramita su convenio, da seguimiento a su estado y, una vez formalizado, publica ofertas |
-| `alumno` | Estudiantes | Consulta ofertas, se postula y gestiona su práctica |
+| Administrador técnico | `administrador` | Cuentas de personal, divisiones y carreras, auditoría; entra a todo |
+| Vinculación (Lorena) | `vinculacion` | Trámite de convenios: expedientes, turno a carreras, borrador, Jurídica, firmas, documentos físicos y formalización |
+| Coordinación de carrera | `coordinador` | Dictamen de pertinencia, vacantes, IMSS/kardex, carta de presentación, **validación de reportes**, bajas y cierre |
+| Profesor supervisor | *(sin sesión)* | Catálogo que administra cada coordinación y se asigna a la práctica; la validación de reportes la hace la coordinación |
+| Empresa | `empresa` | Registro con sus datos legales, solicitud de convenio, vacantes y seguimiento de practicantes |
+| Alumno | `alumno` | Postulación (con confirmación de SIIAU), documentos, reportes y carta de término |
 
-Divisiones, Secretaría Académica, Jurídica, Rectoría y Control Escolar **no entran al sistema**: sus dictámenes y firmas se registran por la Coordinación.
-Si en el futuro lo usan, se agrega un caso en `App\Enums\Rol`; las tablas ya contemplan el alcance por división/carrera (`personal`).
+Secretaría Académica, Divisiones, Jurídica, Rectoría y Control Escolar no entran al sistema: Vinculación y la coordinación registran sus resoluciones.
 
-## Estructura
+## Puesta en marcha en el servidor
 
-| Capa | Dónde | Qué contiene |
-|---|---|---|
-| Datos | `database/migrations`, `app/Models` | 16 modelos del diagrama ER v6 (nombres en español) |
-| Estados | `app/Enums` | Estados y etapas como enums (sin strings sueltos) |
-| Proceso de convenio | `app/Services/ConvenioWorkflow.php` | Máquina de estados: solicitud → validación académica → Jurídica → firmas → formalizado, con bitácora y avisos a la empresa |
-| Proceso de práctica | `app/Actions` | Emitir carta de presentación, registrar carta de aceptación, activar práctica |
-| Reglas que siempre aplican | `app/Observers` | Oferta, cupos, cierre de práctica y acreditación |
-| Acceso | `app/Http/Controllers/Auth`, `routes/auth.php` | Login y registro público de alumno y empresa (siempre con rol + perfil) |
-
-Las pantallas de Coordinación (`resources/views/admin`) que aún no se construyen son marcadores que indican qué mostrarán y de qué modelo saldrán los datos.
+1. `php artisan migrate --force`
+2. **Cola de avisos** (sin ella no sale ninguna notificación ni correo):
+   `php artisan queue:work --tries=3` como servicio (Supervisor en Linux; Programador de tareas o NSSM en Windows).
+3. **Tareas programadas** (avisos diarios a las 7:30: convenios a 60 y 30 días, esperas, documentos físicos, dictámenes y prácticas por terminar):
+   ejecutar `php artisan schedule:run` cada minuto (cron o Programador de tareas).
+4. **Correo**: en `.env` cambiar `MAIL_MAILER=log` por el SMTP institucional (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`).
+5. **PDF del convenio**: instalar LibreOffice. Si `soffice` no está en una ruta estándar, indicar `PRACTICAS_SOFFICE="C:\Program Files\LibreOffice\program\soffice.exe"`.
+   Sin LibreOffice el borrador se sigue generando en Word y se muestra un aviso.
+6. `npm ci && npm run build` y `php artisan optimize`.
 
 ## Usuarios y datos de prueba (solo entorno local)
 
-`php artisan db:seed` es idempotente. **En local** crea, con contraseña `password123`:
-`admin@test.com` (Coordinación), `alumno@test.com` y `empresa@test.com`, más una división y una carrera ficticias (`DEMO`).
+`php artisan db:seed` es idempotente. **En local** crea cuentas con contraseña `password123`
+(`admin@test.com`, `vinculacion@test.com`, `coord.abog@test.com`, `empresa@test.com`, `alumno.elegible@test.com`, entre otras) y datos de demostración.
 **En producción solo crea los roles**; nunca siembra cuentas con contraseña conocida.
 
-La cuenta real de la Coordinación se crea con un comando que pide la contraseña:
+La cuenta real del administrador técnico se crea con un comando que pide la contraseña:
 
 ```bash
 php artisan practicas:crear-administrador correo@udg.mx --nombre="Nombre Apellido"
 ```
-
-Alumnos y empresas se registran solos desde el sitio. Las divisiones y carreras reales se capturan desde la aplicación.
 
 ## Pruebas
 
@@ -113,13 +119,7 @@ Alumnos y empresas se registran solos desde el sitio. Las divisiones y carreras 
 php artisan test
 ```
 
-Cubren el registro con roles, el acceso por rol a cada pantalla, el proceso completo de convenio
-(solicitud → dictámenes → Jurídica → firmas → formalización) y el de la práctica (cupos, IMSS, horas, cierre y acreditación).
+Cubren registro y roles, acceso por pantalla, el proceso completo del convenio (solicitud → dictámenes → Formato de PP → Jurídica → firmas → formalización),
+los documentos físicos y recordatorios, y el de la práctica (SIIAU, IMSS, cupos, horas, bajas o cambio de plaza, cierre y acreditación).
 
-## Pendiente
-
-- Controladores y pantallas: formulario de solicitud de convenio (empresa), bandeja de convenios y dictámenes (Coordinación), ofertas y postulaciones.
-- CRUD de divisiones y carreras (sin carreras no se puede registrar un alumno).
-- Página del aviso de privacidad (hoy solo se guarda la aceptación en `users.aviso_privacidad_at`).
-- Rutas autorizadas para descargar archivos privados (Policies).
-- Generar el borrador del convenio y el Oficio de Acreditación desde plantilla.
+Revisión contra el documento de confirmación: `docs/revision-confirmacion-sistema.md`.

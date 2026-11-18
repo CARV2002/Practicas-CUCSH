@@ -218,7 +218,9 @@ class ConvenioController extends Controller
         $datos = $request->validate([
             'folio' => ['required', 'string', 'max:30'],
             'fecha_inicio_vigencia' => ['required', 'date'],
-            'fecha_fin_vigencia' => ['required', 'date', 'after:fecha_inicio_vigencia'],
+            // La duración pactada en la cláusula UNDÉCIMA calcula el fin; una fecha explícita la sustituye
+            'vigencia_anios' => ['nullable', 'integer', Rule::in(Convenio::DURACIONES)],
+            'fecha_fin_vigencia' => ['nullable', 'date', 'after:fecha_inicio_vigencia'],
             'convenio_firmado' => ['nullable', 'file', 'mimes:pdf', 'max:20480'],
             'comentario' => ['nullable', 'string', 'max:1000'],
         ]);
@@ -228,8 +230,14 @@ class ConvenioController extends Controller
             $convenio->addMediaFromRequest('convenio_firmado')->toMediaCollection('convenio_firmado');
         }
 
+        if (!empty($datos['vigencia_anios'])) {
+            $convenio->update(['vigencia_anios' => (int) $datos['vigencia_anios']]);
+        }
+
         $inicio = \Illuminate\Support\Carbon::parse($datos['fecha_inicio_vigencia']);
-        $fin = \Illuminate\Support\Carbon::parse($datos['fecha_fin_vigencia']);
+        $fin = isset($datos['fecha_fin_vigencia'])
+            ? \Illuminate\Support\Carbon::parse($datos['fecha_fin_vigencia'])
+            : $inicio->copy()->addYears($convenio->duracionAnios())->subDay();
 
         $this->workflow->formalizar($convenio, $request->user()->personal, $datos['folio'], $inicio, $fin, $datos['comentario'] ?? null);
 
@@ -285,7 +293,7 @@ class ConvenioController extends Controller
         return $this->entregar($media);
     }
 
-    public function generarBorrador(Request $request, Convenio $convenio, GeneradorBorradorConvenio $generador): RedirectResponse
+    public function generarBorrador(Request $request, Convenio $convenio, GeneradorBorradorConvenio $generador, \App\Services\ConvertidorPdf $convertidor): RedirectResponse
     {
         $this->authorize('gestionar', $convenio);
 
@@ -295,7 +303,19 @@ class ConvenioController extends Controller
             return back()->withErrors(['convenio' => 'El borrador solo se genera cuando la etapa de redacción está abierta y hay al menos una carrera aprobada.']);
         }
 
+        // Las declaraciones las capturó la empresa: Lorena solo las revisa (y corrige si hace falta)
+        $empresa = $convenio->empresa;
+        $request->mergeIfMissing(array_filter([
+            'representante_nombre' => $empresa->representante_legal,
+            'representante_cargo' => $empresa->representante_cargo,
+            'constitucion' => $empresa->constitucion,
+            'atribuciones' => $empresa->objeto_social,
+            'facultad_firmante' => $empresa->facultad_firmante,
+            'domicilio_legal' => $empresa->domicilio_fiscal,
+        ]));
+
         $datos = $request->validate([
+            'vigencia_anios' => ['required', 'integer', Rule::in(Convenio::DURACIONES)],
             'representante_nombre' => ['required', 'string', 'max:255'],
             'representante_cargo' => ['required', 'string', 'max:255'],
             'constitucion' => ['required', 'string', 'max:1500'],
@@ -307,15 +327,29 @@ class ConvenioController extends Controller
             'apoyo_economico' => ['nullable', 'string', 'max:500'],
         ]);
 
+        $convenio->update(['vigencia_anios' => (int) $datos['vigencia_anios']]);
         $convenio->load('empresa');
 
         $ruta = $generador->generar($convenio, $datos);
         $version = $convenio->getMedia('borrador_convenio')->count() + 1;
 
+        // PDF limpio para imprimir los 3 juegos (LibreOffice); el .docx queda para las correcciones de Jurídica
+        $pdf = $convertidor->convertir($ruta);
+
         $convenio->addMedia($ruta)
             ->usingFileName("borrador-convenio-v{$version}.docx")
+            ->withCustomProperties(['version' => $version])
             ->toMediaCollection('borrador_convenio');
 
-        return back()->with('status', "Borrador v{$version} generado y adjuntado. Revísalo en Word antes de turnarlo a Jurídica.");
+        if ($pdf) {
+            $convenio->addMedia($pdf)
+                ->usingFileName("convenio-v{$version}.pdf")
+                ->withCustomProperties(['version' => $version])
+                ->toMediaCollection('borrador_pdf');
+            \Illuminate\Support\Facades\File::deleteDirectory(dirname($pdf));   // carpeta temporal de LibreOffice
+        }
+
+        return back()->with('status', "Borrador v{$version} generado ({$datos['vigencia_anios']} años de vigencia)."
+            . ($pdf ? ' Ya puedes descargar el PDF para imprimir.' : ' No se pudo crear el PDF: revisa que LibreOffice esté instalado; el Word sí quedó adjunto.'));
     }
 }

@@ -166,7 +166,7 @@ test('empresa publica, alumno se postula y la práctica llega a acreditada', fun
 
     $this->actingAs($this->anaUser)->post(route('alumno.oferta-programas.postular', $programa), [
         'porcentaje_creditos_declarado' => 70,
-        'kardex' => escPdf('kardex.pdf'),
+        'kardex' => escPdf('kardex.pdf'), 'siiau' => '1',
     ])->assertSessionHasNoErrors()->assertRedirect();
 
     $po = Postulacion::firstOrFail();
@@ -244,7 +244,7 @@ test('un alumno de otra carrera no puede postularse', function () {
 
     $this->actingAs($this->luisUser)->post(route('alumno.oferta-programas.postular', $programa), [
         'porcentaje_creditos_declarado' => 80,
-        'kardex' => escPdf('kardex.pdf'),
+        'kardex' => escPdf('kardex.pdf'), 'siiau' => '1',
     ])->assertSessionHasErrors('postulacion');
 
     expect(Postulacion::count())->toBe(0);
@@ -255,7 +255,7 @@ test('con créditos insuficientes no se postula', function () {
 
     $this->actingAs($this->anaUser)->post(route('alumno.oferta-programas.postular', $programa), [
         'porcentaje_creditos_declarado' => 30,
-        'kardex' => escPdf('kardex.pdf'),
+        'kardex' => escPdf('kardex.pdf'), 'siiau' => '1',
     ])->assertSessionHasErrors('porcentaje_creditos_declarado');
 });
 
@@ -265,7 +265,7 @@ test('un programa cerrado o en borrador no admite postulaciones', function () {
 
         $this->actingAs($this->anaUser)->post(route('alumno.oferta-programas.postular', $programa), [
             'porcentaje_creditos_declarado' => 70,
-            'kardex' => escPdf('kardex.pdf'),
+            'kardex' => escPdf('kardex.pdf'), 'siiau' => '1',
         ])->assertSessionHasErrors('postulacion');
     }
 });
@@ -404,7 +404,7 @@ test('se genera el borrador .docx del convenio con solo las carreras aprobadas',
         'representante_nombre' => 'Lic. Pedro Pérez', 'representante_cargo' => 'Director General',
         'constitucion' => 'la escritura pública 123', 'atribuciones' => 'servicios jurídicos',
         'facultad_firmante' => 'poder notarial 45', 'domicilio_legal' => 'Av. Juárez 100, Guadalajara',
-        'lugar_firma' => 'Guadalajara', 'fecha_firma' => today()->toDateString(),
+        'lugar_firma' => 'Guadalajara', 'fecha_firma' => today()->toDateString(), 'vigencia_anios' => 3,
     ])->assertSessionHasNoErrors()->assertRedirect();
 
     $media = $this->convenio->refresh()->getMedia('borrador_convenio');

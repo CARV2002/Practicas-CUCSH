@@ -171,7 +171,7 @@ test('el alumno sin grado/turno o sin IMSS no puede postularse y se le dice qué
 
     $this->actingAs($u)->get(route('alumno.oferta-programas'))->assertOk()
         ->assertSee('Captura tu grado y turno en «Mi perfil»');
-    $this->actingAs($u)->post(route('alumno.oferta-programas.postular', $programa), ['porcentaje_creditos_declarado' => 70, 'kardex' => uxPdf()])
+    $this->actingAs($u)->post(route('alumno.oferta-programas.postular', $programa), ['porcentaje_creditos_declarado' => 70, 'kardex' => uxPdf(), 'siiau' => '1'])
         ->assertSessionHasErrors('postulacion');
 
     $alumno->update(['grado' => 6, 'turno' => 'matutino']);

@@ -229,6 +229,12 @@
                                         <span class="text-xs font-semibold text-udg-900">{{ $pct }}%</span>
                                     </div>
                                     <div class="h-1.5 w-full overflow-hidden rounded-full bg-gray-100"><div class="h-full rounded-full bg-gradient-to-r from-udg-800 to-oro-400" style="width: {{ $pct }}%"></div></div>
+                                    @if ($pr->horas_reconocidas > 0)
+                                        <p class="mt-1 text-[11px] text-gray-500">Incluye {{ $pr->horas_reconocidas }} h de su plaza anterior</p>
+                                    @endif
+                                    @if ($pr->motivo_baja)
+                                        <p class="mt-1 text-[11px] font-medium text-rose-600">{{ $pr->motivoBajaTexto() }} · {{ $pr->conserva_horas ? 'conserva horas' : 'horas reiniciadas' }}</p>
+                                    @endif
                                 </div>
                             </td>
                             <td class="whitespace-nowrap px-4 py-4">
@@ -255,7 +261,11 @@
                             <td class="acciones whitespace-nowrap px-6 py-4 text-right">
                                 <div class="flex items-center justify-end gap-2">
                                     @if ($activa)
-                                        <x-ui.boton-icono :accion="route('coordinacion.practicas.cancelar', $pr)" icono="equis" etiqueta="Cancelar práctica" tono="peligro" confirmar="¿Cancelar esta práctica? Se liberará el cupo." />
+                                        <button type="button" x-data
+                                            x-on:click="$dispatch('abrir-baja', { id: {{ $pr->id }}, nombre: @js($al->user->name), horas: {{ $horas }} })"
+                                            class="group/btn relative inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 text-sm font-semibold text-rose-600 shadow-theme-xs transition hover:border-rose-300 hover:bg-rose-50 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25">
+                                            <x-dashboard.icono nombre="equis" clase="size-4" /> Baja o cambio
+                                        </button>
                                     @else
                                         <span class="dato-vacio">Sin acciones pendientes</span>
                                     @endif
@@ -269,5 +279,51 @@
             </table>
             <x-slot:pie>{{ $practicas->links() }}</x-slot:pie>
         </x-tabla.marco>
+
+        {{-- Baja o cambio de plaza: la coordinación decide qué pasa con las horas --}}
+        <div x-data="{ abierto: false, p: { id: 0, nombre: '', horas: 0 }, conserva: '1', url: '{{ route('coordinacion.practicas.cancelar', 0) }}' }"
+            x-on:abrir-baja.window="p = $event.detail; conserva = '1'; abierto = true"
+            x-show="abierto" x-cloak x-transition.opacity.duration.200ms x-on:keydown.escape.window="abierto = false"
+            class="fixed inset-0 z-99999 flex items-start justify-center overflow-y-auto p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="titulo-baja">
+            <div class="fixed inset-0 bg-udg-950/50 backdrop-blur-sm" x-on:click="abierto = false"></div>
+            <form method="POST" :action="url.replace(/0$/, p.id)" x-on:click.stop class="relative w-full max-w-lg animate-entrada overflow-hidden rounded-2xl bg-white shadow-theme-xl motion-reduce:animate-none">
+                @csrf
+                <div class="border-b border-gray-100 px-6 py-4">
+                    <h3 id="titulo-baja" class="font-display text-lg font-bold text-gray-900">Baja o cambio de plaza</h3>
+                    <p class="text-sm text-gray-500">Práctica de <span class="font-semibold text-gray-800" x-text="p.nombre"></span>. Se libera el cupo y se avisa al alumno y a la organización.</p>
+                </div>
+                <div class="space-y-4 px-6 py-5">
+                    <div>
+                        <label class="etiqueta" for="baja-motivo">Motivo</label>
+                        <select id="baja-motivo" name="motivo_baja" required class="campo h-11">
+                            @foreach (\App\Models\Practica::MOTIVOS_BAJA as $valor => $texto)
+                                <option value="{{ $valor }}">{{ $texto }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="etiqueta" for="baja-detalle">Qué pasó</label>
+                        <textarea id="baja-detalle" name="detalle_baja" rows="2" required maxlength="1000" class="campo" placeholder="Ej. La organización cerró el área; el alumno continuará en otra plaza."></textarea>
+                    </div>
+                    <fieldset>
+                        <legend class="etiqueta">¿Qué pasa con sus horas validadas?</legend>
+                        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <label class="flex cursor-pointer flex-col rounded-xl border border-gray-200 px-3 py-2.5 transition hover:border-udg-200 has-[:checked]:border-udg-800 has-[:checked]:bg-udg-50">
+                                <span class="flex items-center gap-2 text-sm font-semibold text-gray-900"><input type="radio" name="conserva_horas" value="1" x-model="conserva"> Se conservan</span>
+                                <span class="mt-0.5 text-xs text-gray-500">Las <span x-text="p.horas"></span> h validadas se suman a su siguiente plaza.</span>
+                            </label>
+                            <label class="flex cursor-pointer flex-col rounded-xl border border-gray-200 px-3 py-2.5 transition hover:border-rose-200 has-[:checked]:border-rose-400 has-[:checked]:bg-rose-50">
+                                <span class="flex items-center gap-2 text-sm font-semibold text-gray-900"><input type="radio" name="conserva_horas" value="0" x-model="conserva"> Se reinician</span>
+                                <span class="mt-0.5 text-xs text-gray-500">Empieza de cero en la nueva institución.</span>
+                            </label>
+                        </div>
+                    </fieldset>
+                </div>
+                <div class="flex justify-end gap-2 border-t border-gray-100 bg-gray-50/60 px-6 py-4">
+                    <button type="button" x-on:click="abierto = false" class="boton boton-secundario">Cancelar</button>
+                    <button type="submit" class="boton boton-peligro">Registrar baja</button>
+                </div>
+            </form>
+        </div>
     </div>
 @endsection

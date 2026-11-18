@@ -107,10 +107,22 @@
                         </li>
                     @endforeach
                 </ol>
+                <p class="mt-4 flex items-start gap-2 rounded-xl bg-udg-50/60 px-3.5 py-2.5 text-sm text-udg-900 ring-1 ring-inset ring-udg-100">
+                    <x-dashboard.icono nombre="reloj" clase="mt-0.5 size-4 shrink-0" />
+                    <span><span class="font-semibold">Respuesta estimada:</span> {{ $enTramite->estado->estimadoEmpresa() }}</span>
+                </p>
                 @if ($enTramite->estado === \App\Enums\ConvenioEstado::Solicitado && !$expedienteCompleto)
                     <x-ui.aviso tipo="advertencia" class="mt-4">Tu expediente tiene documentos sin validar. <a href="{{ route('empresa.documentos') }}" class="font-semibold underline underline-offset-2">Revisar documentos</a></x-ui.aviso>
                 @endif
             </section>
+        @endif
+
+        @php $ultimoRechazo = $historial->first(fn ($h) => $h->estado === \App\Enums\ConvenioEstado::Rechazado); @endphp
+        @if (!$vigente && !$enTramite && $ultimoRechazo && $historial->first()?->is($ultimoRechazo))
+            <x-ui.aviso tipo="error" titulo="Tu última solicitud fue rechazada">
+                {{ $ultimoRechazo->seguimientos->where('estado', \App\Enums\SeguimientoEstado::Rechazado)->last()?->comentario ?? 'Consulta el motivo en tu historial.' }}
+                Para obtener el convenio debes iniciar de nuevo todo el trámite con una nueva solicitud{{ $mostrarForm ? ' (formulario de abajo)' : '' }}. Tu expediente se conserva; las carreras vuelven a dictaminar.
+            </x-ui.aviso>
         @endif
 
         @if (!$vigente && !$enTramite && !$mostrarForm)
