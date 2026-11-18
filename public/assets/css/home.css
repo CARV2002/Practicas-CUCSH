@@ -17,6 +17,8 @@
     --rust-dark: var(--color-oro-700, #8a6416);
     --rust-light: var(--color-oro-400, #d4a94f);
     --oro: var(--color-oro-400, #d4a94f);
+    /* Rosa ciruela del logotipo del CUCSH: solo como acento del degradado del hero */
+    --rosa-cucsh: #983e5c;
     --white: #ffffff;
     --light-gray: var(--color-gray-50, #f9fafb);
     --mid-gray: var(--color-gray-200, #e4e7ec);
@@ -34,7 +36,7 @@
   .hero {
     position: relative;
     background:
-      linear-gradient(160deg, rgb(17 28 51 / 0.92) 0%, rgb(31 48 82 / 0.82) 60%, rgb(31 48 82 / 0.7) 100%),
+      linear-gradient(120deg, rgb(17 28 51 / 0.93) 0%, rgb(27 42 74 / 0.86) 48%, rgb(152 62 92 / 0.66) 100%),
       url('/images/home/centro.jpg') center/cover no-repeat;
     min-height: 460px;
     display: flex;
@@ -49,12 +51,12 @@
   }
   .hero-estudiantes {
     background:
-      linear-gradient(160deg, rgb(17 28 51 / 0.92) 0%, rgb(31 48 82 / 0.8) 100%),
+      linear-gradient(120deg, rgb(17 28 51 / 0.93) 0%, rgb(27 42 74 / 0.86) 48%, rgb(152 62 92 / 0.66) 100%),
       url('/images/home/estudiantes.jpg') center/cover no-repeat !important;
   }
   .hero-empresas {
     background:
-      linear-gradient(160deg, rgb(17 28 51 / 0.92) 0%, rgb(31 48 82 / 0.8) 100%),
+      linear-gradient(120deg, rgb(17 28 51 / 0.93) 0%, rgb(27 42 74 / 0.86) 48%, rgb(152 62 92 / 0.66) 100%),
       url('/images/home/empresa.jpg') top center/cover no-repeat !important;
   }
   .hero .brand-tag {
@@ -285,7 +287,7 @@
     border-radius: 999px;
   }
   .csm-card {
-    background: linear-gradient(160deg, var(--navy-deep), var(--navy));
+    background: linear-gradient(130deg, var(--navy-deep) 0%, var(--navy) 55%, color-mix(in srgb, var(--rosa-cucsh) 70%, var(--navy)) 100%);
     border-radius: 16px;
     border-bottom: 4px solid var(--oro);
     overflow: hidden;

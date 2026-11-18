@@ -30,10 +30,21 @@ class DashboardController extends Controller
             ->where('estado', ProgramaEstado::Publicado->value)
             ->get(['id', 'cupos_totales']);
 
+        // Documentos del expediente por validar: IMSS (del alumno) y kardex (de la postulación)
+        $enCurso = Postulacion::visiblesPara($personal)
+            ->whereIn('estado', PostulacionEstado::valores([PostulacionEstado::Pendiente, ...PostulacionEstado::enTramite()]))
+            ->with(['media', 'alumno.media'])
+            ->get();
+        $porValidar = fn ($doc) => $doc !== null && in_array($doc->getCustomProperty('estado'), [null, ValidacionEstado::Pendiente->value], true);
+        $kardexPendientes = $enCurso->filter(fn ($po) => $porValidar($po->documentoVigente('kardex')))->count();
+        $imssPendientes = $enCurso->pluck('alumno')->unique('id')->filter(fn ($al) => $porValidar($al->documentoVigente('constancia_imss')))->count();
+
         $totalCupos = (int) $publicados->sum('cupos_totales');
         $ocupados = (int) $publicados->sum('cupos_ocupados');
 
         return view('coordinacion.dashboard', [
+            // Cuentas institucionales («Coordinación de …») no se saludan por «nombre»
+            'nombre' => preg_match('/^coordinaci[oó]n\b/iu', trim($request->user()->name)) ? null : explode(' ', trim($request->user()->name))[0],
             'carreras' => Carrera::enAlcance($personal)->orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
             'kpis' => [
                 'alumnos' => $enAlcance(Alumno::query())->count(),
@@ -53,6 +64,8 @@ class DashboardController extends Controller
                     ->orWhere(fn($w) => $w->where('estado', PracticaEstado::EnCurso->value)
                         ->whereHas('cartaTermino', fn($c) => $c->where('estado_validacion', ValidacionEstado::Pendiente->value))))
                     ->count(),
+                'imss' => $imssPendientes,
+                'kardex' => $kardexPendientes,
                 'vacantes_por_aprobar' => $enAlcance(Programa::query())
                     ->where('estado', ProgramaEstado::PendienteAprobacion->value)->count(),
             ],

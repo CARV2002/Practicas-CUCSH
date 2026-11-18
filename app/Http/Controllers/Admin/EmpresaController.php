@@ -28,7 +28,11 @@ class EmpresaController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        $conVigente = Empresa::whereHas('convenios', fn ($c) => $c->vigentes())->count();
+        $total = Empresa::count();
+
         return view('admin.lista-empresas', [
+            'conteos' => ['todas' => $total, 'vigente' => $conVigente, 'sin' => $total - $conVigente],
             'empresas' => $empresas,
             'tipos' => TipoOrganismo::cases(),
             'estados' => ConvenioEstado::cases(),

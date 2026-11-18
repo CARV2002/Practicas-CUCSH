@@ -6,174 +6,203 @@
 
     $esCoordinacion = ($modo ?? 'vinculacion') === 'coordinacion';
     $rutaArchivo = $esCoordinacion ? 'coordinacion.dictamenes.archivos' : 'admin.dictamenes.archivos.descargar';
-
-    $input = 'campo';
-    $btn = 'boton boton-primario';
-    $card = 'tarjeta';
+    $hayFiltros = request()->hasAny(['q', 'carrera_id']) || $filtro !== 'pendiente';
 @endphp
 
-<x-common.page-breadcrumb pageTitle="{{ $esCoordinacion ? 'Dictámenes de mi carrera' : 'Dictámenes por carrera' }}" />
-
 <div class="space-y-6">
+    <x-pagina.encabezado :titulo="$esCoordinacion ? 'Dictámenes de mi carrera' : 'Dictámenes por carrera'"
+        :descripcion="$esCoordinacion
+            ? 'Revisa si las actividades que propone la organización corresponden al perfil de egreso de tu carrera y emite tu dictamen.'
+            : 'Cada coordinación de carrera emite su dictamen de pertinencia desde su panel; aquí das seguimiento.'" />
+
     @if (session('status'))
-        <div class="rounded-xl border border-green-500 bg-green-50 p-4 text-sm text-green-700">{{ session('status') }}</div>
+        <x-ui.aviso tipo="exito" descartable>{{ session('status') }}</x-ui.aviso>
     @endif
     @if ($errors->any())
-        <div class="rounded-xl border border-red-500 bg-red-50 p-4 text-sm text-red-700">
-            <ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
-        </div>
+        <x-ui.aviso tipo="error" titulo="No se registró el dictamen"><ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></x-ui.aviso>
     @endif
 
-    {{-- Resumen --}}
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div class="{{ $card }} p-5">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Pendientes</p>
-            <h3 class="mt-1 text-2xl font-bold text-yellow-600">{{ $resumen['pendientes'] }}</h3>
-        </div>
-        <div class="{{ $card }} p-5">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Aprobatorios</p>
-            <h3 class="mt-1 text-2xl font-bold text-green-600">{{ $resumen['aprobatorios'] }}</h3>
-        </div>
-        <div class="{{ $card }} p-5">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Negativos</p>
-            <h3 class="mt-1 text-2xl font-bold text-red-600">{{ $resumen['negativos'] }}</h3>
-        </div>
-    </div>
-
-    {{-- Listado --}}
-    <div class="{{ $card }} overflow-hidden pt-5">
-        <div class="mb-5 flex flex-col gap-4 px-6 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-                <h3 class="text-lg font-bold text-gray-900">Dictámenes de pertinencia académica</h3>
-                <p class="mt-0.5 text-sm text-gray-500">
-                    @if ($esCoordinacion)
-                        Revisa si las actividades que propone la empresa corresponden al perfil de egreso y emite tu dictamen.
-                    @else
-                        Cada Coordinación de carrera emite su dictamen desde su panel; aquí das seguimiento.
-                    @endif
-                </p>
-            </div>
-            <form method="GET" class="flex flex-wrap items-center gap-2">
-                <input type="text" name="q" value="{{ request('q') }}" placeholder="Empresa o RFC..." class="{{ $input }} !w-52">
-                <select name="carrera_id" class="{{ $input }} !w-56">
-                    <option value="">Todas las carreras</option>
-                    @foreach ($carreras as $c)
-                        <option value="{{ $c->id }}" @selected((int) request('carrera_id') === $c->id)>{{ $c->carrera_clave }} · {{ $c->nombre }}</option>
-                    @endforeach
-                </select>
-                <select name="dictamen" class="{{ $input }} !w-40">
-                    <option value="pendiente" @selected($filtro === 'pendiente')>Pendientes</option>
-                    <option value="aprobatorio" @selected($filtro === 'aprobatorio')>Aprobatorios</option>
-                    <option value="negativo" @selected($filtro === 'negativo')>Negativos</option>
-                    <option value="todos" @selected($filtro === 'todos')>Todos</option>
-                </select>
-                <button class="{{ $btn }}">Filtrar</button>
+    <x-tabla.marco titulo="Dictámenes de pertinencia académica" :total="$dictamenes->total()">
+        <x-slot:herramientas>
+            <x-tabla.filtros-estado parametro="dictamen" :actual="$filtro" etiqueta="Filtrar por dictamen" :opciones="[
+                ['valor' => 'pendiente', 'texto' => 'Pendientes', 'conteo' => $resumen['pendientes'], 'familia' => 'ambar'],
+                ['valor' => 'aprobatorio', 'texto' => 'Aprobatorios', 'conteo' => $resumen['aprobatorios'], 'familia' => 'menta'],
+                ['valor' => 'negativo', 'texto' => 'Negativos', 'conteo' => $resumen['negativos'], 'familia' => 'rosa'],
+                ['valor' => 'todos', 'texto' => 'Todos', 'conteo' => $resumen['pendientes'] + $resumen['aprobatorios'] + $resumen['negativos']],
+            ]" />
+            <form method="GET" class="flex flex-col gap-2 sm:flex-row" role="search">
+                <input type="hidden" name="dictamen" value="{{ $filtro }}">
+                <div class="relative flex-1 sm:max-w-xs">
+                    <x-dashboard.icono nombre="buscar" clase="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+                    <label for="q" class="sr-only">Buscar por empresa o RFC</label>
+                    <input id="q" type="search" name="q" value="{{ request('q') }}" placeholder="Empresa o RFC" class="campo-filtro pl-9 sm:w-full">
+                </div>
+                @if ($carreras->count() > 1)
+                    <label for="carrera_id" class="sr-only">Carrera</label>
+                    <select id="carrera_id" name="carrera_id" class="campo-filtro sm:max-w-xs" onchange="this.form.requestSubmit()">
+                        <option value="">Todas las carreras</option>
+                        @foreach ($carreras as $c)
+                            <option value="{{ $c->id }}" @selected((int) request('carrera_id') === $c->id)>{{ $c->carrera_clave }} · {{ $c->nombre }}</option>
+                        @endforeach
+                    </select>
+                @endif
+                <button class="boton boton-secundario">Buscar</button>
+                @if ($hayFiltros)
+                    <a href="{{ url()->current() }}" class="boton text-gray-500 hover:bg-gray-100 hover:text-gray-800">Limpiar</a>
+                @endif
             </form>
-        </div>
+        </x-slot:herramientas>
 
-        <div class="tabla-scroll">
-            <table class="tabla">
-                <thead class="border-y border-gray-100 bg-gray-50/70">
-                    <tr>
-                        <th class="tabla-th px-6">Convenio / Empresa</th>
-                        <th class="tabla-th">Carrera</th>
-                        <th class="tabla-th">Dictamen</th>
-                        <th class="tabla-th">Detalle</th>
-                        <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Acción</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                    @forelse ($dictamenes as $d)
-                        @php
-                            $pdf = $d->getFirstMedia('dictamen_pertinencia');
-                            $capturable = $esCoordinacion
-                                && $d->dictamen === Dictamen::Pendiente
-                                && $d->convenio->estado === \App\Enums\ConvenioEstado::EnValidacionAcademica;
-                        @endphp
-                        <tr class="align-top tabla-fila">
-                            <td class="px-6 py-4">
-                                <span class="block text-sm font-semibold text-gray-900">{{ $d->convenio->empresa->razon_social }}</span>
-                                @if ($esCoordinacion)
-                                    <span class="block text-xs text-gray-500">{{ $d->convenio->estado->label() }} · {{ $d->convenio->plazas_estimadas }} plazas</span>
-                                    <details class="mt-1 text-xs text-gray-600">
-                                        <summary class="text-real-600 cursor-pointer">Objetivos y actividades propuestas</summary>
-                                        <p class="mt-1"><strong>Objetivos:</strong> {{ $d->convenio->objetivos }}</p>
-                                        <p class="mt-1"><strong>Actividades:</strong> {{ $d->convenio->actividades_propuestas }}</p>
-                                    </details>
-                                @else
-                                    <a href="{{ route('admin.convenios.show', $d->convenio) }}" class="text-real-600 text-xs">Ver convenio · {{ $d->convenio->estado->label() }}</a>
-                                @endif
-                            </td>
-                            <td class="px-4 py-4">
-                                <span class="block text-sm text-gray-800">{{ $d->carrera->nombre }}</span>
-                                <span class="text-xs text-gray-500">{{ $d->carrera->division->nombre }}</span>
-                            </td>
-                            <td class="whitespace-nowrap px-4 py-4">
-                                <x-ui.estatus :estado="$d->dictamen" />
-                            </td>
-                            <td class="px-4 py-4 text-xs text-gray-600">
-                                @if ($d->fecha_dictamen)
-                                    <span class="block">{{ $d->fecha_dictamen->format('d/m/Y') }}{{ $d->dictaminador?->user ? ' · '.$d->dictaminador->user->name : '' }}</span>
-                                @endif
-                                @if ($d->observaciones) <span class="block">{{ $d->observaciones }}</span> @endif
-                                @if ($pdf)
-                                    <a href="{{ route($rutaArchivo, [$d, $pdf]) }}" class="text-real-600 font-semibold">Descargar PDF</a>
-                                @endif
-                            </td>
-                            <td class="px-6 py-4 text-right">
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th class="tabla-th px-6">Organización</th>
+                    <th class="tabla-th">Carrera</th>
+                    <th class="tabla-th">Dictamen</th>
+                    <th class="tabla-th">Observaciones y documento</th>
+                    <th class="tabla-th px-6 text-right"><span class="sr-only">Acciones</span></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                @forelse ($dictamenes as $d)
+                    @php
+                        $pdf = $d->getFirstMedia('dictamen_pertinencia');
+                        $capturable = $esCoordinacion
+                            && $d->dictamen === Dictamen::Pendiente
+                            && $d->convenio->estado === \App\Enums\ConvenioEstado::EnValidacionAcademica;
+                    @endphp
+                    <tr class="tabla-fila">
+                        <td class="px-6 py-4">
+                            <div class="flex items-start gap-3">
+                                <span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-udg-50 font-display text-sm font-bold text-udg-900 ring-1 ring-inset ring-udg-100" aria-hidden="true">{{ mb_strtoupper(mb_substr($d->convenio->empresa->razon_social, 0, 1)) }}</span>
+                                <div class="min-w-0">
+                                    <p class="font-semibold text-gray-900">{{ $d->convenio->empresa->razon_social }}</p>
+                                    <p class="mt-0.5 text-xs text-gray-500">{{ $d->convenio->plazas_estimadas }} {{ (int) $d->convenio->plazas_estimadas === 1 ? 'plaza estimada' : 'plazas estimadas' }}</p>
+                                    @if ($esCoordinacion)
+                                        <details class="group mt-1.5 text-xs text-gray-600">
+                                            <summary class="cursor-pointer list-none font-semibold text-real-600 hover:text-real-700">
+                                                <span class="inline-flex items-center gap-1">Objetivos y actividades
+                                                    <svg class="size-3.5 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+                                                </span>
+                                            </summary>
+                                            <div class="mt-2 space-y-2 rounded-lg bg-gray-50 p-3 leading-relaxed">
+                                                <p><span class="font-semibold text-gray-800">Objetivos:</span> {{ $d->convenio->objetivos }}</p>
+                                                <p><span class="font-semibold text-gray-800">Actividades:</span> {{ $d->convenio->actividades_propuestas }}</p>
+                                            </div>
+                                        </details>
+                                    @endif
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-4 py-4">
+                            <div class="flex items-start gap-2">
+                                <span class="shrink-0 rounded-md bg-udg-50 px-1.5 py-0.5 text-xs font-semibold text-udg-900 ring-1 ring-inset ring-udg-100">{{ $d->carrera->carrera_clave }}</span>
+                                <div class="min-w-0">
+                                    <p class="text-sm text-gray-800">{{ $d->carrera->nombre }}</p>
+                                    <p class="text-xs text-gray-500">{{ $d->carrera->division->nombre }}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4">
+                            <x-ui.estatus :estado="$d->dictamen" />
+                            @if ($d->fecha_dictamen)
+                                <p class="mt-1 text-xs text-gray-500">{{ $d->fecha_dictamen->format('d/m/Y') }}</p>
+                                @if ($d->dictaminador?->user)<p class="text-xs text-gray-500">{{ $d->dictaminador->user->name }}</p>@endif
+                            @else
+                                <p class="dato-vacio mt-1">{{ $d->convenio->estado === \App\Enums\ConvenioEstado::EnValidacionAcademica ? 'Esperando a la coordinación' : 'No se emitió' }}</p>
+                            @endif
+                        </td>
+                        <td class="px-4 py-4">
+                            @if ($d->observaciones)
+                                <p class="text-sm leading-relaxed text-gray-700">{{ $d->observaciones }}</p>
+                            @else
+                                <p class="dato-vacio">Sin observaciones</p>
+                            @endif
+                            @if ($pdf)
+                                <a href="{{ route($rutaArchivo, [$d, $pdf]) }}" class="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-real-600 hover:text-real-700">
+                                    <x-dashboard.icono nombre="descargar" clase="size-3.5" /> Dictamen en PDF
+                                </a>
+                            @else
+                                <p class="dato-vacio mt-1">Sin PDF adjunto</p>
+                            @endif
+                        </td>
+                        <td class="acciones whitespace-nowrap px-6 py-4 text-right">
+                            <div class="flex items-center justify-end gap-2">
                                 @if ($capturable)
-                                    <button type="button" onclick="document.getElementById('captura-{{ $d->id }}').classList.toggle('hidden')"
-                                        class="text-real-600 hover:text-real-700 text-xs font-semibold">Emitir dictamen</button>
+                                    <x-ui.boton-icono icono="editar" etiqueta="Emitir dictamen" tono="primario" con-texto
+                                        onclick="document.getElementById('captura-{{ $d->id }}').classList.toggle('hidden')"
+                                        aria-controls="captura-{{ $d->id }}" />
+                                @elseif (!$esCoordinacion)
+                                    <x-ui.boton-icono :href="route('admin.convenios.show', $d->convenio)" icono="ver" etiqueta="Ver convenio" />
                                 @else
-                                    <span class="text-xs text-gray-400">—</span>
+                                    <span class="dato-vacio">Sin acciones</span>
                                 @endif
-                            </td>
-                        </tr>
-                        @if ($capturable)
-                            <tr id="captura-{{ $d->id }}" class="hidden bg-gray-50/60">
-                                <td colspan="5" class="px-6 py-4">
-                                    <form method="POST" enctype="multipart/form-data" action="{{ route('coordinacion.dictamenes.registrar', $d) }}" class="grid grid-cols-1 gap-2 md:grid-cols-5">
-                                        @csrf
-                                        <select name="dictamen" required class="{{ $input }}">
+                            </div>
+                        </td>
+                    </tr>
+                    @if ($capturable)
+                        <tr id="captura-{{ $d->id }}" class="hidden bg-oro-50/40">
+                            <td colspan="5" class="px-6 py-5">
+                                <form method="POST" enctype="multipart/form-data" action="{{ route('coordinacion.dictamenes.registrar', $d) }}"
+                                    class="grid grid-cols-1 gap-4 md:grid-cols-[12rem_1fr_16rem_auto] md:items-end">
+                                    @csrf
+                                    <div>
+                                        <label for="dictamen-{{ $d->id }}" class="etiqueta">Dictamen</label>
+                                        <select id="dictamen-{{ $d->id }}" name="dictamen" required class="campo h-11">
                                             <option value="aprobatorio">Aprobatorio</option>
                                             <option value="negativo">Negativo</option>
                                         </select>
-                                        <input type="text" name="observaciones" placeholder="Observaciones (obligatorio si es negativo)" class="{{ $input }} md:col-span-2">
-                                        <input type="file" name="documento" accept="application/pdf" class="{{ $input }}">
-                                        <button class="{{ $btn }}">Registrar</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        @endif
-                    @empty
-                        <tr><td colspan="5" class="px-6 py-10 text-center text-sm text-gray-400">No hay dictámenes con ese filtro.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                                    </div>
+                                    <div>
+                                        <label for="obs-{{ $d->id }}" class="etiqueta">Observaciones</label>
+                                        <input id="obs-{{ $d->id }}" type="text" name="observaciones" placeholder="Obligatorias si el dictamen es negativo" class="campo h-11">
+                                    </div>
+                                    <div>
+                                        <label for="doc-{{ $d->id }}" class="etiqueta">Dictamen firmado (PDF)</label>
+                                        <input id="doc-{{ $d->id }}" type="file" name="documento" accept="application/pdf" class="campo h-11 py-2 file:mr-3 file:rounded-md file:border-0 file:bg-udg-50 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-udg-900">
+                                    </div>
+                                    <button class="boton boton-primario h-11">Registrar dictamen</button>
+                                </form>
+                                <p class="ayuda">Un dictamen registrado ya no se puede cambiar.</p>
+                            </td>
+                        </tr>
+                    @endif
+                @empty
+                    <tr>
+                        <td colspan="5" class="px-6 py-4">
+                            <x-dashboard.vacio icono="academico"
+                                titulo="{{ $filtro === 'pendiente' && !request()->hasAny(['q', 'carrera_id']) ? 'No hay dictámenes pendientes' : 'No hay dictámenes con ese filtro' }}"
+                                texto="{{ $filtro === 'pendiente' ? 'Cuando Vinculación turne un convenio a las carreras aparecerá aquí.' : 'Prueba con otro estado o quita la búsqueda.' }}" />
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
 
-        <div class="border-t border-gray-100 px-6 py-4">{{ $dictamenes->links() }}</div>
-    </div>
+        <x-slot:pie>{{ $dictamenes->links() }}</x-slot:pie>
+    </x-tabla.marco>
 
-    {{-- Todas negativas --}}
+    {{-- Convenios en los que ninguna carrera aprobó --}}
     @unless ($esCoordinacion)
-    <div class="{{ $card }} p-6">
-        <h4 class="text-base font-bold text-gray-900">Convenios con todos los dictámenes negativos</h4>
-        <p class="mb-4 text-xs text-gray-500">El trámite se cierra como rechazado cuando ninguna carrera aprueba.</p>
-        <div class="divide-y divide-gray-100">
+        <x-dashboard.panel titulo="Convenios con todos los dictámenes negativos" icono="alerta"
+            descripcion="Si ninguna carrera aprueba, el trámite se cierra como rechazado.">
             @forelse ($todasNegativas as $c)
-                <div class="flex flex-wrap items-center justify-between gap-2 py-3">
-                    <div>
-                        <p class="text-sm font-semibold text-gray-800">{{ $c->empresa->razon_social }}</p>
-                        <p class="text-xs text-gray-500">{{ $c->dictamenes->map(fn ($d) => $d->carrera->carrera_clave)->join(', ') }} · {{ $c->estado->label() }}</p>
+                <div class="-mx-2 flex flex-wrap items-center justify-between gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-gray-50">
+                    <div class="min-w-0">
+                        <p class="font-semibold text-gray-900">{{ $c->empresa->razon_social }}</p>
+                        <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                            @foreach ($c->dictamenes as $dn)
+                                <span class="rounded-md bg-rose-50 px-1.5 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-200" title="{{ $dn->carrera->nombre }}">{{ $dn->carrera->carrera_clave }}</span>
+                            @endforeach
+                            <x-ui.estatus :estado="$c->estado" />
+                        </div>
                     </div>
-                    <a href="{{ route('admin.convenios.show', $c) }}" class="text-real-600 text-xs font-semibold">Ver →</a>
+                    <x-ui.boton-icono :href="route('admin.convenios.show', $c)" icono="ver" etiqueta="Ver convenio" />
                 </div>
             @empty
-                <p class="py-3 text-center text-sm text-gray-400">Ninguno por ahora.</p>
+                <x-dashboard.vacio titulo="Ninguno por ahora" texto="Todos los convenios dictaminados tienen al menos una carrera que los aprueba." />
             @endforelse
-        </div>
-    </div>
+        </x-dashboard.panel>
     @endunless
 </div>
 @endsection

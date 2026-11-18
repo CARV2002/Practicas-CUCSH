@@ -92,4 +92,16 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         });
     }
 
+    /** Rol principal del usuario (o null si no tiene). */
+    public function rolPrincipal(): ?\App\Enums\Rol
+    {
+        return \App\Enums\Rol::tryFrom((string) $this->roles->first()?->name);
+    }
+
+    /** ¿Ve el Centro de ayuda? Vinculación y el Administrador técnico no (operan el sistema). */
+    public function tieneAyuda(): bool
+    {
+        return \App\Support\Ayuda::disponiblePara($this->rolPrincipal());
+    }
+
 }

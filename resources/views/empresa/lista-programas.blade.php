@@ -15,8 +15,6 @@
     ])->values();
 @endphp
 
-<x-common.page-breadcrumb pageTitle="Programas" />
-
 <div x-data="{
     modal: false,
     p: @js($vacio),
@@ -33,126 +31,117 @@
     }
 }" class="space-y-6">
 
+    <x-pagina.encabezado titulo="Mis vacantes" descripcion="Propón vacantes para las carreras aprobadas en tu convenio. La coordinación de cada carrera las revisa antes de publicarlas a los alumnos.">
+        <x-slot:acciones>
+            @if ($puedeCrear)
+                <button type="button" @click="nuevo()" class="boton boton-primario"><x-dashboard.icono nombre="mas" clase="size-4" /> Proponer vacante</button>
+            @else
+                <x-ui.accion-bloqueada :motivo="$motivoBloqueo">Proponer vacante</x-ui.accion-bloqueada>
+            @endif
+        </x-slot:acciones>
+    </x-pagina.encabezado>
+
     @if (session('status'))
-        <div class="rounded-xl border border-green-500 bg-green-50 p-4 text-sm text-green-700">{{ session('status') }}</div>
+        <x-ui.aviso tipo="exito" descartable>{{ session('status') }}</x-ui.aviso>
     @endif
     @if ($errors->any())
-        <div class="rounded-xl border border-red-500 bg-red-50 p-4 text-sm text-red-700">
-            <ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
-        </div>
+        <x-ui.aviso tipo="error" titulo="Revisa lo siguiente"><ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></x-ui.aviso>
     @endif
-
     @if ($motivoBloqueo)
-        <div class="rounded-xl border border-yellow-500 bg-yellow-50 p-4 text-sm text-yellow-800">
-            {{ $motivoBloqueo }}
-            <a href="{{ route('empresa.convenio') }}" class="font-semibold underline">Ver estado de mi convenio</a>
-        </div>
+        <x-ui.aviso tipo="advertencia" titulo="Aún no puedes proponer vacantes">{{ $motivoBloqueo }}
+            <a href="{{ route('empresa.convenio') }}" class="font-semibold underline underline-offset-2">Ver el estado de mi convenio</a></x-ui.aviso>
     @endif
 
-    <div class="tarjeta overflow-hidden pt-5">
-        <div class="mb-5 flex flex-col gap-4 px-6 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-                <h3 class="text-lg font-bold text-gray-900">Mis programas</h3>
-                <p class="mt-0.5 text-sm text-gray-500">Solo puedes ofertar para las carreras aprobadas en tu convenio. Los alumnos ven únicamente los programas publicados.</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-                <form method="GET" class="flex flex-wrap items-center gap-2">
-                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Buscar por título..." class="{{ $filtro }} sm:w-48">
-                    <select name="estado" class="{{ $filtro }}">
-                        <option value="">Todos los estados</option>
-                        @foreach ($estados as $e)
-                            <option value="{{ $e->value }}" @selected(request('estado') === $e->value)>{{ $e->label() }}</option>
-                        @endforeach
-                    </select>
-                    <button class="boton boton-secundario w-full sm:w-auto">Filtrar</button>
-                </form>
-                @if ($puedeCrear)
-                    <button type="button" @click="nuevo()" class="boton boton-primario w-full sm:w-auto">+ Proponer vacante</button>
-                @else
-                    <x-ui.accion-bloqueada :motivo="$motivoBloqueo">+ Proponer vacante</x-ui.accion-bloqueada>
+    <x-tabla.marco titulo="Programas" :total="$programas->total()">
+        <x-slot:herramientas>
+            <x-tabla.filtros-estado :actual="request('estado', '')" :opciones="collect($estados)->map(fn ($e) => ['valor' => $e->value, 'texto' => $e->label(), 'familia' => $e->familia()])->prepend(['valor' => '', 'texto' => 'Todos'])->all()" />
+            <form method="GET" class="flex flex-col gap-2 sm:flex-row" role="search">
+                @if (request('estado'))<input type="hidden" name="estado" value="{{ request('estado') }}">@endif
+                <div class="relative flex-1 sm:max-w-xs">
+                    <x-dashboard.icono nombre="buscar" clase="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+                    <label for="q" class="sr-only">Buscar por título</label>
+                    <input id="q" type="search" name="q" value="{{ request('q') }}" placeholder="Buscar por título" class="campo-filtro pl-9 sm:w-full">
+                </div>
+                <button class="boton boton-secundario">Buscar</button>
+                @if (request()->hasAny(['q', 'estado']))
+                    <a href="{{ route('empresa.lista-programas') }}" class="boton text-gray-500 hover:bg-gray-100 hover:text-gray-800">Limpiar</a>
                 @endif
-            </div>
-        </div>
+            </form>
+        </x-slot:herramientas>
 
-        <div class="tabla-scroll">
-            <table class="tabla">
-                <thead class="border-y border-gray-100 bg-gray-50/70">
-                    <tr>
-                        <th class="tabla-th px-6">Programa</th>
-                        <th class="tabla-th">Carrera</th>
-                        <th class="tabla-th">Ciclo</th>
-                        <th class="tabla-th">Cupos</th>
-                        <th class="tabla-th">Estado</th>
-                        <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                    @forelse ($programas as $pr)
-                        @php
-                            $ocupados = (int) $pr->cupos_ocupados;
-                            $pct = $pr->cupos_totales > 0 ? min(100, round($ocupados / $pr->cupos_totales * 100)) : 0;
-                            $datos = [
-                                'id' => $pr->id, 'convenio_id' => $pr->convenio_id, 'carrera_id' => $pr->carrera_id,
-                                'ciclo' => $pr->ciclo, 'titulo' => $pr->titulo, 'descripcion' => $pr->descripcion,
-                                'actividades' => implode("\n", $pr->actividades ?? []),
-                                'perfil_requerido' => $pr->perfil_requerido, 'horario' => $pr->horario ?? '',
-                                'sede' => $pr->sede ?? '', 'cupos_totales' => $pr->cupos_totales,
-                            ];
-                        @endphp
-                        <tr class="tabla-fila">
-                            <td class="max-w-[300px] px-6 py-4">
-                                <span class="block truncate text-sm font-semibold text-gray-900">{{ $pr->titulo }}</span>
-                                <span class="text-xs text-gray-500">{{ $pr->sede ?: 'Sin sede' }}{{ $pr->horario ? ' · '.$pr->horario : '' }}</span>
-                            </td>
-                            <td class="whitespace-nowrap px-4 py-4">
-                                <span class="rounded border border-gray-200 bg-gray-50 px-2 py-0.5 font-mono text-xs font-bold text-gray-600">{{ $pr->carrera->carrera_clave }}</span>
-                            </td>
-                            <td class="whitespace-nowrap px-4 py-4 text-sm text-gray-600">{{ $pr->ciclo }}</td>
-                            <td class="whitespace-nowrap px-4 py-4">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-sm font-bold text-gray-800">{{ $ocupados }}/{{ $pr->cupos_totales }}</span>
-                                    <div class="h-1.5 w-16 rounded-full bg-gray-100"><div class="bg-udg-800 h-1.5 rounded-full" style="width: {{ $pct }}%"></div></div>
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th class="tabla-th px-6">Programa</th>
+                    <th class="tabla-th">Carrera y ciclo</th>
+                    <th class="tabla-th">Cupos</th>
+                    <th class="tabla-th">Estado</th>
+                    <th class="tabla-th px-6 text-right"><span class="sr-only">Acciones</span></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                @forelse ($programas as $pr)
+                    @php
+                        $ocupados = (int) $pr->cupos_ocupados;
+                        $pct = $pr->cupos_totales > 0 ? min(100, round($ocupados / $pr->cupos_totales * 100)) : 0;
+                        $datos = [
+                            'id' => $pr->id, 'convenio_id' => $pr->convenio_id, 'carrera_id' => $pr->carrera_id,
+                            'ciclo' => $pr->ciclo, 'titulo' => $pr->titulo, 'descripcion' => $pr->descripcion,
+                            'actividades' => implode("\n", $pr->actividades ?? []),
+                            'perfil_requerido' => $pr->perfil_requerido, 'horario' => $pr->horario ?? '',
+                            'sede' => $pr->sede ?? '', 'cupos_totales' => $pr->cupos_totales,
+                        ];
+                    @endphp
+                    <tr class="tabla-fila">
+                        <td class="px-6 py-4">
+                            <div class="flex items-start gap-3">
+                                <span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-udg-50 text-udg-900 ring-1 ring-inset ring-udg-100"><x-dashboard.icono nombre="vacante" clase="size-[18px]" /></span>
+                                <div class="min-w-0">
+                                    <p class="font-semibold text-gray-900">{{ $pr->titulo }}</p>
+                                    <p class="text-xs {{ $pr->sede ? 'text-gray-500' : 'italic text-gray-400' }}">{{ $pr->sede ?: 'Sede por definir' }}</p>
+                                    <p class="text-xs {{ $pr->horario ? 'text-gray-500' : 'italic text-gray-400' }}">{{ $pr->horario ?: 'Horario por definir' }}</p>
                                 </div>
-                            </td>
-                            <td class="whitespace-nowrap px-4 py-4">
-                                <x-ui.estatus :estado="$pr->estado" />
-                                @if ($pr->estado === PE::Rechazado && $pr->motivo_rechazo)
-                                    <span class="mt-1 block max-w-[220px] whitespace-normal text-xs text-red-600">Motivo: {{ $pr->motivo_rechazo }}</span>
-                                @elseif ($pr->estado === PE::PendienteAprobacion)
-                                    <span class="mt-1 block text-xs text-gray-500">En revisión por la coordinación de la carrera</span>
+                            </div>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4">
+                            <span class="rounded-md bg-udg-50 px-1.5 py-0.5 text-xs font-semibold text-udg-900 ring-1 ring-inset ring-udg-100" title="{{ $pr->carrera->nombre }}">{{ $pr->carrera->carrera_clave }}</span>
+                            <p class="mt-1 text-xs text-gray-500">Ciclo {{ $pr->ciclo }}</p>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4">
+                            <p class="text-sm font-semibold text-gray-900">{{ $ocupados }}<span class="font-normal text-gray-400"> / {{ $pr->cupos_totales }}</span></p>
+                            <div class="mt-1.5 h-1.5 w-20 overflow-hidden rounded-full bg-gray-100"><div class="h-full rounded-full bg-udg-800" style="width: {{ $pct }}%"></div></div>
+                        </td>
+                        <td class="px-4 py-4">
+                            <x-ui.estatus :estado="$pr->estado" />
+                            @if ($pr->estado === PE::Rechazado && $pr->motivo_rechazo)
+                                <p class="mt-1 max-w-[14rem] text-xs text-rose-600">Motivo: {{ $pr->motivo_rechazo }}</p>
+                            @elseif ($pr->estado === PE::PendienteAprobacion)
+                                <p class="mt-1 max-w-[14rem] text-xs text-gray-500">La coordinación de la carrera la revisa.</p>
+                            @endif
+                        </td>
+                        <td class="acciones whitespace-nowrap px-6 py-4 text-right">
+                            <div class="flex items-center justify-end gap-2">
+                                <x-ui.boton-icono :href="route('empresa.programas.postulantes', $pr)" icono="usuarios" etiqueta="Postulantes" tono="primario" con-texto />
+                                <x-ui.boton-icono icono="editar" etiqueta="Editar" x-on:click="editar(@js($datos))" />
+                                @if ($pr->estado === PE::Publicado)
+                                    <x-ui.boton-icono :accion="route('empresa.programas.estado', $pr)" icono="candado" etiqueta="Cerrar postulaciones" confirmar="¿Cerrar las postulaciones de esta vacante?"><input type="hidden" name="estado" value="cerrado"></x-ui.boton-icono>
                                 @endif
-                            </td>
-                            <td class="whitespace-nowrap px-6 py-4 text-right">
-                                <div class="flex items-center justify-end gap-3">
-                                    <a href="{{ route('empresa.programas.postulantes', $pr) }}" class="text-xs font-semibold text-gray-600 hover:text-gray-800">Postulantes</a>
-                                    <button type="button" @click="editar(@js($datos))" class="text-real-600 hover:text-real-700 text-xs font-semibold">Editar</button>
-                                    @if ($pr->estado === PE::Publicado)
-                                        <form method="POST" action="{{ route('empresa.programas.estado', $pr) }}">
-                                            @csrf
-                                            <button name="estado" value="cerrado" class="text-xs font-semibold text-yellow-600 hover:text-yellow-700">Cerrar</button>
-                                        </form>
-                                    @endif
-                                    <form method="POST" action="{{ route('empresa.programas.destroy', $pr) }}" onsubmit="return confirm('¿Eliminar este programa?')">
-                                        @csrf @method('DELETE')
-                                        <button class="text-xs font-semibold text-red-600 hover:text-red-700">Eliminar</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="6" class="px-6 py-10 text-center text-sm text-gray-400">Aún no tienes programas.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-
-        <div class="border-t border-gray-100 px-6 py-4">{{ $programas->links() }}</div>
-    </div>
+                                <x-ui.boton-icono :accion="route('empresa.programas.destroy', $pr)" metodo="DELETE" icono="basura" etiqueta="Eliminar" tono="peligro" confirmar="¿Eliminar este programa? No se puede deshacer." />
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="5" class="px-6 py-4"><x-dashboard.vacio icono="vacante" titulo="{{ request()->hasAny(['q', 'estado']) ? 'No hay programas con ese filtro' : 'Aún no tienes programas' }}" texto="{{ $puedeCrear ? 'Propón tu primera vacante con el botón de arriba.' : 'Podrás proponer vacantes cuando tu convenio esté vigente.' }}" /></td></tr>
+                @endforelse
+            </tbody>
+        </table>
+        <x-slot:pie>{{ $programas->links() }}</x-slot:pie>
+    </x-tabla.marco>
 
     {{-- Modal crear/editar --}}
-    <div x-show="modal" x-cloak @keydown.escape.window="modal = false" class="fixed inset-0 z-99999 flex items-start justify-center overflow-y-auto p-5">
-        <div class="fixed inset-0 bg-gray-400/50 backdrop-blur-sm" @click="modal = false"></div>
-        <form method="POST" :action="action" @click.stop class="relative my-8 w-full max-w-2xl space-y-5 rounded-2xl bg-white p-6 shadow-theme-xl">
+    <div x-show="modal" x-cloak x-transition.opacity.duration.200ms @keydown.escape.window="modal = false" class="fixed inset-0 z-99999 flex items-start justify-center overflow-y-auto p-5">
+        <div class="fixed inset-0 bg-udg-950/50 backdrop-blur-sm" @click="modal = false"></div>
+        <form method="POST" :action="action" @click.stop class="relative animate-entrada motion-reduce:animate-none my-8 w-full max-w-2xl space-y-5 rounded-2xl bg-white p-6 shadow-theme-xl">
             @csrf
             <template x-if="p.id"><input type="hidden" name="_method" value="PUT"></template>
             <h3 class="text-lg font-semibold text-gray-800" x-text="p.id ? 'Editar programa' : 'Nuevo programa'"></h3>
@@ -209,8 +198,8 @@
             <p class="text-xs text-gray-500">La Coordinación de la carrera revisará horario y actividades antes de publicarla. Cada cambio vuelve a revisión.</p>
 
             <div class="flex justify-end gap-2">
-                <button type="button" @click="modal = false" class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>
-                <button type="submit" class="bg-udg-800 hover:bg-udg-700 rounded-lg px-4 py-2.5 text-sm font-medium text-white">Guardar</button>
+                <button type="button" @click="modal = false" class="boton boton-secundario">Cancelar</button>
+                <button type="submit" class="boton boton-primario">Guardar</button>
             </div>
         </form>
     </div>

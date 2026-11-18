@@ -50,7 +50,7 @@
         class="z-50 flex max-h-[min(480px,calc(100dvh-6rem))] origin-top-right flex-col tarjeta p-3 shadow-theme-lg max-xl:fixed max-xl:inset-x-3 max-xl:top-[4.5rem] sm:max-xl:left-auto sm:max-xl:right-4 sm:max-xl:w-[361px] xl:absolute xl:right-0 xl:mt-[17px] xl:w-[361px]">
         <div class="mb-3 flex items-center justify-between border-b border-gray-100 pb-3">
             <h5 class="text-lg font-semibold text-gray-800">Notificaciones</h5>
-            <button type="button" @click="leerTodas()" x-show="noLeidas > 0" class="text-real-600 text-xs font-semibold hover:underline">Marcar todas</button>
+            <button type="button" @click="leerTodas()" x-show="noLeidas > 0" class="enlace text-xs">Marcar todas</button>
         </div>
 
         <ul class="custom-scrollbar flex-1 overflow-y-auto">

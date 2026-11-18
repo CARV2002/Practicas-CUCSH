@@ -380,6 +380,65 @@ Base común: `inline-flex items-center justify-center gap-2 rounded-lg h-10 px-4
 - **Alumno:** lleva al directorio.
 - **Organización:** tarjeta marina con los datos de Vinculación.
 
+### Tablas y bandejas (lenguaje único en todo el sitio)
+
+| Pieza | Uso |
+|---|---|
+| `<x-pagina.encabezado titulo descripcion volver>` + slot `acciones` | Encabezado de bandejas y detalles (sustituye al *breadcrumb* de la plantilla) |
+| `<x-tabla.marco titulo descripcion total>` + slots `herramientas` y `pie` | Tarjeta que envuelve toda tabla: filtros arriba, paginación abajo |
+| `<x-tabla.filtros-estado :opciones parametro actual>` | Pestañas de estado con conteo y punto de color; conservan la búsqueda |
+| `<x-ui.boton-icono icono etiqueta href/accion tono con-texto confirmar>` | Acciones de fila: ícono con *tooltip*; la acción principal lleva texto |
+| `<x-convenio.pista :estado grande>` | Pista de las 4 fases del convenio (fila de tabla o detalle) |
+| `dato-vacio` | Texto en cursiva gris para celdas sin dato («Sin folio aún», «Sin PDF adjunto»): **nunca una raya «—»** |
+
+**Reglas de las tablas**
+- **Encabezados:** en oración (sin mayúsculas sostenidas), gris y sobre un fondo tenue. Las cifras van alineadas a la derecha y con números tabulares.
+- **Filas:**
+  - Al pasar el cursor aparece un filete marino a la izquierda y un fondo `udg-50`.
+  - Al cargar, entran escalonadas (máx. 180 ms), respetando «reducir movimiento».
+- **Celular (< 768 px):** cada fila se vuelve tarjeta.
+  - La primera celda es el título.
+  - Cada celda muestra su etiqueta, que `resources/js/tablas.js` toma del `<th>`.
+  - La celda con clase `acciones` no lleva etiqueta.
+- **Escritorio:** la primera columna mide al menos 16 rem para que los nombres no se partan palabra por palabra.
+
+### Tableros por rol (componentes en `resources/views/components/dashboard/`)
+
+| Componente | Uso |
+|---|---|
+| `<x-dashboard.encabezado eyebrow titulo subtitulo>` + slot `acciones` | Banda marina con filete dorado, saludo y botones (dorado = acción principal). En móvil los botones se apilan a lo ancho |
+| `<x-dashboard.kpi href etiqueta valor icono tono detalle alerta orden>` | Tarjeta KPI clicable: se eleva al pasar el cursor, barra de color superior, flecha que aparece y número que cuenta hacia arriba. `alerta` muestra una píldora roja con pulso (p. ej. «2 fuera de plazo») |
+| `<x-dashboard.panel titulo descripcion enlace icono>` | Panel con encabezado y enlace «Ver todo» |
+| `<x-dashboard.vacio titulo texto>` | Estado vacío amable (nunca una lista en blanco) |
+| `<x-dashboard.icono nombre>` | Íconos de línea: documento, academico, juridico, firma, vigente, alerta, reloj, vacante, alumno, usuarios, imss, reporte, cierre, empresa, calendario, flecha, check, buscar, subir, comentario, informe |
+| `<x-ui.aviso tipo titulo descartable autocerrar>` | Avisos (info, éxito, advertencia, error) con entrada suave y botón para cerrar |
+
+**Qué muestra cada tablero**
+
+- **Vinculación:**
+  - Encabezado y KPIs: un KPI por etapa del convenio (revisión, dictamen, jurídica, firmas, vigentes), con alerta de etapas fuera de plazo.
+  - Atención prioritaria: ordenada por días hábiles contra el máximo documentado, con barra roja, ámbar o marina.
+  - Paneles: por vencer y distribución por estado.
+- **Coordinación:**
+  - KPIs: vacantes por aprobar, postulaciones, IMSS y kardex por validar, reportes y cierres, cada uno con acceso directo.
+  - Paneles: carrera en números y programas recientes.
+- **Alumno:**
+  - Siguiente paso dentro del encabezado.
+  - Progreso de horas: barra marina → dorada con marcas al 25, 50 y 75 %.
+  - Trámite en 6 pasos.
+  - Accesos rápidos (incluye convenios vigentes) y «Tu coordinación» con contacto directo.
+- **Empresa:**
+  - Convenio con barra de vigencia, carreras cubiertas o pasos del trámite.
+  - Vacantes activas y en revisión.
+  - Practicantes y reportes por comentar.
+
+**Tablas en celular**
+- La primera columna queda fija al desplazar.
+- Sombras en el borde indican que hay más contenido a los lados.
+- Los avatares se alinean arriba, junto al nombre.
+
+**Envío de formularios:** `validacion.js` pone el botón en estado de carga: spinner, «Enviando…» y `aria-busy`. Se restaura si el usuario vuelve con «Atrás».
+
 ### Alertas
 
 `rounded-xl border p-4 flex gap-3` con el color semántico de la sección 1.3, ícono a la izquierda, título `font-semibold` y texto `text-sm`.

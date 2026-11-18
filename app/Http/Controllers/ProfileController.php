@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Rol;
+use App\Enums\ValidacionEstado;
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\Carrera;
+use App\Support\Requisitos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
@@ -15,9 +19,48 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): View
     {
-        return view('profile.edit', [
-            'user' => $request->user(),
-        ]);
+        $user = $request->user();
+        $rol = $user->rolPrincipal();
+        $datos = ['user' => $user, 'rol' => $rol];
+
+        if ($rol === Rol::Alumno && $user->alumno) {
+            $alumno = $user->alumno->load('carrera');
+            $imss = $alumno->documentoVigente('constancia_imss');
+            $estadoImss = $imss?->getCustomProperty('estado');
+
+            $datos['alumno'] = $alumno;
+            $datos['requisitos'] = [
+                ['texto' => 'Grado y turno capturados', 'ok' => $alumno->grado !== null && $alumno->turno !== null,
+                    'ayuda' => 'Aparecen en tu carta de presentación.', 'seccion' => 'escolar'],
+                ['texto' => 'Constancia IMSS subida', 'ok' => $imss !== null,
+                    'ayuda' => 'Súbela en «Mis documentos».', 'ruta' => 'alumno.mis-documentos'],
+                ['texto' => 'Constancia IMSS validada', 'ok' => $estadoImss === ValidacionEstado::Validada->value,
+                    'ayuda' => $estadoImss === ValidacionEstado::Rechazada->value ? 'Fue rechazada: sube una nueva.' : 'Tu coordinación la revisa.', 'ruta' => 'alumno.mis-documentos'],
+                ['texto' => 'Seguro IMSS vigente', 'ok' => $alumno->tieneImssVigenteHasta(now()),
+                    'ayuda' => $alumno->vigencia_imss ? 'Vigente hasta el ' . $alumno->vigencia_imss->format('d/m/Y') . '.' : 'Captura la vigencia al subir tu constancia.', 'ruta' => 'alumno.mis-documentos'],
+            ];
+            $datos['motivoPostular'] = Requisitos::alumnoPostularse($alumno);
+        }
+
+        if ($rol === Rol::Empresa && $user->empresa) {
+            $empresa = $user->empresa;
+            $convenios = $empresa->convenios()->latest('id')->get();
+            $datos['empresa'] = $empresa;
+            $datos['convenioVigente'] = $convenios->first(fn ($c) => $c->estaVigente());
+            $datos['convenioEnTramite'] = $convenios->first(fn ($c) => ! $c->estado->esFinal());
+            $datos['expedienteCompleto'] = $empresa->expedienteEnOrden();
+            $datos['representanteBloqueado'] = $empresa->documentosBloqueados();
+        }
+
+        if ($rol?->esPersonal() && $user->personal) {
+            $personal = $user->personal->load(['carrera', 'division']);
+            $datos['personal'] = $personal;
+            if ($rol === Rol::Coordinador) {
+                $datos['carreras'] = Carrera::enAlcance($personal)->with('division')->orderBy('nombre')->get();
+            }
+        }
+
+        return view('profile.edit', $datos);
     }
 
     /**

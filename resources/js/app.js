@@ -1,5 +1,6 @@
 import './bootstrap';
 import './validacion';
+import './tablas';
 import Alpine from 'alpinejs';
 
 // Fuentes institucionales (DESIGN_SYSTEM.md §2): se empaquetan con Vite, sin depender de Google Fonts

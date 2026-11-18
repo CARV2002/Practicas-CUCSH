@@ -34,6 +34,10 @@ class UsuarioController extends Controller
 
         return view('admin.lista-usuarios', [
             'usuarios' => $usuarios,
+            'conteosRol' => collect(Rol::cases())->mapWithKeys(fn (Rol $r) => [$r->value => User::role($r->value)->count()]),
+            'totalUsuarios' => User::count(),
+            'inactivos' => User::where('activo', false)->count(),
+            'sinVerificar' => User::whereNull('email_verified_at')->count(),
             'roles' => Rol::cases(),
             'rolesAlta' => $this->rolesQuePuedeCrear($request->user()),
             'carreras' => Carrera::orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),

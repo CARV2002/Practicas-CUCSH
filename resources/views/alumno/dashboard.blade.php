@@ -1,548 +1,202 @@
-{{-- resources/views/alumno/dashboard.blade.php --}}
 @extends('layouts.app')
 
 @section('content')
-<style>
-/* ==========================================================================
-   ESTILOS PREMIUM: STUDENT HOME DASHBOARD (CUCSH 2026)
-   ========================================================================== */
+@php
+    $pasos = [
+        ['Postúlate', 'Elige un programa de tu carrera'],
+        ['Carta de presentación', 'Tu coordinación valida y la emite'],
+        ['Carta de aceptación', 'La organización te acepta'],
+        ['Práctica en curso', 'Reporta tus horas'],
+        ['Cierre', 'Carta de término y oficio'],
+        ['Acreditada', 'Captura en SIIAU'],
+    ];
+    $pct = $kpis['pct'] ?? 0;
+@endphp
 
-.cucsh-dashboard-container {
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
-    padding: 32px;
-    max-width: 1600px;
-    margin: 0 auto;
-    font-family: var(--font-outfit);
-}
+<div class="space-y-6">
 
-/* --- HERO ENCABEZADO CON CONTROLADORES --- */
-.dashboard-welcome-hero {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    background: var(--color-white);
-    border: 1px solid var(--color-gray-200);
-    padding: 28px;
-    border-radius: 16px;
-    box-shadow: var(--shadow-theme-sm);
-}
-
-.welcome-profile-area {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
-.avatar-ring-wrapper {
-    position: relative;
-    width: 60px;
-    height: 60px;
-}
-
-.student-hero-avatar {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid var(--color-brand-200);
-}
-
-.online-status-dot {
-    position: absolute;
-    bottom: 2px;
-    right: 2px;
-    width: 14px;
-    height: 14px;
-    background-color: var(--color-success-500);
-    border: 2px solid var(--color-white);
-    border-radius: 50%;
-}
-
-.welcome-text-strings h1 {
-    font-size: 24px;
-    font-weight: 800;
-    color: var(--color-black);
-    letter-spacing: -0.02em;
-}
-
-.academic-subtext {
-    font-size: 14px;
-    color: var(--color-gray-500);
-}
-
-/* --- BANNER INTEGRADO INTERNO "SIGUIENTE PASO" --- */
-.home-next-step-badge {
-    background-color: var(--color-brand-25);
-    border-left: 4px solid var(--color-brand-500);
-    padding: 16px 20px;
-    border-radius: 0 12px 12px 0;
-}
-
-.next-step-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: var(--color-brand-800);
-    letter-spacing: 0.05em;
-    margin-bottom: 4px;
-}
-
-.pulse-icon-ping {
-    width: 6px;
-    height: 6px;
-    background-color: var(--color-brand-600);
-    border-radius: 50%;
-    display: inline-block;
-    box-shadow: 0 0 0 3px var(--color-brand-200);
-}
-
-.home-next-step-badge p {
-    font-size: 14px;
-    color: var(--color-gray-700);
-    line-height: 1.5;
-}
-
-/* --- GRID DE DISTRIBUCIÓN --- */
-.dashboard-workspace-layout {
-    display: grid;
-    grid-template-columns: 1fr 360px;
-    gap: 28px;
-    align-items: start;
-}
-
-.dashboard-workspace-main {
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-}
-
-/* --- KPI SAAS CARDS --- */
-.kpi-dashboard-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
-    gap: 16px;
-}
-
-.kpi-saas-card {
-    background: var(--color-white);
-    border: 1px solid var(--color-gray-200);
-    border-radius: 12px;
-    padding: 20px;
-    display: flex;
-    gap: 14px;
-    align-items: flex-start;
-    box-shadow: var(--shadow-theme-xs);
-}
-
-.kpi-icon-container {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.kpi-icon-container.bg-brand { background: var(--color-brand-50); color: var(--color-brand-600); }
-.kpi-icon-container.bg-success { background: var(--color-success-50); color: var(--color-success-600); }
-.kpi-icon-container.bg-warning { background: var(--color-warning-50); color: var(--color-warning-600); }
-
-.kpi-data {
-    flex: 1;
-}
-
-.kpi-title-label {
-    display: block;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--color-gray-400);
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-}
-
-.kpi-numeric-value {
-    font-size: 18px;
-    font-weight: 800;
-    color: var(--color-black);
-    margin: 4px 0;
-}
-
-.kpi-numeric-value small {
-    font-size: 13px;
-    color: var(--color-gray-500);
-    font-weight: 400;
-}
-
-.kpi-mini-progress {
-    width: 100%;
-    height: 6px;
-    background: var(--color-gray-100);
-    border-radius: 99px;
-    overflow: hidden;
-    margin-top: 8px;
-}
-
-.kpi-mini-progress .fill {
-    height: 100%;
-    background: var(--color-brand-500);
-    border-radius: 99px;
-}
-
-.kpi-subtext-caption {
-    font-size: 12px;
-    font-weight: 500;
-}
-
-.text-success { color: var(--color-success-700); }
-.text-warning { color: var(--color-warning-700); }
-
-/* --- ACCIONES CON HOVER DE ALTA GAMA --- */
-.dashboard-section-heading {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--color-black);
-    margin-bottom: 16px;
-}
-
-.quick-actions-cards-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.action-hub-card {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    background: var(--color-white);
-    border: 1px solid var(--color-gray-200);
-    padding: 20px 24px;
-    border-radius: 12px;
-    text-decoration: none;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: var(--shadow-theme-xs);
-}
-
-.action-hub-card:hover {
-    border-color: var(--color-brand-300);
-    background-color: var(--color-brand-25);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-theme-md);
-}
-
-.hub-icon-box {
-    font-size: 24px;
-    width: 48px;
-    height: 48px;
-    background: var(--color-gray-50);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s ease;
-}
-
-.action-hub-card:hover .hub-icon-box {
-    background-color: var(--color-white);
-}
-
-.hub-content {
-    flex: 1;
-}
-
-.hub-content h3 {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--color-black);
-}
-
-.hub-content p {
-    font-size: 13px;
-    color: var(--color-gray-500);
-    margin-top: 2px;
-}
-
-.hub-arrow-indicator {
-    font-size: 18px;
-    color: var(--color-gray-400);
-    transition: transform 0.2s ease, color 0.2s ease;
-}
-
-.action-hub-card:hover .hub-arrow-indicator {
-    transform: translateX(4px);
-    color: var(--color-brand-600);
-}
-
-/* --- SIDEBAR DE ALERTAS --- */
-.sidebar-saas-widget {
-    background: var(--color-white);
-    border: 1px solid var(--color-gray-200);
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 24px;
-}
-
-.widget-title {
-    font-size: 13px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-gray-400);
-    margin-bottom: 16px;
-}
-
-.widget-alert-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.saas-alert-pill {
-    display: flex;
-    gap: 12px;
-    padding: 12px;
-    border-radius: 8px;
-    background: var(--color-gray-25);
-    border: 1px solid var(--color-gray-200);
-}
-
-.saas-alert-pill.border-danger { border-left: 3px solid var(--color-error-500); }
-.saas-alert-pill.border-info { border-left: 3px solid var(--color-blue-400); }
-
-.pill-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    margin-top: 4px;
-}
-.pill-dot.bg-danger { background-color: var(--color-error-500); }
-.pill-dot.bg-info { background-color: var(--color-blue-500); }
-
-.pill-info h4 {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-gray-800);
-}
-
-.pill-info p {
-    font-size: 11px;
-    color: var(--color-gray-500);
-    margin-top: 1px;
-}
-
-/* --- GAMIFICACIÓN: SEGURIDAD Y LOGROS --- */
-.motivation-widget-theme {
-    background: linear-gradient(180deg, var(--color-gray-950) 0%, var(--color-gray-900) 100%);
-    color: var(--color-white);
-    border: none;
-    text-align: center;
-}
-
-.motivation-icon-header {
-    font-size: 28px;
-    margin-bottom: 8px;
-}
-
-.motivation-title {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--color-brand-200);
-}
-
-.motivation-description {
-    font-size: 13px;
-    color: var(--color-gray-300);
-    margin-top: 6px;
-    line-height: 1.4;
-}
-
-.motivation-badge-inline {
-    margin-top: 14px;
-    display: inline-block;
-    background: rgba(255, 255, 255, 0.1);
-    padding: 4px 12px;
-    border-radius: 99px;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--color-warning-300);
-}
-
-/* --- CONTROL RESPONSIVE --- */
-@media (max-width: 1024px) {
-    .dashboard-workspace-layout {
-        grid-template-columns: 1fr;
-    }
-}
-
- </style>
-
-<x-common.page-breadcrumb pageTitle="Dashboard" />
-
-
-<div class="min-h-screen tarjeta">
-    <div class="cucsh-dashboard-container">
-
-        <header class="dashboard-welcome-hero">
-            <div class="welcome-profile-area">
-                <div class="avatar-ring-wrapper">
-@if ($alumno->user->foto_url)
-    <img class="student-hero-avatar" src="{{ $alumno->user->foto_url }}" alt="{{ $alumno->user->name }}" style="object-fit:cover;">
-@else
-    <div class="student-hero-avatar" style="display:flex;align-items:center;justify-content:center;background:var(--color-brand-50);color:var(--color-brand-600);font-weight:800;font-size:20px;">{{ $alumno->user->iniciales }}</div>
-@endif                    <span class="online-status-dot"></span>
-                </div>
-                <div class="welcome-text-strings">
-                    <h1>Hola de nuevo, {{ $saludo }} 👋</h1>
-                    <p class="academic-subtext">{{ $alumno->carrera->nombre }} • Código: {{ $alumno->num_control }}</p>
-                </div>
+    <x-dashboard.encabezado :eyebrow="$alumno->carrera->nombre" :titulo="'Hola de nuevo, ' . $saludo"
+        :subtitulo="'Código ' . $alumno->num_control . ($alumno->grado ? ' · ' . $alumno->grado . '.º semestre' : '')">
+        {{-- Siguiente paso --}}
+        <div class="mt-5 flex max-w-2xl items-start gap-3 rounded-xl bg-white/10 p-4 ring-1 ring-inset ring-white/15 backdrop-blur-sm">
+            <span class="relative mt-1 flex size-2.5 shrink-0"><span class="absolute inline-flex size-full animate-ping rounded-full bg-oro-300 opacity-75 motion-reduce:hidden"></span><span class="relative inline-flex size-2.5 rounded-full bg-oro-400"></span></span>
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-oro-300">Tu siguiente paso</p>
+                <p class="mt-1 text-sm leading-relaxed text-white sm:text-[15px]">{{ $paso }}</p>
             </div>
+        </div>
+        <x-slot:acciones>
+            @if ($practica)
+                <a href="{{ route('alumno.mis-documentos') }}" class="boton bg-oro-400 text-udg-950 hover:bg-oro-300 focus-visible:ring-oro-300/50">
+                    <x-dashboard.icono nombre="subir" clase="size-4" /> Subir reporte
+                </a>
+                <a href="{{ route('alumno.mis-practicas') }}" class="boton border border-white/25 text-white hover:bg-white/10">Mi práctica</a>
+            @else
+                <a href="{{ route('alumno.oferta-programas') }}" class="boton bg-oro-400 text-udg-950 hover:bg-oro-300 focus-visible:ring-oro-300/50">
+                    <x-dashboard.icono nombre="buscar" clase="size-4" /> Explorar programas
+                </a>
+                <a href="{{ route('alumno.mis-documentos') }}" class="boton border border-white/25 text-white hover:bg-white/10">Mis documentos</a>
+            @endif
+        </x-slot:acciones>
+    </x-dashboard.encabezado>
 
-            <div class="home-next-step-badge">
-                <div class="next-step-header">
-                    <span class="pulse-icon-ping"></span>
-                    <strong>🎯 TU SIGUIENTE PASO HOY:</strong>
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div class="space-y-6 xl:col-span-2">
+
+            {{-- Progreso de horas --}}
+            <section class="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs sm:p-7" aria-labelledby="titulo-progreso">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="min-w-0 flex-1">
+                        <h2 id="titulo-progreso" class="text-xs font-semibold uppercase tracking-[0.14em] text-oro-700">Progreso de tus horas</h2>
+                        @if ($kpis)
+                            <p class="mt-2 flex items-baseline gap-2">
+                                <span class="font-display text-5xl font-extrabold tabular-nums tracking-tight text-udg-900">{{ $kpis['horas'] }}</span>
+                                <span class="text-lg font-medium text-gray-500">/ {{ $kpis['requeridas'] }} h</span>
+                            </p>
+                            <p class="mt-1 text-sm text-gray-600">
+                                @if ($kpis['horas'] >= $kpis['requeridas'])
+                                    ¡Completaste las horas que pide tu carrera!
+                                @else
+                                    Te faltan <strong class="font-semibold text-gray-900">{{ $kpis['requeridas'] - $kpis['horas'] }} horas</strong> validadas.
+                                @endif
+                            </p>
+                        @else
+                            <p class="mt-2 font-display text-2xl font-bold text-udg-900">Aún no inicias tu práctica</p>
+                            <p class="mt-1 text-sm text-gray-600">Tu carrera pide <strong class="font-semibold text-gray-900">{{ $alumno->carrera->horas_requeridas }} horas</strong>. El contador arranca cuando se active tu práctica.</p>
+                        @endif
+                    </div>
+                    <div class="hidden size-20 shrink-0 items-center justify-center rounded-full bg-udg-50 ring-4 ring-oro-100 min-[420px]:flex" aria-hidden="true">
+                        <span class="font-display text-xl font-bold tabular-nums text-udg-900">{{ $pct }}%</span>
+                    </div>
                 </div>
-                <p>{{ $paso }}</p>
-            </div>
-        </header>
 
-        <x-alumno.tu-coordinacion :carrera="$alumno->carrera" />
-
-        <div class="dashboard-workspace-layout">
-
-            <main class="dashboard-workspace-main">
+                <div class="mt-6">
+                    <div class="relative h-4 overflow-hidden rounded-full bg-gray-100 ring-1 ring-inset ring-gray-200"
+                        role="progressbar" aria-valuenow="{{ $pct }}" aria-valuemin="0" aria-valuemax="100" aria-label="Horas validadas">
+                        <div class="h-full rounded-full bg-gradient-to-r from-udg-900 via-udg-700 to-oro-400 transition-[width] duration-1000 ease-out motion-reduce:transition-none"
+                            x-data="{ ancho: 0 }" x-init="requestAnimationFrame(() => ancho = {{ $pct }})" :style="`width: ${ancho}%`" style="width: {{ $pct }}%"></div>
+                        @foreach ([25, 50, 75] as $marca)
+                            <span class="absolute inset-y-0 w-px bg-white/70" style="left: {{ $marca }}%" aria-hidden="true"></span>
+                        @endforeach
+                    </div>
+                    <div class="mt-1.5 flex justify-between text-[11px] font-medium text-gray-400" aria-hidden="true">
+                        <span>0</span><span>25%</span><span>50%</span><span>75%</span><span>Meta</span>
+                    </div>
+                </div>
 
                 @if ($kpis)
-                    <section class="kpi-dashboard-row" aria-label="Métricas de progreso">
-                        <div class="kpi-saas-card">
-                            <div class="kpi-icon-container bg-brand">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            </div>
-                            <div class="kpi-data">
-                                <span class="kpi-title-label">Horas validadas</span>
-                                <div class="kpi-numeric-value">{{ $kpis['horas'] }} / <small>{{ $kpis['requeridas'] }} hrs</small></div>
-                                <div class="kpi-mini-progress"><div class="fill" style="width: {{ $kpis['pct'] }}%"></div></div>
-                            </div>
+                    <dl class="mt-6 grid grid-cols-3 gap-3 border-t border-gray-100 pt-5">
+                        <div>
+                            <dt class="text-xs text-gray-500">Reportes validados</dt>
+                            <dd class="mt-1 font-display text-xl font-bold tabular-nums text-gray-900">{{ $kpis['validados'] }}<span class="text-sm font-medium text-gray-400"> / {{ $kpis['reportes_total'] }}</span></dd>
                         </div>
-
-                        <div class="kpi-saas-card">
-                            <div class="kpi-icon-container bg-success">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                            </div>
-                            <div class="kpi-data">
-                                <span class="kpi-title-label">Reportes validados</span>
-                                <div class="kpi-numeric-value">{{ $kpis['validados'] }} <small>de {{ $kpis['reportes_total'] }}</small></div>
-                                <p class="kpi-subtext-caption text-success">{{ $kpis['rechazados'] }} rechazado(s)</p>
-                            </div>
+                        <div>
+                            <dt class="text-xs text-gray-500">Por corregir o entregar</dt>
+                            <dd @class(['mt-1 font-display text-xl font-bold tabular-nums', 'text-rose-600' => $kpis['pendientes'], 'text-gray-900' => !$kpis['pendientes']])>{{ $kpis['pendientes'] }}</dd>
                         </div>
-
-                        <div class="kpi-saas-card">
-                            <div class="kpi-icon-container bg-warning">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                            </div>
-                            <div class="kpi-data">
-                                <span class="kpi-title-label">Pendientes</span>
-                                <div class="kpi-numeric-value">{{ $kpis['pendientes'] }} <small>reporte(s)</small></div>
-                                <p class="kpi-subtext-caption text-warning">{{ $kpis['dias_restantes'] }} días restantes</p>
-                            </div>
+                        <div>
+                            <dt class="text-xs text-gray-500">Días restantes</dt>
+                            <dd class="mt-1 font-display text-xl font-bold tabular-nums text-gray-900">{{ $kpis['dias_restantes'] }}</dd>
                         </div>
-                    </section>
+                    </dl>
                 @endif
+            </section>
 
-                <section class="dashboard-quick-actions-section">
-                    <h2 class="dashboard-section-heading">¿Qué necesitas hacer hoy?</h2>
-                    <div class="quick-actions-cards-grid">
-
-                        @if ($practica)
-                            <a href="{{ route('alumno.mis-documentos') }}" class="action-hub-card">
-                                <div class="hub-icon-box">📁</div>
-                                <div class="hub-content">
-                                    <h3>Subir reportes y documentos</h3>
-                                    <p>Reportes firmados, carta de término y constancias.</p>
-                                </div>
-                                <span class="hub-arrow-indicator">→</span>
-                            </a>
-                            <a href="{{ route('alumno.mis-practicas') }}" class="action-hub-card">
-                                <div class="hub-icon-box">🏢</div>
-                                <div class="hub-content">
-                                    <h3>Ver mi práctica</h3>
-                                    <p>{{ $empresa?->razon_social ?? 'Proyecto interno' }} · {{ $programa->titulo }}</p>
-                                </div>
-                                <span class="hub-arrow-indicator">→</span>
-                            </a>
-                        @else
-                            <a href="{{ route('alumno.oferta-programas') }}" class="action-hub-card">
-                                <div class="hub-icon-box">🔎</div>
-                                <div class="hub-content">
-                                    <h3>Explorar programas</h3>
-                                    <p>Encuentra vacantes para {{ $alumno->carrera->nombre }}.</p>
-                                </div>
-                                <span class="hub-arrow-indicator">→</span>
-                            </a>
-                            <a href="{{ route('alumno.mis-documentos') }}" class="action-hub-card">
-                                <div class="hub-icon-box">📁</div>
-                                <div class="hub-content">
-                                    <h3>Mis documentos</h3>
-                                    <p>Constancia IMSS, kardex y cartas de tu postulación.</p>
-                                </div>
-                                <span class="hub-arrow-indicator">→</span>
-                            </a>
-                            @if ($enTramite)
-                                <a href="{{ route('alumno.mis-practicas') }}" class="action-hub-card">
-                                    <div class="hub-icon-box">⏳</div>
-                                    <div class="hub-content">
-                                        <h3>Seguimiento de mi postulación</h3>
-                                        <p>{{ $enTramite->estado->label() }} · {{ $enTramite->programa->titulo }}</p>
-                                    </div>
-                                    <span class="hub-arrow-indicator">→</span>
-                                </a>
+            {{-- Pasos del trámite --}}
+            <x-dashboard.panel titulo="Tu trámite paso a paso" icono="check" descripcion="Así avanza tu práctica profesional, del registro a la acreditación.">
+                <ol class="grid grid-cols-1 gap-0 sm:grid-cols-3 sm:gap-y-6 lg:grid-cols-6">
+                    @foreach ($pasos as $i => [$titulo, $ayuda])
+                        @php $hecho = $i < $etapa; $actual = $i === $etapa; @endphp
+                        <li class="relative flex gap-3 pb-6 last:pb-0 sm:flex-col sm:items-center sm:gap-2 sm:pb-0 sm:text-center">
+                            {{-- Conector --}}
+                            @if (!$loop->last)
+                                {{-- vertical en celular, horizontal cuando los 6 pasos caben en una fila --}}
+                                <span class="absolute left-[15px] top-8 h-[calc(100%-2rem)] w-0.5 sm:hidden {{ $hecho ? 'bg-udg-800' : 'bg-gray-200' }}" aria-hidden="true"></span>
+                                <span class="absolute left-[calc(50%+1.25rem)] top-4 hidden h-0.5 w-[calc(100%-2.5rem)] lg:block {{ $hecho ? 'bg-udg-800' : 'bg-gray-200' }}" aria-hidden="true"></span>
                             @endif
-                        @endif
-
-                    </div>
-                </section>
-            </main>
-
-            <aside class="dashboard-workspace-sidebar" aria-label="Panel de control diario">
-
-                <div class="sidebar-saas-widget">
-                    <h3 class="widget-title">Alertas académicas</h3>
-                    <div class="widget-alert-list">
-                        @forelse ($alertas as $a)
-                            <div class="saas-alert-pill {{ $a['tipo'] === 'danger' ? 'border-danger' : 'border-info' }}">
-                                <div class="pill-dot {{ $a['tipo'] === 'danger' ? 'bg-danger' : 'bg-info' }}"></div>
-                                <div class="pill-info">
-                                    <h4>{{ $a['titulo'] }}</h4>
-                                    <p>{{ $a['texto'] }}</p>
-                                </div>
+                            <span @class([
+                                'relative z-1 flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition',
+                                'bg-udg-800 text-white' => $hecho,
+                                'bg-oro-400 text-udg-950 ring-4 ring-oro-100' => $actual,
+                                'bg-gray-100 text-gray-400 ring-1 ring-inset ring-gray-200' => !$hecho && !$actual,
+                            ])>
+                                @if ($hecho)<x-dashboard.icono nombre="check" clase="size-4" />@else{{ $i + 1 }}@endif
+                            </span>
+                            <div class="min-w-0 pt-1 sm:pt-0">
+                                <p @class(['text-sm leading-snug', 'font-semibold text-gray-900' => $actual, 'font-medium text-gray-700' => $hecho, 'text-gray-400' => !$hecho && !$actual])>
+                                    {{ $titulo }}@if ($actual)<span class="sr-only"> (paso actual)</span>@endif
+                                </p>
+                                <p class="mt-0.5 text-xs leading-snug text-gray-500">{{ $ayuda }}</p>
                             </div>
-                        @empty
-                            <div class="saas-alert-pill border-info">
-                                <div class="pill-dot bg-info"></div>
-                                <div class="pill-info">
-                                    <h4>{{ $imssOk ? 'Seguro IMSS verificado' : 'Sube tu constancia IMSS' }}</h4>
-                                    <p>{{ $imssOk ? 'Cumples el requisito de seguro facultativo.' : 'Es requisito para activar tu práctica.' }}</p>
-                                </div>
-                            </div>
-                        @endforelse
-                    </div>
-                </div>
+                        </li>
+                    @endforeach
+                </ol>
+            </x-dashboard.panel>
 
-                <div class="sidebar-saas-widget motivation-widget-theme">
-                    <div class="motivation-icon-header">{{ $motivacion['icono'] }}</div>
-                    <h4 class="motivation-title">{{ $motivacion['titulo'] }}</h4>
-                    <p class="motivation-description">{{ $motivacion['texto'] }}</p>
-                    @if ($kpis)
-                        <div class="motivation-badge-inline"><span>{{ $kpis['pct'] }}% completado</span></div>
-                    @endif
+            {{-- Accesos rápidos --}}
+            <section aria-labelledby="titulo-accesos">
+                <h2 id="titulo-accesos" class="mb-3 font-display text-base font-bold text-gray-900">Accesos rápidos</h2>
+                <div class="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3">
+                    @php
+                        $accesos = [
+                            ['Convenios vigentes', 'Organizaciones donde puedes hacer prácticas externas', route('convenios-vigentes'), 'vigente', 'menta'],
+                            $practica
+                                ? ['Mi práctica', ($empresa?->razon_social ?? 'Proyecto interno') . ' · ' . $programa->titulo, route('alumno.mis-practicas'), 'empresa', 'cielo']
+                                : ['Oferta de programas', 'Vacantes y proyectos para tu carrera', route('alumno.oferta-programas'), 'buscar', 'cielo'],
+                            ['Mis documentos', $practica ? 'Reportes firmados y carta de término' : 'Constancia IMSS, kardex y cartas', route('alumno.mis-documentos'), 'documento', 'lavanda'],
+                        ];
+                    @endphp
+                    @php
+                        $tonosAcceso = [
+                            'menta' => 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+                            'cielo' => 'bg-sky-50 text-sky-700 ring-sky-100',
+                            'lavanda' => 'bg-violet-50 text-violet-700 ring-violet-100',
+                        ];
+                    @endphp
+                    @foreach ($accesos as $i => [$titulo, $texto, $url, $icono, $tono])
+                        <a href="{{ $url }}" style="animation-delay: {{ $i * 60 }}ms"
+                            class="group flex animate-entrada items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs transition duration-200 hover:-translate-y-1 hover:border-udg-200 hover:shadow-theme-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25 motion-reduce:animate-none motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+                            <span class="flex size-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset {{ $tonosAcceso[$tono] }}">
+                                <x-dashboard.icono :nombre="$icono" />
+                            </span>
+                            <span class="min-w-0 flex-1">
+                                <span class="flex items-center justify-between gap-2 font-semibold text-gray-900">
+                                    {{ $titulo }}
+                                    <x-dashboard.icono nombre="flecha" clase="size-4 shrink-0 text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-udg-800" />
+                                </span>
+                                <span class="mt-0.5 block text-xs leading-relaxed text-gray-500">{{ $texto }}</span>
+                            </span>
+                        </a>
+                    @endforeach
                 </div>
-
-            </aside>
+            </section>
         </div>
+
+        {{-- Columna lateral --}}
+        <aside class="space-y-6" aria-label="Contacto y avisos">
+            <x-alumno.tu-coordinacion :carrera="$alumno->carrera" />
+
+            <x-dashboard.panel titulo="Avisos" icono="alerta">
+                <div class="space-y-3">
+                    @forelse ($alertas as $a)
+                        <x-ui.aviso :tipo="$a['tipo'] === 'danger' ? 'error' : 'info'" :titulo="$a['titulo']">{{ $a['texto'] }}</x-ui.aviso>
+                    @empty
+                        <x-ui.aviso :tipo="$imssOk ? 'exito' : 'advertencia'" :titulo="$imssOk ? 'Seguro IMSS verificado' : 'Sube tu constancia IMSS'">
+                            {{ $imssOk ? 'Cumples el requisito de seguro facultativo.' : 'Es requisito para postularte y activar tu práctica.' }}
+                        </x-ui.aviso>
+                    @endforelse
+                </div>
+            </x-dashboard.panel>
+
+            <section class="relative overflow-hidden rounded-2xl border border-oro-100 bg-gradient-to-br from-oro-50 to-white p-5 shadow-theme-xs">
+                <span class="text-3xl" aria-hidden="true">{{ $motivacion['icono'] }}</span>
+                <h2 class="mt-2 font-display text-base font-bold text-udg-900">{{ $motivacion['titulo'] }}</h2>
+                <p class="mt-1 text-sm leading-relaxed text-gray-600">{{ $motivacion['texto'] }}</p>
+                @if ($kpis)
+                    <p class="mt-3 inline-flex rounded-full bg-udg-900 px-3 py-1 text-xs font-semibold text-white">{{ $kpis['pct'] }}% completado</p>
+                @endif
+            </section>
+        </aside>
     </div>
 </div>
 @endsection

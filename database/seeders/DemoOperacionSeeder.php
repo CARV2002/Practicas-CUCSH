@@ -83,6 +83,7 @@ class DemoOperacionSeeder extends Seeder
         $this->alumnosYPostulaciones($p);
         $this->usuarioInactivo();
         $this->avisosDemo();
+        $this->documentosFisicosDemo();
     }
 
 
@@ -319,6 +320,32 @@ class DemoOperacionSeeder extends Seeder
             'capturado_siiau_at' => now()->subMonths(2)->addDays(5),
         ]);
         $this->adjuntar($oficio, 'oficio_acreditacion', 'oficio-acreditacion.pdf', ValidacionEstado::Validada);
+    }
+
+    /** Papeles del trámite híbrido: control abierto y juegos con la empresa (uno ya vencido). */
+    private function documentosFisicosDemo(): void
+    {
+        $enProceso = [
+            ConvenioEstado::EnValidacionAcademica->value, ConvenioEstado::EnRevisionJuridica->value,
+            ConvenioEstado::EnFirmas->value, ConvenioEstado::Formalizado->value,
+        ];
+
+        Convenio::whereIn('estado', $enProceso)->get()
+            ->each(fn (Convenio $c) => $c->prepararDocumentosFisicos($this->lorena));
+
+        Convenio::where('estado', ConvenioEstado::EnFirmas->value)->get()->each(function (Convenio $c) {
+            $c->documentosFisicos()
+                ->where('tipo', \App\Enums\TipoDocumentoFisico::JuegoConvenio->value)
+                ->where('estado', \App\Enums\EstadoDocumentoFisico::PorElaborar->value)
+                ->get()
+                ->each(fn ($j, $i) => $j->mover(
+                    \App\Enums\EstadoDocumentoFisico::ConEmpresa,
+                    $this->lorena,
+                    'Entregados al representante legal.',
+                    $i === 0 ? today()->subDay() : null,
+                    today()->subWeekdays(6),
+                ));
+        });
     }
 
     /**

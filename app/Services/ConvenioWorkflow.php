@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Enums\ConvenioEstado;
 use App\Enums\Dictamen;
+use App\Enums\EstadoDocumentoFisico;
 use App\Enums\EtapaConvenio;
 use App\Enums\SeguimientoEstado;
+use App\Enums\TipoDocumentoFisico;
 use App\Models\Carrera;
 use App\Models\Convenio;
 use App\Models\ConvenioCarrera;
@@ -92,6 +94,7 @@ class ConvenioWorkflow
 
             $this->cerrarEtapa($convenio, EtapaConvenio::RevisionDocumentos, SeguimientoEstado::Aprobado, $por);
             $this->abrirEtapa($convenio, EtapaConvenio::TurnoAcademico, $por, 'Turnado a las carreras solicitadas.');
+            $convenio->prepararDocumentosFisicos($por);
             $this->avisarEmpresa($convenio, 'Tu documentación fue aceptada. Tu solicitud pasó a la validación académica de las carreras.');
 
             // Cada Coordinación de carrera emite su dictamen desde su panel
@@ -220,6 +223,8 @@ class ConvenioWorkflow
             $this->cerrarEtapa($convenio, EtapaConvenio::RedaccionBorrador, SeguimientoEstado::Aprobado, $por);
             $convenio->update(['estado' => ConvenioEstado::EnRevisionJuridica]);
             $this->abrirEtapa($convenio, EtapaConvenio::DictamenJuridico, $por);
+            $convenio->prepararDocumentosFisicos($por);
+            $this->moverFisico($convenio, TipoDocumentoFisico::DictamenJuridico, EstadoDocumentoFisico::EnJuridica, $por, 'Borrador turnado a la Unidad Jurídica.');
             $this->avisarEmpresa($convenio, 'Tu convenio está en revisión de la Unidad Jurídica.');
 
             return $convenio;
@@ -284,6 +289,12 @@ class ConvenioWorkflow
                 : EtapaConvenio::ArchivoDistribucion;
 
             $this->abrirEtapa($convenio, $siguiente, $por);
+            $convenio->prepararDocumentosFisicos($por);
+            $convenio->sincronizarJuegos(
+                $etapa === EtapaConvenio::FirmaEmpresa ? EstadoDocumentoFisico::FirmadoEmpresa : EstadoDocumentoFisico::Firmado,
+                $por,
+                $etapa === EtapaConvenio::FirmaEmpresa ? 'Firma de la empresa registrada en el trámite.' : 'Firma de Rectoría registrada en el trámite.'
+            );
             $this->avisarEmpresa($convenio, $etapa === EtapaConvenio::FirmaEmpresa
                 ? 'Recibimos tu firma. El convenio pasa a la firma de Rectoría.'
                 : 'Rectoría firmó el convenio. Estamos registrándolo y archivándolo.');
@@ -392,6 +403,8 @@ class ConvenioWorkflow
         $this->cerrarEtapa($convenio, EtapaConvenio::DictamenJuridico, SeguimientoEstado::Aprobado, $por, $comentario);
         $convenio->update(['estado' => ConvenioEstado::EnFirmas]);
         $this->abrirEtapa($convenio, EtapaConvenio::FirmaEmpresa, $por, 'Imprimir 3 juegos y llamar a la empresa.');
+        $this->moverFisico($convenio, TipoDocumentoFisico::DictamenJuridico, EstadoDocumentoFisico::EnVinculacion, $por, 'Dictamen aprobatorio recibido.');
+        $convenio->prepararDocumentosFisicos($por);
         $this->avisarEmpresa($convenio, 'La Unidad Jurídica aprobó tu convenio. Vinculación te contactará para entregar los 3 juegos originales y recabar tu firma.');
     }
 
@@ -400,6 +413,7 @@ class ConvenioWorkflow
         // Jurídica regresa el Word: Lorena corrige y vuelve a turnar. Queda el historial completo.
         $this->cerrarEtapa($convenio, EtapaConvenio::DictamenJuridico, SeguimientoEstado::Observado, $por, $comentario);
         $this->abrirEtapa($convenio, EtapaConvenio::RedaccionBorrador, null, 'Corregir el borrador según las observaciones de Jurídica.');
+        $this->moverFisico($convenio, TipoDocumentoFisico::DictamenJuridico, EstadoDocumentoFisico::ConObservaciones, $por, $comentario);
         $this->avisarEmpresa($convenio, 'La Unidad Jurídica hizo observaciones al borrador. Vinculación lo está corrigiendo.');
     }
 
@@ -472,6 +486,16 @@ class ConvenioWorkflow
         ]);
 
         return $abierta;
+    }
+
+    /** Mueve un papel del control físico si existe y no está ya en ese estado. */
+    private function moverFisico(Convenio $convenio, TipoDocumentoFisico $tipo, EstadoDocumentoFisico $estado, ?Personal $por, ?string $nota): void
+    {
+        $doc = $convenio->documentosFisicos()->where('tipo', $tipo->value)->first();
+
+        if ($doc && $doc->estado !== $estado) {
+            $doc->mover($estado, $por, $nota);
+        }
     }
 
     private function etapaAbierta(Convenio $convenio, EtapaConvenio $etapa): ?ConvenioSeguimiento

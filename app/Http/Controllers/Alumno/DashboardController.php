@@ -35,7 +35,11 @@ class DashboardController extends Controller
         $imss = $alumno->documentoVigente('constancia_imss');
         $imssEstado = $imss?->getCustomProperty('estado');
 
+        $postulacionPendiente = ! $practica && ! $enTramite
+            && $alumno->postulaciones()->where('estado', PostulacionEstado::Pendiente->value)->exists();
+
         $base = [
+            'etapa' => $this->etapa($practica, $enTramite, $postulacionPendiente),
             'alumno' => $alumno,
             'practica' => $practica,
             'enTramite' => $enTramite,
@@ -121,6 +125,29 @@ class DashboardController extends Controller
             $horas >= $req => '¡Completaste tus horas! Sube tu carta de término en Mis documentos.',
             $dias > 0 && $dias <= 30 => 'Quedan '.$dias.' días y te faltan '.($req - $horas).' horas validadas. Es momento de acelerar. 💪',
             default => 'Te faltan '.($req - $horas).' horas validadas. Cada reporte a tiempo te acerca a la meta.',
+        };
+    }
+
+    /**
+     * Paso actual del trámite para el indicador visual:
+     * 0 Postúlate · 1 Carta de presentación · 2 Carta de aceptación · 3 Práctica en curso · 4 Cierre · 5 Acreditada
+     * (6 = todo completo).
+     */
+    private function etapa(?Practica $practica, $enTramite, bool $pendiente): int
+    {
+        if ($practica) {
+            return match ($practica->estado) {
+                PracticaEstado::Acreditada => 6,
+                PracticaEstado::EnCierre => 4,
+                default => 3,
+            };
+        }
+
+        return match (true) {
+            $enTramite?->estado === PostulacionEstado::CartaAceptacionRecibida => 3,
+            $enTramite?->estado === PostulacionEstado::CartaPresentacionEmitida => 2,
+            $pendiente => 1,
+            default => 0,
         };
     }
 

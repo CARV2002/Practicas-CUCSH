@@ -691,11 +691,11 @@
             <div class="contact-info-side">
                 <h2>¿Necesitas ayuda con tu proceso?</h2>
                 <p>Si tienes dudas con la carga de documentos, con el estado de tu postulación o con tu práctica, comunícate con la coordinación de tu carrera (directorio en la página de Contacto). Vinculación solo atiende convenios con organizaciones.</p>
-                @auth
+                @if (auth()->user()?->tieneAyuda())
                 <div class="quick-contact-meta">
                     <p>También puedes consultar la <a href="{{ route('ayuda') }}" style="color: inherit; text-decoration: underline;">sección de ayuda</a> dentro de la plataforma.</p>
                 </div>
-                @endauth
+                @endif
             </div>
             <div class="contact-form-side">
                 <div class="form-group">

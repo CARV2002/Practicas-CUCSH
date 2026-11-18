@@ -433,9 +433,15 @@
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 </div>
                 @auth
-                    <h3>Ayuda en la plataforma</h3>
-                    <p>Consulta la sección de ayuda dentro de tu panel antes de escribirnos.</p>
-                    <a href="{{ route('ayuda') }}" class="resource-link">Ir a la ayuda <span>→</span></a>
+                    @if (auth()->user()->tieneAyuda())
+                        <h3>Ayuda en la plataforma</h3>
+                        <p>Consulta la sección de ayuda dentro de tu panel antes de escribirnos.</p>
+                        <a href="{{ route('ayuda') }}" class="resource-link">Ir a la ayuda <span>→</span></a>
+                    @else
+                        <h3>Tu panel</h3>
+                        <p>Consulta el estado de los trámites y tus pendientes desde tu panel.</p>
+                        <a href="{{ route('dashboard') }}" class="resource-link">Ir a mi panel <span>→</span></a>
+                    @endif
                 @else
                     <h3>Aún no tengo cuenta</h3>
                     <p>Alumnos y organizaciones se registran por separado. Elige tu tipo de cuenta para comenzar.</p>

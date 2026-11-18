@@ -79,6 +79,19 @@ class Empresa extends Model implements HasMedia
     }
 
     /** Documentos que deben estar validados antes de turnar el convenio a las carreras. */
+    /** Nombre legible de cada documento del expediente. */
+    public static function nombreDocumento(string $coleccion): string
+    {
+        return [
+            'cv_instancia' => 'Currículum de la instancia',
+            'identificacion_representante' => 'Identificación oficial del representante',
+            'acta_constitutiva' => 'Acta constitutiva o nombramiento legal',
+            'constancia_situacion_fiscal' => 'Constancia de situación fiscal',
+            'comprobante_domicilio' => 'Comprobante de domicilio',
+            'poder_notarial' => 'Poder notarial (opcional)',
+        ][$coleccion] ?? \Illuminate\Support\Str::headline($coleccion);
+    }
+
     public static function coleccionesObligatorias(): array
     {
         return [

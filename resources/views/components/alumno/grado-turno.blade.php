@@ -1,7 +1,7 @@
 @props(['grado' => null, 'turno' => null])
 
 @php
-    $clase = 'dark:bg-dark-900 shadow-theme-xs focus:border-real-500 focus:ring-real-500/20 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:ring-3 focus:outline-hidden';
+    $clase = 'campo h-11';
     $grado = old('grado', $grado);
     $turno = old('turno', $turno instanceof \App\Enums\Turno ? $turno->value : $turno);
 @endphp

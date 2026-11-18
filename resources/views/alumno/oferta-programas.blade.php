@@ -476,15 +476,13 @@
 <div class="saas-dashboard-container">
 
     @if (session('status'))
-        <div class="rounded-xl border border-green-500 bg-green-50 p-4 text-sm text-green-700">{{ session('status') }}</div>
+        <x-ui.aviso tipo="exito" descartable>{{ session('status') }}</x-ui.aviso>
     @endif
     @if ($errors->any())
-        <div class="rounded-xl border border-red-500 bg-red-50 p-4 text-sm text-red-700">
-            <ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
-        </div>
+        <x-ui.aviso tipo="error"><ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></x-ui.aviso>
     @endif
     @if ($bloqueo)
-        <div class="rounded-xl border border-yellow-500 bg-yellow-50 p-4 text-sm text-yellow-800">{{ $bloqueo }}</div>
+        <x-ui.aviso tipo="advertencia">{{ $bloqueo }}</x-ui.aviso>
     @endif
 
     {{-- Búsqueda y filtros --}}

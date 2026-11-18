@@ -114,6 +114,7 @@ Route::prefix('empresa')
         Route::get('/documentos', [DocumentoController::class, 'index'])->name('documentos');
         Route::post('/documentos', [DocumentoController::class, 'subir'])->name('documentos.subir');
         Route::put('/datos-legales', [DocumentoController::class, 'datosLegales'])->name('datos-legales');
+        Route::patch('/perfil', [\App\Http\Controllers\Empresa\PerfilController::class, 'update'])->name('perfil.update');
         Route::get('/documentos/{media}', [DocumentoController::class, 'descargar'])->name('documentos.descargar');
 
         //Route::view('/lista-programas', 'empresa.lista-programas')->name('lista-programas');
@@ -161,6 +162,12 @@ Route::prefix('admin')
 
         // Fechas de paso del oficio por Secretaría Académica y la División
         Route::post('/convenios/{convenio}/turnos', [ConvenioController::class, 'registrarTurnos'])->name('convenios.turnos');
+
+        // Documentos físicos del trámite híbrido (oficios, dictamen jurídico y juegos firmados)
+        Route::get('/documentos-fisicos', [\App\Http\Controllers\Admin\DocumentoFisicoController::class, 'index'])->name('documentos-fisicos');
+        Route::post('/documentos-fisicos/{documento}', [\App\Http\Controllers\Admin\DocumentoFisicoController::class, 'mover'])->name('documentos-fisicos.mover');
+        Route::post('/convenios/{convenio}/documentos-fisicos', [\App\Http\Controllers\Admin\DocumentoFisicoController::class, 'preparar'])->name('convenios.fisicos.preparar');
+        Route::post('/convenios/{convenio}/recordar-juegos', [\App\Http\Controllers\Admin\DocumentoFisicoController::class, 'recordarEmpresa'])->name('convenios.fisicos.recordar');
 
         // Dictámenes por carrera: los emite cada Coordinación; Vinculación da seguimiento
         Route::get('/lista-dictamenes', [DictamenController::class, 'index'])->name('lista-dictamenes');
@@ -271,7 +278,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/notificaciones/{id}/abrir', [NotificacionController::class, 'abrir'])->name('notificaciones.abrir');
     Route::post('/notificaciones/leer-todas', [NotificacionController::class, 'marcarTodas'])->name('notificaciones.leer-todas');
 
-    Route::view('/ayuda', 'ayuda')->name('ayuda');
+    // Centro de ayuda por rol (Vinculación y Administrador técnico van a su panel)
+    Route::get('/ayuda', \App\Http\Controllers\AyudaController::class)->name('ayuda');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

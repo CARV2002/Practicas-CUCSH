@@ -3,8 +3,14 @@
 namespace App\Console\Commands;
 
 use App\Enums\ConvenioEstado;
+use App\Enums\Dictamen;
+use App\Enums\EstadoDocumentoFisico;
+use App\Enums\EtapaConvenio;
+use App\Http\Controllers\Admin\DocumentoFisicoController;
 use App\Models\Convenio;
+use App\Models\ConvenioCarrera;
 use App\Models\ConvenioSeguimiento;
+use App\Models\DocumentoFisico;
 use App\Models\Practica;
 use App\Models\User;
 use App\Notifications\AvisoOperativo;
@@ -15,11 +21,12 @@ class AvisosProgramados extends Command
 {
     protected $signature = 'practicas:avisos-programados';
 
-    protected $description = 'Avisos diarios: convenios por vencer, esperas excedidas y prácticas por terminar';
+    protected $description = 'Avisos diarios: convenios por vencer, esperas excedidas, documentos físicos, dictámenes pendientes y prácticas por terminar';
 
     public function handle(): int
     {
-        $total = $this->conveniosPorVencer() + $this->esperasExcedidas() + $this->practicasPorTerminar();
+        $total = $this->conveniosPorVencer() + $this->esperasExcedidas() + $this->documentosFisicos()
+            + $this->juegosConEmpresa() + $this->dictamenesPendientes() + $this->practicasPorTerminar();
 
         $this->info("Avisos enviados: {$total}");
 
@@ -121,6 +128,115 @@ class AvisosProgramados extends Command
                         clave: $clave,
                     ));
                     $enviados++;
+                }
+            });
+
+        return $enviados;
+    }
+
+    /**
+     * Papeles fuera de la oficina que regresan mañana o ya debían haber regresado.
+     * Un aviso por convenio y por fecha de regreso, para no saturar la campana.
+     */
+    private function documentosFisicos(): int
+    {
+        $enviados = 0;
+
+        DocumentoFisico::fuera()->with('convenio.empresa')
+            ->whereNotNull('fecha_compromiso')
+            ->whereDate('fecha_compromiso', '<=', today()->addWeekday()->toDateString())
+            ->get()
+            ->filter(fn (DocumentoFisico $d) => $d->convenio !== null)
+            ->groupBy(fn (DocumentoFisico $d) => $d->convenio_id . '-' . $d->fecha_compromiso->toDateString())
+            ->each(function ($docs) use (&$enviados) {
+                $primero = $docs->first();
+                $convenio = $primero->convenio;
+                $vencido = $primero->vencido();
+                $clave = 'fisico-' . $convenio->id . '-' . $primero->fecha_compromiso->toDateString() . ($vencido ? '-v' : '-p');
+                $lista = $docs->map(fn (DocumentoFisico $d) => $d->nombre() . ' (' . mb_strtolower($d->estado->label()) . ')')->join(', ', ' y ');
+                $cuando = $vencido
+                    ? 'debían regresar el ' . $primero->fecha_compromiso->format('d/m/Y')
+                    : 'deben regresar el ' . $primero->fecha_compromiso->format('d/m/Y');
+
+                foreach (Avisos::vinculacionDe($convenio) as $admin) {
+                    if (! $this->yaAvisado($admin, $clave)) {
+                        Avisos::enviar($admin, new AvisoOperativo(
+                            mensaje: "{$convenio->empresa->razon_social}: {$lista} {$cuando}. Confirma dónde están.",
+                            url: route('admin.documentos-fisicos', ['vista' => $vencido ? 'vencidos' : 'fuera'], false),
+                            detalle: 'Documentos físicos',
+                            clave: $clave,
+                        ));
+                        $enviados++;
+                    }
+                }
+            });
+
+        return $enviados;
+    }
+
+    /** La empresa tiene juegos originales por firmar y su fecha de entrega está a 2 días o ya pasó. */
+    private function juegosConEmpresa(): int
+    {
+        $enviados = 0;
+
+        DocumentoFisico::where('estado', EstadoDocumentoFisico::ConEmpresa->value)
+            ->with('convenio.empresa.user')
+            ->whereDate('fecha_compromiso', '<=', today()->addWeekdays(2)->toDateString())
+            ->get()
+            ->filter(fn (DocumentoFisico $d) => $d->convenio?->empresa?->user !== null)
+            ->groupBy('convenio_id')
+            ->each(function ($juegos) use (&$enviados) {
+                $convenio = $juegos->first()->convenio;
+                $user = $convenio->empresa->user;
+                $clave = 'juegos-' . $convenio->id . '-' . $juegos->min('fecha_compromiso')->toDateString();
+
+                if ($user->activo && ! $this->yaAvisado($user, $clave)) {
+                    Avisos::enviar($user, new AvisoOperativo(
+                        mensaje: DocumentoFisicoController::mensajeEmpresa($juegos),
+                        url: route('empresa.convenio', absolute: false),
+                        detalle: 'Convenio con el CUCSH',
+                        correo: true,
+                        asunto: 'Recordatorio: devuelve los juegos firmados de tu convenio',
+                        clave: $clave,
+                    ));
+                    $enviados++;
+                }
+            });
+
+        return $enviados;
+    }
+
+    /** Coordinaciones con un dictamen de pertinencia pendiente desde hace 5+ días hábiles (una vez por semana). */
+    private function dictamenesPendientes(): int
+    {
+        $enviados = 0;
+
+        ConvenioCarrera::where('dictamen', Dictamen::Pendiente->value)
+            ->whereHas('convenio', fn ($c) => $c->where('estado', ConvenioEstado::EnValidacionAcademica->value))
+            ->with(['carrera', 'convenio.empresa', 'convenio.seguimientos'])
+            ->get()
+            ->each(function (ConvenioCarrera $d) use (&$enviados) {
+                $turno = $d->convenio->seguimientos->where('etapa', EtapaConvenio::TurnoAcademico)->sortByDesc('id')->first();
+                $dias = $turno ? $turno->diasHabiles() : 0;
+
+                if ($dias < 5) {
+                    return;
+                }
+
+                $clave = "dictamen-{$d->id}-" . today()->format('o-W');
+
+                foreach (Avisos::coordinadores((int) $d->carrera_id) as $coord) {
+                    if (! $this->yaAvisado($coord, $clave)) {
+                        Avisos::enviar($coord, new AvisoOperativo(
+                            mensaje: "Recordatorio: el dictamen de pertinencia de {$d->carrera->carrera_clave} para {$d->convenio->empresa->razon_social} lleva {$dias} días hábiles pendiente.",
+                            url: route('coordinacion.lista-dictamenes', absolute: false),
+                            detalle: $d->convenio->empresa->razon_social,
+                            correo: true,
+                            asunto: 'Dictamen de pertinencia pendiente',
+                            clave: $clave,
+                        ));
+                        $enviados++;
+                    }
                 }
             });
 

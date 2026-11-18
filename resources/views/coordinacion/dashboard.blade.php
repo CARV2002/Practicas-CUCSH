@@ -2,107 +2,119 @@
 
 @section('content')
 @php
-    $card = 'tarjeta p-5';
-    $panel = 'tarjeta p-6';
-    $totalPracticas = max(1, $practicas_por_estado->sum());
-    $pend = [
-        ['Postulaciones por validar', $pendientes['postulaciones'], route('coordinacion.lista-practicantes')],
-        ['Reportes por validar', $pendientes['reportes'], route('coordinacion.lista-reportes')],
-        ['Cierres por atender', $pendientes['cierres'], route('coordinacion.lista-cierres')],
-        ['Vacantes por aprobar', $pendientes['vacantes_por_aprobar'], route('coordinacion.lista-programas', ['estado' => 'pendiente_aprobacion'])],
-    ];
+    $totalPendientes = $pendientes['vacantes_por_aprobar'] + $pendientes['postulaciones'] + $pendientes['imss'] + $pendientes['kardex'] + $pendientes['reportes'] + $pendientes['cierres'];
+    $docs = $pendientes['imss'] + $pendientes['kardex'];
+    $alcance = $carreras->count() === 1 ? 'Coordinación de ' . $carreras->first()->nombre : 'Coordinación · ' . $carreras->count() . ' carreras';
+    $familiaPractica = fn (string $etiqueta) => collect(\App\Enums\PracticaEstado::cases())->first(fn ($e) => $e->label() === $etiqueta)?->familia() ?? 'gris';
 @endphp
-
-<x-common.page-breadcrumb pageTitle="Panel de Coordinación" />
 
 <div class="space-y-6">
 
-    <p class="text-sm text-gray-500">
-        Alcance:
-        @foreach ($carreras as $c)
-            <span class="mr-1 inline-block rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-700" title="{{ $c->nombre }}">{{ $c->carrera_clave }}</span>
-        @endforeach
-    </p>
-
-    {{-- KPIs --}}
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="{{ $card }}">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Alumnos registrados</p>
-            <h3 class="mt-1 text-2xl font-bold text-gray-900">{{ number_format($kpis['alumnos']) }}</h3>
-        </div>
-        <div class="{{ $card }}">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Prácticas activas</p>
-            <h3 class="mt-1 text-2xl font-bold text-gray-900">{{ $kpis['practicas_activas'] }}</h3>
-        </div>
-        <div class="{{ $card }}">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Programas publicados</p>
-            <h3 class="mt-1 text-2xl font-bold text-gray-900">{{ $kpis['programas_publicados'] }}</h3>
-        </div>
-        <div class="{{ $card }}">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Ocupación de plazas</p>
-            <h3 class="mt-1 text-2xl font-bold text-gray-900">{{ $kpis['ocupacion'] }}%</h3>
-            <div class="mt-2 h-1.5 w-full rounded-full bg-gray-200"><div class="bg-udg-800 h-1.5 rounded-full" style="width: {{ $kpis['ocupacion'] }}%"></div></div>
-            <p class="mt-1 text-xs text-gray-500">{{ $kpis['cupos_ocupados'] }} de {{ $kpis['cupos_totales'] }} cupos publicados</p>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-
-        {{-- Pendientes --}}
-        <div class="{{ $panel }}">
-            <h4 class="text-base font-bold text-gray-900">Pendientes de atención</h4>
-            <p class="mb-3 text-xs text-gray-500">Lo que requiere acción de tu coordinación.</p>
-            <ul class="divide-y divide-gray-100">
-                @foreach ($pend as [$texto, $n, $url])
-                    <li>
-                        <a href="{{ $url }}" class="flex items-center justify-between py-2.5 text-sm hover:text-real-700">
-                            <span class="text-gray-700">{{ $texto }}</span>
-                            <span class="rounded-full px-2.5 py-0.5 text-xs font-bold {{ $n ? 'bg-yellow-50 text-yellow-700' : 'bg-gray-100 text-gray-400' }}">{{ $n }}</span>
-                        </a>
-                    </li>
-                @endforeach
-            </ul>
-        </div>
-
-        {{-- Prácticas por estado --}}
-        <div class="{{ $panel }} lg:col-span-2">
-            <h4 class="mb-3 text-base font-bold text-gray-900">Prácticas por estado</h4>
-            <div class="space-y-3">
-                @foreach ($practicas_por_estado as $estado => $n)
-                    <div>
-                        <div class="mb-1 flex justify-between text-sm">
-                            <span class="text-gray-700">{{ $estado }}</span>
-                            <span class="font-semibold text-gray-900">{{ $n }}</span>
-                        </div>
-                        <div class="h-1.5 w-full rounded-full bg-gray-100"><div class="bg-udg-800 h-1.5 rounded-full" style="width: {{ round($n / $totalPracticas * 100) }}%"></div></div>
-                    </div>
+    <x-dashboard.encabezado :eyebrow="$alcance" :titulo="$nombre ? 'Hola, ' . $nombre : 'Te damos la bienvenida'"
+        :subtitulo="$totalPendientes
+            ? 'Tienes ' . $totalPendientes . ' ' . ($totalPendientes === 1 ? 'pendiente' : 'pendientes') . ' por atender. Empieza por las tarjetas con número.'
+            : 'Todo al día: no hay pendientes por atender en tu carrera.'">
+        @if ($carreras->count() > 1)
+            <div class="mt-3 flex flex-wrap gap-1.5">
+                @foreach ($carreras as $c)
+                    <span class="rounded-md bg-white/10 px-2 py-0.5 text-xs font-semibold text-white ring-1 ring-inset ring-white/15" title="{{ $c->nombre }}">{{ $c->carrera_clave }}</span>
                 @endforeach
             </div>
-        </div>
-    </div>
+        @endif
+        <x-slot:acciones>
+            <a href="{{ route('coordinacion.lista-practicantes') }}" class="boton bg-oro-400 text-udg-950 hover:bg-oro-300 focus-visible:ring-oro-300/50">
+                <x-dashboard.icono nombre="usuarios" clase="size-4" /> Practicantes
+            </a>
+            <a href="{{ route('coordinacion.lista-programas') }}" class="boton border border-white/25 text-white hover:bg-white/10">Programas</a>
+        </x-slot:acciones>
+    </x-dashboard.encabezado>
 
-    {{-- Programas recientes --}}
-    <div class="{{ $panel }}">
-        <div class="mb-3 flex items-center justify-between">
-            <h4 class="text-base font-bold text-gray-900">Programas recientes</h4>
-            <a href="{{ route('coordinacion.lista-programas') }}" class="text-real-600 text-xs font-semibold hover:underline">Ver todos</a>
+    {{-- Pendientes de la carrera: acceso directo en un clic --}}
+    <section aria-label="Pendientes de tu coordinación">
+        <div class="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <x-dashboard.kpi :href="route('coordinacion.lista-programas', ['estado' => 'pendiente_aprobacion'])"
+                etiqueta="Vacantes por aprobar" :valor="$pendientes['vacantes_por_aprobar']" icono="vacante" tono="ambar" :orden="0"
+                detalle="Propuestas de empresas para tu carrera" accion="Revisar" />
+            <x-dashboard.kpi :href="route('coordinacion.lista-practicantes')"
+                etiqueta="Postulaciones nuevas" :valor="$pendientes['postulaciones']" icono="usuarios" tono="cielo" :orden="1"
+                detalle="Valida créditos y emite la carta de presentación" accion="Revisar" />
+            <x-dashboard.kpi :href="route('coordinacion.lista-practicantes')"
+                etiqueta="IMSS y kardex por validar" :valor="$docs" icono="imss" tono="lavanda" :orden="2"
+                :detalle="$pendientes['imss'] . ' IMSS · ' . $pendientes['kardex'] . ' kardex'" accion="Validar" />
+            <x-dashboard.kpi :href="route('coordinacion.lista-reportes')"
+                etiqueta="Reportes por validar" :valor="$pendientes['reportes']" icono="reporte" tono="indigo" :orden="3"
+                detalle="Las horas cuentan cuando los validas" accion="Validar" />
+            <x-dashboard.kpi :href="route('coordinacion.lista-cierres')"
+                etiqueta="Cierres por atender" :valor="$pendientes['cierres']" icono="cierre" tono="menta" :orden="4"
+                detalle="Carta de término, oficio y SIIAU" accion="Atender" />
         </div>
-        <div class="divide-y divide-gray-100">
-            @forelse ($programas_recientes as $p)
-                <div class="flex items-center justify-between py-3">
-                    <div>
-                        <p class="text-sm font-semibold text-gray-800">{{ $p->titulo }}</p>
-                        <p class="text-xs text-gray-500">{{ $p->carrera->carrera_clave }} · {{ $p->convenio?->empresa->razon_social ?? 'Proyecto interno' }}</p>
+    </section>
+
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
+
+        {{-- Tu carrera en números --}}
+        <x-dashboard.panel titulo="Tu carrera en números" icono="informe" descripcion="Panorama general de tu alcance.">
+            <dl class="grid grid-cols-2 gap-3">
+                @foreach ([
+                    ['Alumnos registrados', number_format($kpis['alumnos'])],
+                    ['Prácticas activas', $kpis['practicas_activas']],
+                    ['Programas publicados', $kpis['programas_publicados']],
+                    ['Cupos publicados', $kpis['cupos_totales']],
+                ] as [$texto, $n])
+                    <div class="rounded-xl bg-gray-50 p-3.5 ring-1 ring-inset ring-gray-100">
+                        <dt class="text-xs text-gray-500">{{ $texto }}</dt>
+                        <dd class="mt-1 font-display text-2xl font-bold tabular-nums text-gray-900">{{ $n }}</dd>
                     </div>
-                    <div class="text-right">
-                        <span class="block text-sm font-bold text-gray-800">{{ (int) $p->cupos_ocupados }}/{{ $p->cupos_totales }}</span>
-                        <span class="text-xs text-gray-400">{{ ucfirst($p->estado->value) }}</span>
+                @endforeach
+            </dl>
+            <div class="mt-5">
+                <div class="flex items-baseline justify-between text-sm">
+                    <span class="font-medium text-gray-700">Ocupación de plazas</span>
+                    <span class="font-display text-lg font-bold tabular-nums text-udg-900">{{ $kpis['ocupacion'] }}%</span>
+                </div>
+                <div class="mt-2 h-2.5 overflow-hidden rounded-full bg-gray-100" role="progressbar" aria-valuenow="{{ $kpis['ocupacion'] }}" aria-valuemin="0" aria-valuemax="100" aria-label="Ocupación de plazas">
+                    <div class="h-full rounded-full bg-gradient-to-r from-udg-800 to-oro-400" style="width: {{ $kpis['ocupacion'] }}%"></div>
+                </div>
+                <p class="mt-1.5 text-xs text-gray-500">{{ $kpis['cupos_ocupados'] }} de {{ $kpis['cupos_totales'] }} cupos ocupados</p>
+            </div>
+        </x-dashboard.panel>
+
+        {{-- Programas recientes --}}
+        <x-dashboard.panel class="xl:col-span-2" titulo="Programas recientes" icono="vacante"
+            descripcion="Últimas vacantes externas y proyectos internos de tu carrera."
+            :enlace="route('coordinacion.lista-programas')" enlace-texto="Ver todos">
+            @forelse ($programas_recientes as $p)
+                @php $ocup = $p->cupos_totales > 0 ? min(100, (int) round($p->cupos_ocupados / $p->cupos_totales * 100)) : 0; @endphp
+                <div class="-mx-2 flex flex-col gap-2 rounded-xl px-2 py-3 transition-colors hover:bg-gray-50 sm:flex-row sm:items-center sm:gap-4">
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate text-sm font-semibold text-gray-900">{{ $p->titulo }}</p>
+                        <p class="mt-0.5 truncate text-xs text-gray-500">{{ $p->carrera->carrera_clave }} · {{ $p->convenio?->empresa->razon_social ?? 'Proyecto interno' }}</p>
+                    </div>
+                    <div class="flex items-center gap-3 sm:w-72 sm:shrink-0">
+                        <div class="flex-1">
+                            <div class="flex justify-between text-xs"><span class="text-gray-500">Cupos</span><span class="font-semibold tabular-nums text-gray-900">{{ (int) $p->cupos_ocupados }}/{{ $p->cupos_totales }}</span></div>
+                            <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100"><div class="h-full rounded-full bg-udg-800" style="width: {{ $ocup }}%"></div></div>
+                        </div>
+                        <x-ui.estatus :estado="$p->estado" class="shrink-0" />
                     </div>
                 </div>
             @empty
-                <p class="py-6 text-center text-sm text-gray-400">Aún no hay programas.</p>
+                <x-dashboard.vacio icono="vacante" titulo="Aún no hay programas" texto="Las vacantes que propongan las empresas y tus proyectos internos aparecerán aquí." />
             @endforelse
-        </div>
+        </x-dashboard.panel>
     </div>
+
+    {{-- Prácticas por estado --}}
+    <x-dashboard.panel titulo="Prácticas por estado" icono="reloj" descripcion="Seguimiento de las prácticas de tu alcance."
+        :enlace="route('coordinacion.lista-practicantes')" enlace-texto="Practicantes">
+        <ul class="grid grid-cols-2 gap-3 md:grid-cols-4">
+            @foreach ($practicas_por_estado as $estado => $n)
+                <li class="rounded-xl p-4 ring-1 ring-inset {{ \App\Support\Estatus::chip($familiaPractica($estado)) }}">
+                    <p class="text-xs font-semibold">{{ $estado }}</p>
+                    <p class="mt-1 font-display text-2xl font-bold tabular-nums">{{ $n }}</p>
+                </li>
+            @endforeach
+        </ul>
+    </x-dashboard.panel>
 </div>
 @endsection

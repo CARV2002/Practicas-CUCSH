@@ -122,6 +122,7 @@ class MenuHelper
             ['name' => 'Panel de convenios', 'icon' => 'dashboard', 'path' => '/admin/dashboard'],
             ['name' => 'Convenios', 'icon' => 'pages', 'path' => '/admin/lista-convenios'],
             ['name' => 'Dictámenes', 'icon' => 'task', 'path' => '/admin/lista-dictamenes'],
+            ['name' => 'Documentos físicos', 'icon' => 'forms', 'path' => '/admin/documentos-fisicos'],
             ['name' => 'Empresas', 'icon' => 'ui-elements', 'path' => '/admin/lista-empresas'],
             ['name' => 'Informes de convenios', 'icon' => 'charts', 'path' => '/admin/informes'],
         ];

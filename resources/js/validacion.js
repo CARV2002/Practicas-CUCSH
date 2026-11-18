@@ -258,12 +258,7 @@ function iniciar() {
         const boton = e.submitter;
         if (boton && !boton.dataset.sinBloqueo) {
             // Se deshabilita después de que el navegador tome su name/value
-            setTimeout(() => {
-                boton.disabled = true;
-                boton.classList.add('opacity-60', 'cursor-wait');
-                boton.dataset.textoOriginal = boton.textContent;
-                if (boton.textContent.trim().length < 40) boton.textContent = 'Enviando…';
-            }, 0);
+            setTimeout(() => ponerCargando(boton), 0);
         }
     }, false);
 
@@ -286,8 +281,10 @@ function iniciar() {
         }
         if (campo && esValidable(campo)) {
             // Si la vista ya pinta el mensaje (@error) junto al campo, solo se marca el borde
+            // (se revisa también el abuelo: el campo puede ir envuelto, p. ej. contraseña con botón de mostrar)
             const contenedor = anclaDe(campo).parentElement;
-            if (contenedor && contenedor.textContent.includes(mensajes[0])) {
+            const yaPintado = [contenedor, contenedor?.parentElement].some((c) => c && c.textContent.includes(mensajes[0]));
+            if (yaPintado) {
                 campo.classList.add(...clasesError);
                 campo.setAttribute('aria-invalid', 'true');
             } else {
@@ -299,6 +296,42 @@ function iniciar() {
         }
     });
 }
+
+/**
+ * Estado de carga del botón de envío: spinner + «Enviando…», mismo ancho para que el diseño no salte,
+ * aria-busy para lectores de pantalla. Botones con mucho texto conservan su texto y solo suman el spinner.
+ */
+const SPINNER = '<svg class="js-spinner size-4 shrink-0 animate-spin motion-reduce:animate-none" viewBox="0 0 24 24" fill="none" aria-hidden="true">'
+    + '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3" opacity=".25"/>'
+    + '<path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
+
+function ponerCargando(boton) {
+    if (boton.dataset.cargando) return;
+    boton.dataset.cargando = '1';
+    boton.dataset.htmlOriginal = boton.innerHTML;
+    boton.style.minWidth = `${boton.offsetWidth}px`;
+    boton.disabled = true;
+    boton.setAttribute('aria-busy', 'true');
+    boton.classList.add('cursor-wait', 'opacity-80');
+    if (!/\b(inline-)?flex\b/.test(boton.className)) boton.classList.add('inline-flex', 'items-center', 'justify-center', 'gap-2');
+    const texto = boton.textContent.trim();
+    boton.innerHTML = SPINNER + `<span>${texto.length < 40 ? 'Enviando…' : texto}</span>`;
+}
+
+function quitarCargando(boton) {
+    if (!boton.dataset.cargando) return;
+    boton.innerHTML = boton.dataset.htmlOriginal;
+    boton.disabled = false;
+    boton.removeAttribute('aria-busy');
+    boton.classList.remove('cursor-wait', 'opacity-80');
+    boton.style.minWidth = '';
+    delete boton.dataset.cargando;
+}
+
+// Al volver con «Atrás», el navegador restaura la página desde caché: los botones deben quedar usables
+window.addEventListener('pageshow', (e) => {
+    if (e.persisted) document.querySelectorAll('[data-cargando]').forEach(quitarCargando);
+});
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', iniciar);

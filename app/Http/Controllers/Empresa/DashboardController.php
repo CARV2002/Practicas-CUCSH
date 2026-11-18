@@ -53,6 +53,16 @@ class DashboardController extends Controller
                 'cupos_ocupados' => (int) $publicados->sum('cupos_ocupados'),
                 'cupos_libres' => max(0, (int) $publicados->sum('cupos_totales') - (int) $publicados->sum('cupos_ocupados')),
             ],
+            'nombre' => explode(' ', trim($request->user()->name))[0],
+            'reportesSinComentar' => Reporte::whereHas('practica', fn ($p) => $p
+                ->activas()
+                ->whereHas('postulacion.programa.convenio', fn ($c) => $c->where('empresa_id', $id)))
+                ->where('estado', ReporteEstado::Pendiente->value)
+                ->whereNull('retroalimentacion_empresa')
+                ->count(),
+            'avanceVigencia' => $vigente && $vigente->fecha_inicio_vigencia
+                ? min(100, max(0, (int) round($vigente->fecha_inicio_vigencia->diffInDays(now()) / max(1, $vigente->fecha_inicio_vigencia->diffInDays($vigente->fecha_fin_vigencia)) * 100)))
+                : null,
             'reportesPendientes' => Reporte::whereHas('practica', fn ($p) => $p
                 ->activas()
                 ->whereHas('postulacion.programa.convenio', fn ($c) => $c->where('empresa_id', $id)))

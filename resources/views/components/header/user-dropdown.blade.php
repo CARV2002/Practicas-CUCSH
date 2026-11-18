@@ -50,6 +50,7 @@
                     Mi perfil
                 </a>
             </li>
+            @if ($usuario->tieneAyuda())
             <li>
                 <a href="{{ route('ayuda') }}"
                     class="group flex items-center gap-3 rounded-lg px-3 py-2 text-theme-sm font-medium text-gray-700 hover:bg-gray-100">
@@ -59,6 +60,7 @@
                     Ayuda
                 </a>
             </li>
+            @endif
         </ul>
 
         <form method="POST" action="{{ route('logout') }}">

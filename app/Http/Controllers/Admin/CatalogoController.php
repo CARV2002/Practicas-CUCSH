@@ -16,7 +16,7 @@ class CatalogoController extends Controller
     public function index(): View
     {
         return view('admin.catalogos', [
-            'divisiones' => Division::with(['carreras' => fn ($q) => $q->orderBy('nombre')])
+            'divisiones' => Division::with(['carreras' => fn ($q) => $q->withCount(['alumnos', 'personal'])->orderBy('nombre')])->withCount('personal')
                 ->orderBy('nombre')
                 ->get(),
         ]);

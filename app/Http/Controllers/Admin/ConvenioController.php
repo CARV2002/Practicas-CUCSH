@@ -30,7 +30,7 @@ class ConvenioController extends Controller
 
     public function index(Request $request): View
     {
-        $convenios = Convenio::with(['empresa', 'seguimientos'])
+        $convenios = Convenio::with(['empresa', 'seguimientos', 'dictamenes', 'documentosFisicos'])
             ->visiblesPara($request->user()->personal)
             ->when($request->filled('estado'), fn($q) => $q->where('estado', $request->string('estado')))
             ->when($request->filled('q'), fn($q) => $q->whereHas('empresa', fn($e) => $e
@@ -41,9 +41,15 @@ class ConvenioController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        $conteos = Convenio::visiblesPara($request->user()->personal)
+            ->selectRaw('estado, count(*) as total')
+            ->groupBy('estado')
+            ->pluck('total', 'estado');
+
         return view('admin.lista-convenios', [
             'convenios' => $convenios,
             'estados' => ConvenioEstado::cases(),
+            'conteos' => $conteos,
             'porVencer' => Convenio::porVencer(60)->count(),
         ]);
     }
@@ -57,6 +63,7 @@ class ConvenioController extends Controller
             'dictamenes.carrera',
             'dictamenes.dictaminador.user',
             'seguimientos.registrador.user',
+            'documentosFisicos',
         ]);
 
         return view('admin.convenio-show', [
