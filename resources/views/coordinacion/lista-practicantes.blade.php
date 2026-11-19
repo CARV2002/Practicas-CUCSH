@@ -23,27 +23,114 @@
             <x-ui.aviso tipo="error" titulo="Revisa lo siguiente"><ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></x-ui.aviso>
         @endif
 
-        {{-- IMSS por revisar de alumnos que aún no se postulan (es requisito previo) --}}
-        @if ($imssPorRevisar->isNotEmpty())
-            <x-tabla.marco titulo="Constancias IMSS por revisar" descripcion="Alumnos de tu carrera que subieron su seguro y esperan tu validación para poder postularse." :total="$imssPorRevisar->count()">
-                <ul class="grid grid-cols-1 gap-3 p-4 sm:p-6 md:grid-cols-2 xl:grid-cols-3">
-                    @foreach ($imssPorRevisar as $al)
-                        @php $doc = $al->documentoVigente('constancia_imss'); @endphp
-                        <li class="rounded-xl border border-amber-200 bg-amber-50/40 p-3.5">
+        {{-- Expedientes por revisar: kardex + IMSS juntos, ANTES de que el alumno pueda postularse --}}
+        <x-tabla.marco titulo="Expedientes por revisar" descripcion="Kardex y constancia IMSS que los alumnos te entregan juntos. Al validarlos, el alumno ya puede postularse a una vacante." :total="$expedientesPorRevisar->count()">
+            @if ($expedientesPorRevisar->isEmpty())
+                <div class="px-6 py-4"><x-dashboard.vacio icono="check" titulo="No hay expedientes pendientes" texto="Cuando un alumno envíe su kardex y su constancia IMSS, aparecerá aquí." /></div>
+            @else
+                <ul class="grid grid-cols-1 gap-4 p-4 sm:p-6 lg:grid-cols-2 2xl:grid-cols-3">
+                    @foreach ($expedientesPorRevisar as $al)
+                        @php
+                            $k = $al->documentoVigente('kardex');
+                            $i = $al->documentoVigente('constancia_imss');
+                            $kSt = $k ? ($k->getCustomProperty('estado') ?? 'pendiente') : null;
+                            $iSt = $i ? ($i->getCustomProperty('estado') ?? 'pendiente') : null;
+                            $min = (float) $al->carrera->porcentaje_creditos_minimo;
+                            $cumple = (float) $al->porcentaje_creditos >= $min;
+                            $imssVigente = $al->tieneImssVigenteHasta(now());
+                            $abierto = old('alumno') == $al->id && $errors->hasAny(['motivo', 'documentos']);
+                            $motivoPrevio = $abierto ? old('motivo', '') : '';
+                        @endphp
+                        <li class="flex flex-col rounded-2xl border border-gray-200 bg-white p-4" x-data="{ devolver: {{ $abierto ? 'true' : 'false' }}, motivo: @js($motivoPrevio) }">
                             <div class="flex items-start gap-3">
-                                <x-ui.user-avatar :user="$al->user" size="size-9 shrink-0 text-xs ring-2 ring-white" />
-                                <div class="min-w-0">
+                                <x-ui.user-avatar :user="$al->user" size="size-10 shrink-0 text-xs ring-2 ring-white" />
+                                <div class="min-w-0 flex-1">
                                     <p class="truncate font-semibold text-gray-900">{{ $al->user->name }}</p>
-                                    <p class="text-xs text-gray-500">{{ $al->num_control }} · {{ $al->carrera->carrera_clave }} · subido el {{ $doc->created_at->format('d/m/Y') }}</p>
-                                    <p class="text-xs text-gray-500">Vigencia declarada: <span class="font-medium text-gray-700">{{ $al->vigencia_imss?->format('d/m/Y') ?? 'sin capturar' }}</span></p>
+                                    <p class="text-xs text-gray-500">{{ $al->num_control }} · {{ $al->carrera->carrera_clave }} · {{ $al->grado ? $al->grado . '.º semestre' : 'sin grado' }}</p>
                                 </div>
+                                <span @class(['shrink-0 text-right font-display text-lg font-bold tabular-nums', 'text-emerald-700' => $cumple, 'text-rose-600' => !$cumple])>
+                                    {{ $al->porcentaje_creditos !== null ? \App\Support\Formato::porcentaje($al->porcentaje_creditos) . '%' : 'Sin dato' }}
+                                    <span class="block font-sans text-[10px] font-medium text-gray-500">créditos · mín. {{ \App\Support\Formato::porcentaje($min) }}%</span>
+                                </span>
                             </div>
-                            <x-coordinacion.documento :media="$doc" etiqueta="Constancia IMSS" :descarga="route('coordinacion.alumnos.archivos', [$al, $doc])" />
+
+                            @php
+                                $filas = [
+                                    ['Kardex', $k, $kSt, null],
+                                    ['Constancia IMSS', $i, $iSt, $al->vigencia_imss ? ($imssVigente ? 'Vigente al ' : 'Venció el ') . $al->vigencia_imss->format('d/m/Y') : null],
+                                ];
+                            @endphp
+                            <ul class="mt-3 space-y-2 text-sm">
+                                @foreach ($filas as [$nom, $doc, $st, $nota])
+                                    <li class="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2">
+                                        <span class="min-w-0">
+                                            @if ($doc)
+                                                <a href="{{ route('coordinacion.alumnos.archivos', [$al, $doc]) }}" class="font-medium text-real-600 hover:underline">{{ $nom }}</a>
+                                            @else
+                                                <span class="font-medium text-gray-600">{{ $nom }}</span>
+                                            @endif
+                                            @if ($nota)<span @class(['block text-[11px]', 'text-gray-500' => $imssVigente, 'font-semibold text-rose-600' => !$imssVigente])>{{ $nota }}</span>@endif
+                                        </span>
+                                        <x-ui.estatus :familia="match ($st) { 'validada' => 'menta', 'rechazada' => 'rosa', 'pendiente' => 'ambar', default => 'gris' }"
+                                            :texto="match ($st) { 'validada' => 'Correcto', 'rechazada' => 'Devuelto', 'pendiente' => 'Por revisar', default => 'Sin archivo' }" />
+                                    </li>
+                                @endforeach
+                            </ul>
+
+                            <div class="mt-auto grid grid-cols-1 gap-1.5 pt-3">
+                                @php
+                                    $impide = array_values(array_filter([
+                                        !$imssVigente ? 'La vigencia del IMSS ya pasó: devuélvelo para que suba una constancia actual.' : null,
+                                        !$cumple ? 'Los créditos están por debajo del mínimo de su carrera: devuélvelo si no coinciden con su kardex.' : null,
+                                    ]));
+                                @endphp
+                                @if ($k && $i && $kSt !== 'rechazada' && $iSt !== 'rechazada' && $impide)
+                                    <x-ui.accion-bloqueada :motivo="$impide" tamano="chico" class="!items-stretch">Autorizar al alumno</x-ui.accion-bloqueada>
+                                @elseif ($k && $i && $kSt !== 'rechazada' && $iSt !== 'rechazada')
+                                    <form method="POST" action="{{ route('coordinacion.alumnos.expediente', $al) }}">
+                                        @csrf
+                                        <input type="hidden" name="decision" value="autorizar">
+                                        <button class="boton boton-chico boton-exito w-full justify-center"><x-dashboard.icono nombre="check" clase="size-3.5" /> Ambos correctos: autorizar al alumno</button>
+                                    </form>
+                                @elseif (!$k || !$i)
+                                    <p class="text-xs text-gray-500">Falta un documento del alumno.</p>
+                                @endif
+                                <button type="button" class="boton boton-chico w-full justify-center border border-rose-200 bg-white text-rose-600 hover:bg-rose-50" x-on:click="devolver = !devolver" :aria-expanded="devolver.toString()">
+                                    <x-dashboard.icono nombre="deshacer" clase="size-3.5" /> Devolver con observaciones
+                                </button>
+                            </div>
+
+                            <form x-show="devolver" x-cloak x-transition.opacity method="POST" action="{{ route('coordinacion.alumnos.expediente', $al) }}" class="mt-2 space-y-2 rounded-lg bg-rose-50/60 p-2.5">
+                                @csrf
+                                <input type="hidden" name="decision" value="devolver">
+                                <input type="hidden" name="alumno" value="{{ $al->id }}">
+                                <p class="text-xs font-semibold text-gray-800">¿Qué debe corregir?</p>
+                                <div class="flex flex-wrap gap-1.5 text-xs">
+                                    @foreach (['kardex' => ['Kardex', $kSt], 'imss' => ['IMSS', $iSt]] as $valor => [$texto, $st])
+                                        @continue($st === 'validada')
+                                        <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-2.5 py-1 ring-1 ring-inset ring-gray-200 has-[:checked]:bg-rose-100 has-[:checked]:ring-rose-300">
+                                            <input type="checkbox" name="documentos[]" value="{{ $valor }}" class="size-3.5 rounded border-gray-300 text-rose-600"> {{ $texto }}
+                                        </label>
+                                    @endforeach
+                                </div>
+                                <label class="sr-only" for="motivo-al-{{ $al->id }}">Motivo</label>
+                                <textarea id="motivo-al-{{ $al->id }}" name="motivo" x-model="motivo" rows="2" required maxlength="500" class="campo text-xs" placeholder="Qué está mal y qué debe subir"></textarea>
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach (['El kardex es de un ciclo anterior; sube el del ciclo actual.', 'El IMSS aparece dado de baja; descarga una constancia vigente.', 'El porcentaje de créditos no coincide con tu kardex.', 'El archivo no se puede leer; súbelo escaneado completo.'] as $sug)
+                                        <button type="button" class="rounded-full bg-white px-2 py-0.5 text-[11px] text-gray-600 ring-1 ring-inset ring-gray-200 hover:ring-udg-300" x-on:click="motivo = @js($sug)">{{ \Illuminate\Support\Str::before($sug, ';') }}</button>
+                                    @endforeach
+                                </div>
+                                @if ($abierto)
+                                    @error('documentos')<p class="text-xs font-medium text-rose-600">{{ $message }}</p>@enderror
+                                    @error('motivo')<p class="text-xs font-medium text-rose-600">{{ $message }}</p>@enderror
+                                @endif
+                                <button class="boton boton-chico boton-peligro w-full justify-center">Devolver al alumno</button>
+                            </form>
                         </li>
                     @endforeach
                 </ul>
-            </x-tabla.marco>
-        @endif
+            @endif
+        </x-tabla.marco>
 
         {{-- Postulaciones en trámite --}}
         <x-tabla.marco titulo="Postulaciones en trámite" descripcion="Cada fila te dice cuál es el siguiente paso." :total="$postulaciones->total()">
@@ -60,7 +147,7 @@
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($postulaciones as $po)
                         @php
-                            $kardex = $po->documentoVigente('kardex');
+                            $kardex = $po->alumno->documentoVigente('kardex');   // expediente del alumno, validado antes de postularse
                             $aceptacion = $po->getFirstMedia('carta_aceptacion');
                             $presentacion = $po->documentoVigente('carta_presentacion');
                             $oficioInterno = $po->documentoVigente('oficio_aceptacion_interno');
@@ -95,11 +182,11 @@
                             </td>
                             <td class="px-4 py-4">
                                 <p class="flex items-baseline gap-1.5">
-                                    <span @class(['font-display text-lg font-bold tabular-nums', 'text-emerald-700' => $cumple, 'text-rose-600' => !$cumple])>{{ rtrim(rtrim((string) $po->porcentaje_creditos_declarado, '0'), '.') }}%</span>
-                                    <span class="text-xs text-gray-500">mínimo {{ rtrim(rtrim((string) $min, '0'), '.') }}%</span>
+                                    <span @class(['font-display text-lg font-bold tabular-nums', 'text-emerald-700' => $cumple, 'text-rose-600' => !$cumple])>{{ \App\Support\Formato::porcentaje($po->porcentaje_creditos_declarado) }}%</span>
+                                    <span class="text-xs text-gray-500">mínimo {{ \App\Support\Formato::porcentaje($min) }}%</span>
                                 </p>
                                 <x-coordinacion.documento :media="$kardex" etiqueta="Kardex"
-                                    :descarga="$kardex ? route('coordinacion.postulaciones.archivos', [$po, $kardex]) : null" :acciones="false" />
+                                    :descarga="$kardex ? route('coordinacion.alumnos.archivos', [$po->alumno, $kardex]) : null" :acciones="false" />
                             </td>
                             <td class="px-4 py-4">
                                 <x-ui.estatus :estado="$po->estado" />
@@ -127,75 +214,17 @@
                             <td class="acciones px-6 py-4">
                                 <div class="flex min-w-56 flex-col items-stretch gap-2">
                                     @if ($po->estado === PE::Pendiente)
-                                        @php
-                                            // Kardex e IMSS se revisan juntos aquí; lo demás (créditos, grado, convenio) bloquea aparte
-                                            $kSt = $kardex?->getCustomProperty('estado') ?? ($kardex ? 'pendiente' : null);
-                                            $iSt = $imss?->getCustomProperty('estado') ?? ($imss ? 'pendiente' : null);
-                                            $esperaCorreccion = in_array('rechazada', [$kSt, $iSt], true);
-                                            $otros = array_values(array_filter(\App\Support\Requisitos::emitirCarta($po),
-                                                fn ($m) => !str_contains($m, 'kardex') && !str_contains($m, 'constancia IMSS')));
-                                            $faltaArchivo = !$kardex || !$imss;
-                                        @endphp
-                                        <div class="rounded-xl border border-gray-200 bg-white p-3" x-data="{ devolver: {{ $errors->has('motivo') && old('postulacion') == $po->id ? 'true' : 'false' }}, motivo: @js(old('postulacion') == $po->id ? old('motivo', '') : '') }">
-                                            <p class="text-xs font-semibold text-gray-900">Revisión de documentos</p>
-                                            <ul class="mt-1.5 space-y-1 text-xs">
-                                                @foreach ([['Kardex', $kSt], ['Constancia IMSS', $iSt]] as [$nom, $st])
-                                                    <li class="flex items-center justify-between gap-2">
-                                                        <span class="text-gray-600">{{ $nom }}</span>
-                                                        <x-ui.estatus :familia="match ($st) { 'validada' => 'menta', 'rechazada' => 'rosa', 'pendiente' => 'ambar', default => 'gris' }"
-                                                            :texto="match ($st) { 'validada' => 'Correcto', 'rechazada' => 'Devuelto', 'pendiente' => 'Por revisar', default => 'Sin archivo' }" />
-                                                    </li>
-                                                @endforeach
-                                            </ul>
-
-                                            @if ($esperaCorreccion)
-                                                <p class="mt-2 flex items-start gap-1.5 rounded-lg bg-rose-50 px-2 py-1.5 text-xs text-rose-700"><x-dashboard.icono nombre="reloj" clase="mt-0.5 size-3.5 shrink-0" /> Esperando que el alumno suba el PDF corregido. Te avisaremos.</p>
-                                            @elseif ($faltaArchivo)
-                                                <p class="mt-2 text-xs text-gray-500">Falta un documento del alumno.</p>
-                                            @else
-                                                <div class="mt-2.5 grid grid-cols-1 gap-1.5">
-                                                    @if ($otros)
-                                                        <x-ui.accion-bloqueada :motivo="$otros" tamano="chico">Autorizar y emitir carta</x-ui.accion-bloqueada>
-                                                    @else
-                                                        <form method="POST" action="{{ route('coordinacion.postulaciones.revision', $po) }}">
-                                                            @csrf
-                                                            <input type="hidden" name="decision" value="autorizar">
-                                                            <button class="boton boton-chico boton-exito w-full justify-center"><x-dashboard.icono nombre="check" clase="size-3.5" /> Ambos correctos: autorizar y emitir carta</button>
-                                                        </form>
-                                                    @endif
-                                                    <button type="button" class="boton boton-chico w-full justify-center border border-rose-200 bg-white text-rose-600 hover:bg-rose-50" x-on:click="devolver = !devolver" :aria-expanded="devolver.toString()">
-                                                        <x-dashboard.icono nombre="deshacer" clase="size-3.5" /> Devolver con observaciones
-                                                    </button>
-                                                </div>
-
-                                                <form x-show="devolver" x-cloak x-transition.opacity method="POST" action="{{ route('coordinacion.postulaciones.revision', $po) }}" class="mt-2 space-y-2 rounded-lg bg-rose-50/60 p-2.5">
-                                                    @csrf
-                                                    <input type="hidden" name="decision" value="devolver">
-                                                    <input type="hidden" name="postulacion" value="{{ $po->id }}">
-                                                    <p class="text-xs font-semibold text-gray-800">¿Qué debe corregir?</p>
-                                                    <div class="flex flex-wrap gap-1.5 text-xs">
-                                                        <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-2.5 py-1 ring-1 ring-inset ring-gray-200 has-[:checked]:bg-rose-100 has-[:checked]:ring-rose-300">
-                                                            <input type="checkbox" name="documentos[]" value="kardex" class="size-3.5 rounded border-gray-300 text-rose-600"> Kardex
-                                                        </label>
-                                                        <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-2.5 py-1 ring-1 ring-inset ring-gray-200 has-[:checked]:bg-rose-100 has-[:checked]:ring-rose-300">
-                                                            <input type="checkbox" name="documentos[]" value="imss" class="size-3.5 rounded border-gray-300 text-rose-600"> IMSS
-                                                        </label>
-                                                    </div>
-                                                    <label class="sr-only" for="motivo-{{ $po->id }}">Motivo</label>
-                                                    <textarea id="motivo-{{ $po->id }}" name="motivo" x-model="motivo" rows="2" required maxlength="500" class="campo text-xs" placeholder="Qué está mal y qué debe subir"></textarea>
-                                                    <div class="flex flex-wrap gap-1">
-                                                        @foreach (['El kardex es de un ciclo anterior; sube el del ciclo actual.', 'El IMSS aparece dado de baja; descarga una constancia vigente.', 'El archivo no se puede leer; súbelo escaneado completo.'] as $sug)
-                                                            <button type="button" class="rounded-full bg-white px-2 py-0.5 text-[11px] text-gray-600 ring-1 ring-inset ring-gray-200 hover:ring-udg-300" x-on:click="motivo = @js($sug)">{{ \Illuminate\Support\Str::before($sug, ';') }}</button>
-                                                        @endforeach
-                                                    </div>
-                                                    @if (old('postulacion') == $po->id)
-                                                        @error('documentos')<p class="text-xs font-medium text-rose-600">{{ $message }}</p>@enderror
-                                                        @error('motivo')<p class="text-xs font-medium text-rose-600">{{ $message }}</p>@enderror
-                                                    @endif
-                                                    <button class="boton boton-chico boton-peligro w-full justify-center">Devolver al alumno</button>
-                                                </form>
-                                            @endif
-                                        </div>
+                                        {{-- El expediente (kardex + IMSS) ya se validó antes de postularse: aquí solo se emite la carta --}}
+                                        @php $faltaCarta = \App\Support\Requisitos::emitirCarta($po); @endphp
+                                        @if ($faltaCarta)
+                                            <x-ui.accion-bloqueada :motivo="$faltaCarta" tamano="chico">Emitir carta de presentación</x-ui.accion-bloqueada>
+                                        @else
+                                            <p class="flex items-center gap-1.5 text-xs text-emerald-700"><x-dashboard.icono nombre="check" clase="size-3.5" /> Expediente validado</p>
+                                            <form method="POST" action="{{ route('coordinacion.postulaciones.carta', $po) }}">
+                                                @csrf
+                                                <button class="boton boton-chico boton-primario w-full justify-center"><x-dashboard.icono nombre="documento" clase="size-3.5" /> Emitir carta de presentación</button>
+                                            </form>
+                                        @endif
                                     @elseif ($po->estado === PE::CartaPresentacionEmitida)
                                         <form method="POST" enctype="multipart/form-data" action="{{ route('coordinacion.postulaciones.aceptacion', $po) }}" class="space-y-1.5">
                                             @csrf

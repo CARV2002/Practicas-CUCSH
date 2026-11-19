@@ -48,3 +48,23 @@ function something()
 {
     // ..
 }
+
+/**
+ * Deja el expediente del alumno (kardex + IMSS) entregado y validado por su coordinación,
+ * que es el requisito para postularse. $estado: validada | pendiente | rechazada
+ */
+function expedienteDe(\App\Models\Alumno $alumno, float $creditos = 70, string $estado = 'validada', ?\Carbon\CarbonInterface $vigencia = null): \App\Models\Alumno
+{
+    $pdf = fn (string $n) => \Illuminate\Http\UploadedFile::fake()->createWithContent($n, "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF");
+
+    $alumno->update(['porcentaje_creditos' => $creditos, 'vigencia_imss' => ($vigencia ?? now()->addYear())->toDateString()]);
+
+    foreach (['kardex' => 'kardex.pdf', 'constancia_imss' => 'imss.pdf'] as $coleccion => $nombre) {
+        $media = $alumno->documentoVigente($coleccion) ?? $alumno->addMedia($pdf($nombre))->toMediaCollection($coleccion);
+        if ($estado !== 'pendiente') {
+            $alumno->resolverDocumento($media, \App\Enums\ValidacionEstado::from($estado), $estado === 'rechazada' ? 'Motivo de prueba' : null, $alumno->user_id);
+        }
+    }
+
+    return $alumno->fresh();
+}

@@ -4,7 +4,7 @@
 @php
     $carreras = $divisiones->flatMap->carreras;
     $sinCoordinacion = $divisiones->sum(fn ($d) => $d->personal_count > 0 ? 0 : $d->carreras->where('personal_count', 0)->count());
-    $pct = fn ($v) => rtrim(rtrim((string) $v, '0'), '.');
+    $pct = fn ($v) => \App\Support\Formato::porcentaje($v);
 @endphp
 
 <div x-data="{

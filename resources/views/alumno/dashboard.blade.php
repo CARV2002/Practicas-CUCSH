@@ -3,14 +3,18 @@
 @section('content')
 @php
     $pasos = [
-        ['Postúlate', 'Elige un programa de tu carrera'],
-        ['Carta de presentación', 'Tu coordinación valida y la emite'],
+        ['Entrega tu expediente', 'Kardex e IMSS a tu coordinación'],
+        ['Postúlate', 'Con tu expediente validado'],
+        ['Carta de presentación', 'Tu coordinación la emite'],
         ['Carta de aceptación', 'La organización te acepta'],
         ['Práctica en curso', 'Reporta tus horas'],
         ['Cierre', 'Carta de término y oficio'],
         ['Acreditada', 'Captura en SIIAU'],
     ];
     $pct = $kpis['pct'] ?? 0;
+    // Paso 0 = entregar el expediente (kardex + IMSS); una vez validado, la guía sigue en «Postúlate»
+    $etapa = ($etapa === 0 && !$alumno->expedienteValidado()) ? 0 : $etapa + 1;
+    $bloqueoOferta = \App\Support\Requisitos::alumnoVerOferta($alumno);
 @endphp
 
 <div class="space-y-6">
@@ -31,6 +35,11 @@
                     <x-dashboard.icono nombre="subir" clase="size-4" /> Subir reporte
                 </a>
                 <a href="{{ route('alumno.mis-practicas') }}" class="boton border border-white/25 text-white hover:bg-white/10">Mi práctica</a>
+            @elseif ($bloqueoOferta)
+                {{-- Sin expediente validado (o ya en trámite) la oferta está cerrada: el paso es Mis documentos --}}
+                <a href="{{ route('alumno.mis-documentos') }}" class="boton bg-oro-400 text-udg-950 hover:bg-oro-300 focus-visible:ring-oro-300/50">
+                    <x-dashboard.icono nombre="documento" clase="size-4" /> Ir a mis documentos
+                </a>
             @else
                 <a href="{{ route('alumno.oferta-programas') }}" class="boton bg-oro-400 text-udg-950 hover:bg-oro-300 focus-visible:ring-oro-300/50">
                     <x-dashboard.icono nombre="buscar" clase="size-4" /> Explorar programas
@@ -142,8 +151,10 @@
                             ['Convenios vigentes', 'Organizaciones donde puedes hacer prácticas externas', route('convenios-vigentes'), 'vigente', 'menta'],
                             $practica
                                 ? ['Mi práctica', ($empresa?->razon_social ?? 'Proyecto interno') . ' · ' . $programa->titulo, route('alumno.mis-practicas'), 'empresa', 'cielo']
-                                : ['Oferta de programas', 'Vacantes y proyectos para tu carrera', route('alumno.oferta-programas'), 'buscar', 'cielo'],
-                            ['Mis documentos', $practica ? 'Reportes firmados y carta de término' : 'Constancia IMSS, kardex y cartas', route('alumno.mis-documentos'), 'documento', 'lavanda'],
+                                : ($bloqueoOferta
+                                    ? ['Oferta de programas', 'Con candado: ' . lcfirst($bloqueoOferta), route('alumno.oferta-programas'), 'candado', 'cielo']
+                                    : ['Oferta de programas', 'Vacantes y proyectos para tu carrera', route('alumno.oferta-programas'), 'buscar', 'cielo']),
+                            ['Mis documentos', $practica ? 'Reportes firmados y carta de término' : 'Tu expediente (kardex e IMSS) y tus cartas', route('alumno.mis-documentos'), 'documento', 'lavanda'],
                         ];
                     @endphp
                     @php
@@ -194,8 +205,22 @@
                     @forelse ($alertas as $a)
                         <x-ui.aviso :tipo="$a['tipo'] === 'danger' ? 'error' : 'info'" :titulo="$a['titulo']">{{ $a['texto'] }}</x-ui.aviso>
                     @empty
-                        <x-ui.aviso :tipo="$imssOk ? 'exito' : 'advertencia'" :titulo="$imssOk ? 'Seguro IMSS verificado' : 'Ten lista tu constancia IMSS'">
-                            {{ $imssOk ? 'Cumples el requisito de seguro facultativo.' : 'La entregas junto con tu kardex al postularte a una vacante. Descárgala en imss.gob.mx.' }}
+                        @php $exp = $alumno->estadoExpediente(); @endphp
+                        <x-ui.aviso :tipo="match ($exp) { 'validado' => 'exito', 'devuelto' => 'error', 'en_revision' => 'info', default => 'advertencia' }"
+                            :titulo="match ($exp) {
+                                'validado' => 'Kardex e IMSS validados',
+                                'en_revision' => 'Tu expediente está en revisión',
+                                'devuelto' => 'Corrige un documento de tu expediente',
+                                'imss_vencido' => 'Tu constancia IMSS venció',
+                                default => 'Entrega tu kardex y tu constancia IMSS',
+                            }">
+                            {{ match ($exp) {
+                                'validado' => 'Ya puedes postularte a una vacante de tu carrera.',
+                                'en_revision' => 'Tu coordinación los revisa juntos. Si están correctos, te avisaremos y podrás postularte.',
+                                'devuelto' => 'Sube el PDF corregido en Mis documentos para poder postularte.',
+                                'imss_vencido' => 'Sube una constancia vigente en Mis documentos.',
+                                default => 'Entrégalos a tu coordinación en Mis documentos; cuando los valide, podrás postularte a una vacante.',
+                            } }}
                         </x-ui.aviso>
                     @endforelse
                 </div>

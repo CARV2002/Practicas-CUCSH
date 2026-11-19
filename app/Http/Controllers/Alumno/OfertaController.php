@@ -125,52 +125,31 @@ class OfertaController extends Controller
             throw ValidationException::withMessages(['postulacion' => 'Ya tienes una práctica o una empresa en trámite.']);
         }
 
-        $minimo = (float) $alumno->carrera->porcentaje_creditos_minimo;
-
-        // Kardex e IMSS se entregan juntos y la coordinación los revisa en el mismo momento.
-        // Si ya tiene un IMSS validado y vigente, no se le vuelve a pedir.
-        $pideImss = !$alumno->tieneImssValidadoVigente();
-
-        $datos = $request->validate([
-            'porcentaje_creditos_declarado' => ['required', 'numeric', 'min:' . $minimo, 'max:100'],
-            'kardex' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
-            'imss' => [$pideImss ? 'required' : 'nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
-            'vigencia_imss' => [$pideImss ? 'required' : 'nullable', 'date', 'after:today'],
+        // El expediente (kardex + IMSS) ya lo validó su coordinación: aquí solo confirma SIIAU
+        $request->validate([
             'siiau' => ['accepted'],
         ], [
-            'porcentaje_creditos_declarado.required' => 'Escribe tu porcentaje de créditos cursados (lo ves en tu kardex).',
-            'porcentaje_creditos_declarado.min' => "Tu carrera exige al menos {$minimo}% de créditos para postularte.",
-            'kardex.required' => 'Adjunta tu kardex simple del ciclo actual.',
-            'imss.required' => 'Adjunta tu constancia de vigencia de derechos del IMSS.',
-            'vigencia_imss.required' => 'Escribe la fecha hasta la que está vigente tu seguro (aparece en la constancia).',
-            'vigencia_imss.after' => 'La vigencia del IMSS debe ser posterior a hoy: si ya venció, descarga una constancia actualizada.',
             'siiau.accepted' => 'Confirma que ya inscribiste la materia de prácticas profesionales en SIIAU.',
         ]);
 
         $postulacion = Postulacion::create([
             'alumno_id' => $alumno->id,
             'programa_id' => $programa->id,
-            'porcentaje_creditos_declarado' => $datos['porcentaje_creditos_declarado'],
+            'porcentaje_creditos_declarado' => $alumno->porcentaje_creditos,   // los que validó con su kardex
             'fecha_postulacion' => today(),
             'siiau_confirmado_at' => now(),
         ]);
 
-        $postulacion->addMediaFromRequest('kardex')->toMediaCollection('kardex');
-
-        if ($request->hasFile('imss')) {
-            $alumno->addMediaFromRequest('imss')->toMediaCollection('constancia_imss');
-            $alumno->update(['vigencia_imss' => $datos['vigencia_imss']]);
-        }
-
         Avisos::aCoordinacion((int) $alumno->carrera_id, new AvisoOperativo(
-            mensaje: "{$request->user()->name} ({$alumno->carrera->carrera_clave}) se postuló a «{$programa->titulo}». Revisa juntos su kardex y su constancia IMSS para autorizarlo.",
+            mensaje: "{$request->user()->name} ({$alumno->carrera->carrera_clave}) se postuló a «{$programa->titulo}». Su kardex e IMSS ya están validados: emite su carta de presentación.",
             url: route('coordinacion.lista-practicantes', absolute: false),
             detalle: $programa->titulo,
         ));
 
         return redirect()
-            ->route('alumno.oferta-programas', ['programa' => $programa->id])
-            ->with('status', 'Postulación enviada con tu kardex y tu IMSS. Tu coordinación los revisará juntos: si están correctos te emitirá tu carta de presentación; si no, te dirá qué corregir.');
+            ->route('alumno.mis-documentos')
+            ->with('status', "Te postulaste a «{$programa->titulo}». Tu coordinación emitirá tu carta de presentación; te avisaremos por correo cuando esté lista.");
+
     }
 }
 

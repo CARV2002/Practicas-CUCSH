@@ -64,14 +64,9 @@ class EmitirCartaPresentacion
                 $this->fallar('El alumno no tiene seguro facultativo (IMSS) vigente.');
             }
 
-            // La coordinación debe haber revisado y validado la constancia IMSS
-            if (!$alumno->documentoValidado('constancia_imss')) {
-                $this->fallar('Primero valida la constancia de vigencia IMSS del alumno.');
-            }
-
-            // Kardex e IMSS se revisan juntos: los dos deben estar validados
-            if (!$postulacion->documentoValidado('kardex')) {
-                $this->fallar('Primero valida el kardex del alumno.');
+            // Expediente (kardex + IMSS) validado por la coordinación antes de postularse
+            if (!$alumno->expedienteValidado()) {
+                $this->fallar('El expediente del alumno (kardex e IMSS) no está validado.');
             }
 
             // La carta se imprime con estos datos

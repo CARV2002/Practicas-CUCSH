@@ -53,41 +53,54 @@ beforeEach(function () {
         'cupos_totales' => 2, 'estado' => ProgramaEstado::Publicado]);
 });
 
-test('con la solicitud en revisión, la oferta queda con candado y explica por qué', function () {
-    $this->actingAs($this->alumnoUser)->get(route('alumno.oferta-programas'))->assertOk()->assertSee('Vacante R');
+test('la oferta se habilita solo con el expediente validado y se cierra al postularse', function () {
+    // Sin expediente: candado con el motivo (también en el menú)
+    $this->actingAs($this->alumnoUser)->get(route('alumno.oferta-programas'))->assertOk()
+        ->assertSee('La oferta de programas no está disponible por ahora')
+        ->assertSee('Primero entrega tu kardex y tu constancia IMSS a tu coordinación')
+        ->assertDontSee('Vacante R');
+    $this->actingAs($this->alumnoUser)->get(route('alumno.dashboard'))->assertOk()
+        ->assertSee('Primero entrega tu kardex y tu constancia IMSS a tu coordinación', false);
 
+    // En revisión: sigue con candado, con su propio mensaje
+    expedienteDe($this->alumno, 70, 'pendiente');
+    $this->actingAs($this->alumnoUser->fresh())->get(route('alumno.oferta-programas'))
+        ->assertSee('Tu coordinación está revisando juntos tu kardex y tu constancia IMSS. Si están correctos, te avisaremos y podrás postularte a una vacante.');
+
+    // Validado: ya ve las vacantes
+    expedienteDe($this->alumno, 70);
+    $this->actingAs($this->alumnoUser->fresh())->get(route('alumno.oferta-programas'))->assertOk()->assertSee('Vacante R');
+
+    // Ya postulado: se vuelve a cerrar (un alumno, una empresa)
     Postulacion::create(['alumno_id' => $this->alumno->id, 'programa_id' => $this->programa->id, 'estado' => PostulacionEstado::Pendiente,
         'porcentaje_creditos_declarado' => 70, 'fecha_postulacion' => today()]);
-
-    $this->actingAs($this->alumnoUser->fresh())->get(route('alumno.oferta-programas'))->assertOk()
-        ->assertSee('La oferta de programas no está disponible por ahora')
-        ->assertSee('Tu coordinación está revisando tu kardex e IMSS')
-        ->assertDontSee('Vacante R');
-
-    // El menú muestra el candado con el mismo motivo
-    $this->actingAs($this->alumnoUser->fresh())->get(route('alumno.dashboard'))->assertOk()
-        ->assertSee('Tu coordinación está revisando tu kardex e IMSS', false);
+    $this->actingAs($this->alumnoUser->fresh())->get(route('alumno.oferta-programas'))
+        ->assertSee('Ya te postulaste')->assertDontSee('Vacante R');
 });
 
-test('Mis documentos explica cada estado: pendiente, en revisión, devuelto y validado', function () {
-    $po = Postulacion::create(['alumno_id' => $this->alumno->id, 'programa_id' => $this->programa->id, 'estado' => PostulacionEstado::Pendiente,
-        'porcentaje_creditos_declarado' => 70, 'fecha_postulacion' => today()]);
-    $kardex = $po->addMedia(rsPdf('kardex.pdf'))->toMediaCollection('kardex');
-    $imss = $this->alumno->addMedia(rsPdf('imss.pdf'))->toMediaCollection('constancia_imss');
-    $this->alumno->update(['vigencia_imss' => now()->addYear()]);
-
+test('Mis documentos explica cada estado del expediente: sin enviar, en revisión, devuelto y validado', function () {
     $this->actingAs($this->alumnoUser)->get(route('alumno.mis-documentos'))->assertOk()
-        ->assertSee('Documentos para autorizar tu práctica')
+        ->assertSee('Tu expediente para prácticas')
         ->assertSee('¿Hasta qué fecha está vigente tu seguro?')
-        ->assertSee('En revisión')
-        ->assertSee('Tu coordinación está revisando tus documentos');
+        ->assertSee('Enviar a mi coordinación');
 
-    $po->resolverDocumento($kardex, ValidacionEstado::Rechazada, 'El kardex es de un ciclo anterior.', $this->alumnoUser->id);
-    $this->alumno->resolverDocumento($imss, ValidacionEstado::Validada, null, $this->alumnoUser->id);
+    expedienteDe($this->alumno, 70, 'pendiente');
+    $this->actingAs($this->alumnoUser->fresh())->get(route('alumno.mis-documentos'))->assertOk()
+        ->assertSee('Tu coordinación está revisando tu expediente')
+        ->assertSee('En revisión');
 
+    $alumno = $this->alumno->fresh();
+    $alumno->resolverDocumento($alumno->documentoVigente('kardex'), ValidacionEstado::Rechazada, 'El kardex es de un ciclo anterior.', $this->alumnoUser->id);
+    $alumno->resolverDocumento($alumno->documentoVigente('constancia_imss'), ValidacionEstado::Validada, null, $this->alumnoUser->id);
     $this->actingAs($this->alumnoUser->fresh())->get(route('alumno.mis-documentos'))->assertOk()
         ->assertSee('Tu coordinación te pidió corregir un documento')
         ->assertSee('El kardex es de un ciclo anterior.')
         ->assertSee('Enviar kardex corregido')
         ->assertSee('Ya está validado.');   // el IMSS ya no muestra formulario
+
+    $alumno = $alumno->fresh();
+    $alumno->resolverDocumento($alumno->documentoVigente('kardex'), ValidacionEstado::Validada, null, $this->alumnoUser->id);
+    $this->actingAs($this->alumnoUser->fresh())->get(route('alumno.mis-documentos'))->assertOk()
+        ->assertSee('Tu kardex y tu constancia IMSS están validados.')
+        ->assertSee('Ya puedes postularte a una vacante de tu carrera.');
 });

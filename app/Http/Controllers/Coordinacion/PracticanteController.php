@@ -53,11 +53,9 @@ class PracticanteController extends Controller
             ->paginate(10, ['*'], 'postulaciones')
             ->withQueryString();
 
-        // Los que ya tienen postulación en trámite se revisan en su fila; aquí, los demás
-        $conPostulacion = Postulacion::whereIn('estado', PostulacionEstado::valores(PostulacionEstado::enTramite()))->pluck('alumno_id')->all();
-
         return view('coordinacion.lista-practicantes', [
-            'imssPorRevisar' => \App\Models\Alumno::conImssPorRevisar($personal)->reject(fn ($a) => in_array($a->id, $conPostulacion)),
+            // Kardex e IMSS se revisan juntos ANTES de que el alumno pueda postularse
+            'expedientesPorRevisar' => \App\Models\Alumno::conExpedientePorRevisar($personal),
             'practicas' => $practicas,
             'postulaciones' => $postulaciones,
             'carreras' => Carrera::enAlcance($personal)->orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
@@ -78,18 +76,13 @@ class PracticanteController extends Controller
     }
 
     /**
-     * Revisión conjunta de kardex e IMSS (se entregan y se revisan en el mismo momento):
-     *  - autorizar: valida ambos documentos y emite la carta de presentación.
-     *  - devolver: rechaza el o los documentos con su motivo; la postulación sigue abierta
-     *    y el alumno solo reemplaza el PDF que falló.
+     * Revisión del expediente del alumno: kardex e IMSS se entregan juntos y se revisan en el mismo momento.
+     *  - autorizar: valida ambos; el alumno ya puede postularse a una vacante.
+     *  - devolver: rechaza el o los documentos con su motivo; el alumno reemplaza solo el que falló.
      */
-    public function revisarDocumentos(Request $request, Postulacion $postulacion, EmitirCartaPresentacion $emitir): RedirectResponse
+    public function revisarExpediente(Request $request, \App\Models\Alumno $alumno): RedirectResponse
     {
-        $this->authorize('gestionar', $postulacion);
-
-        if ($postulacion->estado !== PostulacionEstado::Pendiente) {
-            return back()->withErrors(['revision' => 'Esta postulación ya pasó la revisión de documentos.']);
-        }
+        abort_unless($request->user()->personal->puedeVerCarrera((int) $alumno->carrera_id), 403);
 
         $datos = $request->validate([
             'decision' => ['required', Rule::in(['autorizar', 'devolver'])],
@@ -101,54 +94,66 @@ class PracticanteController extends Controller
             'motivo.required' => 'Explica al alumno qué está mal para que sepa qué subir (p. ej. «el kardex es del ciclo anterior»).',
         ]);
 
-        $alumno = $postulacion->alumno;
         $docs = [
-            'kardex' => [$postulacion, $postulacion->documentoVigente('kardex'), 'el kardex'],
-            'imss' => [$alumno, $alumno->documentoVigente('constancia_imss'), 'la constancia IMSS'],
+            'kardex' => [$alumno->documentoVigente('kardex'), 'el kardex'],
+            'imss' => [$alumno->documentoVigente('constancia_imss'), 'la constancia IMSS'],
         ];
 
         if ($datos['decision'] === 'devolver') {
             $nombres = [];
             foreach ($datos['documentos'] as $clave) {
-                [$dueno, $media, $nombre] = $docs[$clave];
-                if ($media) {
-                    $dueno->resolverDocumento($media, ValidacionEstado::Rechazada, $datos['motivo'], $request->user()->id);
+                [$media, $nombre] = $docs[$clave];
+                if ($media && $media->getCustomProperty('estado') !== ValidacionEstado::Validada->value) {
+                    $alumno->resolverDocumento($media, ValidacionEstado::Rechazada, $datos['motivo'], $request->user()->id);
                     $nombres[] = $nombre;
                 }
             }
 
+            if ($nombres === []) {
+                return back()->withErrors(['documentos' => 'Esos documentos ya están validados: no se pueden devolver.']);
+            }
+
             Avisos::enviar($alumno->user, new AvisoOperativo(
-                mensaje: "Tu coordinación revisó tu solicitud a «{$postulacion->programa->titulo}» y te pide corregir: "
-                    . implode(' y ', $nombres) . ". Motivo: {$datos['motivo']} Sube el PDF corregido en «Mis documentos».",
+                mensaje: 'Tu coordinación revisó tu expediente y te pide corregir ' . implode(' y ', $nombres)
+                    . ". Motivo: {$datos['motivo']} Sube el PDF corregido en «Mis documentos»; en cuanto lo valide podrás postularte.",
                 url: route('alumno.mis-documentos', absolute: false),
                 correo: true,
-                asunto: 'Corrige un documento de tu solicitud de prácticas',
+                asunto: 'Corrige un documento de tu expediente de prácticas',
             ));
 
-            return back()->with('status', 'Solicitud devuelta al alumno para que reemplace: ' . implode(' y ', $nombres) . '.');
+            return back()->with('status', 'Expediente devuelto al alumno para que reemplace ' . implode(' y ', $nombres) . '.');
         }
 
-        // Autorizar: ambos documentos deben existir; los que sigan pendientes quedan validados
-        foreach ($docs as [$dueno, $media, $nombre]) {
+        // Autorizar: los dos documentos deben existir y ninguno estar devuelto
+        foreach ($docs as [$media, $nombre]) {
             if ($media === null) {
-                return back()->withErrors(['revision' => "Falta " . $nombre . " del alumno: no se puede autorizar."]);
+                return back()->withErrors(['revision' => 'Falta ' . $nombre . ' del alumno: no se puede autorizar.']);
             }
             if ($media->getCustomProperty('estado') === ValidacionEstado::Rechazada->value) {
                 return back()->withErrors(['revision' => "Devolviste {$nombre} al alumno: espera a que suba el archivo corregido."]);
             }
         }
+        if (!$alumno->tieneImssVigenteHasta(now())) {
+            return back()->withErrors(['revision' => 'La vigencia del IMSS que capturó el alumno ya pasó: devuélvelo para que suba una constancia actual.']);
+        }
+        if ((float) $alumno->porcentaje_creditos < (float) $alumno->carrera->porcentaje_creditos_minimo) {
+            return back()->withErrors(['revision' => 'Los créditos del alumno están por debajo del mínimo de su carrera: no se puede autorizar.']);
+        }
 
-        DB::transaction(function () use ($docs, $request, $emitir, $postulacion) {
-            foreach ($docs as [$dueno, $media]) {
-                if ($media->getCustomProperty('estado') !== ValidacionEstado::Validada->value) {
-                    $dueno->resolverDocumento($media, ValidacionEstado::Validada, null, $request->user()->id);
-                }
+        foreach ($docs as [$media]) {
+            if ($media->getCustomProperty('estado') !== ValidacionEstado::Validada->value) {
+                $alumno->resolverDocumento($media, ValidacionEstado::Validada, null, $request->user()->id);
             }
+        }
 
-            $emitir($postulacion, $request->user()->personal);
-        });
+        Avisos::enviar($alumno->user, new AvisoOperativo(
+            mensaje: 'Tu coordinación validó tu kardex y tu constancia IMSS. ¡Ya puedes postularte a una vacante de tu carrera!',
+            url: route('alumno.oferta-programas', absolute: false),
+            correo: true,
+            asunto: 'Ya puedes postularte a prácticas profesionales',
+        ));
 
-        return back()->with('status', 'Documentos correctos: alumno autorizado y carta de presentación emitida.');
+        return back()->with('status', "Expediente de {$alumno->user->name} validado: ya puede postularse.");
     }
 
     public function rechazarPostulacion(Request $request, Postulacion $postulacion): RedirectResponse

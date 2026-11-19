@@ -89,18 +89,30 @@ class Requisitos
             $alumno->yaAcreditado() => 'Ya acreditaste tus prácticas profesionales.',
             $alumno->tienePracticaActiva() => 'Ya tienes una práctica activa.',
             $alumno->tieneBajaSinResolver() => 'Tu práctica fue cancelada; consulta a tu coordinación de carrera antes de postularte de nuevo.',
-            $alumno->postulaciones()->whereIn('estado', PostulacionEstado::valores(PostulacionEstado::enTramite()))->exists()
-                => 'Ya tienes una empresa en trámite; termina ese proceso antes de postularte a otra.',
+            $alumno->postulaciones()->whereIn('estado', PostulacionEstado::valores([PostulacionEstado::Pendiente, ...PostulacionEstado::enTramite()]))->exists()
+                => 'Ya tienes una postulación en trámite; termina ese proceso antes de postularte a otra.',
             $alumno->grado === null || $alumno->turno === null
                 => 'Captura tu grado y turno en «Mi perfil» antes de postularte (van en tu carta de presentación).',
-            // El IMSS ya no es requisito previo: se entrega junto con el kardex al postularse
-            default => null,
+            // Kardex e IMSS validados por la coordinación ANTES de postularse
+            default => self::motivoExpediente($alumno),
+        };
+    }
+
+    /** Qué le falta al expediente (kardex + IMSS) para poder postularse; null si ya está validado. */
+    public static function motivoExpediente(Alumno $alumno): ?string
+    {
+        return match ($alumno->estadoExpediente()) {
+            'validado' => null,
+            'sin_enviar' => 'Primero entrega tu kardex y tu constancia IMSS a tu coordinación en «Mis documentos». Cuando los valide, podrás postularte.',
+            'en_revision' => 'Tu coordinación está revisando juntos tu kardex y tu constancia IMSS. Si están correctos, te avisaremos y podrás postularte a una vacante.',
+            'devuelto' => 'Tu coordinación te pidió corregir un documento de tu expediente: súbelo en «Mis documentos» para poder postularte.',
+            'imss_vencido' => 'Tu constancia IMSS venció: sube una vigente en «Mis documentos»; cuando tu coordinación la valide podrás postularte.',
         };
     }
 
     /**
-     * Oferta de programas: mientras su solicitud está en revisión o ya tiene empresa, el alumno no
-     * busca otras vacantes (un alumno, una empresa). Se reabre si la postulación se rechaza o cancela.
+     * Oferta de programas: se habilita con el expediente validado y mientras no tenga ya una
+     * postulación o empresa en trámite (un alumno, una empresa).
      */
     public static function alumnoVerOferta(Alumno $alumno): ?string
     {
@@ -110,10 +122,10 @@ class Requisitos
             $alumno->yaAcreditado() => 'Ya acreditaste tus prácticas profesionales.',
             $alumno->tienePracticaActiva() => 'Ya tienes una práctica en curso: consulta tu avance en «Mis prácticas».',
             $estados->contains(PostulacionEstado::Pendiente)
-                => 'Tu coordinación está revisando tu kardex e IMSS. Se habilita si tu solicitud se rechaza o cancela.',
+                => 'Ya te postulaste: tu coordinación emitirá tu carta de presentación. Se habilita de nuevo si tu postulación se rechaza o cancela.',
             $estados->contains(fn ($e) => in_array($e, [PostulacionEstado::CartaPresentacionEmitida, PostulacionEstado::CartaAceptacionRecibida], true))
                 => 'Ya tienes una empresa en trámite: sigue con tu carta de aceptación en «Mis documentos».',
-            default => null,
+            default => self::motivoExpediente($alumno),
         };
     }
 
@@ -135,16 +147,11 @@ class Requisitos
         if ($po->estado !== PostulacionEstado::Pendiente) {
             return ['La postulación ya no está pendiente.'];
         }
-        if (!$alumno->documentoValidado('constancia_imss')) {
-            $faltan[] = 'Valida la constancia IMSS del alumno.';
-        }
-        if (!$alumno->tieneImssVigenteHasta(now())) {
-            $faltan[] = 'El IMSS del alumno no está vigente.';
-        }
-        if (!$po->documentoValidado('kardex')) {
-            $faltan[] = $po->documentoVigente('kardex')?->getCustomProperty('estado') === ValidacionEstado::Rechazada->value
-                ? 'El kardex fue devuelto: espera a que el alumno suba uno nuevo.'
-                : 'Valida el kardex del alumno.';
+        // Kardex e IMSS ya se validaron antes de postularse (expediente); si algo cambió, se avisa
+        if (!$alumno->expedienteValidado()) {
+            $faltan[] = $alumno->estadoExpediente() === 'imss_vencido'
+                ? 'El IMSS del alumno ya no está vigente: debe subir una constancia actual.'
+                : 'El expediente del alumno (kardex e IMSS) no está validado.';
         }
         if ($alumno->grado === null || $alumno->turno === null) {
             $faltan[] = 'El alumno no ha capturado su grado y turno.';

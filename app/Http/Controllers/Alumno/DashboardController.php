@@ -160,26 +160,26 @@ class DashboardController extends Controller
         }
 
         if ($alumno->postulaciones()->where('estado', PostulacionEstado::Pendiente->value)->exists()) {
-            $devuelta = $alumno->postulaciones()->where('estado', PostulacionEstado::Pendiente->value)->get()
-                ->contains(fn ($po) => $po->documentoVigente('kardex')?->getCustomProperty('estado') === 'rechazada')
-                || $alumno->documentoVigente('constancia_imss')?->getCustomProperty('estado') === 'rechazada';
-
-            return $devuelta
-                ? 'Tu coordinación te pidió corregir un documento. Sube el PDF corregido en Mis documentos; no necesitas postularte de nuevo.'
-                : 'Tu coordinación está revisando juntos tu kardex y tu constancia IMSS. Si están correctos, te emitirá tu carta de presentación.';
+            return 'Ya te postulaste. Tu coordinación emitirá tu carta de presentación y te avisaremos por correo cuando esté lista.';
         }
 
-        return $tieneImss
-            ? 'Explora los programas disponibles para tu carrera y postúlate al que más te guste.'
-            : 'Empieza subiendo tu constancia del IMSS en Mis documentos y luego explora los programas para tu carrera.';
+        // Antes de postularse: el expediente (kardex + IMSS) debe estar validado
+        return match ($alumno->estadoExpediente()) {
+            'validado' => 'Tu coordinación validó tu kardex y tu constancia IMSS. Ya puedes postularte a una vacante de tu carrera.',
+            'en_revision' => 'Tu coordinación está revisando juntos tu kardex y tu constancia IMSS. Si están correctos, te avisaremos y podrás postularte a una vacante.',
+            'devuelto' => 'Tu coordinación te pidió corregir un documento de tu expediente. Sube el PDF corregido en Mis documentos para poder postularte.',
+            'imss_vencido' => 'Tu constancia IMSS venció. Sube una vigente en Mis documentos para continuar.',
+            default => 'Empieza entregando tu kardex y tu constancia IMSS a tu coordinación en Mis documentos. Cuando los valide, podrás postularte.',
+        };
     }
+
 
     /** @return array{icono:string,titulo:string,texto:string} */
     private function motivacion(int $pct, bool $activa, bool $acreditada): array
     {
         return match (true) {
             $acreditada => ['icono' => '🎓', 'titulo' => '¡Acreditada!', 'texto' => 'Cerraste tu práctica con éxito. Lo aprendido ya es parte de tu perfil profesional.'],
-            ! $activa && $pct === 0 => ['icono' => '🛡️', 'titulo' => 'Tu primer paso cuenta', 'texto' => 'Postularte es empezar. Elige un programa afín a tu perfil y da el salto.'],
+            ! $activa && $pct === 0 => ['icono' => '🛡️', 'titulo' => 'Tu primer paso cuenta', 'texto' => 'Entrega tu kardex e IMSS; con tu expediente validado podrás postularte al programa que más te guste.'],
             $pct >= 100 => ['icono' => '🏆', 'titulo' => '¡Meta alcanzada!', 'texto' => 'Completaste tus horas. Solo queda cerrar el trámite documental.'],
             $pct >= 75 => ['icono' => '🚀', 'titulo' => 'Recta final', 'texto' => 'Ya pasaste el 75%. El esfuerzo constante está dando resultados.'],
             $pct >= 50 => ['icono' => '⚡', 'titulo' => 'Mitad del camino', 'texto' => 'Superaste la mitad. Mantén el ritmo, vas muy bien.'],

@@ -36,9 +36,10 @@ class DashboardController extends Controller
             ->with(['media', 'alumno.media'])
             ->get();
         $porValidar = fn ($doc) => $doc !== null && in_array($doc->getCustomProperty('estado'), [null, ValidacionEstado::Pendiente->value], true);
-        $kardexPendientes = $enCurso->filter(fn ($po) => $porValidar($po->documentoVigente('kardex')))->count();
-        // IMSS: de cualquier alumno de su alcance, se haya postulado o no (es requisito previo)
-        $imssPendientes = Alumno::conImssPorRevisar($personal)->count();
+        // Expedientes (kardex + IMSS) por revisar: requisito previo a la postulación
+        $porRevisar = Alumno::conExpedientePorRevisar($personal);
+        $kardexPendientes = $porRevisar->filter(fn ($al) => $porValidar($al->documentoVigente('kardex')))->count();
+        $imssPendientes = $porRevisar->filter(fn ($al) => $porValidar($al->documentoVigente('constancia_imss')))->count();
 
         $totalCupos = (int) $publicados->sum('cupos_totales');
         $ocupados = (int) $publicados->sum('cupos_ocupados');

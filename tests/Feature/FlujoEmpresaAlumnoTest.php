@@ -68,7 +68,8 @@ function escAlumno(Carrera $carrera, string $control, bool $imssValidado = true)
 
     $imss = $a->addMedia(escPdf('imss.pdf'))->toMediaCollection('constancia_imss');
     if ($imssValidado) {
-        $a->resolverDocumento($imss, \App\Enums\ValidacionEstado::Validada, null, $u->id);
+        // Expediente (kardex + IMSS) entregado y validado: requisito para postularse
+        $a = expedienteDe($a, 70);
     }
 
     return [$u, $a];
@@ -161,20 +162,18 @@ test('empresa publica, alumno se postula y la práctica llega a acreditada', fun
     expect($programa->refresh()->estado)->toBe(ProgramaEstado::Publicado)
         ->and($programa->revisado_por)->toBe($this->coordUser->personal->id);
 
-    // 2. Ana lo ve y se postula con kardex
+    // 2. Ana (con su expediente ya validado) lo ve y se postula: solo confirma SIIAU
     $this->actingAs($this->anaUser)->get(route('alumno.oferta-programas'))->assertSee('Auxiliar jurídico');
 
-    $this->actingAs($this->anaUser)->post(route('alumno.oferta-programas.postular', $programa), [
-        'porcentaje_creditos_declarado' => 70,
-        'kardex' => escPdf('kardex.pdf'), 'siiau' => '1',
-    ])->assertSessionHasNoErrors()->assertRedirect();
+    $this->actingAs($this->anaUser)->post(route('alumno.oferta-programas.postular', $programa), ['siiau' => '1'])
+        ->assertSessionHasNoErrors()->assertRedirect();
 
     $po = Postulacion::firstOrFail();
     expect($po->estado)->toBe(PostulacionEstado::Pendiente)
-        ->and($po->getMedia('kardex'))->toHaveCount(1);
+        ->and((float) $po->porcentaje_creditos_declarado)->toBe(70.0);   // los créditos que validó con su kardex
 
-    // 3. Coordinación revisa juntos kardex e IMSS: ambos correctos → autoriza y emite la carta (reserva cupo)
-    $this->actingAs($this->coordUser)->post(route('coordinacion.postulaciones.revision', $po), ['decision' => 'autorizar'])->assertSessionHasNoErrors()->assertRedirect();
+    // 3. Coordinación emite la carta de presentación (reserva cupo)
+    $this->actingAs($this->coordUser)->post(route('coordinacion.postulaciones.carta', $po))->assertSessionHasNoErrors()->assertRedirect();
     expect($po->refresh()->estado)->toBe(PostulacionEstado::CartaPresentacionEmitida)
         ->and($programa->refresh()->cupos_disponibles)->toBe(1)
         ->and($po->getMedia('carta_presentacion'))->toHaveCount(1);   // la genera el sistema en Word
@@ -250,13 +249,13 @@ test('un alumno de otra carrera no puede postularse', function () {
     expect(Postulacion::count())->toBe(0);
 });
 
-test('con créditos insuficientes no se postula', function () {
-    $programa = ($this->programa)();
+test('con créditos insuficientes no se entrega el expediente', function () {
+    [$u] = escAlumno($this->abogado, '219999001', imssValidado: false);
 
-    $this->actingAs($this->anaUser)->post(route('alumno.oferta-programas.postular', $programa), [
-        'porcentaje_creditos_declarado' => 30,
-        'kardex' => escPdf('kardex.pdf'), 'siiau' => '1',
-    ])->assertSessionHasErrors('porcentaje_creditos_declarado');
+    $this->actingAs($u)->post(route('alumno.documentos.expediente'), [
+        'porcentaje_creditos' => 30, 'kardex' => escPdf('kardex.pdf'),
+        'imss' => escPdf('imss.pdf'), 'vigencia_imss' => now()->addYear()->toDateString(),
+    ])->assertSessionHasErrors('porcentaje_creditos');
 });
 
 test('un programa cerrado o en borrador no admite postulaciones', function () {
@@ -347,8 +346,6 @@ test('un alumno no puede subir ni descargar archivos de otro alumno', function (
     ]);
 
     // Subir a la postulación de Ana siendo Luis
-    $this->actingAs($this->luisUser)
-        ->post(route('alumno.documentos.kardex', $po), ['archivo' => escPdf()])->assertForbidden();
     $this->actingAs($this->luisUser)
         ->post(route('alumno.documentos.aceptacion', $po), ['archivo' => escPdf()])->assertForbidden();
 

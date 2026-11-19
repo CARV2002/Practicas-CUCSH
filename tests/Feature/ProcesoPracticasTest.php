@@ -246,9 +246,10 @@ function postular(Alumno $alumno, Programa $programa, float $creditos = 60): Pos
         'porcentaje_creditos_declarado' => $creditos, 'fecha_postulacion' => today(),
     ]);
 
-    // Kardex entregado con la postulación y ya revisado por la coordinación
-    $kardex = $po->addMedia(pdfFalso('kardex.pdf'))->toMediaCollection('kardex');
-    $po->resolverDocumento($kardex, ValidacionEstado::Validada, null, $alumno->user_id);
+    // Expediente (kardex + IMSS) validado antes de postularse; respeta la vigencia de IMSS que traiga el alumno
+    if (!$alumno->expedienteValidado()) {
+        expedienteDe($alumno, max($creditos, (float) $alumno->porcentaje_creditos), 'validada', $alumno->vigencia_imss ?? now()->addYear());
+    }
 
     return $po;
 }

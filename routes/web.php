@@ -82,7 +82,8 @@ Route::prefix('alumno')
         //Route::view('/mis-documentos', 'alumno.mis-documentos')->name('mis-documentos');
         Route::get('/mis-documentos', [AlumnoDocumentoController::class, 'index'])->name('mis-documentos');
         Route::post('/documentos/imss', [AlumnoDocumentoController::class, 'subirImss'])->name('documentos.imss');
-        Route::post('/postulaciones/{postulacion}/kardex', [AlumnoDocumentoController::class, 'subirKardex'])->name('documentos.kardex');
+        Route::post('/documentos/expediente', [AlumnoDocumentoController::class, 'enviarExpediente'])->name('documentos.expediente');
+        Route::post('/documentos/kardex', [AlumnoDocumentoController::class, 'subirKardex'])->name('documentos.kardex');
         Route::post('/postulaciones/{postulacion}/carta-aceptacion', [AlumnoDocumentoController::class, 'subirCartaAceptacion'])->name('documentos.aceptacion');
         Route::post('/reportes/{reporte}/archivo', [AlumnoDocumentoController::class, 'subirReporte'])->name('documentos.reporte');
         Route::post('/practicas/{practica}/carta-termino', [AlumnoDocumentoController::class, 'subirCartaTermino'])->name('documentos.termino');
@@ -234,12 +235,12 @@ Route::prefix('coordinacion')
         // Expediente del alumno: constancia IMSS y kardex
         Route::post('/documentos/{media}/resolver', [ExpedienteController::class, 'resolver'])->name('documentos.resolver');
         Route::get('/alumnos/{alumno}/archivos/{media}', [ExpedienteController::class, 'descargarAlumno'])->name('alumnos.archivos');
+        Route::post('/alumnos/{alumno}/expediente', [PracticanteController::class, 'revisarExpediente'])->name('alumnos.expediente');
 
         // Practicantes y postulaciones
         Route::get('/lista-practicantes', [PracticanteController::class, 'index'])->name('lista-practicantes');
         Route::prefix('postulaciones/{postulacion}')->name('postulaciones.')->group(function () {
             Route::post('/carta-presentacion', [PracticanteController::class, 'emitirCarta'])->name('carta');
-            Route::post('/revision', [PracticanteController::class, 'revisarDocumentos'])->name('revision');
             Route::post('/rechazar', [PracticanteController::class, 'rechazarPostulacion'])->name('rechazar');
             Route::post('/carta-aceptacion', [PracticanteController::class, 'subirCartaAceptacion'])->name('aceptacion');
             Route::post('/oficio-interno', [PracticanteController::class, 'subirOficioInterno'])->name('oficio-interno');

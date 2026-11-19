@@ -587,7 +587,7 @@
                     $postulado = $misPostulaciones->get($s->id);
                     $puede = ! $postulado && ! $bloqueo;
                 @endphp
-                <div class="saas-sticky-detail-card" x-data="{ abierto: {{ $errors->hasAny(['kardex', 'imss', 'vigencia_imss', 'porcentaje_creditos_declarado', 'siiau']) ? 'true' : 'false' }} }">
+                <div class="saas-sticky-detail-card" x-data="{ abierto: {{ $errors->has('siiau') ? 'true' : 'false' }} }">
 
                     <div class="detail-header-block">
                         <div class="detail-company-identity">
@@ -615,60 +615,26 @@
                         @endif
 
                         @if ($puede)
-                            @php
-                                $pideImss = !$alumno->tieneImssValidadoVigente();
-                                $minimo = rtrim(rtrim((string) $alumno->carrera->porcentaje_creditos_minimo, '0'), '.');
-                                $n = 0;
-                            @endphp
-                            <form method="POST" enctype="multipart/form-data" action="{{ route('alumno.oferta-programas.postular', $s) }}" x-show="abierto" x-cloak
-                                x-data="{ enviando: false,
-                                    enviar(e) {
-                                        let primero = null;
-                                        this.$el.querySelectorAll('[data-zona-archivo]').forEach(z => {
-                                            const i = z.querySelector('input[type=file]');
-                                            if (i.required && !i.files.length) { Alpine.$data(z).error = 'Falta adjuntar este archivo.'; primero ??= z; }
-                                        });
-                                        if (primero) { e.preventDefault(); primero.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
-                                        if (!this.$el.checkValidity()) { e.preventDefault(); this.$el.reportValidity(); return; }
-                                        this.enviando = true;
-                                    } }"
-                                x-on:submit="enviar($event)"
-                                class="mt-4 space-y-4 rounded-2xl border border-udg-100 bg-udg-50/40 p-4 text-left sm:p-5" novalidate>
+                            <form method="POST" action="{{ route('alumno.oferta-programas.postular', $s) }}" x-show="abierto" x-cloak
+                                x-data="{ enviando: false }" x-on:submit="if (!$el.checkValidity()) { $event.preventDefault(); $el.reportValidity(); } else { enviando = true }"
+                                class="mt-4 space-y-3 rounded-2xl border border-udg-100 bg-udg-50/40 p-4 text-left sm:p-5">
                                 @csrf
-                                <div>
-                                    <p class="font-display text-base font-bold text-gray-900">Tu solicitud</p>
-                                    <p class="text-xs leading-relaxed text-gray-600">Tu coordinación revisará tu kardex {{ $pideImss ? 'y tu constancia IMSS al mismo tiempo' : '(tu IMSS ya está validado)' }}. Si todo está bien, te autoriza y emite tu carta de presentación.</p>
-                                </div>
-
-                                <x-ui.campo-paso :paso="++$n" etiqueta="Porcentaje de créditos cursados" name="porcentaje_creditos_declarado" type="number"
-                                    step="0.01" min="{{ $alumno->carrera->porcentaje_creditos_minimo }}" max="100" placeholder="Ej. 72.5"
-                                    ayuda="Lo ves en tu kardex. Tu carrera pide al menos {{ $minimo }}%." />
-
-                                <x-ui.zona-archivo :paso="++$n" name="kardex" etiqueta="Kardex simple del ciclo actual" accept=".pdf,.jpg,.jpeg,.png" formatos="PDF, JPG o PNG"
-                                    ayuda="Descárgalo de SIIAU. Si es de un ciclo anterior, tu coordinación lo devolverá." />
-
-                                @if ($pideImss)
-                                    <div class="space-y-3 rounded-xl bg-white p-3 ring-1 ring-inset ring-gray-200">
-                                        <x-ui.campo-paso :paso="++$n" etiqueta="¿Hasta qué fecha está vigente tu seguro IMSS?" name="vigencia_imss" type="date"
-                                            min="{{ now()->addDay()->toDateString() }}" ayuda="Aparece en tu constancia como «Vigencia» o «Vigente hasta»." />
-                                        <x-ui.zona-archivo :paso="++$n" name="imss" etiqueta="Constancia de vigencia de derechos del IMSS" accept=".pdf,.jpg,.jpeg,.png" formatos="PDF, JPG o PNG"
-                                            ayuda="Descárgala en imss.gob.mx con tu NSS. Si aparece «dado de baja», no se podrá autorizar." />
-                                    </div>
-                                @else
-                                    <p class="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800"><x-dashboard.icono nombre="check" clase="size-4 shrink-0" /> Tu IMSS ya está validado y vigente hasta el {{ $alumno->vigencia_imss->format('d/m/Y') }}: no necesitas volver a subirlo.</p>
-                                @endif
-
+                                <p class="font-display text-base font-bold text-gray-900">Confirma tu postulación</p>
+                                <p class="flex items-start gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                                    <x-dashboard.icono nombre="check" clase="mt-0.5 size-4 shrink-0" />
+                                    <span>Tu kardex ({{ \App\Support\Formato::porcentaje($alumno->porcentaje_creditos) }}% de créditos) y tu IMSS ya están validados. Tu coordinación solo emitirá tu carta de presentación.</span>
+                                </p>
                                 <label class="flex items-start gap-2.5 rounded-xl bg-white p-3 text-sm leading-relaxed text-gray-700 ring-1 ring-inset ring-gray-200 has-[:checked]:ring-udg-800">
                                     <input type="checkbox" name="siiau" value="1" required @checked(old('siiau')) class="mt-1 size-4 shrink-0 rounded border-gray-300 text-udg-800">
                                     <span><span class="font-semibold text-gray-900">Declaro bajo protesta de decir verdad</span> que ya inscribí la materia de Prácticas Profesionales en SIIAU dentro del calendario escolar vigente.</span>
                                 </label>
                                 @error('siiau')<p class="text-sm font-medium text-rose-600">{{ $message }}</p>@enderror
-
                                 <button class="boton boton-primario w-full justify-center" :disabled="enviando">
                                     <span x-show="!enviando">Enviar postulación</span>
-                                    <span x-show="enviando" x-cloak>Enviando tus documentos…</span>
+                                    <span x-show="enviando" x-cloak>Enviando…</span>
                                 </button>
                             </form>
+
                         @endif
                     </div>
 
@@ -693,7 +659,7 @@
                             <h3>Requisitos indispensables</h3>
                             <ul>
                                 <li>Ser alumno activo de {{ $alumno->carrera->nombre }}.</li>
-                                <li>Contar con al menos {{ rtrim(rtrim((string) $alumno->carrera->porcentaje_creditos_minimo, '0'), '.') }}% de créditos.</li>
+                                <li>Contar con al menos {{ \App\Support\Formato::porcentaje($alumno->carrera->porcentaje_creditos_minimo) }}% de créditos.</li>
                                 <li>Seguro facultativo (IMSS) vigente durante toda la práctica.</li>
                             </ul>
                             <p style="margin-top:12px;">{{ $s->perfil_requerido }}</p>

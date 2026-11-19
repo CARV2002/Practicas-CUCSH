@@ -21,8 +21,8 @@ class ExpedienteController extends Controller
 {
     /** Colecciones que la coordinación puede validar, por tipo de dueño. */
     private const REVISABLES = [
-        Alumno::class => ['constancia_imss' => 'constancia IMSS'],
-        Postulacion::class => ['kardex' => 'kardex', 'oficio_aceptacion_interno' => 'oficio de aceptación interno'],
+        Alumno::class => ['constancia_imss' => 'constancia IMSS', 'kardex' => 'kardex'],
+        Postulacion::class => ['oficio_aceptacion_interno' => 'oficio de aceptación interno'],
     ];
 
     public function resolver(Request $request, Media $media): RedirectResponse
@@ -48,14 +48,17 @@ class ExpedienteController extends Controller
         $dueno->resolverDocumento($media, $estado, $datos['motivo'] ?? null, $request->user()->id);
 
         $rechazado = $estado === ValidacionEstado::Rechazada;
+        $completo = !$rechazado && $alumno->fresh()->expedienteValidado();   // con esto ya puede postularse
 
         Avisos::enviar($alumno->user, new AvisoOperativo(
             mensaje: $rechazado
-                ? "Tu coordinación rechazó tu {$nombre}: {$datos['motivo']}. Súbelo de nuevo."
-                : "Tu coordinación validó tu {$nombre}.",
+                ? "Tu coordinación te pide corregir tu {$nombre}: {$datos['motivo']} Sube el archivo corregido en «Mis documentos»."
+                : ($completo
+                    ? 'Tu coordinación validó tu kardex y tu constancia IMSS. ¡Ya puedes postularte a una vacante de tu carrera!'
+                    : "Tu coordinación validó tu {$nombre}."),
             url: route('alumno.mis-documentos', absolute: false),
-            correo: $rechazado,
-            asunto: $rechazado ? 'Documento rechazado' : null,
+            correo: $rechazado || $completo,
+            asunto: $rechazado ? 'Corrige un documento de tu expediente' : ($completo ? 'Ya puedes postularte a prácticas profesionales' : null),
         ));
 
         return back()->with('status', ucfirst($nombre) . ($rechazado ? ' rechazado.' : ' validado.'));

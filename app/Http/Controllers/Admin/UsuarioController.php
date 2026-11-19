@@ -143,7 +143,7 @@ class UsuarioController extends Controller
     private function avisarPendientes(User $user, Personal $personal): void
     {
         $partes = array_filter([
-            ($n = \App\Models\Alumno::conImssPorRevisar($personal)->count()) ? "{$n} constancia(s) IMSS por revisar" : null,
+            ($n = \App\Models\Alumno::conExpedientePorRevisar($personal)->count()) ? "{$n} expediente(s) de alumnos (kardex e IMSS) por revisar" : null,
             ($n = \App\Models\Postulacion::visiblesPara($personal)->where('estado', \App\Enums\PostulacionEstado::Pendiente->value)->count()) ? "{$n} postulación(es) por validar" : null,
             ($n = \App\Models\Programa::whereIn('carrera_id', \App\Models\Carrera::enAlcance($personal)->select('id'))
                 ->where('estado', \App\Enums\ProgramaEstado::PendienteAprobacion->value)->count()) ? "{$n} vacante(s) por aprobar" : null,

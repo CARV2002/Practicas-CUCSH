@@ -44,6 +44,45 @@ class DocumentoController extends Controller
         ]);
     }
 
+    /**
+     * Expediente (kardex + IMSS + créditos): se entrega junto a la coordinación y debe quedar
+     * validado ANTES de postularse.
+     */
+    public function enviarExpediente(Request $request): RedirectResponse
+    {
+        $alumno = $request->user()->alumno->load('carrera');
+
+        if (in_array($alumno->estadoExpediente(), ['en_revision', 'validado'], true)) {
+            throw ValidationException::withMessages(['expediente' => $alumno->estadoExpediente() === 'validado'
+                ? 'Tu expediente ya está validado: ya puedes postularte.'
+                : 'Tu expediente ya está en revisión con tu coordinación.']);
+        }
+
+        $minimo = (float) $alumno->carrera->porcentaje_creditos_minimo;
+
+        $datos = $request->validate([
+            'porcentaje_creditos' => ['required', 'numeric', 'min:' . $minimo, 'max:100'],
+            'kardex' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'imss' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'vigencia_imss' => ['required', 'date', 'after:today'],
+        ], [
+            'porcentaje_creditos.required' => 'Escribe tu porcentaje de créditos cursados (lo ves en tu kardex).',
+            'porcentaje_creditos.min' => "Tu carrera pide al menos {$minimo}% de créditos para hacer prácticas.",
+            'kardex.required' => 'Adjunta tu kardex simple del ciclo actual.',
+            'imss.required' => 'Adjunta tu constancia de vigencia de derechos del IMSS.',
+            'vigencia_imss.required' => 'Escribe la fecha hasta la que está vigente tu seguro (aparece en la constancia).',
+            'vigencia_imss.after' => 'La vigencia debe ser posterior a hoy: si ya venció, descarga una constancia actualizada del IMSS.',
+        ]);
+
+        $alumno->addMediaFromRequest('kardex')->toMediaCollection('kardex');
+        $alumno->addMediaFromRequest('imss')->toMediaCollection('constancia_imss');
+        $alumno->update(['vigencia_imss' => $datos['vigencia_imss'], 'porcentaje_creditos' => $datos['porcentaje_creditos']]);
+
+        $this->avisarCoordinacion($request, 'envió su kardex y su constancia IMSS. Revísalos juntos: si están correctos, autorízalo para que pueda postularse.', 'coordinacion.lista-practicantes');
+
+        return back()->with('status', 'Expediente enviado. Tu coordinación revisará juntos tu kardex y tu constancia IMSS; te avisaremos por correo cuando puedas postularte.');
+    }
+
     public function subirImss(Request $request): RedirectResponse
     {
         $alumno = $request->user()->alumno;
@@ -68,30 +107,21 @@ class DocumentoController extends Controller
         $alumno->addMediaFromRequest('archivo')->toMediaCollection('constancia_imss');
         $alumno->update(['vigencia_imss' => $datos['vigencia_imss']]);
 
-        // Se revisa junto con el kardex: solo se avisa si ya hay algo que revisar (postulación o práctica)
-        $enRevision = $alumno->postulaciones()->where('estado', PostulacionEstado::Pendiente->value)->exists()
-            || $alumno->tienePracticaActiva();
+        $this->avisarCoordinacion($request, match (true) {
+            $anterior === ValidacionEstado::Rechazada->value => 'reemplazó la constancia IMSS que le devolviste. Revísala de nuevo.',
+            $anterior === ValidacionEstado::Validada->value => 'subió su constancia IMSS renovada (la anterior venció). Revísala.',
+            default => 'actualizó su constancia IMSS. Revísala junto con su kardex.',
+        }, 'coordinacion.lista-practicantes');
 
-        if ($enRevision) {
-            $this->avisarCoordinacion($request, $anterior === ValidacionEstado::Rechazada->value
-                ? 'reemplazó su constancia IMSS que le devolviste. Revísala de nuevo.'
-                : 'actualizó su constancia de vigencia IMSS para validar.', 'coordinacion.lista-practicantes');
-        }
-
-        return back()->with('status', $enRevision
-            ? 'Constancia IMSS enviada: tu coordinación la revisará junto con tu kardex.'
-            : 'Constancia IMSS guardada. Se revisará junto con tu kardex cuando te postules a una vacante.');
+        return back()->with('status', 'Constancia IMSS enviada: tu coordinación la revisará.');
     }
 
-    public function subirKardex(Request $request, Postulacion $postulacion): RedirectResponse
+    /** Reemplaza el kardex devuelto (o el que sigue en revisión). Uno validado ya no se cambia. */
+    public function subirKardex(Request $request): RedirectResponse
     {
-        $this->propia($request, $postulacion);
+        $alumno = $request->user()->alumno;
 
-        if ($postulacion->estado !== PostulacionEstado::Pendiente) {
-            throw ValidationException::withMessages(['archivo' => 'Tu coordinación ya autorizó esta postulación: el kardex ya no se puede cambiar.']);
-        }
-
-        $anterior = $postulacion->documentoVigente('kardex')?->getCustomProperty('estado');
+        $anterior = $alumno->documentoVigente('kardex')?->getCustomProperty('estado');
         if ($anterior === ValidacionEstado::Validada->value) {
             throw ValidationException::withMessages(['archivo' => 'Tu kardex ya fue validado: no necesitas subirlo de nuevo.']);
         }
@@ -100,11 +130,11 @@ class DocumentoController extends Controller
             'archivo.required' => 'Elige el PDF o la imagen de tu kardex simple del ciclo actual.',
         ]);
 
-        $postulacion->addMediaFromRequest('archivo')->toMediaCollection('kardex');
+        $alumno->addMediaFromRequest('archivo')->toMediaCollection('kardex');
 
-        $this->avisarCoordinacion($request, ($anterior === ValidacionEstado::Rechazada->value
-            ? 'reemplazó el kardex que le devolviste'
-            : 'actualizó su kardex') . " para «{$postulacion->programa->titulo}». Revísalo de nuevo.", 'coordinacion.lista-practicantes');
+        $this->avisarCoordinacion($request, $anterior === ValidacionEstado::Rechazada->value
+            ? 'reemplazó el kardex que le devolviste. Revísalo de nuevo.'
+            : 'actualizó su kardex. Revísalo junto con su constancia IMSS.', 'coordinacion.lista-practicantes');
 
         return back()->with('status', 'Kardex enviado: tu coordinación lo revisará junto con tu constancia IMSS.');
     }

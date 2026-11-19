@@ -87,6 +87,7 @@ beforeEach(function () {
     // Constancia IMSS ya validada por su coordinación (requisito para emitir la carta)
     $imss = $this->ana->addMedia(notPdf())->toMediaCollection('constancia_imss');
     $this->ana->resolverDocumento($imss, \App\Enums\ValidacionEstado::Validada, null, $this->adminAbog->id);
+    $this->ana = expedienteDe($this->ana, 70);   // kardex + IMSS validados: ya puede postularse
 });
 
 test('una postulación avisa solo a la coordinación de esa carrera (no a Vinculación)', function () {
@@ -108,8 +109,7 @@ test('al emitir la carta de presentación se avisa por correo al alumno y en pla
 
     Notification::fake();
 
-    $po->addMedia(notPdf())->toMediaCollection('kardex');   // entregado con la postulación
-    $this->actingAs($this->adminAbog)->post(route('coordinacion.postulaciones.revision', $po), ['decision' => 'autorizar'])->assertSessionHasNoErrors();
+    $this->actingAs($this->adminAbog)->post(route('coordinacion.postulaciones.carta', $po))->assertSessionHasNoErrors();
 
     Notification::assertSentTo($this->anaUser, AvisoOperativo::class, fn ($n, $canales) => in_array('mail', $canales, true));
     Notification::assertSentTo($this->userEmpresa, AvisoOperativo::class, fn ($n, $canales) => $canales === ['database']);
@@ -122,8 +122,7 @@ test('las cuentas desactivadas no reciben avisos', function () {
 
     Notification::fake();
 
-    $po->addMedia(notPdf())->toMediaCollection('kardex');   // entregado con la postulación
-    $this->actingAs($this->adminAbog)->post(route('coordinacion.postulaciones.revision', $po), ['decision' => 'autorizar'])->assertSessionHasNoErrors();
+    $this->actingAs($this->adminAbog)->post(route('coordinacion.postulaciones.carta', $po))->assertSessionHasNoErrors();
 
     Notification::assertSentTo($this->anaUser, AvisoOperativo::class);
     Notification::assertNotSentTo($this->userEmpresa, AvisoOperativo::class);
@@ -220,4 +219,17 @@ test('una solicitud de convenio avisa por correo y campana solo a Vinculación a
 
     expect($mail->subject)->toContain('Empresa Nueva')
         ->and(collect($mail->introLines)->join(' '))->toContain('Empresa Nueva')->toContain('incompleto');
+});
+test('al validar el expediente, el alumno recibe por correo «ya puedes postularte»', function () {
+    $u = User::factory()->create();
+    $u->assignRole(Rol::Alumno->value);
+    $al = Alumno::create(['user_id' => $u->id, 'carrera_id' => $this->ana->carrera_id, 'num_control' => '215999000', 'grado' => 6, 'turno' => 'matutino']);
+    $al = expedienteDe($al, 70, 'pendiente');
+
+    Notification::fake();
+    $this->actingAs($this->adminAbog)->post(route('coordinacion.alumnos.expediente', $al), ['decision' => 'autorizar'])->assertSessionHasNoErrors();
+
+    Notification::assertSentTo($u, AvisoOperativo::class, fn ($n, $canales) => in_array('mail', $canales, true)
+        && str_contains($n->mensaje, 'validó tu kardex y tu constancia IMSS')
+        && str_contains($n->mensaje, 'Ya puedes postularte'));
 });

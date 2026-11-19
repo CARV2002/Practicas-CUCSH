@@ -169,21 +169,26 @@ test('el alumno sin grado/turno o sin IMSS no puede postularse y se le dice qué
         'ciclo' => '2027A', 'titulo' => 'Vacante UX', 'descripcion' => 'x', 'actividades' => ['a'], 'perfil_requerido' => 'p',
         'cupos_totales' => 2, 'estado' => ProgramaEstado::Publicado]);
 
+    // Sin expediente validado la oferta está con candado y explica qué hacer
     $this->actingAs($u)->get(route('alumno.oferta-programas'))->assertOk()
-        ->assertSee('Captura tu grado y turno en «Mi perfil»');
-    $this->actingAs($u)->post(route('alumno.oferta-programas.postular', $programa), ['porcentaje_creditos_declarado' => 70, 'kardex' => uxPdf(), 'siiau' => '1'])
+        ->assertSee('Primero entrega tu kardex y tu constancia IMSS a tu coordinación');
+    $this->actingAs($u)->post(route('alumno.oferta-programas.postular', $programa), ['siiau' => '1'])
         ->assertSessionHasErrors('postulacion');
+
+    // Con el expediente validado pero sin grado y turno, tampoco (van en la carta)
+    $alumno = expedienteDe($alumno, 70);
+    $u->unsetRelation('alumno');
+    $this->actingAs($u)->post(route('alumno.oferta-programas.postular', $programa), ['siiau' => '1'])
+        ->assertSessionHasErrors(['postulacion' => 'Captura tu grado y turno en «Mi perfil» antes de postularte (van en tu carta de presentación).']);
 
     $alumno->update(['grado' => 6, 'turno' => 'matutino']);
     $u->unsetRelation('alumno');
-    // El IMSS ya no es requisito previo: se entrega junto con el kardex en el formulario de postulación
-    $this->actingAs($u)->get(route('alumno.oferta-programas'))->assertSee('Constancia de vigencia de derechos del IMSS');
-    $this->actingAs($u)->post(route('alumno.oferta-programas.postular', $programa), ['porcentaje_creditos_declarado' => 70, 'kardex' => uxPdf(), 'siiau' => '1'])
-        ->assertSessionHasErrors(['imss', 'vigencia_imss']);
+    $this->actingAs($u)->get(route('alumno.oferta-programas'))->assertSee('Vacante UX')->assertSee('Confirma tu postulación');
 
     // «Mis prácticas» aparece bloqueada hasta que se postule
     $this->actingAs($u)->get(route('alumno.dashboard'))->assertSee('Se habilita cuando te postules a un programa.');
 });
+
 
 test('la coordinación ve qué falta para emitir la carta y Vinculación qué falta para turnar', function () {
     $u = uxUsuario(Rol::Alumno);
@@ -191,14 +196,10 @@ test('la coordinación ve qué falta para emitir la carta y Vinculación qué fa
         'grado' => 6, 'turno' => 'matutino', 'vigencia_imss' => now()->addYear()]);
     $alumno->addMedia(uxPdf())->toMediaCollection('constancia_imss');   // subida, sin validar
 
-    $programa = Programa::create(['convenio_id' => null, 'carrera_id' => $this->carrera->id, 'modalidad' => 'interna',
-        'ciclo' => '2027A', 'titulo' => 'Interno UX', 'descripcion' => 'x', 'actividades' => ['a'], 'perfil_requerido' => 'p',
-        'cupos_totales' => 2, 'estado' => ProgramaEstado::Publicado]);
-    Postulacion::create(['alumno_id' => $alumno->id, 'programa_id' => $programa->id, 'estado' => PostulacionEstado::Pendiente,
-        'porcentaje_creditos_declarado' => 70, 'fecha_postulacion' => today()]);
-
+    // Solo subió el IMSS: su expediente aparece por revisar, pero no se puede autorizar sin el kardex
     $this->actingAs($this->coord)->get(route('coordinacion.lista-practicantes'))->assertOk()
-        ->assertSee('Revisión de documentos')->assertSee('Falta un documento del alumno.');
+        ->assertSee('Expedientes por revisar')->assertSee('Falta un documento del alumno.');
+
 
     $convenio = app(ConvenioWorkflow::class)->solicitar($this->empresa, ['objetivos' => 'x', 'actividades_propuestas' => 'y', 'plazas_estimadas' => 2], [$this->carrera->id]);
     $this->actingAs($this->lorena)->get(route('admin.convenios.show', $convenio))->assertOk()

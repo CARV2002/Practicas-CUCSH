@@ -19,17 +19,22 @@ class Alumno extends Model implements HasMedia
 
     protected $table = 'alumnos';
 
-    protected $fillable = ['user_id', 'carrera_id', 'num_control', 'grado', 'turno', 'vigencia_imss'];
+    protected $fillable = ['user_id', 'carrera_id', 'num_control', 'grado', 'turno', 'vigencia_imss', 'porcentaje_creditos'];
 
     protected function casts(): array
     {
-        return ['vigencia_imss' => 'date', 'grado' => 'integer', 'turno' => \App\Enums\Turno::class];
+        return ['vigencia_imss' => 'date', 'grado' => 'integer', 'turno' => \App\Enums\Turno::class, 'porcentaje_creditos' => 'decimal:2'];
     }
 
     public function registerMediaCollections(): void
     {
         // Disco "local" = storage/app/private en Laravel 11+/12 (no público)
         $this->addMediaCollection('constancia_imss')
+            ->useDisk('local')
+            ->acceptsMimeTypes(['application/pdf', 'image/jpeg', 'image/png']);
+
+        // Expediente: el kardex se entrega junto con el IMSS y se valida antes de postularse
+        $this->addMediaCollection('kardex')
             ->useDisk('local')
             ->acceptsMimeTypes(['application/pdf', 'image/jpeg', 'image/png']);
     }
@@ -81,25 +86,28 @@ class Alumno extends Model implements HasMedia
     }
 
     /**
-     * Alumnos del alcance de una coordinación con su constancia IMSS vigente por revisar,
-     * se hayan postulado o no (el IMSS es requisito previo a la postulación).
+     * Alumnos del alcance de una coordinación con algo del expediente por revisar: kardex o IMSS
+     * recién enviados o reemplazados (también renovaciones de IMSS durante la práctica).
      *
      * @return \Illuminate\Support\Collection<int, self>
      */
-    public static function conImssPorRevisar(Personal $personal): \Illuminate\Support\Collection
+    public static function conExpedientePorRevisar(Personal $personal): \Illuminate\Support\Collection
     {
         $ids = $personal->carreraIdsEnAlcance();
+        $pendiente = fn ($m) => $m !== null && in_array($m->getCustomProperty('estado'), [null, \App\Enums\ValidacionEstado::Pendiente->value], true);
 
         return self::with(['user', 'carrera', 'media'])
             ->when($ids !== null, fn ($q) => $q->whereIn('carrera_id', $ids))
-            ->whereHas('media', fn ($m) => $m->where('collection_name', 'constancia_imss'))
+            ->whereHas('media', fn ($m) => $m->whereIn('collection_name', ['constancia_imss', 'kardex']))
             ->get()
-            ->filter(function (self $a) {
-                $estado = $a->documentoVigente('constancia_imss')?->getCustomProperty('estado');
-
-                return $estado === null || $estado === \App\Enums\ValidacionEstado::Pendiente->value;
-            })
+            ->filter(fn (self $a) => $pendiente($a->documentoVigente('kardex')) || $pendiente($a->documentoVigente('constancia_imss')))
             ->values();
+    }
+
+    /** @deprecated Usa conExpedientePorRevisar(): el IMSS se revisa junto con el kardex. */
+    public static function conImssPorRevisar(Personal $personal): \Illuminate\Support\Collection
+    {
+        return self::conExpedientePorRevisar($personal);
     }
 
     /** Horas validadas que la coordinación decidió conservar de la última baja (0 si se reiniciaron). */
@@ -111,6 +119,33 @@ class Alumno extends Model implements HasMedia
             ->first();
 
         return $ultima && $ultima->conserva_horas ? $ultima->horas_acumuladas : 0;
+    }
+
+    /**
+     * Estado del expediente (kardex + IMSS), que se entrega y se revisa en un solo momento:
+     *  sin_enviar · en_revision · devuelto · validado · imss_vencido
+     */
+    public function estadoExpediente(): string
+    {
+        $kardex = $this->documentoVigente('kardex')?->getCustomProperty('estado');
+        $imss = $this->documentoVigente('constancia_imss')?->getCustomProperty('estado');
+        $hayKardex = $this->documentoVigente('kardex') !== null;
+        $hayImss = $this->documentoVigente('constancia_imss') !== null;
+
+        return match (true) {
+            $kardex === 'rechazada' || $imss === 'rechazada' => 'devuelto',
+            // Un IMSS validado que ya venció se renueva antes de seguir, esté como esté el kardex
+            $imss === 'validada' && !$this->tieneImssVigenteHasta(now()) => 'imss_vencido',
+            $kardex === 'validada' && $imss === 'validada' => 'validado',
+            $hayKardex && $hayImss => 'en_revision',
+            default => 'sin_enviar',
+        };
+    }
+
+    /** Kardex e IMSS validados por su coordinación (y el IMSS sigue vigente): ya puede postularse. */
+    public function expedienteValidado(): bool
+    {
+        return $this->estadoExpediente() === 'validado';
     }
 
     /** Ya entregó un IMSS que la coordinación validó y sigue vigente: no se le vuelve a pedir. */

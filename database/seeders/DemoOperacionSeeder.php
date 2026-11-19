@@ -258,38 +258,41 @@ class DemoOperacionSeeder extends Seeder
     {
         $vigente = now()->addYear();
 
-        // 1. Elegible: IMSS vigente, kardex y postulación pendiente (+ una cancelada)
-        $elegible = $this->alumno('alumno.elegible@test.com', 'Elena Elegible', 'ABOG', 'DEMO0002', $vigente);
+        // Regla: el expediente (kardex + IMSS) se valida ANTES de postularse. Nadie avanza sin él.
+
+        // 1. Elegible: expediente validado y postulación pendiente de carta (+ una cancelada)
+        $elegible = $this->alumno('alumno.elegible@test.com', 'Elena Elegible', 'ABOG', 'DEMO0002', $vigente, creditos: 72.5);
         $this->postulacion($elegible, $p['abog_abierto'], PostulacionEstado::Pendiente, 72.5);
         $this->postulacion($elegible, $p['abog_interno'], PostulacionEstado::Cancelada, 72.5);
 
         // 2. Carta de presentación emitida (falta carta de aceptación)
-        $tramite = $this->alumno('alumno.tramite@test.com', 'Tomás Trámite', 'ABOG', 'DEMO0003', $vigente);
+        $tramite = $this->alumno('alumno.tramite@test.com', 'Tomás Trámite', 'ABOG', 'DEMO0003', $vigente, creditos: 68);
         $this->postulacion($tramite, $p['abog_abierto'], PostulacionEstado::CartaPresentacionEmitida, 68, validada: true, presentacion: true);
 
         // 3. Carta de aceptación recibida: listo para "Activar práctica"
-        $acepta = $this->alumno('alumno.aceptacion@test.com', 'Ana Aceptación', 'ABOG', 'DEMO0004', $vigente);
+        $acepta = $this->alumno('alumno.aceptacion@test.com', 'Ana Aceptación', 'ABOG', 'DEMO0004', $vigente, creditos: 80);
         $this->postulacion($acepta, $p['abog_abierto'], PostulacionEstado::CartaAceptacionRecibida, 80, validada: true, presentacion: true, aceptacion: true);
 
-        // 4. Con restricciones: IMSS vencido, créditos insuficientes, una rechazada
-        $restringido = $this->alumno('alumno.restringido@test.com', 'Rafael Restringido', 'ABOG', 'DEMO0005', now()->subMonths(2));
-        $this->postulacion($restringido, $p['abog_cerrado'], PostulacionEstado::Rechazada, 45);
-        $this->postulacion($restringido, $p['abog_abierto'], PostulacionEstado::Pendiente, 30); // mín. 50%: emitir carta debe fallar
+        // 4. Restringido: envió su expediente con créditos insuficientes (30% < 50%); está en revisión
+        //    y su coordinación debe devolverlo. No puede postularse mientras tanto.
+        $this->alumno('alumno.restringido@test.com', 'Rafael Restringido', 'ABOG', 'DEMO0005', $vigente, creditos: 30, expediente: 'en_revision');
 
         // 5. Práctica EN CURSO con reportes
-        $enCurso = $this->alumno('alumno.practica@test.com', 'Paula Práctica', 'ABOG', 'DEMO0006', $vigente);
+        $enCurso = $this->alumno('alumno.practica@test.com', 'Paula Práctica', 'ABOG', 'DEMO0006', $vigente, creditos: 85);
         $po = $this->postulacion($enCurso, $p['abog_abierto'], PostulacionEstado::Aceptada, 85, validada: true, presentacion: true, aceptacion: true);
         $practica = $this->practica($po, 'ABOG', PracticaEstado::EnCurso, now()->subMonths(3), now()->addMonths(3), $this->profes['juridico_1']);
         $this->reportesEnCurso($practica);
 
         // 6. Práctica CANCELADA
-        $cancelada = $this->alumno('alumno.cancelada@test.com', 'Carlos Cancelado', 'ABOG', 'DEMO0007', $vigente);
+        $cancelada = $this->alumno('alumno.cancelada@test.com', 'Carlos Cancelado', 'ABOG', 'DEMO0007', $vigente, creditos: 60);
         $po = $this->postulacion($cancelada, $p['abog_abierto'], PostulacionEstado::Cancelada, 60, validada: true, presentacion: true, aceptacion: true);
         $practica = $this->practica($po, 'ABOG', PracticaEstado::Cancelada, now()->subMonths(4), now()->addMonths(2), $this->profes['juridico_2']);
+        // Baja formal: la coordinación decidió conservar sus horas; su expediente sigue validado y puede postularse de nuevo
+        $practica->update(['motivo_baja' => 'cambio_plaza', 'detalle_baja' => 'La organización cerró el área.', 'conserva_horas' => true]);
         $this->reporte($practica, ReporteTipo::Mensual, ReporteEstado::Validado, 40, now()->subMonths(4), now()->subMonths(3), true, 'Buen inicio.');
 
         // 7. Práctica ACREDITADA (ciclo completo: carta de término + oficio + SIIAU). Ocupa el único cupo de crim_agotado.
-        $acreditada = $this->alumno('alumno.acreditada@test.com', 'Alicia Acreditada', 'CRIM', 'DEMO0008', $vigente);
+        $acreditada = $this->alumno('alumno.acreditada@test.com', 'Alicia Acreditada', 'CRIM', 'DEMO0008', $vigente, creditos: 90);
         $po = $this->postulacion($acreditada, $p['crim_agotado'], PostulacionEstado::Aceptada, 90, validada: true, presentacion: true, aceptacion: true);
         $practica = $this->practica($po, 'CRIM', PracticaEstado::Acreditada, now()->subMonths(9), now()->subMonths(3), $this->profes['juridico_1']);
         $this->reportesAcreditada($practica);
@@ -449,7 +452,12 @@ class DemoOperacionSeeder extends Seeder
         );
     }
 
-    private function alumno(string $email, string $nombre, string $clave, string $control, ?Carbon $imss, bool $activo = true): Alumno
+    /**
+     * Alumno con su expediente (kardex + IMSS), que se valida ANTES de postularse.
+     * $expediente: validado | en_revision | devuelto | sin_enviar
+     */
+    private function alumno(string $email, string $nombre, string $clave, string $control, ?Carbon $imss,
+        bool $activo = true, ?float $creditos = null, string $expediente = 'validado'): Alumno
     {
         $user = $this->usuario($email, $nombre, Rol::Alumno, $activo);
 
@@ -459,10 +467,17 @@ class DemoOperacionSeeder extends Seeder
             'grado' => 7,
             'turno' => \App\Enums\Turno::Matutino,
             'vigencia_imss' => $imss?->toDateString(),
+            'porcentaje_creditos' => $creditos,
         ]);
 
-        if ($imss) {
-            $this->adjuntar($alumno, 'constancia_imss', 'constancia-imss.pdf', ValidacionEstado::Validada);
+        if ($imss && $expediente !== 'sin_enviar') {
+            $estado = match ($expediente) {
+                'validado' => ValidacionEstado::Validada,
+                'devuelto' => ValidacionEstado::Rechazada,
+                default => null,   // en revisión
+            };
+            $this->adjuntar($alumno, 'kardex', 'kardex.pdf', $estado, $expediente === 'devuelto' ? 'El kardex es de un ciclo anterior.' : null);
+            $this->adjuntar($alumno, 'constancia_imss', 'constancia-imss.pdf', $expediente === 'devuelto' ? ValidacionEstado::Validada : $estado);
         }
 
         return $alumno;
@@ -484,10 +499,11 @@ class DemoOperacionSeeder extends Seeder
                 'validado_por' => $validada ? $this->coordinacionDe($alumno)->id : null,
                 'porcentaje_creditos_declarado' => $creditos,
                 'fecha_postulacion' => now()->subDays(20)->toDateString(),
+                'siiau_confirmado_at' => now()->subDays(20),
             ]
         );
 
-        $this->adjuntar($po, 'kardex', 'kardex.pdf');
+        // El kardex vive en el expediente del alumno (validado antes de postularse)
         $presentacion && $this->adjuntar($po, 'carta_presentacion', 'carta-presentacion.pdf');
         $aceptacion && $this->adjuntar($po, 'carta_aceptacion', 'carta-aceptacion.pdf');
 

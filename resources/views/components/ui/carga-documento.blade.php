@@ -16,6 +16,8 @@
     'reemplazable' => false,     // permite reemplazar aunque esté validado
     'compacto' => false,         // versión reducida para tablas y paneles laterales
     'pasoArchivo' => null,       // número del paso del archivo cuando hay campos previos (slot «campos»)
+    'etiquetaEstado' => null,    // texto propio de la insignia (p. ej. «Generada» para una carta del sistema)
+    'mensajeListo' => null,      // texto propio cuando ya está listo (sustituye a «Ya está validado…»)
 ])
 
 {{--
@@ -31,7 +33,7 @@
     $enRevision = $estado === 'pendiente';
     $puedeSubir = $action && !$bloqueo && (!$validado || $reemplazable);
     $chip = match (true) {
-        $validado => ['menta', 'Validado'],
+        $validado => ['menta', $etiquetaEstado ?? 'Validado'],
         $rechazado => ['rosa', 'Devuelto para corregir'],
         $enRevision => ['ambar', 'En revisión'],
         default => ['gris', 'Pendiente de subir'],
@@ -79,7 +81,7 @@
     @if ($validado && !$reemplazable)
         <p class="mt-3 flex items-start gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
             <x-dashboard.icono nombre="check" clase="mt-0.5 size-4 shrink-0" />
-            <span><span class="font-semibold">Ya está validado.</span> No necesitas volver a subirlo.</span>
+            <span>@if ($mensajeListo){{ $mensajeListo }}@else<span class="font-semibold">Ya está validado.</span> No necesitas volver a subirlo.@endif</span>
         </p>
     @elseif ($rechazado)
         <div class="mt-3 rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-800" role="alert">

@@ -60,6 +60,11 @@ class ActivarPractica
                 $this->fallar('El convenio no está vigente durante todo el periodo de la práctica.');
             }
 
+            // Nadie llega a la práctica sin su expediente: kardex e IMSS validados por la coordinación
+            if (!$alumno->documentoValidado('kardex') || !$alumno->documentoValidado('constancia_imss')) {
+                $this->fallar('El expediente del alumno (kardex e IMSS) no está validado.');
+            }
+
             if (!$alumno->tieneImssVigenteHasta($fechaFin)) {
                 $this->fallar('El seguro IMSS del alumno vence antes de terminar la práctica.');
             }

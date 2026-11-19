@@ -101,6 +101,7 @@ beforeEach(function () {
         'grado' => 7, 'turno' => 'matutino', 'vigencia_imss' => now()->addYears(2)->toDateString()]);
     $imss = $this->alumno->addMedia(acPdf('imss.pdf'))->toMediaCollection('constancia_imss');
     $this->alumno->resolverDocumento($imss, ValidacionEstado::Validada, null, $this->coordUser->id);
+    $this->alumno = expedienteDe($this->alumno, 70);   // kardex + IMSS validados: ya puede postularse
 });
 
 test('el borrador usa las declaraciones que capturó la empresa y la duración pactada', function () {
