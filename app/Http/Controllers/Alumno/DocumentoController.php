@@ -231,7 +231,7 @@ class DocumentoController extends Controller
     {
         $user = $request->user();
 
-        Avisos::enviar(Avisos::coordinadores((int) $user->alumno->carrera_id), new AvisoOperativo(
+        Avisos::aCoordinacion((int) $user->alumno->carrera_id, new AvisoOperativo(
             mensaje: "{$user->name} {$mensaje}",
             url: route($ruta, absolute: false),
             detalle: $user->alumno->num_control,

@@ -41,7 +41,7 @@ enum Rol: string
     public function label(): string
     {
         return match ($this) {
-            self::Administrador => 'Administrador técnico',
+            self::Administrador => 'Administrador',
             self::Vinculacion => 'Vinculación',
             self::Coordinador => 'Coordinación de carrera',
             self::Empresa => 'Empresa',

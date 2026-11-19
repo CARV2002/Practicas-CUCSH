@@ -80,6 +80,28 @@ class Alumno extends Model implements HasMedia
             ->exists();
     }
 
+    /**
+     * Alumnos del alcance de una coordinación con su constancia IMSS vigente por revisar,
+     * se hayan postulado o no (el IMSS es requisito previo a la postulación).
+     *
+     * @return \Illuminate\Support\Collection<int, self>
+     */
+    public static function conImssPorRevisar(Personal $personal): \Illuminate\Support\Collection
+    {
+        $ids = $personal->carreraIdsEnAlcance();
+
+        return self::with(['user', 'carrera', 'media'])
+            ->when($ids !== null, fn ($q) => $q->whereIn('carrera_id', $ids))
+            ->whereHas('media', fn ($m) => $m->where('collection_name', 'constancia_imss'))
+            ->get()
+            ->filter(function (self $a) {
+                $estado = $a->documentoVigente('constancia_imss')?->getCustomProperty('estado');
+
+                return $estado === null || $estado === \App\Enums\ValidacionEstado::Pendiente->value;
+            })
+            ->values();
+    }
+
     /** Horas validadas que la coordinación decidió conservar de la última baja (0 si se reiniciaron). */
     public function horasConservadas(): int
     {

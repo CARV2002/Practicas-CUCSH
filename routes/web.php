@@ -134,7 +134,7 @@ Route::prefix('empresa')
 
 /*
 |--------------------------------------------------------------------------
-| Vinculación (Lorena) + administrador técnico: SOLO el trámite de convenios
+| Vinculación (Lorena) + administrador: SOLO el trámite de convenios
 |--------------------------------------------------------------------------
 | Convenios, empresas y sus expedientes, dictámenes capturados, turnos a Jurídica,
 | firmas, formalización y alta de coordinadores. Lo académico vive en coordinacion/.
@@ -175,17 +175,18 @@ Route::prefix('admin')
 
         // Empresas y su expediente
         Route::get('/lista-empresas', [EmpresaController::class, 'index'])->name('lista-empresas');
+        Route::get('/empresas-pdf', [EmpresaController::class, 'pdf'])->name('empresas.pdf');
         Route::get('/empresas/{empresa}', [EmpresaController::class, 'show'])->name('empresas.show');
         Route::put('/empresas/{empresa}', [EmpresaController::class, 'update'])->name('empresas.update');
         Route::post('/empresas/{empresa}/activo', [EmpresaController::class, 'toggleActivo'])->name('empresas.activo');
 
-        // Informes de consulta: Vinculación ve convenios; el administrador técnico, todo
+        // Informes de consulta: Vinculación ve convenios; el administrador, todo
         Route::get('/informes', [InformeController::class, 'index'])->name('informes');
         Route::get('/informes/{tipo}/exportar', [InformeController::class, 'exportar'])
-            ->whereIn('tipo', ['practicas', 'postulaciones', 'convenios', 'programas'])
+            ->whereIn('tipo', ['practicas', 'postulaciones', 'convenios', 'programas', 'empresas'])
             ->name('informes.exportar');
 
-        // Administración del sistema: solo el administrador técnico
+        // Administración del sistema: solo el administrador
         // (cuentas de personal y alta de coordinadores, auditoría y estructura del catálogo)
         Route::middleware('role:' . Rol::Administrador->value)->group(function () {
             Route::get('/lista-usuarios', [UsuarioController::class, 'index'])->name('lista-usuarios');
@@ -206,7 +207,7 @@ Route::prefix('admin')
 
 /*
 |--------------------------------------------------------------------------
-| Coordinación de carrera (+ administrador técnico): el proceso académico del alumno
+| Coordinación de carrera (+ administrador): el proceso académico del alumno
 |--------------------------------------------------------------------------
 | Todo se filtra por el alcance de carrera/división del perfil de Personal.
 */
@@ -278,7 +279,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/notificaciones/{id}/abrir', [NotificacionController::class, 'abrir'])->name('notificaciones.abrir');
     Route::post('/notificaciones/leer-todas', [NotificacionController::class, 'marcarTodas'])->name('notificaciones.leer-todas');
 
-    // Centro de ayuda por rol (Vinculación y Administrador técnico van a su panel)
+    // Centro de ayuda por rol (Vinculación y Administrador van a su panel)
     Route::get('/ayuda', \App\Http\Controllers\AyudaController::class)->name('ayuda');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

@@ -21,6 +21,9 @@ return [
 
     'auditoria' => (bool) env('AUDITORIA_ACTIVA', true),
 
+    // Solo en local: redirige todos los correos a esta dirección para probar con cuentas ficticias
+    'correo_redirigir_a' => env('MAIL_REDIRIGIR_A'),
+
     // Exportación del convenio (Formato de PP) a PDF con LibreOffice sin interfaz
     'pdf' => [
         'habilitado' => (bool) env('PRACTICAS_CONVERTIR_PDF', true),

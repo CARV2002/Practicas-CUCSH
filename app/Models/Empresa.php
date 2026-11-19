@@ -119,6 +119,37 @@ class Empresa extends Model implements HasMedia
         return true;
     }
 
+    /** Situaciones de una organización frente al CUCSH (filtros, PDF y exportación usan las mismas). */
+    public const SITUACIONES = [
+        'vigente' => ['Convenio vigente', 'menta'],
+        'por_vencer' => ['Por vencer (60 días)', 'ambar'],
+        'en_tramite' => ['Convenio en trámite', 'cielo'],
+        'vencido' => ['Convenio vencido', 'piedra'],
+        'rechazado' => ['Solicitud rechazada', 'rosa'],
+        'sin_solicitud' => ['Sin solicitud', 'gris'],
+        'inactiva' => ['Cuenta inactiva', 'gris'],
+    ];
+
+    /** @return array{clave:string, texto:string, familia:string, detalle:?string} (requiere convenios cargados) */
+    public function situacion(): array
+    {
+        $convenios = $this->relationLoaded('convenios') ? $this->convenios : $this->convenios()->get();
+        $vigente = $convenios->first(fn (Convenio $c) => $c->estaVigente());
+        $ultimo = $convenios->sortByDesc('id')->first();
+
+        [$clave, $detalle] = match (true) {
+            $this->user && $this->user->activo === false => ['inactiva', null],
+            $vigente !== null && $vigente->fecha_fin_vigencia->lte(now()->addDays(60)) => ['por_vencer', 'Vence el ' . $vigente->fecha_fin_vigencia->format('d/m/Y')],
+            $vigente !== null => ['vigente', 'Hasta el ' . $vigente->fecha_fin_vigencia->format('d/m/Y')],
+            $convenios->contains(fn (Convenio $c) => !$c->estado->esFinal()) => ['en_tramite', $convenios->first(fn ($c) => !$c->estado->esFinal())->estado->label()],
+            $ultimo?->estado === ConvenioEstado::Rechazado => ['rechazado', 'Desde el ' . $ultimo->updated_at->format('d/m/Y')],
+            $convenios->contains(fn (Convenio $c) => $c->estado === ConvenioEstado::Formalizado) => ['vencido', 'Venció el ' . $convenios->where('estado', ConvenioEstado::Formalizado)->max('fecha_fin_vigencia')?->format('d/m/Y')],
+            default => ['sin_solicitud', null],
+        };
+
+        return ['clave' => $clave, 'texto' => self::SITUACIONES[$clave][0], 'familia' => self::SITUACIONES[$clave][1], 'detalle' => $detalle];
+    }
+
     public function auditoriaNombre(): ?string
     {
         return $this->razon_social;

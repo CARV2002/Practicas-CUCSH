@@ -87,7 +87,7 @@
             </div>
         </form>
     @empty
-        <x-dashboard.vacio icono="academico" titulo="No tienes carreras asignadas" texto="Pide al administrador técnico que asigne tu carrera o división a tu cuenta." class="rounded-2xl border border-gray-200 bg-white" />
+        <x-dashboard.vacio icono="academico" titulo="No tienes carreras asignadas" texto="Pide al administrador que asigne tu carrera o división a tu cuenta." class="rounded-2xl border border-gray-200 bg-white" />
     @endforelse
 </div>
 @endsection

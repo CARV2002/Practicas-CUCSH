@@ -338,7 +338,7 @@
                                 </select>
                                 <p class="ayuda" x-text="fin ? 'Vence el ' + fin + ' (avisos a 60 y 30 días)' : 'La fecha de fin se calcula sola'"></p>
                             </div>
-                            <div><label class="etiqueta" for="fo-pdf">Escaneo firmado (PDF)</label><input id="fo-pdf" type="file" name="convenio_firmado" accept="application/pdf" class="campo h-11 py-2 file:mr-2 file:rounded-md file:border-0 file:bg-udg-50 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-udg-900"></div>
+                            <div><label class="etiqueta" for="fo-pdf">Escaneo firmado (PDF)</label><input id="fo-pdf" type="file" name="convenio_firmado" accept="application/pdf" data-max-mb="20" class="campo h-11 py-2 file:mr-2 file:rounded-md file:border-0 file:bg-udg-50 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-udg-900"></div>
                             <div class="md:col-span-3"><label class="etiqueta" for="fo-com">Comentario (opcional)</label><input id="fo-com" type="text" name="comentario" class="campo h-11"></div>
                             <div class="flex items-end"><button class="boton boton-exito h-11 w-full"><x-dashboard.icono nombre="vigente" clase="size-4" /> Formalizar convenio</button></div>
                         </form>

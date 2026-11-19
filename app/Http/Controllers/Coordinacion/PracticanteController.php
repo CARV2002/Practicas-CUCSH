@@ -52,7 +52,11 @@ class PracticanteController extends Controller
             ->paginate(10, ['*'], 'postulaciones')
             ->withQueryString();
 
+        // Los que ya tienen postulación en trámite se revisan en su fila; aquí, los demás
+        $conPostulacion = Postulacion::whereIn('estado', PostulacionEstado::valores(PostulacionEstado::enTramite()))->pluck('alumno_id')->all();
+
         return view('coordinacion.lista-practicantes', [
+            'imssPorRevisar' => \App\Models\Alumno::conImssPorRevisar($personal)->reject(fn ($a) => in_array($a->id, $conPostulacion)),
             'practicas' => $practicas,
             'postulaciones' => $postulaciones,
             'carreras' => Carrera::enAlcance($personal)->orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),

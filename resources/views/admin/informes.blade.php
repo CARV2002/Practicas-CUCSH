@@ -7,9 +7,11 @@
         ['tipo' => 'postulaciones', 'titulo' => 'Postulaciones', 'icono' => 'usuarios', 'desc' => 'Quién se postuló a qué programa, con su porcentaje de créditos.', 'fechas' => 'Fecha de postulación', 'ciclo' => false],
         ['tipo' => 'convenios', 'titulo' => 'Convenios', 'icono' => 'documento', 'desc' => 'Estado, vigencia, días para vencer y carreras aprobadas.', 'fechas' => 'Fecha de recepción', 'ciclo' => false],
         ['tipo' => 'programas', 'titulo' => 'Programas', 'icono' => 'vacante', 'desc' => 'Ofertas con cupos totales, ocupados y disponibles.', 'fechas' => null, 'ciclo' => true],
+        ['tipo' => 'empresas', 'titulo' => 'Empresas', 'icono' => 'empresa', 'desc' => 'Cada organización con su situación (vigente, por vencer, en trámite, vencida, rechazada, sin solicitud o inactiva), representante y contacto.', 'fechas' => null, 'ciclo' => false, 'carrera' => false],
     ];
-    // Vinculación solo ve y exporta convenios; lo académico es del administrador técnico
-    $exportes = $completo ? $exportes : array_values(array_filter($exportes, fn ($e) => $e['tipo'] === 'convenios'));
+    // Vinculación ve y exporta convenios y empresas; lo académico es del administrador
+    $exportes = $completo ? $exportes : array_values(array_filter($exportes, fn ($e) => in_array($e['tipo'], ['convenios', 'empresas'], true)));
+    $estados['empresas'] = collect(\App\Models\Empresa::SITUACIONES)->map(fn ($s) => $s[0])->all();
     $maxEtapa = max(1, collect($etapas)->map(fn ($e) => max($e['promedio'], $e['maximo'] ?? 0))->max() ?? 1);
 @endphp
 
@@ -21,7 +23,7 @@
         <x-ui.aviso tipo="error" titulo="No se pudo generar el informe"><ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></x-ui.aviso>
     @endif
 
-    {{-- Resumen de prácticas (solo administrador técnico) --}}
+    {{-- Resumen de prácticas (solo administrador) --}}
     @if ($completo)
         <x-tabla.marco titulo="Resumen de prácticas" descripcion="Filtra por carrera y por fecha de inicio de la práctica.">
             <x-slot:herramientas>
@@ -161,7 +163,7 @@
                     </button>
 
                     <div x-show="filtros" x-cloak x-transition.opacity.duration.150ms class="mt-3 grid grid-cols-1 gap-3 rounded-xl bg-gray-50 p-4 sm:grid-cols-2">
-                        <div>
+                        <div @class(['hidden' => !($e['carrera'] ?? true)])>
                             <label for="{{ $e['tipo'] }}-carrera" class="etiqueta">Carrera</label>
                             <select id="{{ $e['tipo'] }}-carrera" name="carrera_id" class="campo h-10">
                                 <option value="">Todas las carreras</option>
@@ -199,7 +201,10 @@
                         @endif
                     </div>
 
-                    <div class="mt-4 flex justify-end border-t border-gray-100 pt-4">
+                    <div class="mt-4 flex justify-end gap-2 border-t border-gray-100 pt-4">
+                        @if ($e['tipo'] === 'empresas')
+                            <a href="{{ route('admin.empresas.pdf') }}" data-sin-vista class="boton boton-secundario"><x-dashboard.icono nombre="documento" clase="size-4" /> PDF por situación</a>
+                        @endif
                         <button class="boton boton-primario" data-sin-bloqueo="1"><x-dashboard.icono nombre="descargar" clase="size-4" /> Descargar CSV</button>
                     </div>
                 </form>

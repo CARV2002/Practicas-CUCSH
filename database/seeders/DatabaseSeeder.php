@@ -31,7 +31,7 @@ class DatabaseSeeder extends Seeder
         $this->call(ConvenioSeeder::class);
 
         // En producción NO se siembran cuentas con contraseña conocida:
-        // el administrador técnico se crea con `php artisan practicas:crear-administrador correo@udg.mx`
+        // el administrador se crea con `php artisan practicas:crear-administrador correo@udg.mx`
         // y desde Usuarios da de alta a Vinculación; Vinculación da de alta a cada coordinación.
         if (! app()->environment('local')) {
             return;
@@ -41,7 +41,7 @@ class DatabaseSeeder extends Seeder
         // (con sus horas y % de créditos) se capturan desde el catálogo de la aplicación.
         $this->datosDemo();
 
-        // Administrador técnico, Vinculación (Lorena) y una coordinación por carrera demo (ABOG, CRIM, DEMO)
+        // Administrador, Vinculación (Lorena) y una coordinación por carrera demo (ABOG, CRIM, DEMO)
         $this->call(PersonalSeeder::class);
 
         $this->call(DemoOperacionSeeder::class);

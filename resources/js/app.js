@@ -1,5 +1,7 @@
 import './validacion';
 import './tablas';
+import { iniciarVistaPrevia } from './vista-previa';
+import calendarioRegresos from './calendario-regresos';
 import Alpine from 'alpinejs';
 
 // Fuentes institucionales (DESIGN_SYSTEM.md §2): se empaquetan con Vite, sin depender de Google Fonts
@@ -13,4 +15,6 @@ import 'flatpickr/dist/flatpickr.min.css';
 window.Alpine = Alpine;
 window.flatpickr = flatpickr;
 
+Alpine.data('calendarioRegresos', calendarioRegresos);
 Alpine.start();
+iniciarVistaPrevia();

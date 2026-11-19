@@ -48,7 +48,7 @@ class Avisos
 
     /**
      * Coordinación de carrera activa con alcance sobre esa carrera (o su división).
-     * Postulaciones, reportes y cierres van SOLO aquí: ni Vinculación ni el administrador técnico.
+     * Postulaciones, reportes y cierres van SOLO aquí: ni Vinculación ni el administrador.
      */
     public static function coordinadores(int $carreraId): Collection
     {
@@ -57,6 +57,33 @@ class Avisos
                 && $u->personal->tieneAlcanceDeCoordinacion()
                 && $u->personal->puedeVerCarrera($carreraId))
             ->values();
+    }
+
+    /**
+     * Aviso a la coordinación de una carrera. Si la carrera aún no tiene coordinación activa,
+     * el aviso no se pierde: va al administrador para que la dé de alta (y la coordinación
+     * nueva recibe un resumen de pendientes al crearse; ver UsuarioController::store).
+     */
+    public static function aCoordinacion(int $carreraId, AvisoPracticas $aviso): void
+    {
+        $coordinadores = self::coordinadores($carreraId);
+
+        if ($coordinadores->isNotEmpty()) {
+            self::enviar($coordinadores, $aviso);
+
+            return;
+        }
+
+        $carrera = \App\Models\Carrera::find($carreraId);
+        $administradores = User::role(Rol::Administrador->value)->where('activo', true)->get();
+
+        self::enviar($administradores, new \App\Notifications\AvisoOperativo(
+            mensaje: 'La carrera ' . ($carrera?->carrera_clave ?? "#{$carreraId}") . ' no tiene coordinación activa en el sistema y quedó un pendiente sin atender: «'
+                . $aviso->toArray(new User())['mensaje'] . '». Da de alta su coordinación.',
+            url: route('admin.lista-usuarios', ['rol' => Rol::Coordinador->value], false),
+            detalle: $carrera?->nombre,
+            clave: null,
+        ));
     }
 
     /** Coordinación de la carrera del alumno de esa práctica. */

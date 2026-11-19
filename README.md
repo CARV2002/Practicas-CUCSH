@@ -71,6 +71,7 @@ Ya puedes acceder a la aplicación desde tu navegador en `http://127.0.0.1:8000`
 | spatie/laravel-medialibrary | Expedientes y escaneos en el disco privado `local`, con estado de validación por archivo |
 | phpoffice/phpword | Llena el Formato de PP (convenio específico) y la carta de presentación en Word |
 | LibreOffice (sin interfaz) | Convierte el Formato de PP a PDF limpio para imprimir los 3 juegos (`App\Services\ConvertidorPdf`) |
+| barryvdh/laravel-dompdf | PDF de listados (empresas por situación) generado desde HTML |
 | laravel/socialite | Inicio de sesión con la cuenta institucional de Google |
 | laravel-lang/common | Mensajes de validación en español |
 | Pest 4 | Pruebas de procesos, permisos y transiciones |
@@ -80,7 +81,7 @@ Ya puedes acceder a la aplicación desde tu navegador en `http://127.0.0.1:8000`
 
 | Actor | Rol | Qué hace |
 |---|---|---|
-| Administrador técnico | `administrador` | Cuentas de personal, divisiones y carreras, auditoría; entra a todo |
+| Administrador | `administrador` | Cuentas de personal, divisiones y carreras, auditoría; entra a todo |
 | Vinculación (Lorena) | `vinculacion` | Trámite de convenios: expedientes, turno a carreras, borrador, Jurídica, firmas, documentos físicos y formalización |
 | Coordinación de carrera | `coordinador` | Dictamen de pertinencia, vacantes, IMSS/kardex, carta de presentación, **validación de reportes**, bajas y cierre |
 | Profesor supervisor | *(sin sesión)* | Catálogo que administra cada coordinación y se asigna a la práctica; la validación de reportes la hace la coordinación |
@@ -96,7 +97,8 @@ Secretaría Académica, Divisiones, Jurídica, Rectoría y Control Escolar no en
    `php artisan queue:work --tries=3` como servicio (Supervisor en Linux; Programador de tareas o NSSM en Windows).
 3. **Tareas programadas** (avisos diarios a las 7:30: convenios a 60 y 30 días, esperas, documentos físicos, dictámenes y prácticas por terminar):
    ejecutar `php artisan schedule:run` cada minuto (cron o Programador de tareas).
-4. **Correo**: en `.env` cambiar `MAIL_MAILER=log` por el SMTP institucional (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`).
+4. **Correo**: `MAIL_MAILER=failover` (SMTP y, si falla, log). Con Google Workspace: `MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=587`, `MAIL_SCHEME=smtp`, usuario y **contraseña de aplicación**. En local, `MAIL_REDIRIGIR_A` manda todos los correos a una sola bandeja.
+   **Límites de subida** (`php.ini`): `upload_max_filesize` ≥ 20M y `post_max_size` ≥ 25M (los formularios aceptan 10 MB; el escaneo firmado, 20 MB).
 5. **PDF del convenio**: instalar LibreOffice. Si `soffice` no está en una ruta estándar, indicar `PRACTICAS_SOFFICE="C:\Program Files\LibreOffice\program\soffice.exe"`.
    Sin LibreOffice el borrador se sigue generando en Word y se muestra un aviso.
 6. `npm ci && npm run build` y `php artisan optimize`.
@@ -107,7 +109,7 @@ Secretaría Académica, Divisiones, Jurídica, Rectoría y Control Escolar no en
 (`admin@test.com`, `vinculacion@test.com`, `coord.abog@test.com`, `empresa@test.com`, `alumno.elegible@test.com`, entre otras) y datos de demostración.
 **En producción solo crea los roles**; nunca siembra cuentas con contraseña conocida.
 
-La cuenta real del administrador técnico se crea con un comando que pide la contraseña:
+La cuenta real del administrador se crea con un comando que pide la contraseña:
 
 ```bash
 php artisan practicas:crear-administrador correo@udg.mx --nombre="Nombre Apellido"

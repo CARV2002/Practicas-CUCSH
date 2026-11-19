@@ -29,7 +29,7 @@ beforeEach(function () {
         'horas_requeridas' => 250, 'porcentaje_creditos_minimo' => 50, 'creditos_otorgados' => 8]);
 });
 
-test('Vinculación y el Administrador técnico no tienen Centro de ayuda', function (Rol $rol) {
+test('Vinculación y el Administrador no tienen Centro de ayuda', function (Rol $rol) {
     $u = paUsuario($rol);
     Personal::create(['user_id' => $u->id]);
 

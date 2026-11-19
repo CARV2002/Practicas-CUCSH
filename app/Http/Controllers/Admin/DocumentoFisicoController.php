@@ -65,18 +65,29 @@ class DocumentoFisicoController extends Controller
             ->limit(12)
             ->get();
 
-        $proximos = (clone $base)->fuera()->with('convenio.empresa')
+        // Todos los papeles fuera de la oficina con fecha de regreso: alimentan la lista y el calendario
+        $fuera = (clone $base)->fuera()->deTramiteVivo()->with('convenio.empresa')
             ->whereNotNull('fecha_compromiso')
             ->orderBy('fecha_compromiso')
-            ->limit(6)
             ->get();
+
+        $calendario = $fuera->map(fn (DocumentoFisico $d) => [
+            'fecha' => $d->fecha_compromiso->toDateString(),
+            'papel' => $d->nombre(),
+            'empresa' => $d->convenio->empresa->razon_social,
+            'custodio' => $d->estado->custodio(),
+            'estado' => $d->estado->label(),
+            'tono' => $d->vencido() ? 'vencido' : ($d->porVencer() ? 'pronto' : 'normal'),
+            'url' => route('admin.convenios.show', $d->convenio_id),
+        ])->values();
 
         return view('admin.documentos-fisicos', [
             'grupos' => $documentos,
             'conteos' => $conteos,
             'vista' => $vista,
             'sinControl' => $sinControl,
-            'proximos' => $proximos,
+            'proximos' => $fuera->take(6),
+            'calendario' => $calendario,
         ]);
     }
 

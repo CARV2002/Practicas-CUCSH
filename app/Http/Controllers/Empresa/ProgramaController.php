@@ -162,7 +162,7 @@ class ProgramaController extends Controller
 
     private function avisarCoordinacion(Request $request, Programa $programa, string $accion): void
     {
-        Avisos::enviar(Avisos::coordinadores((int) $programa->carrera_id), new AvisoOperativo(
+        Avisos::aCoordinacion((int) $programa->carrera_id, new AvisoOperativo(
             mensaje: "{$request->user()->empresa->razon_social} {$accion} «{$programa->titulo}». Revisa horario y actividades para aprobarla.",
             url: route('coordinacion.lista-programas', ['estado' => ProgramaEstado::PendienteAprobacion->value], false),
             detalle: $programa->titulo,

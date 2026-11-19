@@ -17,7 +17,7 @@ use App\Models\Concerns\Auditable;
 class Personal extends Model
 {
     use Auditable;
-    protected $table = 'personal';
+    protected $table = 'personal_institucional';
 
     protected $fillable = ['user_id', 'division_id', 'carrera_id', 'puesto'];
 

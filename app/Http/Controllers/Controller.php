@@ -14,6 +14,11 @@ abstract class Controller
     /** Entrega un archivo privado y deja rastro de quién lo bajó (salvo el alumno con sus propios archivos). */
     protected function entregar(Media $media)
     {
+        // Vista previa (?ver=1): PDF e imágenes se muestran en el navegador; lo demás, una ficha con su descarga
+        if (request()->boolean('ver')) {
+            return $this->vistaPrevia($media);
+        }
+
         if (! auth()->user()?->hasRole(Rol::Alumno->value)) {
             Auditoria::registrar(
                 'documento.descargado',
@@ -25,5 +30,24 @@ abstract class Controller
         }
 
         return $media->toResponse(request());
+    }
+
+    private function vistaPrevia(Media $media)
+    {
+        $mime = (string) $media->mime_type;
+
+        if ($mime === 'application/pdf' || str_starts_with($mime, 'image/')) {
+            return response()->file($media->getPath(), [
+                'Content-Type' => $mime,
+                'Content-Disposition' => 'inline; filename="' . addcslashes($media->file_name, '"\\') . '"',
+                'X-Content-Type-Options' => 'nosniff',
+                'Cache-Control' => 'private, no-store',
+            ]);
+        }
+
+        return response()->view('components.ui.sin-vista-previa', [
+            'media' => $media,
+            'descarga' => request()->fullUrlWithQuery(['ver' => null]),
+        ]);
     }
 }

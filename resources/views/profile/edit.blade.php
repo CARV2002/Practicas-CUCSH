@@ -370,10 +370,10 @@
                 </section>
             @endif
 
-            {{-- ===================== ADMINISTRADOR TÉCNICO ===================== --}}
+            {{-- ===================== ADMINISTRADOR ===================== --}}
             @if ($rol === Rol::Administrador)
                 <section id="panel-administracion" role="tabpanel" aria-labelledby="tab-administracion" x-show="tab === 'administracion'" x-cloak class="space-y-6 animate-entrada motion-reduce:animate-none">
-                    <x-dashboard.panel titulo="Administrador técnico" icono="informe" descripcion="Entras a todo: Vinculación, coordinaciones y administración del sistema.">
+                    <x-dashboard.panel titulo="Administrador" icono="informe" descripcion="Entras a todo: Vinculación, coordinaciones y administración del sistema.">
                         <ul class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             @foreach ([
                                 ['usuarios', 'Usuarios y coordinadores', 'Altas de personal y contraseñas.', 'admin.lista-usuarios'],
@@ -494,7 +494,7 @@
                     </ul>
                 </x-dashboard.panel>
 
-                {{-- Vinculación y el Administrador técnico son el propio contacto para estos casos --}}
+                {{-- Vinculación y el Administrador son el propio contacto para estos casos --}}
                 @unless (in_array($rol, [Rol::Vinculacion, Rol::Administrador], true))
                     <x-dashboard.panel titulo="Tus datos personales" icono="vigente" descripcion="Tratamos tus datos conforme al aviso de privacidad del CUCSH.">
                         <p class="text-sm leading-relaxed text-gray-600">

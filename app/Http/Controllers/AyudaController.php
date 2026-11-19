@@ -8,7 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
-/** Centro de ayuda por rol. Vinculación y el Administrador técnico no lo tienen: se les envía a su panel. */
+/** Centro de ayuda por rol. Vinculación y el Administrador no lo tienen: se les envía a su panel. */
 class AyudaController extends Controller
 {
     public function __invoke(Request $request): View|RedirectResponse

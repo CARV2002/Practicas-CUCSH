@@ -14,7 +14,7 @@ class MenuHelper
     {
         $user = auth()->user();
 
-        // El administrador técnico ve ambos paneles; Vinculación y Coordinación solo el suyo
+        // El administrador ve ambos paneles; Vinculación y Coordinación solo el suyo
         if ($user->hasRole(Rol::Administrador->value)) {
             return [...self::sistemaMenu(), ...self::vinculacionMenu(), ...self::coordinacionMenu()];
         }
@@ -135,7 +135,7 @@ class MenuHelper
         ];
     }
 
-    /** Administrador técnico: cuentas de personal (incluye alta de coordinadores), catálogo y auditoría. */
+    /** Administrador: cuentas de personal (incluye alta de coordinadores), catálogo y auditoría. */
     private static function sistemaMenu()
     {
         return [

@@ -11,7 +11,7 @@ use Illuminate\Database\Seeder;
 /**
  * Cuentas de personal institucional para pruebas locales (contraseña: password123).
  *
- *   admin@test.com        Administrador técnico (superusuario, alcance global)
+ *   admin@test.com        Administrador (superusuario, alcance global)
  *   vinculacion@test.com  Vinculación / Lorena (solo convenios, alcance global)
  *   coord.abog@test.com   Coordinación de ABOG
  *   coord.crim@test.com   Coordinación de CRIM
@@ -44,10 +44,10 @@ class PersonalSeeder extends Seeder
         }
     }
 
-    /** Administrador técnico: superusuario sin alcance (global). */
+    /** Administrador: superusuario sin alcance (global). */
     public static function administrador(): Personal
     {
-        $user = self::usuario('admin@test.com', 'Administrador Técnico', Rol::Administrador);
+        $user = self::usuario('admin@test.com', 'Administrador', Rol::Administrador);
 
         return Personal::firstOrCreate(['user_id' => $user->id], ['puesto' => 'Administración técnica del sistema']);
     }

@@ -139,7 +139,7 @@
     </x-tabla.marco>
 
     {{-- Modal crear/editar --}}
-    <div x-show="modal" x-cloak x-transition.opacity.duration.200ms @keydown.escape.window="modal = false" class="fixed inset-0 z-99999 flex items-start justify-center overflow-y-auto p-5">
+    <div x-show="modal" x-cloak x-transition.opacity.duration.200ms @keydown.escape.window="modal = false" class="fixed inset-0 z-[100050] flex items-start justify-center overflow-y-auto p-5">
         <div class="fixed inset-0 bg-udg-950/50 backdrop-blur-sm" @click="modal = false"></div>
         <form method="POST" :action="action" @click.stop class="relative animate-entrada motion-reduce:animate-none my-8 w-full max-w-2xl space-y-5 rounded-2xl bg-white p-6 shadow-theme-xl">
             @csrf

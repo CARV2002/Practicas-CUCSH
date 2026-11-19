@@ -8,7 +8,7 @@ use App\Models\User;
 trait ResuelveActores
 {
     /**
-     * Vinculación (o el administrador técnico) con perfil de Personal: lleva el trámite de convenios.
+     * Vinculación (o el administrador) con perfil de Personal: lleva el trámite de convenios.
      * Sin perfil no tiene alcance: se le niega, no truena.
      */
     protected function esVinculacion(User $user): bool
@@ -16,7 +16,7 @@ trait ResuelveActores
         return $user->hasAnyRole(Rol::deVinculacion()) && $user->personal !== null;
     }
 
-    /** Coordinación de carrera/división (con alcance obligatorio) o administrador técnico. */
+    /** Coordinación de carrera/división (con alcance obligatorio) o administrador. */
     protected function esCoordinacion(User $user): bool
     {
         if (! $user->hasAnyRole(Rol::deCoordinacion()) || $user->personal === null) {

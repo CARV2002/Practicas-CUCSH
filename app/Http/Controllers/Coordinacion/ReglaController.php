@@ -13,7 +13,7 @@ use Illuminate\View\View;
 /**
  * Reglas de las carreras de la coordinación: horas requeridas, % mínimo de créditos, créditos que otorga,
  * periodicidad de reportes y el contacto que ven los alumnos («Tu coordinación»).
- * El alta de divisiones/carreras sigue siendo del administrador técnico.
+ * El alta de divisiones/carreras sigue siendo del administrador.
  */
 class ReglaController extends Controller
 {

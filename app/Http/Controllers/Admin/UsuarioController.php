@@ -46,7 +46,7 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Alta de personal (solo el administrador técnico): coordinadores con su carrera o división,
+     * Alta de personal (solo el administrador): coordinadores con su carrera o división,
      * la cuenta de Vinculación y otros administradores. Alumnos y empresas se registran solos.
      */
     public function store(Request $request): RedirectResponse
@@ -89,13 +89,18 @@ class UsuarioController extends Controller
 
             \App\Services\Auditoria::registrar('usuario.rol_asignado', "Rol «{$rol->value}» asignado a {$user->email}", $user);
 
-            Personal::create([
+            $personal = Personal::create([
                 'user_id' => $user->id,
                 // Vinculación y administrador: alcance global; coordinador: su carrera o división
                 'carrera_id' => $esCoordinador ? ($datos['carrera_id'] ?? null) : null,
                 'division_id' => $esCoordinador ? ($datos['division_id'] ?? null) : null,
                 'puesto' => $datos['puesto'] ?? $rol->label(),
             ]);
+
+            // Una coordinación nueva hereda lo que ya estaba esperando en su carrera
+            if ($esCoordinador) {
+                $this->avisarPendientes($user, $personal);
+            }
         });
 
         return back()->with('status', "Cuenta de {$rol->label()} creada.");
@@ -132,6 +137,28 @@ class UsuarioController extends Controller
         }
 
         return back()->with('status', 'Correo marcado como verificado.');
+    }
+
+    /** Resumen de lo que ya esperaba en la carrera o división de una coordinación recién creada. */
+    private function avisarPendientes(User $user, Personal $personal): void
+    {
+        $partes = array_filter([
+            ($n = \App\Models\Alumno::conImssPorRevisar($personal)->count()) ? "{$n} constancia(s) IMSS por revisar" : null,
+            ($n = \App\Models\Postulacion::visiblesPara($personal)->where('estado', \App\Enums\PostulacionEstado::Pendiente->value)->count()) ? "{$n} postulación(es) por validar" : null,
+            ($n = \App\Models\Programa::whereIn('carrera_id', \App\Models\Carrera::enAlcance($personal)->select('id'))
+                ->where('estado', \App\Enums\ProgramaEstado::PendienteAprobacion->value)->count()) ? "{$n} vacante(s) por aprobar" : null,
+            ($n = \App\Models\ConvenioCarrera::visiblesPara($personal)->pendientes()
+                ->whereHas('convenio', fn ($c) => $c->where('estado', \App\Enums\ConvenioEstado::EnValidacionAcademica->value))->count()) ? "{$n} dictamen(es) de convenio" : null,
+        ]);
+
+        if ($partes === []) {
+            return;
+        }
+
+        \App\Services\Avisos::enviar($user, new \App\Notifications\AvisoOperativo(
+            mensaje: 'Bienvenida a la plataforma. Tu carrera ya tenía pendientes: ' . implode(', ', $partes) . '.',
+            url: route('coordinacion.dashboard', absolute: false),
+        ));
     }
 
     /** @return Rol[] Roles de personal que se dan de alta aquí (el coordinador, primero: es el alta más común). */

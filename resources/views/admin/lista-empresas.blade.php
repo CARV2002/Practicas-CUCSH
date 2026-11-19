@@ -6,7 +6,30 @@
 @endphp
 
 <div class="space-y-6">
-    <x-pagina.encabezado titulo="Empresas" descripcion="Organizaciones registradas: su expediente, su cuenta y el estado de su convenio." />
+    <x-pagina.encabezado titulo="Empresas" descripcion="Organizaciones registradas: su expediente, su cuenta y el estado de su convenio.">
+        <x-slot:acciones>
+            {{-- PDF con los filtros actuales; el menú elige una sola situación --}}
+            <div class="relative" x-data="{ menu: false }" x-on:click.outside="menu = false" x-on:keydown.escape="menu = false">
+                <div class="inline-flex overflow-hidden rounded-lg shadow-theme-xs">
+                    <a href="{{ route('admin.empresas.pdf', request()->only(['q', 'tipo', 'convenio'])) }}" class="boton boton-primario rounded-r-none" data-sin-vista>
+                        <x-dashboard.icono nombre="descargar" clase="size-4" /> Descargar PDF
+                    </a>
+                    <button type="button" class="boton boton-primario rounded-l-none border-l border-white/20 px-2.5" x-on:click="menu = !menu" :aria-expanded="menu.toString()" aria-label="Elegir situación del PDF">
+                        <svg class="size-4 transition-transform" :class="menu && 'rotate-180'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                </div>
+                <div x-show="menu" x-cloak x-transition.origin.top.right class="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-theme-lg">
+                    <p class="px-3 py-1.5 text-xs font-semibold text-gray-500">PDF solo con empresas…</p>
+                    @foreach ($situaciones as $clave => [$texto, $familia])
+                        <a href="{{ route('admin.empresas.pdf', ['situacion' => $clave] + request()->only(['q', 'tipo'])) }}" data-sin-vista
+                            class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <span class="size-2 rounded-full {{ \App\Support\Estatus::punto($familia) }}" aria-hidden="true"></span>{{ $texto }}
+                        </a>
+                    @endforeach
+                </div>
+            </div>
+        </x-slot:acciones>
+    </x-pagina.encabezado>
 
     @if (session('status'))
         <x-ui.aviso tipo="exito" descartable>{{ session('status') }}</x-ui.aviso>

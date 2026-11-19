@@ -136,7 +136,7 @@
 
     {{-- Modal: división --}}
     <div x-show="modalDivision" x-cloak x-transition.opacity.duration.200ms x-on:keydown.escape.window="modalDivision = false"
-        class="fixed inset-0 z-99999 flex items-center justify-center p-5" role="dialog" aria-modal="true" aria-labelledby="titulo-division">
+        class="fixed inset-0 z-[100050] flex items-center justify-center p-5" role="dialog" aria-modal="true" aria-labelledby="titulo-division">
         <div class="fixed inset-0 bg-udg-950/50 backdrop-blur-sm" x-on:click="modalDivision = false"></div>
         <form method="POST" :action="actionDivision" x-on:click.stop class="relative w-full max-w-md animate-entrada overflow-hidden rounded-2xl bg-white shadow-theme-xl motion-reduce:animate-none">
             @csrf
@@ -157,7 +157,7 @@
 
     {{-- Modal: carrera --}}
     <div x-show="modalCarrera" x-cloak x-transition.opacity.duration.200ms x-on:keydown.escape.window="modalCarrera = false"
-        class="fixed inset-0 z-99999 flex items-start justify-center overflow-y-auto p-4 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="titulo-carrera">
+        class="fixed inset-0 z-[100050] flex items-start justify-center overflow-y-auto p-4 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="titulo-carrera">
         <div class="fixed inset-0 bg-udg-950/50 backdrop-blur-sm" x-on:click="modalCarrera = false"></div>
         <form method="POST" :action="actionCarrera" x-on:click.stop class="relative w-full max-w-lg animate-entrada overflow-hidden rounded-2xl bg-white shadow-theme-xl motion-reduce:animate-none">
             @csrf

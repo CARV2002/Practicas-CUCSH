@@ -32,6 +32,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // En local, todos los correos llegan a una sola bandeja (las cuentas de prueba no existen)
+        if (app()->environment('local') && filled(config('practicas.correo_redirigir_a'))) {
+            \Illuminate\Support\Facades\Mail::alwaysTo(config('practicas.correo_redirigir_a'));
+        }
+
         Gate::policy(Convenio::class, ConvenioPolicy::class);
         Gate::policy(Programa::class, ProgramaPolicy::class);
         Gate::policy(Postulacion::class, PostulacionPolicy::class);
@@ -69,7 +74,7 @@ class AppServiceProvider extends ServiceProvider
 
         Event::subscribe(\App\Listeners\RegistrarAccesos::class);
 
-        // Auditoría: solo el administrador técnico del sistema
+        // Auditoría: solo el administrador del sistema
         Gate::define('ver-auditoria', fn(User $u) => $u->hasRole(Rol::Administrador->value)
             && $u->personal?->tieneAlcanceGlobal() === true);
     }

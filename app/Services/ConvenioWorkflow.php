@@ -27,7 +27,7 @@ use Illuminate\Validation\ValidationException;
  * Cada método = un paso del documento; abre/cierra etapas en la bitácora (convenio_seguimientos)
  * y bloquea la fila del convenio para que dos personas no avancen el mismo trámite a la vez.
  *
- * Quién usa el sistema: Vinculación (rol vinculacion; el administrador técnico también puede) ejecuta los pasos y CAPTURA lo que resuelven
+ * Quién usa el sistema: Vinculación (rol vinculacion; el administrador también puede) ejecuta los pasos y CAPTURA lo que resuelven
  * Secretaría, divisiones, Jurídica y Rectoría (que no entran al sistema); cada coordinación emite su dictamen desde su panel. La empresa recibe un aviso en cada cambio de etapa.
  *
  *   solicitar → enviarAValidacionAcademica → registrarDictamenCarrera (por carrera)
@@ -99,7 +99,7 @@ class ConvenioWorkflow
 
             // Cada Coordinación de carrera emite su dictamen desde su panel
             foreach ($convenio->dictamenes()->with('carrera')->get() as $d) {
-                Avisos::enviar(Avisos::coordinadores((int) $d->carrera_id), new AvisoOperativo(
+                Avisos::aCoordinacion((int) $d->carrera_id, new AvisoOperativo(
                     mensaje: "Solicitud de convenio de {$convenio->empresa->razon_social}: emite el dictamen de pertinencia de {$d->carrera->carrera_clave}.",
                     url: route('coordinacion.lista-dictamenes', absolute: false),
                     detalle: $convenio->empresa->razon_social,

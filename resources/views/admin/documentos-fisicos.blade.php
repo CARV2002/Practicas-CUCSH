@@ -90,13 +90,13 @@
                                 @endphp
                                 <li x-data="{ editar: {{ $errors->any() && old('doc') == $d->id ? 'true' : 'false' }}, historial: false, estado: '{{ old('doc') == $d->id ? old('estado') : $d->estado->value }}', plazos: {{ $opcionesJs->toJson() }} }"
                                     @class([
-                                        'overflow-hidden rounded-xl border transition-colors',
+                                        '@container overflow-hidden rounded-xl border transition-colors',
                                         'border-rose-300 bg-rose-50/50 shadow-[inset_3px_0_0_var(--color-rose-500)]' => $vencido,
                                         'border-amber-200 bg-white shadow-[inset_3px_0_0_var(--color-amber-400)]' => $porVencer,
                                         'bg-white' => !$vencido && !$porVencer,
                                         'border-gray-200 hover:border-gray-300' => !$vencido && !$porVencer,
                                     ])>
-                                    <div class="flex flex-col gap-3 p-3.5 sm:p-4 lg:flex-row lg:items-center">
+                                    <div class="flex flex-col gap-3 p-3.5 sm:p-4 @4xl:flex-row @4xl:items-center">
                                         <div class="flex min-w-0 flex-1 items-start gap-3">
                                             <span class="flex size-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset {{ \App\Support\Estatus::chip($d->estado->familia()) }}">
                                                 <x-dashboard.icono :nombre="$d->tipo->icono()" clase="size-[18px]" />
@@ -118,17 +118,17 @@
                                             </div>
                                         </div>
 
-                                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:flex sm:items-center sm:gap-5 lg:shrink-0">
-                                            <div class="col-span-2 sm:col-span-1">
+                                        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs @lg:grid-cols-[minmax(0,1.4fr)_1fr_1fr] @4xl:flex @4xl:shrink-0 @4xl:items-center @4xl:gap-5">
+                                            <div class="col-span-2 min-w-0 @lg:col-span-1 @4xl:w-48">
                                                 <x-ui.estatus :estado="$d->estado" />
                                                 <p class="mt-1 text-gray-500">Lo tiene: <span class="font-medium text-gray-700">{{ $d->estado->custodio() }}</span></p>
                                             </div>
-                                            <div class="sm:w-28">
+                                            <div class="@4xl:w-28">
                                                 <p class="text-gray-400">Desde</p>
                                                 <p class="font-medium tabular-nums text-gray-800">{{ $d->fecha_estado->format('d/m/Y') }}</p>
                                                 <p class="text-gray-500">{{ $d->diasEnEstado() === 1 ? '1 día hábil' : $d->diasEnEstado() . ' días hábiles' }}</p>
                                             </div>
-                                            <div class="sm:w-28">
+                                            <div class="@4xl:w-28">
                                                 <p class="text-gray-400">Regresa</p>
                                                 @if ($d->fecha_compromiso && $d->estado->fueraDeOficina())
                                                     <p @class(['font-semibold tabular-nums', 'text-rose-600' => $vencido, 'text-amber-700' => $porVencer, 'text-gray-800' => !$vencido && !$porVencer])>{{ $d->fecha_compromiso->format('d/m/Y') }}</p>
@@ -139,7 +139,7 @@
                                             </div>
                                         </div>
 
-                                        <div class="flex items-center gap-1.5 lg:shrink-0">
+                                        <div class="flex items-center gap-1.5 @4xl:shrink-0">
                                             <button type="button" class="boton boton-chico boton-secundario" x-on:click="editar = !editar" :aria-expanded="editar.toString()">
                                                 <x-dashboard.icono nombre="editar" clase="size-3.5" /> Mover
                                             </button>
@@ -236,6 +236,86 @@
                 @empty
                     <x-dashboard.vacio icono="check" titulo="Nada fuera de la oficina" texto="Cuando envíes un papel con fecha de regreso, aparecerá aquí." />
                 @endforelse
+
+                {{-- Calendario de regresos --}}
+                <div x-data="calendarioRegresos(@js($calendario))" class="mt-3 border-t border-gray-100 pt-3">
+                    <button type="button" x-on:click="abrir()" class="boton boton-secundario w-full">
+                        <x-dashboard.icono nombre="calendario" clase="size-4" /> Ver calendario
+                        <span class="rounded-full bg-udg-50 px-1.5 text-xs font-semibold text-udg-900 ring-1 ring-inset ring-udg-100">{{ $calendario->count() }}</span>
+                    </button>
+
+                    {{-- Se monta en <body> para quedar por encima de la barra lateral --}}
+                    <template x-teleport="body">
+                    <div x-show="abierto" x-cloak x-transition.opacity.duration.200ms x-on:keydown.escape.window="abierto = false"
+                        class="fixed inset-0 z-[100050] flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="titulo-calendario">
+                        <div class="fixed inset-0 bg-udg-950/50 backdrop-blur-sm" x-on:click="abierto = false"></div>
+                        <div class="relative w-full max-w-4xl animate-entrada overflow-hidden rounded-2xl bg-white shadow-theme-xl motion-reduce:animate-none" x-on:click.stop>
+                            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
+                                <div>
+                                    <h3 id="titulo-calendario" class="font-display text-lg font-bold text-gray-900">Calendario de regresos</h3>
+                                    <p class="text-xs text-gray-500">Fecha en que cada papel debe volver a Vinculación.</p>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <button type="button" class="boton boton-chico boton-secundario" x-on:click="mover(-1)" aria-label="Mes anterior">‹</button>
+                                    <p class="w-36 text-center text-sm font-semibold capitalize text-gray-900" x-text="tituloMes"></p>
+                                    <button type="button" class="boton boton-chico boton-secundario" x-on:click="mover(1)" aria-label="Mes siguiente">›</button>
+                                    <button type="button" class="boton boton-chico text-gray-600 hover:bg-gray-100" x-on:click="hoy()">Hoy</button>
+                                    <button type="button" x-on:click="abierto = false" class="ml-1 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="Cerrar"><x-dashboard.icono nombre="equis" clase="size-4" /></button>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-0 lg:grid-cols-[1fr_17rem]">
+                                <div class="p-3 sm:p-4">
+                                    <div class="grid grid-cols-7 text-center text-[11px] font-semibold text-gray-500">
+                                        <template x-for="d in ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']"><div class="py-1" x-text="d"></div></template>
+                                    </div>
+                                    <div class="grid grid-cols-7 gap-1">
+                                        <template x-for="celda in celdas" :key="celda.clave">
+                                            <button type="button" x-on:click="celda.fecha && (seleccion = celda.fecha)"
+                                                :disabled="!celda.fecha"
+                                                class="flex min-h-14 flex-col items-start rounded-lg border p-1.5 text-left transition sm:min-h-20"
+                                                :class="[
+                                                    !celda.fecha ? 'border-transparent' : 'border-gray-100 hover:border-udg-200',
+                                                    celda.fecha === seleccion ? '!border-udg-800 ring-2 ring-udg-800/15' : '',
+                                                    celda.fecha === hoyIso ? 'bg-udg-50/60' : 'bg-white',
+                                                ]">
+                                                <span class="text-xs font-semibold tabular-nums" :class="celda.fecha === hoyIso ? 'text-udg-900' : 'text-gray-700'" x-text="celda.dia"></span>
+                                                <span class="mt-auto flex flex-wrap gap-0.5">
+                                                    <template x-for="ev in celda.eventos.slice(0, 4)">
+                                                        <span class="size-2 rounded-full" :class="{ 'bg-rose-500': ev.tono === 'vencido', 'bg-amber-400': ev.tono === 'pronto', 'bg-udg-800': ev.tono === 'normal' }"></span>
+                                                    </template>
+                                                    <span x-show="celda.eventos.length > 4" class="text-[10px] font-semibold text-gray-500" x-text="'+' + (celda.eventos.length - 4)"></span>
+                                                </span>
+                                            </button>
+                                        </template>
+                                    </div>
+                                    <p class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500">
+                                        <span class="flex items-center gap-1"><span class="size-2 rounded-full bg-rose-500"></span> Regreso vencido</span>
+                                        <span class="flex items-center gap-1"><span class="size-2 rounded-full bg-amber-400"></span> Regresa muy pronto</span>
+                                        <span class="flex items-center gap-1"><span class="size-2 rounded-full bg-udg-800"></span> A tiempo</span>
+                                    </p>
+                                </div>
+                                <div class="border-t border-gray-100 bg-gray-50/60 p-4 lg:border-l lg:border-t-0">
+                                    <p class="text-sm font-semibold text-gray-900" x-text="seleccion ? fechaLarga(seleccion) : 'Elige un día'"></p>
+                                    <ul class="mt-2 space-y-2">
+                                        <template x-for="ev in eventosDe(seleccion)">
+                                            <li>
+                                                <a :href="ev.url" class="block rounded-lg border border-gray-200 bg-white p-2.5 transition hover:border-udg-200">
+                                                    <span class="block truncate text-sm font-medium text-gray-900" x-text="ev.empresa"></span>
+                                                    <span class="block text-xs text-gray-600" x-text="ev.papel + ' · ' + ev.estado"></span>
+                                                    <span class="block text-[11px] font-medium" :class="{ 'text-rose-600': ev.tono === 'vencido', 'text-amber-700': ev.tono === 'pronto', 'text-gray-500': ev.tono === 'normal' }"
+                                                        x-text="'Lo tiene: ' + ev.custodio + (ev.tono === 'vencido' ? ' · vencido' : '')"></span>
+                                                </a>
+                                            </li>
+                                        </template>
+                                        <li x-show="seleccion && eventosDe(seleccion).length === 0" class="text-xs italic text-gray-400">Ningún papel regresa este día.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    </template>
+                </div>
             </x-dashboard.panel>
 
             @if ($sinControl->isNotEmpty())

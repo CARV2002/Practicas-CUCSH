@@ -92,7 +92,7 @@ class DemoOperacionSeeder extends Seeder
     /** Lorena (Vinculación): gestiona y registra el trámite de convenios. */
     private function perfilLorena(): Personal
     {
-        $this->call(PersonalSeeder::class);   // administrador técnico, Vinculación y coordinadores demo
+        $this->call(PersonalSeeder::class);   // administrador, Vinculación y coordinadores demo
 
         return PersonalSeeder::vinculacion();
     }

@@ -78,7 +78,7 @@ beforeEach(function () {
     $this->abog = Carrera::create($datos + ['carrera_clave' => 'ABOG', 'nombre' => 'Abogado']);
     $this->hist = Carrera::create($datos + ['carrera_clave' => 'HIST', 'nombre' => 'Historia']);
 
-    // Personal: Vinculación (Lorena, global), coordinación de ABOG, administrador técnico y un coordinador sin perfil
+    // Personal: Vinculación (Lorena, global), coordinación de ABOG, administrador y un coordinador sin perfil
     $this->vinculacion = polUser(Rol::Vinculacion);
     Personal::create(['user_id' => $this->vinculacion->id, 'puesto' => 'Vinculación']);
     $this->adminTecnico = polUser(Rol::Administrador);

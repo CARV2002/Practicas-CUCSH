@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 use Spatie\Permission\Models\Role;
 
 /**
- * Alta del administrador técnico del sistema (superusuario). Desde «Usuarios y coordinadores»
+ * Alta del administrador del sistema (superusuario). Desde «Usuarios y coordinadores»
  * da de alta a Vinculación y a cada coordinación de carrera.
  * Es la forma de crear al administrador en producción: pide la contraseña, no queda en ningún archivo.
  *
@@ -19,7 +19,7 @@ class CrearAdministrador extends Command
 {
     protected $signature = 'practicas:crear-administrador {email : Correo de la cuenta} {--nombre=Administrador del sistema : Nombre de la persona}';
 
-    protected $description = 'Crea o actualiza la cuenta de un administrador técnico del sistema con su perfil de Personal';
+    protected $description = 'Crea o actualiza la cuenta de un administrador del sistema con su perfil de Personal';
 
     public function handle(): int
     {

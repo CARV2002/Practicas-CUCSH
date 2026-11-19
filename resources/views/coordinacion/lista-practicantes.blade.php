@@ -23,6 +23,28 @@
             <x-ui.aviso tipo="error" titulo="Revisa lo siguiente"><ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></x-ui.aviso>
         @endif
 
+        {{-- IMSS por revisar de alumnos que aún no se postulan (es requisito previo) --}}
+        @if ($imssPorRevisar->isNotEmpty())
+            <x-tabla.marco titulo="Constancias IMSS por revisar" descripcion="Alumnos de tu carrera que subieron su seguro y esperan tu validación para poder postularse." :total="$imssPorRevisar->count()">
+                <ul class="grid grid-cols-1 gap-3 p-4 sm:p-6 md:grid-cols-2 xl:grid-cols-3">
+                    @foreach ($imssPorRevisar as $al)
+                        @php $doc = $al->documentoVigente('constancia_imss'); @endphp
+                        <li class="rounded-xl border border-amber-200 bg-amber-50/40 p-3.5">
+                            <div class="flex items-start gap-3">
+                                <x-ui.user-avatar :user="$al->user" size="size-9 shrink-0 text-xs ring-2 ring-white" />
+                                <div class="min-w-0">
+                                    <p class="truncate font-semibold text-gray-900">{{ $al->user->name }}</p>
+                                    <p class="text-xs text-gray-500">{{ $al->num_control }} · {{ $al->carrera->carrera_clave }} · subido el {{ $doc->created_at->format('d/m/Y') }}</p>
+                                    <p class="text-xs text-gray-500">Vigencia declarada: <span class="font-medium text-gray-700">{{ $al->vigencia_imss?->format('d/m/Y') ?? 'sin capturar' }}</span></p>
+                                </div>
+                            </div>
+                            <x-coordinacion.documento :media="$doc" etiqueta="Constancia IMSS" :descarga="route('coordinacion.alumnos.archivos', [$al, $doc])" />
+                        </li>
+                    @endforeach
+                </ul>
+            </x-tabla.marco>
+        @endif
+
         {{-- Postulaciones en trámite --}}
         <x-tabla.marco titulo="Postulaciones en trámite" descripcion="Cada fila te dice cuál es el siguiente paso." :total="$postulaciones->total()">
             <table class="tabla">
@@ -282,9 +304,10 @@
 
         {{-- Baja o cambio de plaza: la coordinación decide qué pasa con las horas --}}
         <div x-data="{ abierto: false, p: { id: 0, nombre: '', horas: 0 }, conserva: '1', url: '{{ route('coordinacion.practicas.cancelar', 0) }}' }"
-            x-on:abrir-baja.window="p = $event.detail; conserva = '1'; abierto = true"
-            x-show="abierto" x-cloak x-transition.opacity.duration.200ms x-on:keydown.escape.window="abierto = false"
-            class="fixed inset-0 z-99999 flex items-start justify-center overflow-y-auto p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="titulo-baja">
+            x-on:abrir-baja.window="p = $event.detail; conserva = '1'; abierto = true">
+        <template x-teleport="body">
+        <div x-show="abierto" x-cloak x-transition.opacity.duration.200ms x-on:keydown.escape.window="abierto = false"
+            class="fixed inset-0 z-[100050] flex items-start justify-center overflow-y-auto p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="titulo-baja">
             <div class="fixed inset-0 bg-udg-950/50 backdrop-blur-sm" x-on:click="abierto = false"></div>
             <form method="POST" :action="url.replace(/0$/, p.id)" x-on:click.stop class="relative w-full max-w-lg animate-entrada overflow-hidden rounded-2xl bg-white shadow-theme-xl motion-reduce:animate-none">
                 @csrf
@@ -324,6 +347,8 @@
                     <button type="submit" class="boton boton-peligro">Registrar baja</button>
                 </div>
             </form>
+        </div>
+        </template>
         </div>
     </div>
 @endsection

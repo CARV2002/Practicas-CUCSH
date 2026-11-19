@@ -81,7 +81,7 @@
                     @php
                         $rol = $u->roles->first()?->name;
                         $esYo = $u->id === auth()->id();
-                        // Vinculación no gestiona cuentas de Vinculación ni del administrador técnico
+                        // Vinculación no gestiona cuentas de Vinculación ni del administrador
                         $gestionable = $esYo || auth()->user()->hasRole(Rol::Administrador->value) || ! $u->hasAnyRole(Rol::deVinculacion());
                         $alcance = $u->personal?->carrera ? $u->personal->carrera->carrera_clave . ' · ' . $u->personal->carrera->nombre : $u->personal?->division?->nombre;
                     @endphp
@@ -141,7 +141,7 @@
                                             :confirmar="($u->activo ? '¿Desactivar' : '¿Activar') . ' la cuenta de ' . $u->name . '?'" />
                                     @endunless
                                 @else
-                                    <span class="inline-flex items-center gap-1 text-xs text-gray-400"><x-dashboard.icono nombre="candado" clase="size-3.5" /> Solo administrador técnico</span>
+                                    <span class="inline-flex items-center gap-1 text-xs text-gray-400"><x-dashboard.icono nombre="candado" clase="size-3.5" /> Solo administrador</span>
                                 @endif
                             </div>
                         </td>
@@ -161,7 +161,7 @@
 
     {{-- Modal: nueva cuenta de personal --}}
     <div x-show="modalAlta" x-cloak x-transition.opacity.duration.200ms x-on:keydown.escape.window="modalAlta = false"
-        class="fixed inset-0 z-99999 flex items-start justify-center overflow-y-auto p-4 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="titulo-alta">
+        class="fixed inset-0 z-[100050] flex items-start justify-center overflow-y-auto p-4 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="titulo-alta">
         <div class="fixed inset-0 bg-udg-950/50 backdrop-blur-sm" x-on:click="modalAlta = false"></div>
         <form method="POST" action="{{ route('admin.usuarios.store') }}" x-on:click.stop
             class="relative w-full max-w-lg animate-entrada overflow-hidden rounded-2xl bg-white shadow-theme-xl motion-reduce:animate-none">
@@ -231,7 +231,7 @@
 
     {{-- Modal: restablecer contraseña --}}
     <div x-show="modalPass" x-cloak x-transition.opacity.duration.200ms x-on:keydown.escape.window="modalPass = false"
-        class="fixed inset-0 z-99999 flex items-center justify-center overflow-y-auto p-5" role="dialog" aria-modal="true" aria-labelledby="titulo-pass">
+        class="fixed inset-0 z-[100050] flex items-center justify-center overflow-y-auto p-5" role="dialog" aria-modal="true" aria-labelledby="titulo-pass">
         <div class="fixed inset-0 bg-udg-950/50 backdrop-blur-sm" x-on:click="modalPass = false"></div>
         <form method="POST" :action="actionPass" x-on:click.stop
             class="relative w-full max-w-md animate-entrada overflow-hidden rounded-2xl bg-white shadow-theme-xl motion-reduce:animate-none">

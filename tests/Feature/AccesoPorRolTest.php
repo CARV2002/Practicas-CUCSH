@@ -43,13 +43,13 @@ function pantallasPorRol(): array
     ];
 }
 
-/** Administración del sistema: solo el administrador técnico. */
+/** Administración del sistema: solo el administrador. */
 function pantallasDelSistema(): array
 {
     return ['admin.lista-usuarios', 'admin.auditoria', 'admin.catalogos'];
 }
 
-/** El administrador técnico entra a Vinculación, a Coordinación y a la administración del sistema. */
+/** El administrador entra a Vinculación, a Coordinación y a la administración del sistema. */
 function pantallasDelAdministrador(): array
 {
     return [
@@ -97,7 +97,7 @@ test('cada rol entra a todas sus pantallas y se renderizan', function () {
     }
 });
 
-test('el administrador técnico entra a Vinculación, Coordinación y a la administración del sistema', function () {
+test('el administrador entra a Vinculación, Coordinación y a la administración del sistema', function () {
     $admin = usuarioConRol(Rol::Administrador->value);
 
     foreach (pantallasDelAdministrador() as $ruta) {
@@ -135,7 +135,7 @@ test('Vinculación no opera prácticas y Coordinación no opera convenios ni cat
         $this->actingAs($coordinador)->get(route($ruta))->assertForbidden();
     }
 
-    // Usuarios, auditoría y catálogo son solo del administrador técnico
+    // Usuarios, auditoría y catálogo son solo del administrador
     foreach (pantallasDelSistema() as $ruta) {
         $this->actingAs($vinculacion)->get(route($ruta))->assertForbidden();
         $this->actingAs($coordinador)->get(route($ruta))->assertForbidden();
@@ -224,7 +224,7 @@ test('un coordinador solo ve en sus pantallas las carreras de su alcance', funct
         ->and($otra->fresh()->horas_requeridas)->toBe(300);
 });
 
-test('el administrador técnico da de alta coordinadores con alcance obligatorio y a Vinculación', function () {
+test('el administrador da de alta coordinadores con alcance obligatorio y a Vinculación', function () {
     $admin = usuarioConRol(Rol::Administrador->value);
     $datos = ['name' => 'Coord Nueva', 'email' => 'coord.nueva@udg.mx', 'password' => 'Secreta123!', 'password_confirmation' => 'Secreta123!'];
 

@@ -29,7 +29,7 @@ class RoleMiddleware
             abort(403, 'Tu cuenta no tiene perfil de personal institucional. Contacta al responsable del sistema.');
         }
 
-        // Un coordinador (que no es además administrador técnico) debe tener carrera o división asignada
+        // Un coordinador (que no es además administrador) debe tener carrera o división asignada
         if ($deRuta === [Rol::Coordinador->value] && ! $user->personal->tieneAlcanceDeCoordinacion()) {
             abort(403, 'Tu cuenta de coordinación no tiene carrera ni división asignada. Contacta a Vinculación.');
         }

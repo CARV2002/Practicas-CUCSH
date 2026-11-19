@@ -15,16 +15,7 @@ class EmpresaController extends Controller
 {
     public function index(Request $request): View
     {
-        $empresas = Empresa::with(['user', 'convenios'])
-            ->withCount('convenios')
-            ->when($request->filled('q'), fn ($q) => $q->where(fn ($w) => $w
-                ->where('razon_social', 'like', '%'.$request->string('q').'%')
-                ->orWhere('rfc', 'like', '%'.$request->string('q').'%')
-                ->orWhere('contacto_nombre', 'like', '%'.$request->string('q').'%')))
-            ->when($request->filled('tipo'), fn ($q) => $q->where('tipo_organismo', $request->string('tipo')))
-            ->when($request->string('convenio')->toString() === 'vigente', fn ($q) => $q->whereHas('convenios', fn ($c) => $c->vigentes()))
-            ->when($request->string('convenio')->toString() === 'sin', fn ($q) => $q->whereDoesntHave('convenios', fn ($c) => $c->vigentes()))
-            ->orderBy('razon_social')
+        $empresas = $this->consulta($request)
             ->paginate(15)
             ->withQueryString();
 
@@ -36,7 +27,44 @@ class EmpresaController extends Controller
             'empresas' => $empresas,
             'tipos' => TipoOrganismo::cases(),
             'estados' => ConvenioEstado::cases(),
+            'situaciones' => Empresa::SITUACIONES,
         ]);
+    }
+
+    /** Lista de empresas en PDF, agrupada por situación (respeta los filtros de la bandeja). */
+    public function pdf(Request $request)
+    {
+        $situacion = $request->string('situacion')->toString();
+
+        $empresas = $this->consulta($request)->get()
+            ->map(fn (Empresa $e) => [$e, $e->situacion()])
+            ->when(isset(Empresa::SITUACIONES[$situacion]), fn ($c) => $c->filter(fn ($par) => $par[1]['clave'] === $situacion))
+            ->groupBy(fn ($par) => $par[1]['clave'])
+            ->sortBy(fn ($grupo, $clave) => array_search($clave, array_keys(Empresa::SITUACIONES)));
+
+        \App\Services\Auditoria::registrar('informe.exportado', 'Descargó la lista de empresas en PDF (' . $empresas->flatten(1)->count() . ' empresas)');
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.pdf.empresas', [
+            'grupos' => $empresas,
+            'filtro' => Empresa::SITUACIONES[$situacion][0] ?? null,
+            'busqueda' => $request->string('q')->toString(),
+        ])->setOption('isFontSubsettingEnabled', true)->setPaper('letter', 'landscape')
+            ->download('empresas-' . ($situacion ?: 'todas') . '-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    /** Filtros compartidos por la bandeja y el PDF. */
+    private function consulta(Request $request)
+    {
+        return Empresa::with(['user', 'convenios'])
+            ->withCount('convenios')
+            ->when($request->filled('q'), fn ($q) => $q->where(fn ($w) => $w
+                ->where('razon_social', 'like', '%'.$request->string('q').'%')
+                ->orWhere('rfc', 'like', '%'.$request->string('q').'%')
+                ->orWhere('contacto_nombre', 'like', '%'.$request->string('q').'%')))
+            ->when($request->filled('tipo'), fn ($q) => $q->where('tipo_organismo', $request->string('tipo')))
+            ->when($request->string('convenio')->toString() === 'vigente', fn ($q) => $q->whereHas('convenios', fn ($c) => $c->vigentes()))
+            ->when($request->string('convenio')->toString() === 'sin', fn ($q) => $q->whereDoesntHave('convenios', fn ($c) => $c->vigentes()))
+            ->orderBy('razon_social');
     }
 
     public function show(Empresa $empresa): View

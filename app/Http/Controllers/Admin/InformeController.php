@@ -33,7 +33,7 @@ class InformeController extends Controller
         $ids = $personal->carreraIdsEnAlcance();
         $completo = $this->esAdministrador($request);
 
-        // --- Resumen de prácticas: es información académica, solo la ve el administrador técnico
+        // --- Resumen de prácticas: es información académica, solo la ve el administrador
         // (Vinculación no opera el proceso del alumno; cada coordinación lo ve en su panel)
         $practicas = $completo ? $this->practicas($request, $personal)->get() : collect();
 
@@ -116,7 +116,7 @@ class InformeController extends Controller
     public function exportar(Request $request, string $tipo): StreamedResponse
     {
         // Vinculación solo exporta convenios; prácticas, postulaciones y programas son del ámbito académico
-        abort_unless($tipo === 'convenios' || $this->esAdministrador($request), 403);
+        abort_unless(in_array($tipo, ['convenios', 'empresas'], true) || $this->esAdministrador($request), 403);
 
         $this->validar($request);
 
@@ -127,6 +127,7 @@ class InformeController extends Controller
             'postulaciones' => $this->exportarPostulaciones($request, $personal),
             'convenios' => $this->exportarConvenios($request, $personal),
             'programas' => $this->exportarProgramas($request, $personal),
+            'empresas' => $this->exportarEmpresas($request),
         };
 
         Auditoria::registrar(
@@ -142,7 +143,11 @@ class InformeController extends Controller
             fputcsv($salida, $encabezados, ',', '"', '');
 
             foreach ($consulta->lazyById(200) as $modelo) {
-                fputcsv($salida, array_map([$this, 'limpiar'], $fila($modelo)), ',', '"', '');
+                $valores = $fila($modelo);
+                if ($valores === null) {
+                    continue;   // filtro calculado (p. ej. situación de la empresa)
+                }
+                fputcsv($salida, array_map([$this, 'limpiar'], $valores), ',', '"', '');
             }
 
             fclose($salida);
@@ -160,6 +165,36 @@ class InformeController extends Controller
             ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->string('estado')->toString()))
             ->when($request->filled('desde'), fn ($q) => $q->whereDate('fecha_inicio', '>=', $request->date('desde')))
             ->when($request->filled('hasta'), fn ($q) => $q->whereDate('fecha_inicio', '<=', $request->date('hasta')));
+    }
+
+    /**
+     * Empresas con su situación frente al CUCSH (la misma que usa el PDF de la bandeja).
+     * El filtro «estado» acepta una clave de Empresa::SITUACIONES.
+     *
+     * @return array{0:string[],1:Builder,2:callable}
+     */
+    private function exportarEmpresas(Request $request): array
+    {
+        $situacion = $request->string('estado')->toString();
+        $filtrar = isset(\App\Models\Empresa::SITUACIONES[$situacion]);
+
+        return [
+            ['Razón social', 'RFC', 'Tipo de organismo', 'Situación', 'Detalle', 'Representante legal', 'Cargo',
+                'Contacto', 'Correo', 'Teléfono', 'Domicilio legal', 'Solicitudes', 'Registrada'],
+            \App\Models\Empresa::with(['user', 'convenios'])->withCount('convenios')->orderBy('razon_social'),
+            function (\App\Models\Empresa $e) use ($filtrar, $situacion) {
+                $s = $e->situacion();
+                if ($filtrar && $s['clave'] !== $situacion) {
+                    return null;
+                }
+
+                return [
+                    $e->razon_social, $e->rfc, $e->tipo_organismo?->label(), $s['texto'], $s['detalle'],
+                    $e->representante_legal, $e->representante_cargo, $e->contacto_nombre, $e->user?->email,
+                    $e->contacto_telefono, $e->domicilio_fiscal, $e->convenios_count, $e->created_at?->format('Y-m-d'),
+                ];
+            },
+        ];
     }
 
     /** @return array{0:string[],1:Builder,2:callable} */

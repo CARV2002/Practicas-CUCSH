@@ -8,11 +8,11 @@ Leyenda: ✅ cumple · 🟡 a medias · ❌ no cumple
 
 ## 0. Actores y roles (6, no 5)
 
-El documento nombra 5 actores; con el administrador técnico son 6:
+El documento nombra 5 actores; con el administrador son 6:
 
 | Actor | ¿Tiene cuenta en el sistema? | Estado |
 |---|---|---|
-| Administrador técnico | Sí (`administrador`): cuentas, catálogo, auditoría; entra a todo | ✅ |
+| Administrador | Sí (`administrador`): cuentas, catálogo, auditoría; entra a todo | ✅ |
 | Vinculación (Lorena) | Sí (`vinculacion`): convenios, empresas, dictámenes, documentos físicos, informes | ✅ |
 | Coordinación de carrera | Sí (`coordinador`), con alcance por carrera o división | ✅ |
 | **Profesor supervisor** | **No.** Es solo un catálogo (`profesores`: nombre, correo, división) que la coordinación asigna a la práctica. No inicia sesión ni aprueba reportes | ❌ |
@@ -41,7 +41,7 @@ El documento nombra 5 actores; con el administrador técnico son 6:
 | 2.1 | Sustituir el Google Form | ✅ | Ver §5. Todos los campos del formulario existen en el registro de la empresa, su expediente y la solicitud de convenio. |
 | 2.2 | Sustituir la plantilla manual: datos capturados una vez e inyectados en el contrato | 🟡 | El Formato de PP se genera completo y fiel (§6). Pero las **declaraciones de la entidad** (constitución, atribuciones, facultad del firmante) las teclea Lorena cada vez que genera el borrador; no las captura la empresa. Se genera en **Word**, no en PDF. |
 | 2.3 | Decisiones cruzadas por carrera | ✅ / 🟡 | ✅ La solicitud se divide en un dictamen por carrera, cada coordinación vota en paralelo, el contrato solo incluye las aprobadas, la vacante solo se aprueba para carreras con dictamen aprobatorio, y si todas rechazan el trámite muere solo. 🟡 Cuando se rechaza, el aviso a la empresa da el motivo pero **no le dice que debe iniciar de nuevo todo el trámite** (el documento lo pide). |
-| 2.4 | Reglas por licenciatura | ✅ | Horas, % de créditos mínimo y créditos otorgados (catálogo del administrador técnico) + periodicidad de reportes (cada coordinación en «Reglas de mi carrera»). Se congelan al activar la práctica. Hay 16 carreras en 6 divisiones (el documento dice 15: confirmar). |
+| 2.4 | Reglas por licenciatura | ✅ | Horas, % de créditos mínimo y créditos otorgados (catálogo del administrador) + periodicidad de reportes (cada coordinación en «Reglas de mi carrera»). Se congelan al activar la práctica. Hay 16 carreras en 6 divisiones (el documento dice 15: confirmar). |
 | 2.5 | Bolsa de trabajo filtrada | ✅ | Solo vacantes publicadas, aprobadas por la coordinación, de convenio vigente, con cupo y de **su carrera**. El % de créditos se exige al postularse (el alumno sí ve la vacante aunque no cumpla; ve el motivo del bloqueo). |
 | 2.6 | Repositorio documental privado | ✅ | Todo archivo va al disco `local` (no público), se descarga solo por rutas con permisos (policies) y queda en la bitácora de auditoría. |
 

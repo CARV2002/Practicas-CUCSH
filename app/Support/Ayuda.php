@@ -12,7 +12,7 @@ use App\Enums\ValidacionEstado;
 
 /**
  * Contenido del Centro de ayuda por rol (Coordinación, Empresa y Alumno).
- * Vinculación y el Administrador técnico no tienen centro de ayuda: operan el sistema.
+ * Vinculación y el Administrador no tienen centro de ayuda: operan el sistema.
  *
  * Todo lo que se describe aquí corresponde a lo que el sistema hace realmente (rutas, estados y reglas).
  */

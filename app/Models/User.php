@@ -98,7 +98,7 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         return \App\Enums\Rol::tryFrom((string) $this->roles->first()?->name);
     }
 
-    /** ¿Ve el Centro de ayuda? Vinculación y el Administrador técnico no (operan el sistema). */
+    /** ¿Ve el Centro de ayuda? Vinculación y el Administrador no (operan el sistema). */
     public function tieneAyuda(): bool
     {
         return \App\Support\Ayuda::disponiblePara($this->rolPrincipal());
