@@ -1,4 +1,4 @@
-@props(['media', 'etiqueta', 'descarga'])
+@props(['media', 'etiqueta', 'descarga', 'acciones' => true])
 
 {{-- Documento del expediente del alumno: descarga, estado de validación y acciones de la coordinación --}}
 @php
@@ -24,7 +24,7 @@
         <p class="mt-1.5 text-rose-600">Motivo: {{ $media->getCustomProperty('motivo') }}</p>
     @endif
 
-    @if ($media && $estado !== V::Validada)
+    @if ($acciones && $media && $estado !== V::Validada)
         <div class="mt-2 flex flex-wrap items-center gap-1.5">
             <form method="POST" action="{{ route('coordinacion.documentos.resolver', $media) }}">
                 @csrf

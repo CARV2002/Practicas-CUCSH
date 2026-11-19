@@ -84,6 +84,7 @@ class MenuHelper
     {
         $alumno = auth()->user()->alumno;
         $sinPostulacion = $alumno ? \App\Support\Requisitos::alumnoVerPracticas($alumno) : null;
+        $sinOferta = $alumno ? \App\Support\Requisitos::alumnoVerOferta($alumno) : null;
 
         return [
             [
@@ -98,6 +99,7 @@ class MenuHelper
                         'name' => 'Oferta programas',
                         'icon' => 'dashboard',
                         'path' => '/alumno/oferta-programas',
+                        'bloqueado' => $sinOferta,
                     ],
                     [
                         'name' => 'Mis prácticas',

@@ -239,6 +239,7 @@ Route::prefix('coordinacion')
         Route::get('/lista-practicantes', [PracticanteController::class, 'index'])->name('lista-practicantes');
         Route::prefix('postulaciones/{postulacion}')->name('postulaciones.')->group(function () {
             Route::post('/carta-presentacion', [PracticanteController::class, 'emitirCarta'])->name('carta');
+            Route::post('/revision', [PracticanteController::class, 'revisarDocumentos'])->name('revision');
             Route::post('/rechazar', [PracticanteController::class, 'rechazarPostulacion'])->name('rechazar');
             Route::post('/carta-aceptacion', [PracticanteController::class, 'subirCartaAceptacion'])->name('aceptacion');
             Route::post('/oficio-interno', [PracticanteController::class, 'subirOficioInterno'])->name('oficio-interno');

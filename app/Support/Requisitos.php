@@ -93,11 +93,26 @@ class Requisitos
                 => 'Ya tienes una empresa en trámite; termina ese proceso antes de postularte a otra.',
             $alumno->grado === null || $alumno->turno === null
                 => 'Captura tu grado y turno en «Mi perfil» antes de postularte (van en tu carta de presentación).',
-            $alumno->documentoVigente('constancia_imss') === null
-                => 'Sube tu constancia de vigencia del IMSS en «Mis documentos» antes de postularte.',
-            $alumno->documentoVigente('constancia_imss')?->getCustomProperty('estado') === ValidacionEstado::Rechazada->value
-                => 'Tu coordinación rechazó tu constancia del IMSS: sube una nueva en «Mis documentos».',
-            !$alumno->tieneImssVigenteHasta(now()) => 'Tu seguro del IMSS no está vigente: actualiza tu constancia en «Mis documentos».',
+            // El IMSS ya no es requisito previo: se entrega junto con el kardex al postularse
+            default => null,
+        };
+    }
+
+    /**
+     * Oferta de programas: mientras su solicitud está en revisión o ya tiene empresa, el alumno no
+     * busca otras vacantes (un alumno, una empresa). Se reabre si la postulación se rechaza o cancela.
+     */
+    public static function alumnoVerOferta(Alumno $alumno): ?string
+    {
+        $estados = $alumno->postulaciones()->pluck('estado');
+
+        return match (true) {
+            $alumno->yaAcreditado() => 'Ya acreditaste tus prácticas profesionales.',
+            $alumno->tienePracticaActiva() => 'Ya tienes una práctica en curso: consulta tu avance en «Mis prácticas».',
+            $estados->contains(PostulacionEstado::Pendiente)
+                => 'Tu coordinación está revisando tu kardex e IMSS. Se habilita si tu solicitud se rechaza o cancela.',
+            $estados->contains(fn ($e) => in_array($e, [PostulacionEstado::CartaPresentacionEmitida, PostulacionEstado::CartaAceptacionRecibida], true))
+                => 'Ya tienes una empresa en trámite: sigue con tu carta de aceptación en «Mis documentos».',
             default => null,
         };
     }
@@ -126,8 +141,10 @@ class Requisitos
         if (!$alumno->tieneImssVigenteHasta(now())) {
             $faltan[] = 'El IMSS del alumno no está vigente.';
         }
-        if ($po->documentoVigente('kardex')?->getCustomProperty('estado') === ValidacionEstado::Rechazada->value) {
-            $faltan[] = 'El kardex fue rechazado: el alumno debe subir uno nuevo.';
+        if (!$po->documentoValidado('kardex')) {
+            $faltan[] = $po->documentoVigente('kardex')?->getCustomProperty('estado') === ValidacionEstado::Rechazada->value
+                ? 'El kardex fue devuelto: espera a que el alumno suba uno nuevo.'
+                : 'Valida el kardex del alumno.';
         }
         if ($alumno->grado === null || $alumno->turno === null) {
             $faltan[] = 'El alumno no ha capturado su grado y turno.';

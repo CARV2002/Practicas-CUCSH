@@ -204,6 +204,12 @@ test('sin IMSS validado no hay carta; la coordinación lo valida y la carta llev
 
     expect($alumno->refresh()->documentoValidado('constancia_imss'))->toBeTrue();
 
+    // El kardex se revisa en el mismo momento: sin validarlo tampoco hay carta
+    $kardex = $po->addMedia(pcPdf('kardex.pdf'))->toMediaCollection('kardex');
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.postulaciones.carta', $po))
+        ->assertSessionHasErrors(['postulacion' => 'Primero valida el kardex del alumno.']);
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.documentos.resolver', $kardex), ['estado' => 'validada'])->assertSessionHasNoErrors();
+
     $this->actingAs($this->coordAbog)->post(route('coordinacion.postulaciones.carta', $po))->assertSessionHasNoErrors();
     expect($po->refresh()->estado)->toBe(PostulacionEstado::CartaPresentacionEmitida);
 
@@ -231,7 +237,47 @@ test('un kardex rechazado bloquea la carta de presentación', function () {
         ->assertSessionHasNoErrors();
 
     $this->actingAs($this->coordAbog)->post(route('coordinacion.postulaciones.carta', $po))
-        ->assertSessionHasErrors(['postulacion' => 'El kardex fue rechazado: el alumno debe subir uno nuevo.']);
+        ->assertSessionHasErrors(['postulacion' => 'Primero valida el kardex del alumno.']);
+});
+
+test('la coordinación revisa kardex e IMSS juntos: devuelve con motivo y el alumno reemplaza solo el que falló', function () {
+    \Illuminate\Support\Facades\Notification::fake();
+    $alumno = pcAlumno($this->abog, '215100009', imssValidado: false);
+    $po = Postulacion::create(['alumno_id' => $alumno->id, 'programa_id' => ($this->programa)()->id,
+        'porcentaje_creditos_declarado' => 70, 'fecha_postulacion' => today()]);
+    $po->addMedia(pcPdf('kardex-2025B.pdf'))->toMediaCollection('kardex');
+
+    // Devolver exige qué documento y por qué
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.postulaciones.revision', $po), ['decision' => 'devolver'])
+        ->assertSessionHasErrors(['documentos', 'motivo']);
+
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.postulaciones.revision', $po), [
+        'decision' => 'devolver', 'documentos' => ['kardex'], 'motivo' => 'El kardex es de un ciclo anterior.',
+    ])->assertSessionHasNoErrors();
+
+    expect($po->refresh()->estado)->toBe(PostulacionEstado::Pendiente)   // la solicitud sigue abierta
+        ->and($po->documentoVigente('kardex')->getCustomProperty('estado'))->toBe('rechazada')
+        ->and($alumno->documentoVigente('constancia_imss')->getCustomProperty('estado'))->toBeNull();   // el IMSS no se tocó
+    \Illuminate\Support\Facades\Notification::assertSentTo($alumno->user, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'ciclo anterior'));
+
+    // Mientras esté devuelto no se puede autorizar
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.postulaciones.revision', $po), ['decision' => 'autorizar'])
+        ->assertSessionHasErrors('revision');
+
+    // El alumno reemplaza solo el kardex; la coordinación recibe aviso
+    $this->actingAs($alumno->user)->post(route('alumno.documentos.kardex', $po), ['archivo' => pcPdf('kardex-2026A.pdf')])->assertSessionHasNoErrors();
+    \Illuminate\Support\Facades\Notification::assertSentTo($this->coordAbog, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'reemplazó el kardex'));
+
+    // Ambos correctos: autoriza (valida los dos) y emite la carta en un solo paso
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.postulaciones.revision', $po), ['decision' => 'autorizar'])->assertSessionHasNoErrors();
+    expect($po->refresh()->estado)->toBe(PostulacionEstado::CartaPresentacionEmitida)
+        ->and($alumno->fresh()->documentoValidado('constancia_imss'))->toBeTrue()
+        ->and($po->documentoValidado('kardex'))->toBeTrue();
+
+    // Ya validados: no tiene caso reemplazarlos
+    $this->actingAs($alumno->user)->post(route('alumno.documentos.kardex', $po), ['archivo' => pcPdf('otro.pdf')])->assertSessionHasErrors('archivo');
+    $this->actingAs($alumno->user)->post(route('alumno.documentos.imss'), ['archivo' => pcPdf('otro.pdf'), 'vigencia_imss' => now()->addYear()->toDateString()])
+        ->assertSessionHasErrors('archivo');
 });
 
 /* ---------------- 3. Reportes por carrera y modalidad interna ---------------- */

@@ -194,8 +194,8 @@
                     @forelse ($alertas as $a)
                         <x-ui.aviso :tipo="$a['tipo'] === 'danger' ? 'error' : 'info'" :titulo="$a['titulo']">{{ $a['texto'] }}</x-ui.aviso>
                     @empty
-                        <x-ui.aviso :tipo="$imssOk ? 'exito' : 'advertencia'" :titulo="$imssOk ? 'Seguro IMSS verificado' : 'Sube tu constancia IMSS'">
-                            {{ $imssOk ? 'Cumples el requisito de seguro facultativo.' : 'Es requisito para postularte y activar tu práctica.' }}
+                        <x-ui.aviso :tipo="$imssOk ? 'exito' : 'advertencia'" :titulo="$imssOk ? 'Seguro IMSS verificado' : 'Ten lista tu constancia IMSS'">
+                            {{ $imssOk ? 'Cumples el requisito de seguro facultativo.' : 'La entregas junto con tu kardex al postularte a una vacante. Descárgala en imss.gob.mx.' }}
                         </x-ui.aviso>
                     @endforelse
                 </div>

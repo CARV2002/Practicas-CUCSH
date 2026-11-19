@@ -73,7 +73,7 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
     ])->assertSessionHasNoErrors();
     $lorena = User::where('email', 'lorena@cucsh.test')->firstOrFail();
 
-    // ── 2. Alumno: se registra y sube su IMSS cuando su carrera AÚN NO tiene coordinación ──
+    // ── 2. Alumno: se registra cuando su carrera AÚN NO tiene coordinación ──
     auth()->logout();
     $this->post('/registro/alumno', [
         'name' => 'Carlos Moreno', 'email' => 'carlos@alumnos.udg.mx', 'password' => 'Clave-segura-2026', 'password_confirmation' => 'Clave-segura-2026',
@@ -84,11 +84,8 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
     $alumnoUser->markEmailAsVerified();                             // (el alumno abre el enlace)
     $alumno = $alumnoUser->alumno;
 
-    $this->actingAs($alumnoUser)->post(route('alumno.documentos.imss'), [
-        'archivo' => e2ePdf('imss.pdf'), 'vigencia_imss' => now()->addYear()->toDateString(),
-    ])->assertSessionHasNoErrors();
-
-    // Sin coordinación, el aviso no se pierde: lo recibe el administrador
+    // Si algo le llega a una carrera sin coordinación, el aviso no se pierde: lo recibe el administrador
+    \App\Services\Avisos::aCoordinacion($carrera->id, new AvisoOperativo(mensaje: 'Pendiente de prueba', url: '/'));
     expect(e2eAvisos($this->admin, 'no tiene coordinación activa'))->toBe(1);
     $this->actingAs($alumnoUser)->get(route('alumno.dashboard'))->assertOk()->assertSee('Tu coordinación aún no está en la plataforma');
 
@@ -98,14 +95,6 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
         'carrera_id' => $carrera->id, 'password' => 'Clave-segura-2026', 'password_confirmation' => 'Clave-segura-2026',
     ])->assertSessionHasNoErrors();
     $coord = User::where('email', 'antropologia@cucsh.test')->firstOrFail();
-    expect(e2eAvisos($coord, '1 constancia(s) IMSS por revisar'))->toBe(1);
-
-    // Ve el IMSS en su panel aunque el alumno no se haya postulado, y lo valida
-    $this->actingAs($coord)->get(route('coordinacion.lista-practicantes'))->assertOk()
-        ->assertSee('Constancias IMSS por revisar')->assertSee('Carlos Moreno');
-    $imss = $alumno->documentoVigente('constancia_imss');
-    $this->actingAs($coord)->post(route('coordinacion.documentos.resolver', $imss), ['estado' => 'validada'])->assertSessionHasNoErrors();
-    expect($alumno->fresh()->documentoValidado('constancia_imss'))->toBeTrue();
 
     // ── 4. Empresa: registro con datos legales, expediente y solicitud ──────────
     auth()->logout();
@@ -189,13 +178,30 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
 
     // ── 9. Alumno se postula (SIIAU), carta de presentación y aceptación ────────
     $this->actingAs($alumnoUser)->get(route('alumno.oferta-programas'))->assertSee('Auxiliar de museografía');
+    // Kardex e IMSS se entregan juntos en la postulación
     $this->actingAs($alumnoUser)->post(route('alumno.oferta-programas.postular', $programa), [
         'porcentaje_creditos_declarado' => 75, 'kardex' => e2ePdf('kardex.pdf'), 'siiau' => '1',
+        'imss' => e2ePdf('imss.pdf'), 'vigencia_imss' => now()->addYear()->toDateString(),
     ])->assertSessionHasNoErrors();
     $postulacion = Postulacion::firstOrFail();
     expect(e2eAvisos($coord, 'se postuló'))->toBe(1);
+    $this->actingAs($coord)->get(route('coordinacion.lista-practicantes'))->assertOk()
+        ->assertSee('Revisión de documentos')->assertSee('Ambos correctos: autorizar y emitir carta');
 
-    $this->actingAs($coord)->post(route('coordinacion.postulaciones.carta', $postulacion))->assertSessionHasNoErrors();
+    // La coordinación detecta un IMSS dado de baja: lo devuelve y el alumno reemplaza solo ese PDF
+    $this->actingAs($coord)->post(route('coordinacion.postulaciones.revision', $postulacion), [
+        'decision' => 'devolver', 'documentos' => ['imss'], 'motivo' => 'El IMSS aparece dado de baja.',
+    ])->assertSessionHasNoErrors();
+    expect(e2eAvisos($alumnoUser, 'dado de baja'))->toBe(1);
+    $this->actingAs($alumnoUser->fresh())->get(route('alumno.mis-documentos'))->assertOk()
+        ->assertSee('Tu coordinación te pidió corregir un documento')->assertSee('El IMSS aparece dado de baja.');
+    $this->actingAs($alumnoUser->fresh())->post(route('alumno.documentos.imss'), [
+        'archivo' => e2ePdf('imss-vigente.pdf'), 'vigencia_imss' => now()->addYear()->toDateString(),
+    ])->assertSessionHasNoErrors();
+    expect(e2eAvisos($coord, 'reemplazó su constancia IMSS'))->toBe(1);
+
+    // Ambos correctos: autoriza y emite la carta en un paso
+    $this->actingAs($coord)->post(route('coordinacion.postulaciones.revision', $postulacion), ['decision' => 'autorizar'])->assertSessionHasNoErrors();
     expect($postulacion->fresh()->estado)->toBe(PostulacionEstado::CartaPresentacionEmitida);
 
     $this->actingAs($alumnoUser)->post(route('alumno.documentos.aceptacion', $postulacion), ['archivo' => e2ePdf('aceptacion.pdf')])->assertSessionHasNoErrors();

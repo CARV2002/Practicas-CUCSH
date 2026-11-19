@@ -84,12 +84,12 @@
                                             IMSS {{ $po->alumno->vigencia_imss ? 'vigente hasta ' . $po->alumno->vigencia_imss->format('d/m/Y') : 'sin vigencia capturada' }}
                                         </p>
                                         <x-coordinacion.documento :media="$imss" etiqueta="Constancia IMSS"
-                                            :descarga="$imss ? route('coordinacion.alumnos.archivos', [$po->alumno, $imss]) : null" />
+                                            :descarga="$imss ? route('coordinacion.alumnos.archivos', [$po->alumno, $imss]) : null" :acciones="false" />
                                     </div>
                                 </div>
                             </td>
                             <td class="px-4 py-4">
-                                <p class="text-sm font-medium text-gray-900">{{ $po->programa->titulo }}</p>
+                                <p class="text-sm font-medium text-gray-900 md:min-w-44">{{ $po->programa->titulo }}</p>
                                 <p class="text-xs text-gray-500">{{ $po->programa->convenio?->empresa->razon_social ?? 'Proyecto interno' }}</p>
                                 <p class="text-xs text-gray-500">Ciclo {{ $po->programa->ciclo }}</p>
                             </td>
@@ -99,7 +99,7 @@
                                     <span class="text-xs text-gray-500">mínimo {{ rtrim(rtrim((string) $min, '0'), '.') }}%</span>
                                 </p>
                                 <x-coordinacion.documento :media="$kardex" etiqueta="Kardex"
-                                    :descarga="$kardex ? route('coordinacion.postulaciones.archivos', [$po, $kardex]) : null" />
+                                    :descarga="$kardex ? route('coordinacion.postulaciones.archivos', [$po, $kardex]) : null" :acciones="false" />
                             </td>
                             <td class="px-4 py-4">
                                 <x-ui.estatus :estado="$po->estado" />
@@ -127,21 +127,82 @@
                             <td class="acciones px-6 py-4">
                                 <div class="flex min-w-56 flex-col items-stretch gap-2">
                                     @if ($po->estado === PE::Pendiente)
-                                        @php $faltaCarta = \App\Support\Requisitos::emitirCarta($po); @endphp
-                                        @if ($faltaCarta)
-                                            <x-ui.accion-bloqueada :motivo="$faltaCarta" tamano="chico">Emitir carta de presentación</x-ui.accion-bloqueada>
-                                        @else
-                                            <form method="POST" action="{{ route('coordinacion.postulaciones.carta', $po) }}">
-                                                @csrf
-                                                <button class="boton boton-chico boton-primario w-full"><x-dashboard.icono nombre="documento" clase="size-3.5" /> Emitir carta de presentación</button>
-                                            </form>
-                                        @endif
+                                        @php
+                                            // Kardex e IMSS se revisan juntos aquí; lo demás (créditos, grado, convenio) bloquea aparte
+                                            $kSt = $kardex?->getCustomProperty('estado') ?? ($kardex ? 'pendiente' : null);
+                                            $iSt = $imss?->getCustomProperty('estado') ?? ($imss ? 'pendiente' : null);
+                                            $esperaCorreccion = in_array('rechazada', [$kSt, $iSt], true);
+                                            $otros = array_values(array_filter(\App\Support\Requisitos::emitirCarta($po),
+                                                fn ($m) => !str_contains($m, 'kardex') && !str_contains($m, 'constancia IMSS')));
+                                            $faltaArchivo = !$kardex || !$imss;
+                                        @endphp
+                                        <div class="rounded-xl border border-gray-200 bg-white p-3" x-data="{ devolver: {{ $errors->has('motivo') && old('postulacion') == $po->id ? 'true' : 'false' }}, motivo: @js(old('postulacion') == $po->id ? old('motivo', '') : '') }">
+                                            <p class="text-xs font-semibold text-gray-900">Revisión de documentos</p>
+                                            <ul class="mt-1.5 space-y-1 text-xs">
+                                                @foreach ([['Kardex', $kSt], ['Constancia IMSS', $iSt]] as [$nom, $st])
+                                                    <li class="flex items-center justify-between gap-2">
+                                                        <span class="text-gray-600">{{ $nom }}</span>
+                                                        <x-ui.estatus :familia="match ($st) { 'validada' => 'menta', 'rechazada' => 'rosa', 'pendiente' => 'ambar', default => 'gris' }"
+                                                            :texto="match ($st) { 'validada' => 'Correcto', 'rechazada' => 'Devuelto', 'pendiente' => 'Por revisar', default => 'Sin archivo' }" />
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+
+                                            @if ($esperaCorreccion)
+                                                <p class="mt-2 flex items-start gap-1.5 rounded-lg bg-rose-50 px-2 py-1.5 text-xs text-rose-700"><x-dashboard.icono nombre="reloj" clase="mt-0.5 size-3.5 shrink-0" /> Esperando que el alumno suba el PDF corregido. Te avisaremos.</p>
+                                            @elseif ($faltaArchivo)
+                                                <p class="mt-2 text-xs text-gray-500">Falta un documento del alumno.</p>
+                                            @else
+                                                <div class="mt-2.5 grid grid-cols-1 gap-1.5">
+                                                    @if ($otros)
+                                                        <x-ui.accion-bloqueada :motivo="$otros" tamano="chico">Autorizar y emitir carta</x-ui.accion-bloqueada>
+                                                    @else
+                                                        <form method="POST" action="{{ route('coordinacion.postulaciones.revision', $po) }}">
+                                                            @csrf
+                                                            <input type="hidden" name="decision" value="autorizar">
+                                                            <button class="boton boton-chico boton-exito w-full justify-center"><x-dashboard.icono nombre="check" clase="size-3.5" /> Ambos correctos: autorizar y emitir carta</button>
+                                                        </form>
+                                                    @endif
+                                                    <button type="button" class="boton boton-chico w-full justify-center border border-rose-200 bg-white text-rose-600 hover:bg-rose-50" x-on:click="devolver = !devolver" :aria-expanded="devolver.toString()">
+                                                        <x-dashboard.icono nombre="deshacer" clase="size-3.5" /> Devolver con observaciones
+                                                    </button>
+                                                </div>
+
+                                                <form x-show="devolver" x-cloak x-transition.opacity method="POST" action="{{ route('coordinacion.postulaciones.revision', $po) }}" class="mt-2 space-y-2 rounded-lg bg-rose-50/60 p-2.5">
+                                                    @csrf
+                                                    <input type="hidden" name="decision" value="devolver">
+                                                    <input type="hidden" name="postulacion" value="{{ $po->id }}">
+                                                    <p class="text-xs font-semibold text-gray-800">¿Qué debe corregir?</p>
+                                                    <div class="flex flex-wrap gap-1.5 text-xs">
+                                                        <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-2.5 py-1 ring-1 ring-inset ring-gray-200 has-[:checked]:bg-rose-100 has-[:checked]:ring-rose-300">
+                                                            <input type="checkbox" name="documentos[]" value="kardex" class="size-3.5 rounded border-gray-300 text-rose-600"> Kardex
+                                                        </label>
+                                                        <label class="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-2.5 py-1 ring-1 ring-inset ring-gray-200 has-[:checked]:bg-rose-100 has-[:checked]:ring-rose-300">
+                                                            <input type="checkbox" name="documentos[]" value="imss" class="size-3.5 rounded border-gray-300 text-rose-600"> IMSS
+                                                        </label>
+                                                    </div>
+                                                    <label class="sr-only" for="motivo-{{ $po->id }}">Motivo</label>
+                                                    <textarea id="motivo-{{ $po->id }}" name="motivo" x-model="motivo" rows="2" required maxlength="500" class="campo text-xs" placeholder="Qué está mal y qué debe subir"></textarea>
+                                                    <div class="flex flex-wrap gap-1">
+                                                        @foreach (['El kardex es de un ciclo anterior; sube el del ciclo actual.', 'El IMSS aparece dado de baja; descarga una constancia vigente.', 'El archivo no se puede leer; súbelo escaneado completo.'] as $sug)
+                                                            <button type="button" class="rounded-full bg-white px-2 py-0.5 text-[11px] text-gray-600 ring-1 ring-inset ring-gray-200 hover:ring-udg-300" x-on:click="motivo = @js($sug)">{{ \Illuminate\Support\Str::before($sug, ';') }}</button>
+                                                        @endforeach
+                                                    </div>
+                                                    @if (old('postulacion') == $po->id)
+                                                        @error('documentos')<p class="text-xs font-medium text-rose-600">{{ $message }}</p>@enderror
+                                                        @error('motivo')<p class="text-xs font-medium text-rose-600">{{ $message }}</p>@enderror
+                                                    @endif
+                                                    <button class="boton boton-chico boton-peligro w-full justify-center">Devolver al alumno</button>
+                                                </form>
+                                            @endif
+                                        </div>
                                     @elseif ($po->estado === PE::CartaPresentacionEmitida)
                                         <form method="POST" enctype="multipart/form-data" action="{{ route('coordinacion.postulaciones.aceptacion', $po) }}" class="space-y-1.5">
                                             @csrf
-                                            <label class="block text-xs font-medium text-gray-600" for="acep-{{ $po->id }}">Carta de aceptación (PDF)</label>
-                                            <input id="acep-{{ $po->id }}" type="file" name="archivo" accept="application/pdf" @required(!$aceptacion)
-                                                class="campo h-9 py-1 text-xs file:mr-2 file:rounded file:border-0 file:bg-udg-50 file:px-2 file:py-0.5 file:text-xs file:font-semibold file:text-udg-900">
+                                            @if ($aceptacion)
+                                                <p class="text-xs text-gray-600">El alumno ya subió su carta: revísala y confírmala, o sube otra si la recibiste tú.</p>
+                                            @endif
+                                            <x-ui.zona-archivo name="archivo" :etiqueta="$aceptacion ? 'Otra carta (opcional)' : 'Carta de aceptación'" :requerido="!$aceptacion" />
                                             <button class="boton boton-chico boton-primario w-full">{{ $aceptacion ? 'Confirmar carta del alumno' : 'Registrar aceptación' }}</button>
                                         </form>
                                     @elseif ($po->estado === PE::CartaAceptacionRecibida && ($faltaActivar = \App\Support\Requisitos::activarPractica($po)))
@@ -164,9 +225,7 @@
                                     @if ($interno && !$oficioInterno && in_array($po->estado, [PE::CartaPresentacionEmitida, PE::CartaAceptacionRecibida], true))
                                         <form method="POST" enctype="multipart/form-data" action="{{ route('coordinacion.postulaciones.oficio-interno', $po) }}" class="space-y-1.5 rounded-lg bg-oro-50/60 p-2">
                                             @csrf
-                                            <label class="block text-xs font-medium text-gray-600" for="ofi-{{ $po->id }}">Oficio de aceptación interno (PDF)</label>
-                                            <input id="ofi-{{ $po->id }}" type="file" name="archivo" accept="application/pdf" required
-                                                class="campo h-9 py-1 text-xs file:mr-2 file:rounded file:border-0 file:bg-udg-50 file:px-2 file:py-0.5 file:text-xs file:font-semibold file:text-udg-900">
+                                            <x-ui.zona-archivo name="archivo" etiqueta="Oficio de aceptación interno" ayuda="Firmado por el jefe de departamento o director del área receptora." />
                                             <button class="boton boton-chico boton-secundario w-full"><x-dashboard.icono nombre="subir" clase="size-3.5" /> Subir oficio interno</button>
                                         </form>
                                     @endif

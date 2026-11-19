@@ -157,10 +157,7 @@
                                         <label for="obs-{{ $d->id }}" class="etiqueta">Observaciones</label>
                                         <input id="obs-{{ $d->id }}" type="text" name="observaciones" placeholder="Obligatorias si el dictamen es negativo" class="campo h-11">
                                     </div>
-                                    <div>
-                                        <label for="doc-{{ $d->id }}" class="etiqueta">Dictamen firmado (PDF)</label>
-                                        <input id="doc-{{ $d->id }}" type="file" name="documento" accept="application/pdf" class="campo h-11 py-2 file:mr-3 file:rounded-md file:border-0 file:bg-udg-50 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-udg-900">
-                                    </div>
+                                    <x-ui.zona-archivo name="documento" etiqueta="Dictamen firmado" :requerido="false" ayuda="Opcional: el dictamen de pertinencia firmado y sellado." />
                                     <button class="boton boton-primario h-11">Registrar dictamen</button>
                                 </form>
                                 <p class="ayuda">Un dictamen registrado ya no se puede cambiar.</p>

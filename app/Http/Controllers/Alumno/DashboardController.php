@@ -80,7 +80,7 @@ class DashboardController extends Controller
                 'texto' => 'Periodo '.$r->periodo_inicio->format('d/m').' – '.$r->periodo_fin->format('d/m/Y').'.']);
         }
         if ($imssEstado === ValidacionEstado::Rechazada->value) {
-            $alertas->push(['tipo' => 'danger', 'titulo' => 'Constancia IMSS rechazada', 'texto' => 'Súbela de nuevo en Mis documentos.']);
+            $alertas->push(['tipo' => 'danger', 'titulo' => 'Corrige tu constancia IMSS', 'texto' => 'Tu coordinación te pidió corregirla: sube la constancia correcta en Mis documentos.']);
         } elseif ($activa && $alumno->vigencia_imss && $alumno->vigencia_imss->lt($practica->fecha_fin)) {
             $alertas->push(['tipo' => 'danger', 'titulo' => 'Tu IMSS vence antes de terminar',
                 'texto' => 'Vence el '.$alumno->vigencia_imss->format('d/m/Y').'.']);
@@ -160,7 +160,13 @@ class DashboardController extends Controller
         }
 
         if ($alumno->postulaciones()->where('estado', PostulacionEstado::Pendiente->value)->exists()) {
-            return 'Tu postulación está en revisión. Tu coordinación validará tus créditos y te emitirá tu carta de presentación.';
+            $devuelta = $alumno->postulaciones()->where('estado', PostulacionEstado::Pendiente->value)->get()
+                ->contains(fn ($po) => $po->documentoVigente('kardex')?->getCustomProperty('estado') === 'rechazada')
+                || $alumno->documentoVigente('constancia_imss')?->getCustomProperty('estado') === 'rechazada';
+
+            return $devuelta
+                ? 'Tu coordinación te pidió corregir un documento. Sube el PDF corregido en Mis documentos; no necesitas postularte de nuevo.'
+                : 'Tu coordinación está revisando juntos tu kardex y tu constancia IMSS. Si están correctos, te emitirá tu carta de presentación.';
         }
 
         return $tieneImss

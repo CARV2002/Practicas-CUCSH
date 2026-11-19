@@ -113,6 +113,12 @@ class Alumno extends Model implements HasMedia
         return $ultima && $ultima->conserva_horas ? $ultima->horas_acumuladas : 0;
     }
 
+    /** Ya entregó un IMSS que la coordinación validó y sigue vigente: no se le vuelve a pedir. */
+    public function tieneImssValidadoVigente(): bool
+    {
+        return $this->documentoValidado('constancia_imss') && $this->tieneImssVigenteHasta(now());
+    }
+
     public function tieneImssVigenteHasta(CarbonInterface $fecha): bool
     {
         return $this->vigencia_imss !== null

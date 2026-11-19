@@ -279,8 +279,7 @@
                         <div class="flex flex-col gap-3 rounded-xl border border-dashed border-gray-300 p-4 md:flex-row md:items-end md:justify-between">
                             <form method="POST" enctype="multipart/form-data" action="{{ route('admin.convenios.borrador', $convenio) }}" class="flex flex-1 flex-col gap-2 sm:flex-row sm:items-end">
                                 @csrf
-                                <div class="flex-1"><label class="etiqueta" for="b-archivo">Adjuntar borrador propio (PDF o DOCX)</label>
-                                    <input id="b-archivo" type="file" name="borrador" accept=".pdf,.docx" required class="campo h-11 py-2 file:mr-3 file:rounded-md file:border-0 file:bg-udg-50 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-udg-900"></div>
+                                <div class="flex-1"><x-ui.zona-archivo name="borrador" etiqueta="Adjuntar borrador propio" accept=".pdf,.docx" formatos="PDF o Word (.docx)" ayuda="Úsalo si redactaste el convenio fuera del sistema o Jurídica te devolvió una versión corregida." /></div>
                                 <button class="boton boton-secundario h-11"><x-dashboard.icono nombre="subir" clase="size-4" /> Adjuntar</button>
                             </form>
                             @if ($borradores->isEmpty())
@@ -305,7 +304,7 @@
                                     <option value="rechazado">Rechazado</option>
                                 </select></div>
                             <div><label class="etiqueta" for="j-com">Comentario</label><input id="j-com" type="text" name="comentario" placeholder="Obligatorio si no aprueba" class="campo h-11"></div>
-                            <div><label class="etiqueta" for="j-doc">Dictamen (PDF)</label><input id="j-doc" type="file" name="documento" accept="application/pdf" class="campo h-11 py-2 file:mr-2 file:rounded-md file:border-0 file:bg-udg-50 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-udg-900"></div>
+                            <div class="md:col-span-2"><x-ui.zona-archivo name="documento" etiqueta="Dictamen escaneado" :requerido="false" ayuda="Opcional: el Dictamen de Viabilidad Jurídica firmado." /></div>
                             <button class="boton boton-primario h-11">Registrar dictamen</button>
                         </form>
                     @endif
@@ -338,7 +337,7 @@
                                 </select>
                                 <p class="ayuda" x-text="fin ? 'Vence el ' + fin + ' (avisos a 60 y 30 días)' : 'La fecha de fin se calcula sola'"></p>
                             </div>
-                            <div><label class="etiqueta" for="fo-pdf">Escaneo firmado (PDF)</label><input id="fo-pdf" type="file" name="convenio_firmado" accept="application/pdf" data-max-mb="20" class="campo h-11 py-2 file:mr-2 file:rounded-md file:border-0 file:bg-udg-50 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-udg-900"></div>
+                            <div class="md:col-span-4"><x-ui.zona-archivo name="convenio_firmado" etiqueta="Escaneo de un juego firmado por ambas partes" :max-mb="20" ayuda="Un solo PDF con todas las hojas, firmas al calce y sellos visibles." /></div>
                             <div class="md:col-span-3"><label class="etiqueta" for="fo-com">Comentario (opcional)</label><input id="fo-com" type="text" name="comentario" class="campo h-11"></div>
                             <div class="flex items-end"><button class="boton boton-exito h-11 w-full"><x-dashboard.icono nombre="vigente" clase="size-4" /> Formalizar convenio</button></div>
                         </form>

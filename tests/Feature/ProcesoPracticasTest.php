@@ -241,10 +241,16 @@ function alumnoDe(Carrera $carrera, string $codigo, ?string $imss = null): Alumn
 
 function postular(Alumno $alumno, Programa $programa, float $creditos = 60): Postulacion
 {
-    return Postulacion::create([
+    $po = Postulacion::create([
         'alumno_id' => $alumno->id, 'programa_id' => $programa->id,
         'porcentaje_creditos_declarado' => $creditos, 'fecha_postulacion' => today(),
     ]);
+
+    // Kardex entregado con la postulación y ya revisado por la coordinación
+    $kardex = $po->addMedia(pdfFalso('kardex.pdf'))->toMediaCollection('kardex');
+    $po->resolverDocumento($kardex, ValidacionEstado::Validada, null, $alumno->user_id);
+
+    return $po;
 }
 
 test('de la postulación a la acreditación: reglas, cupos, horas y cierre', function () {

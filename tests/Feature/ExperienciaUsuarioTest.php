@@ -176,7 +176,10 @@ test('el alumno sin grado/turno o sin IMSS no puede postularse y se le dice qué
 
     $alumno->update(['grado' => 6, 'turno' => 'matutino']);
     $u->unsetRelation('alumno');
-    $this->actingAs($u)->get(route('alumno.oferta-programas'))->assertSee('Sube tu constancia de vigencia del IMSS');
+    // El IMSS ya no es requisito previo: se entrega junto con el kardex en el formulario de postulación
+    $this->actingAs($u)->get(route('alumno.oferta-programas'))->assertSee('Constancia de vigencia de derechos del IMSS');
+    $this->actingAs($u)->post(route('alumno.oferta-programas.postular', $programa), ['porcentaje_creditos_declarado' => 70, 'kardex' => uxPdf(), 'siiau' => '1'])
+        ->assertSessionHasErrors(['imss', 'vigencia_imss']);
 
     // «Mis prácticas» aparece bloqueada hasta que se postule
     $this->actingAs($u)->get(route('alumno.dashboard'))->assertSee('Se habilita cuando te postules a un programa.');
@@ -195,7 +198,7 @@ test('la coordinación ve qué falta para emitir la carta y Vinculación qué fa
         'porcentaje_creditos_declarado' => 70, 'fecha_postulacion' => today()]);
 
     $this->actingAs($this->coord)->get(route('coordinacion.lista-practicantes'))->assertOk()
-        ->assertSee('Valida la constancia IMSS del alumno.');
+        ->assertSee('Revisión de documentos')->assertSee('Falta un documento del alumno.');
 
     $convenio = app(ConvenioWorkflow::class)->solicitar($this->empresa, ['objetivos' => 'x', 'actividades_propuestas' => 'y', 'plazas_estimadas' => 2], [$this->carrera->id]);
     $this->actingAs($this->lorena)->get(route('admin.convenios.show', $convenio))->assertOk()

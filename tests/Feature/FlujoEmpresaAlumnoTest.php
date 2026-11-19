@@ -173,8 +173,8 @@ test('empresa publica, alumno se postula y la práctica llega a acreditada', fun
     expect($po->estado)->toBe(PostulacionEstado::Pendiente)
         ->and($po->getMedia('kardex'))->toHaveCount(1);
 
-    // 3. Coordinación emite la carta de presentación (reserva cupo)
-    $this->actingAs($this->coordUser)->post(route('coordinacion.postulaciones.carta', $po))->assertSessionHasNoErrors()->assertRedirect();
+    // 3. Coordinación revisa juntos kardex e IMSS: ambos correctos → autoriza y emite la carta (reserva cupo)
+    $this->actingAs($this->coordUser)->post(route('coordinacion.postulaciones.revision', $po), ['decision' => 'autorizar'])->assertSessionHasNoErrors()->assertRedirect();
     expect($po->refresh()->estado)->toBe(PostulacionEstado::CartaPresentacionEmitida)
         ->and($programa->refresh()->cupos_disponibles)->toBe(1)
         ->and($po->getMedia('carta_presentacion'))->toHaveCount(1);   // la genera el sistema en Word

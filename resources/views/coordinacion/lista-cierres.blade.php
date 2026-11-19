@@ -136,8 +136,7 @@
                                         @if (!$oficio || $oficio->enviado_control_escolar_at === null)
                                             <form method="POST" enctype="multipart/form-data" action="{{ route('coordinacion.cierres.oficio', $pr) }}" class="space-y-1.5">
                                                 @csrf
-                                                <label class="block text-xs font-medium text-gray-600" for="of-{{ $pr->id }}">Oficio de acreditación (PDF)</label>
-                                                <input id="of-{{ $pr->id }}" type="file" name="archivo" accept="application/pdf" required class="campo h-9 py-1 text-xs file:mr-2 file:rounded file:border-0 file:bg-udg-50 file:px-2 file:py-0.5 file:text-xs file:font-semibold file:text-udg-900">
+                                                <x-ui.zona-archivo name="archivo" etiqueta="Oficio de acreditación firmado" />
                                                 <button class="boton boton-chico boton-secundario w-full"><x-dashboard.icono nombre="subir" clase="size-3.5" /> {{ $oficio ? 'Reemplazar oficio' : 'Registrar oficio' }}</button>
                                             </form>
                                         @endif

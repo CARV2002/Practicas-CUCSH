@@ -29,7 +29,8 @@ trait ValidaDocumentos
     /** Último archivo subido de una colección (el vigente). */
     public function documentoVigente(string $coleccion): ?Media
     {
-        return $this->getMedia($coleccion)->sortByDesc('created_at')->first();
+        // Por id, no por fecha: un reemplazo subido en el mismo segundo que el anterior debe ganar
+        return $this->getMedia($coleccion)->sortByDesc('id')->first();
     }
 
     public function documentoValidado(string $coleccion): bool

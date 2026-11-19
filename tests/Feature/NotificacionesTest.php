@@ -108,7 +108,8 @@ test('al emitir la carta de presentación se avisa por correo al alumno y en pla
 
     Notification::fake();
 
-    $this->actingAs($this->adminAbog)->post(route('coordinacion.postulaciones.carta', $po))->assertSessionHasNoErrors();
+    $po->addMedia(notPdf())->toMediaCollection('kardex');   // entregado con la postulación
+    $this->actingAs($this->adminAbog)->post(route('coordinacion.postulaciones.revision', $po), ['decision' => 'autorizar'])->assertSessionHasNoErrors();
 
     Notification::assertSentTo($this->anaUser, AvisoOperativo::class, fn ($n, $canales) => in_array('mail', $canales, true));
     Notification::assertSentTo($this->userEmpresa, AvisoOperativo::class, fn ($n, $canales) => $canales === ['database']);
@@ -121,7 +122,8 @@ test('las cuentas desactivadas no reciben avisos', function () {
 
     Notification::fake();
 
-    $this->actingAs($this->adminAbog)->post(route('coordinacion.postulaciones.carta', $po))->assertSessionHasNoErrors();
+    $po->addMedia(notPdf())->toMediaCollection('kardex');   // entregado con la postulación
+    $this->actingAs($this->adminAbog)->post(route('coordinacion.postulaciones.revision', $po), ['decision' => 'autorizar'])->assertSessionHasNoErrors();
 
     Notification::assertSentTo($this->anaUser, AvisoOperativo::class);
     Notification::assertNotSentTo($this->userEmpresa, AvisoOperativo::class);

@@ -72,7 +72,7 @@ class MisPracticasController extends Controller
                 'texto' => 'Periodo '.$r->periodo_inicio->format('d/m').' – '.$r->periodo_fin->format('d/m/Y').'.']);
         }
         if ($imssRechazado) {
-            $alertas->push(['tipo' => 'danger', 'titulo' => 'Constancia IMSS rechazada', 'texto' => 'Súbela de nuevo en Mis documentos.']);
+            $alertas->push(['tipo' => 'danger', 'titulo' => 'Corrige tu constancia IMSS', 'texto' => 'Tu coordinación te pidió corregirla: sube la constancia correcta en Mis documentos.']);
         } elseif ($alumno->vigencia_imss && $activa && $alumno->vigencia_imss->lt($fin)) {
             $alertas->push(['tipo' => 'danger', 'titulo' => 'Tu IMSS vence antes de terminar la práctica',
                 'texto' => 'Vence el '.$alumno->vigencia_imss->format('d/m/Y').'. Renueva tu constancia.']);

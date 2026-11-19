@@ -53,62 +53,38 @@
                     </div>
                 </div>
 
-                <ul class="divide-y divide-gray-100">
+                @php
+                    $instrucciones = [
+                        'cv_instancia' => 'Una o dos páginas: a qué se dedica la organización, sus principales proyectos y clientes. PDF o Word.',
+                        'identificacion_representante' => 'INE o pasaporte vigente de quien firmará el convenio, por ambos lados en un solo PDF.',
+                        'acta_constitutiva' => 'Acta constitutiva completa (sociedades y asociaciones) o el nombramiento o decreto (dependencias de gobierno).',
+                        'constancia_situacion_fiscal' => 'Descárgala del portal del SAT; no mayor a tres meses.',
+                        'comprobante_domicilio' => 'Luz, agua, teléfono o predial a nombre de la organización; no mayor a tres meses.',
+                        'poder_notarial' => 'Solo si quien firma no aparece en el acta: poder notarial que lo faculta.',
+                    ];
+                @endphp
+                <div class="grid grid-cols-1 gap-4 p-5 sm:p-6 lg:grid-cols-2">
                     @foreach ($documentos as $col => $d)
                         @php
                             $media = $d['media'];
                             $st = $media ? ($media->getCustomProperty('estado') ?? 'pendiente') : null;
-                            $motivo = $media?->getCustomProperty('motivo');
-                            $accept = $col === 'cv_instancia' ? '.pdf,.doc,.docx' : 'application/pdf';
                         @endphp
-                        <li class="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-gray-50/60 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-                            <div class="flex min-w-0 items-start gap-3">
-                                <span @class([
-                                    'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset',
-                                    'bg-emerald-50 text-emerald-600 ring-emerald-100' => $st === 'validada',
-                                    'bg-rose-50 text-rose-600 ring-rose-100' => $st === 'rechazada',
-                                    'bg-amber-50 text-amber-600 ring-amber-100' => $st === 'pendiente',
-                                    'bg-gray-50 text-gray-400 ring-gray-200' => !$st,
-                                ])><x-dashboard.icono :nombre="$st === 'validada' ? 'check' : ($st === 'rechazada' ? 'equis' : 'documento')" clase="size-[18px]" /></span>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-semibold text-gray-900">
-                                        {{ \App\Models\Empresa::nombreDocumento($col) }}
-                                        @if ($d['obligatorio'])<span class="ml-0.5 text-rose-500" title="Obligatorio">*</span>@endif
-                                    </p>
-                                    @if ($media)
-                                        <a href="{{ route('empresa.documentos.descargar', $media->id) }}" class="inline-flex max-w-full items-center gap-1 text-xs font-medium text-real-600 hover:text-real-700">
-                                            <x-dashboard.icono nombre="descargar" clase="size-3.5 shrink-0" /><span class="truncate">{{ $media->file_name }}</span>
-                                        </a>
-                                        <p class="text-xs text-gray-500">Subido el {{ $media->created_at->format('d/m/Y') }}</p>
-                                        @if ($st === 'rechazada' && $motivo)<p class="mt-1 text-xs font-medium text-rose-600">Motivo: {{ $motivo }}</p>@endif
-                                    @else
-                                        <p class="dato-vacio">Aún no subes este documento</p>
-                                    @endif
-                                </div>
-                            </div>
-
-                            <div class="flex flex-wrap items-center gap-2 lg:justify-end">
-                                @if ($st)
-                                    <x-ui.estatus :familia="$estadosDoc[$st][0]" :texto="$estadosDoc[$st][1]" />
-                                @endif
-                                @if ($d['puedeSubir'])
-                                    <form method="POST" enctype="multipart/form-data" action="{{ route('empresa.documentos.subir') }}" class="flex items-center gap-2" x-data="{ nombre: '' }">
-                                        @csrf
-                                        <input type="hidden" name="coleccion" value="{{ $col }}">
-                                        <label class="inline-flex h-9 max-w-[12rem] cursor-pointer items-center gap-1.5 truncate rounded-lg border border-dashed border-gray-300 px-3 text-xs font-medium text-gray-600 transition hover:border-udg-300 hover:bg-udg-50 hover:text-udg-900">
-                                            <x-dashboard.icono nombre="subir" clase="size-3.5 shrink-0" />
-                                            <span class="truncate" x-text="nombre || 'Elegir archivo'">Elegir archivo</span>
-                                            <input type="file" name="archivo" accept="{{ $accept }}" required class="sr-only" @change="nombre = $event.target.files[0]?.name || ''">
-                                        </label>
-                                        <button class="boton boton-chico boton-primario" :disabled="!nombre">{{ $media ? 'Reemplazar' : 'Subir' }}</button>
-                                    </form>
-                                @elseif ($st !== 'validada')
-                                    <span class="inline-flex items-center gap-1 text-xs text-gray-400"><x-dashboard.icono nombre="candado" clase="size-3.5" /> Bloqueado en revisión</span>
-                                @endif
-                            </div>
-                        </li>
+                        <x-ui.carga-documento compacto
+                            :action="$d['puedeSubir'] ? route('empresa.documentos.subir') : null"
+                            :titulo="\App\Models\Empresa::nombreDocumento($col) . ($d['obligatorio'] ? ' *' : '')"
+                            :instrucciones="$instrucciones[$col] ?? null"
+                            :accept="$col === 'cv_instancia' ? '.pdf,.doc,.docx' : '.pdf'"
+                            :formatos="$col === 'cv_instancia' ? 'PDF o Word' : 'PDF'"
+                            :estado="$st" :motivo="$media?->getCustomProperty('motivo')"
+                            :archivo="$media?->file_name" :url-archivo="$media ? route('empresa.documentos.descargar', $media->id) : null"
+                            :fecha="$media?->created_at?->format('d/m/Y')"
+                            :bloqueo="!$d['puedeSubir'] && $st !== 'validada' ? 'Vinculación está revisando tu solicitud: podrás cambiarlo si te pide una corrección.' : null"
+                            :boton="$st === 'rechazada' ? 'Enviar documento corregido' : ($media ? 'Reemplazar documento' : 'Enviar documento')">
+                            <x-slot:ocultos><input type="hidden" name="coleccion" value="{{ $col }}"></x-slot:ocultos>
+                        </x-ui.carga-documento>
                     @endforeach
-                </ul>
+                </div>
+                <p class="px-6 pb-5 text-xs text-gray-500">* Obligatorio para solicitar el convenio.</p>
             </section>
 
             <aside class="space-y-6">

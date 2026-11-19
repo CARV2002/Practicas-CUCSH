@@ -152,7 +152,9 @@ function limpiar(campo, marcarOk) {
 }
 
 function esValidable(el) {
-    return el instanceof HTMLElement && el.matches('input, select, textarea') && el.type !== 'hidden' && !el.disabled;
+    // Las zonas de archivo (x-ui.zona-archivo y x-ui.carga-documento) muestran sus propios mensajes
+    return el instanceof HTMLElement && el.matches('input, select, textarea') && el.type !== 'hidden' && !el.disabled
+        && !(el.type === 'file' && el.closest('[data-zona-archivo], [x-data^="cargaDocumento"]'));
 }
 
 function revisar(campo, marcarOk = true) {

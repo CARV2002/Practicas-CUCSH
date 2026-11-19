@@ -69,8 +69,9 @@ class EmitirCartaPresentacion
                 $this->fallar('Primero valida la constancia de vigencia IMSS del alumno.');
             }
 
-            if ($postulacion->documentoVigente('kardex')?->getCustomProperty('estado') === ValidacionEstado::Rechazada->value) {
-                $this->fallar('El kardex fue rechazado: el alumno debe subir uno nuevo.');
+            // Kardex e IMSS se revisan juntos: los dos deben estar validados
+            if (!$postulacion->documentoValidado('kardex')) {
+                $this->fallar('Primero valida el kardex del alumno.');
             }
 
             // La carta se imprime con estos datos

@@ -48,30 +48,65 @@ class DocumentoController extends Controller
     {
         $alumno = $request->user()->alumno;
 
+        // Un IMSS validado y vigente ya no se reemplaza (no tendría caso volver a revisarlo)
+        if ($alumno->tieneImssValidadoVigente()) {
+            throw ValidationException::withMessages([
+                'archivo' => 'Tu constancia IMSS ya fue validada y sigue vigente: no necesitas subirla de nuevo.',
+            ]);
+        }
+
         $datos = $request->validate([
             'archivo' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
             'vigencia_imss' => ['required', 'date', 'after:today'],
         ], [
-            'vigencia_imss.after' => 'La vigencia del seguro debe ser posterior a hoy.',
+            'archivo.required' => 'Elige el PDF o la imagen de tu constancia de vigencia de derechos.',
+            'vigencia_imss.required' => 'Escribe la fecha hasta la que está vigente tu seguro (aparece en la constancia).',
+            'vigencia_imss.after' => 'La vigencia debe ser posterior a hoy: si ya venció, descarga una constancia actualizada del IMSS.',
         ]);
 
+        $anterior = $alumno->documentoVigente('constancia_imss')?->getCustomProperty('estado');
         $alumno->addMediaFromRequest('archivo')->toMediaCollection('constancia_imss');
         $alumno->update(['vigencia_imss' => $datos['vigencia_imss']]);
 
-        $this->avisarCoordinacion($request, 'subió su constancia de vigencia IMSS para validar.', 'coordinacion.lista-practicantes');
+        // Se revisa junto con el kardex: solo se avisa si ya hay algo que revisar (postulación o práctica)
+        $enRevision = $alumno->postulaciones()->where('estado', PostulacionEstado::Pendiente->value)->exists()
+            || $alumno->tienePracticaActiva();
 
-        return back()->with('status', 'Constancia IMSS enviada a tu coordinación para su validación.');
+        if ($enRevision) {
+            $this->avisarCoordinacion($request, $anterior === ValidacionEstado::Rechazada->value
+                ? 'reemplazó su constancia IMSS que le devolviste. Revísala de nuevo.'
+                : 'actualizó su constancia de vigencia IMSS para validar.', 'coordinacion.lista-practicantes');
+        }
+
+        return back()->with('status', $enRevision
+            ? 'Constancia IMSS enviada: tu coordinación la revisará junto con tu kardex.'
+            : 'Constancia IMSS guardada. Se revisará junto con tu kardex cuando te postules a una vacante.');
     }
 
     public function subirKardex(Request $request, Postulacion $postulacion): RedirectResponse
     {
         $this->propia($request, $postulacion);
 
-        $request->validate(['archivo' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240']]);
+        if ($postulacion->estado !== PostulacionEstado::Pendiente) {
+            throw ValidationException::withMessages(['archivo' => 'Tu coordinación ya autorizó esta postulación: el kardex ya no se puede cambiar.']);
+        }
+
+        $anterior = $postulacion->documentoVigente('kardex')?->getCustomProperty('estado');
+        if ($anterior === ValidacionEstado::Validada->value) {
+            throw ValidationException::withMessages(['archivo' => 'Tu kardex ya fue validado: no necesitas subirlo de nuevo.']);
+        }
+
+        $request->validate(['archivo' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240']], [
+            'archivo.required' => 'Elige el PDF o la imagen de tu kardex simple del ciclo actual.',
+        ]);
 
         $postulacion->addMediaFromRequest('archivo')->toMediaCollection('kardex');
 
-        return back()->with('status', 'Kardex enviado.');
+        $this->avisarCoordinacion($request, ($anterior === ValidacionEstado::Rechazada->value
+            ? 'reemplazó el kardex que le devolviste'
+            : 'actualizó su kardex') . " para «{$postulacion->programa->titulo}». Revísalo de nuevo.", 'coordinacion.lista-practicantes');
+
+        return back()->with('status', 'Kardex enviado: tu coordinación lo revisará junto con tu constancia IMSS.');
     }
 
     public function subirCartaAceptacion(Request $request, Postulacion $postulacion): RedirectResponse
