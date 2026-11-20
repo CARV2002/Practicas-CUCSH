@@ -31,6 +31,9 @@ class ReporteController extends Controller
             ->whereHas('practica', fn($p) => $p->visiblesPara($personal))
             ->when($request->filled('estado'), fn($q) => $q->where('estado', $request->string('estado')))
             ->when($request->filled('tipo'), fn($q) => $q->where('tipo', $request->string('tipo')))
+            // Origen de la vacante: proyecto interno de la carrera (sin convenio) u organización externa
+            ->when($request->input('origen') === 'interno', fn($q) => $q->whereHas('practica.postulacion.programa', fn($p) => $p->whereNull('convenio_id')))
+            ->when($request->input('origen') === 'externo', fn($q) => $q->whereHas('practica.postulacion.programa', fn($p) => $p->whereNotNull('convenio_id')))
             ->when($request->filled('carrera_id'), fn($q) => $q->whereHas('practica.postulacion.alumno', fn($a) => $a->where('carrera_id', $request->integer('carrera_id'))))
             ->when($request->filled('q'), fn($q) => $q->whereHas('practica.postulacion.alumno', fn($a) => $a
                 ->where('num_control', 'like', '%' . $request->string('q') . '%')
@@ -65,6 +68,10 @@ class ReporteController extends Controller
             'carreras' => Carrera::enAlcance($personal)->orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
             'estados' => ReporteEstado::cases(),
             'tipos' => ReporteTipo::cases(),
+            'porOrigen' => [
+                'interno' => Reporte::whereHas('practica', fn($p) => $p->visiblesPara($personal))->whereHas('practica.postulacion.programa', fn($p) => $p->whereNull('convenio_id'))->count(),
+                'externo' => Reporte::whereHas('practica', fn($p) => $p->visiblesPara($personal))->whereHas('practica.postulacion.programa', fn($p) => $p->whereNotNull('convenio_id'))->count(),
+            ],
             'pendientes' => Reporte::where('estado', ReporteEstado::Pendiente->value)
                 ->whereHas('practica', fn($p) => $p->visiblesPara($personal))
                 ->count(),

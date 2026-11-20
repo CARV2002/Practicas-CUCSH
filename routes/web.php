@@ -184,7 +184,7 @@ Route::prefix('admin')
         // Informes de consulta: Vinculación ve convenios; el administrador, todo
         Route::get('/informes', [InformeController::class, 'index'])->name('informes');
         Route::get('/informes/{tipo}/exportar', [InformeController::class, 'exportar'])
-            ->whereIn('tipo', ['practicas', 'postulaciones', 'convenios', 'programas', 'empresas'])
+            ->whereIn('tipo', ['practicas', 'postulaciones', 'convenios', 'programas', 'empresas', 'documentos-fisicos'])
             ->name('informes.exportar');
 
         // Administración del sistema: solo el administrador

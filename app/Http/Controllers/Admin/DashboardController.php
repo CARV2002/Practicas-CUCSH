@@ -55,6 +55,11 @@ class DashboardController extends Controller
 
         return view('admin.dashboard', [
             'nombre' => explode(' ', trim($request->user()->name))[0],
+            // Mismo total que «Por atender» de la campana
+            'totalPendientes' => \App\Support\Pendientes::total($request->user()),
+            'esAdministrador' => $esAdmin = $request->user()->hasRole(\App\Enums\Rol::Administrador->value),
+            // Panorama global (solo lectura) para la Coordinación de Servicios Académicos
+            'panorama' => $esAdmin ? $this->panorama() : null,
             'etapas' => [
                 ['estado' => ConvenioEstado::Solicitado, 'etiqueta' => 'En revisión de documentos', 'icono' => 'documento', 'tono' => 'cielo'],
                 ['estado' => ConvenioEstado::EnValidacionAcademica, 'etiqueta' => 'En dictamen por carrera', 'icono' => 'academico', 'tono' => 'lavanda'],
@@ -97,5 +102,42 @@ class DashboardController extends Controller
                 'total' => $conteo($e),
             ]),
         ]);
+    }
+
+    /**
+     * Métricas de todo el CUCSH para el administrador: alumnos y prácticas por división y estado de las coordinaciones.
+     *
+     * @return array{alumnos:int, activas:int, acreditadas:int, en_cierre:int, bajas:int, divisiones:\Illuminate\Support\Collection, sin_coordinacion:\Illuminate\Support\Collection}
+     */
+    private function panorama(): array
+    {
+        $porEstado = \App\Models\Practica::query()->selectRaw('estado, count(*) as total')->groupBy('estado')->pluck('total', 'estado');
+        $n = fn (\App\Enums\PracticaEstado $e) => (int) ($porEstado[$e->value] ?? 0);
+
+        $activas = \App\Models\Practica::query()
+            ->whereIn('practicas.estado', \App\Enums\PracticaEstado::valores(\App\Enums\PracticaEstado::activas()))
+            ->join('postulaciones', 'postulaciones.id', '=', 'practicas.postulacion_id')
+            ->join('alumnos', 'alumnos.id', '=', 'postulaciones.alumno_id')
+            ->join('carreras', 'carreras.id', '=', 'alumnos.carrera_id')
+            ->selectRaw('carreras.division_id, count(*) as total')->groupBy('carreras.division_id')->pluck('total', 'carreras.division_id');
+        $alumnos = \App\Models\Alumno::query()->join('carreras', 'carreras.id', '=', 'alumnos.carrera_id')
+            ->selectRaw('carreras.division_id, count(*) as total')->groupBy('carreras.division_id')->pluck('total', 'carreras.division_id');
+
+        $carreras = \App\Models\Carrera::with('division')->orderBy('nombre')->get();
+
+        return [
+            'alumnos' => \App\Models\Alumno::count(),
+            'activas' => $n(\App\Enums\PracticaEstado::EnCurso),
+            'acreditadas' => $n(\App\Enums\PracticaEstado::Acreditada),
+            'en_cierre' => $n(\App\Enums\PracticaEstado::EnCierre),
+            'bajas' => $n(\App\Enums\PracticaEstado::Cancelada),
+            'divisiones' => \App\Models\Division::withCount('carreras')->orderBy('nombre')->get()->map(fn ($d) => (object) [
+                'nombre' => $d->nombre,
+                'carreras' => $d->carreras_count,
+                'alumnos' => (int) ($alumnos[$d->id] ?? 0),
+                'activas' => (int) ($activas[$d->id] ?? 0),
+            ]),
+            'sin_coordinacion' => $carreras->filter(fn ($c) => $c->coordinadores()->isEmpty()),
+        ];
     }
 }

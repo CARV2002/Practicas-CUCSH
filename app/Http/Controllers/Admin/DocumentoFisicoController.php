@@ -40,14 +40,7 @@ class DocumentoFisicoController extends Controller
 
         $documentos = (clone $base)
             ->with(['convenio.empresa', 'actualizador.user', 'movimientos.registrador.user'])
-            ->when($vista === 'activos', fn ($d) => $d->activos())
-            ->when($vista === 'fuera', fn ($d) => $d->fuera())
-            ->when($vista === 'vencidos', fn ($d) => $d->vencidos())
-            ->when($vista === 'casa', fn ($d) => $d->activos()->whereNotIn('estado', EstadoDocumentoFisico::fuera()))
-            ->when($vista === 'concluidos', fn ($d) => $d->whereIn('estado', EstadoDocumentoFisico::concluidos()))
-            ->when($q !== '', fn ($d) => $d->whereHas('convenio', fn ($c) => $c
-                ->where('folio', 'like', "%{$q}%")
-                ->orWhereHas('empresa', fn ($e) => $e->where('razon_social', 'like', "%{$q}%"))))
+            ->enVista($vista, $q)
             ->orderByRaw("CASE tipo WHEN 'oficio_turno' THEN 1 WHEN 'dictamen_juridico' THEN 2 ELSE 3 END")
             ->orderBy('juego')
             ->get()

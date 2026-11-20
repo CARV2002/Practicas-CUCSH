@@ -18,10 +18,11 @@
 @endphp
 
 <span {{ $attributes->class([
-    'inline-flex max-w-full items-center gap-1.5 whitespace-nowrap rounded-full font-medium ring-1 ring-inset',
+    'inline-flex max-w-full items-center gap-1.5 rounded-full text-left font-medium leading-tight ring-1 ring-inset',
     $medida,
     \App\Support\Estatus::chip($familia),
 ]) }}>
     <span class="size-1.5 shrink-0 rounded-full {{ \App\Support\Estatus::punto($familia) }}" aria-hidden="true"></span>
-    <span class="truncate">{{ $texto }}</span>
+    {{-- En columnas estrechas pasa a otra línea en vez de esconder el estado --}}
+    <span class="min-w-0 [text-wrap:balance]">{{ $texto }}</span>
 </span>

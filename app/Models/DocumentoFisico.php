@@ -107,6 +107,22 @@ class DocumentoFisico extends Model
         return "Tienes {$n} " . ($n === 1 ? 'juego original' : 'juegos originales') . " del convenio por firmar. Fírmalos al calce y entrégalos en Vinculación{$cuando}.";
     }
 
+    /**
+     * Filtro de la pantalla «Documentos físicos» (y de su informe):
+     * activos · fuera · vencidos · casa (en la oficina de Vinculación) · concluidos; y búsqueda por organización o folio.
+     */
+    public function scopeEnVista(Builder $q, string $vista, string $buscar = ''): Builder
+    {
+        return $q
+            ->when($vista === 'activos', fn ($d) => $d->activos())
+            ->when($vista === 'fuera', fn ($d) => $d->fuera())
+            ->when($vista === 'vencidos', fn ($d) => $d->vencidos())
+            ->when($vista === 'casa', fn ($d) => $d->activos()->whereNotIn('estado', EstadoDocumentoFisico::fuera()))
+            ->when($vista === 'concluidos', fn ($d) => $d->whereIn('estado', EstadoDocumentoFisico::concluidos()))
+            ->when($buscar !== '', fn ($d) => $d->whereHas('convenio', fn ($c) => $c
+                ->where('folio', 'like', "%{$buscar}%")
+                ->orWhereHas('empresa', fn ($e) => $e->where('razon_social', 'like', "%{$buscar}%"))));
+    }
     public function scopeActivos(Builder $q): Builder
     {
         return $q->whereNotIn('estado', EstadoDocumentoFisico::concluidos());

@@ -95,6 +95,11 @@ class ProgramaController extends Controller
         }
 
         $nuevo = ProgramaEstado::from($datos['estado']);
+
+        // Despublicar solo sirve para corregir antes de que alguien se postule: con alumnos en trámite, se cierra
+        if ($nuevo === ProgramaEstado::Borrador && $programa->postulaciones()->exists()) {
+            return back()->withErrors(['programa' => 'Este programa ya tiene postulaciones: no puede regresar a borrador. Usa «Cerrar postulaciones» para que no lleguen más.']);
+        }
         $publica = $nuevo === ProgramaEstado::Publicado && $programa->estado !== ProgramaEstado::Publicado;
 
         $programa->update(['estado' => $nuevo]);
@@ -103,7 +108,11 @@ class ProgramaController extends Controller
             $this->avisarAlumnos($programa);
         }
 
-        return back()->with('status', 'Estado actualizado.');
+        return back()->with('status', match ($nuevo) {
+            ProgramaEstado::Publicado => 'Programa publicado: los alumnos de la carrera ya pueden verlo.',
+            ProgramaEstado::Cerrado => 'Postulaciones cerradas: el programa ya no recibe alumnos nuevos.',
+            default => 'Programa despublicado: corrígelo y publícalo de nuevo cuando esté listo.',
+        });
     }
 
     /** La Coordinación verifica horario y actividades y publica la vacante de la empresa. */

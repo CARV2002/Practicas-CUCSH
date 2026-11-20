@@ -144,13 +144,17 @@
                                     <x-ui.boton-icono icono="equis" etiqueta="Rechazar" tono="peligro" x-on:click="rechazar = !rechazar" />
                                 @endif
                                 @unless ($deEmpresa)
-                                    @if ($pr->estado !== \App\Enums\ProgramaEstado::Publicado)
-                                        <x-ui.boton-icono :accion="route('coordinacion.programas.estado', $pr)" icono="enviar" etiqueta="Publicar" tono="exito"><input type="hidden" name="estado" value="publicado"></x-ui.boton-icono>
+                                    @if ($pr->estado === \App\Enums\ProgramaEstado::Borrador)
+                                        <x-ui.boton-icono :accion="route('coordinacion.programas.estado', $pr)" icono="enviar" etiqueta="Publicar" tono="exito" con-texto><input type="hidden" name="estado" value="publicado"></x-ui.boton-icono>
+                                    @elseif ($pr->estado === \App\Enums\ProgramaEstado::Cerrado)
+                                        <x-ui.boton-icono :accion="route('coordinacion.programas.estado', $pr)" icono="enviar" etiqueta="Reabrir postulaciones" con-texto><input type="hidden" name="estado" value="publicado"></x-ui.boton-icono>
                                     @else
-                                        <x-ui.boton-icono :accion="route('coordinacion.programas.estado', $pr)" icono="candado" etiqueta="Cerrar postulaciones"><input type="hidden" name="estado" value="cerrado"></x-ui.boton-icono>
-                                    @endif
-                                    @if ($pr->estado !== \App\Enums\ProgramaEstado::Borrador)
-                                        <x-ui.boton-icono :accion="route('coordinacion.programas.estado', $pr)" icono="deshacer" etiqueta="Regresar a borrador"><input type="hidden" name="estado" value="borrador"></x-ui.boton-icono>
+                                        <x-ui.boton-icono :accion="route('coordinacion.programas.estado', $pr)" icono="candado" etiqueta="Cerrar postulaciones" con-texto><input type="hidden" name="estado" value="cerrado"></x-ui.boton-icono>
+                                        {{-- Despublicar solo sirve para corregir antes de que alguien se postule --}}
+                                        @unless ($pr->postulaciones_count ?? $pr->postulaciones()->exists())
+                                            <x-ui.boton-icono :accion="route('coordinacion.programas.estado', $pr)" icono="deshacer" etiqueta="Despublicar para corregir"
+                                                confirmar="Los alumnos dejarán de ver este programa hasta que lo publiques de nuevo. Úsalo para corregirlo antes de que alguien se postule. ¿Continuar?"><input type="hidden" name="estado" value="borrador"></x-ui.boton-icono>
+                                        @endunless
                                     @endif
                                 @endunless
                                 @if ($pr->esInterno())

@@ -423,3 +423,61 @@ test('tras el rechazo total la empresa ve el motivo por carrera y una nueva prop
         ->assertSee('Enviar una nueva propuesta')
         ->assertSee('Apoyo en litigio');   // actividades de la propuesta anterior, para ajustarlas
 });
+
+/* ------------------- Paneles: pendientes reales, informes y acciones con sentido ------------------- */
+
+test('el saludo del panel de coordinación suma lo mismo que la campana', function () {
+    $programa = ($this->programa)($this->convenio);
+    Postulacion::create(['alumno_id' => $this->alumno->id, 'programa_id' => $programa->id, 'estado' => PostulacionEstado::Pendiente,
+        'porcentaje_creditos_declarado' => 70, 'fecha_postulacion' => today()]);
+
+    $total = \App\Support\Pendientes::total($this->coordUser);
+    $items = $this->actingAs($this->coordUser)->getJson(route('notificaciones.resumen'))->assertOk()->json('pendientes');
+
+    expect($total)->toBe(1)->and(array_sum(array_column($items, 'n')))->toBe($total);
+    $this->actingAs($this->coordUser)->get(route('coordinacion.dashboard'))->assertOk()
+        ->assertSee('Tienes 1 pendiente por atender');
+});
+
+test('Vinculación descarga el informe de documentos físicos con los filtros de la pantalla', function () {
+    $c = acSolicitudConExpediente($this);
+    foreach ($this->empresa->fresh()->media as $m) {
+        $this->actingAs($this->lorena)->post(route('admin.convenios.documentos.resolver', [$c, $m]), ['estado' => 'validada']);
+    }
+    expect($c->documentosFisicos()->count())->toBeGreaterThan(0);
+
+    $this->actingAs($this->lorena)->get(route('admin.documentos-fisicos'))->assertOk()
+        ->assertSee('Descargar informe')->assertSee('Calendario de regresos');
+
+    $csv = $this->actingAs($this->lorena)->get(route('admin.informes.exportar', ['tipo' => 'documentos-fisicos', 'vista' => 'activos']))
+        ->assertOk()->streamedContent();
+    expect($csv)->toContain('Organización,"Folio del convenio",Papel')->toContain('Aclaraciones S.C.');
+
+    // La coordinación no exporta papeles de Vinculación
+    $this->actingAs($this->coordUser)->get(route('admin.informes.exportar', ['tipo' => 'documentos-fisicos']))->assertForbidden();
+});
+
+test('un programa con postulaciones no regresa a borrador; se cierra', function () {
+    $interno = Programa::create(['convenio_id' => null, 'carrera_id' => $this->abog->id, 'modalidad' => 'interna', 'ciclo' => '2027A',
+        'titulo' => 'Clínica jurídica', 'descripcion' => 'x', 'actividades' => ['a'], 'perfil_requerido' => 'p',
+        'cupos_totales' => 3, 'estado' => ProgramaEstado::Publicado]);
+
+    // Sin postulaciones: se puede despublicar para corregir
+    $this->actingAs($this->coordUser)->post(route('coordinacion.programas.estado', $interno), ['estado' => 'borrador'])->assertSessionHasNoErrors();
+    $interno->refresh()->update(['estado' => ProgramaEstado::Publicado]);
+
+    Postulacion::create(['alumno_id' => $this->alumno->id, 'programa_id' => $interno->id, 'estado' => PostulacionEstado::Pendiente,
+        'porcentaje_creditos_declarado' => 70, 'fecha_postulacion' => today()]);
+    $this->actingAs($this->coordUser)->post(route('coordinacion.programas.estado', $interno), ['estado' => 'borrador'])
+        ->assertSessionHasErrors('programa');
+    expect($interno->fresh()->estado)->toBe(ProgramaEstado::Publicado);
+    $this->actingAs($this->coordUser)->get(route('coordinacion.lista-programas'))->assertOk()->assertDontSee('Despublicar para corregir');
+});
+
+test('los reportes se filtran por vacantes internas o de organizaciones externas', function () {
+    $externa = acPracticaConHoras($this, 10);
+    $this->actingAs($this->coordUser)->get(route('coordinacion.lista-reportes', ['origen' => 'interno']))->assertOk()
+        ->assertSee('Proyectos internos')->assertViewHas('reportes', fn ($r) => $r->total() === 0);
+    $this->actingAs($this->coordUser)->get(route('coordinacion.lista-reportes', ['origen' => 'externo']))->assertOk()
+        ->assertViewHas('reportes', fn ($r) => $r->total() === 1 && $r->first()->practica_id === $externa->id);
+});

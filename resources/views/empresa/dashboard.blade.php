@@ -8,6 +8,11 @@
         (bool) $enTramite => 'Tu solicitud de convenio está en proceso: ' . mb_strtolower($enTramite->estado->etiquetaEmpresa()) . '.',
         default => 'Solicita tu convenio con el CUCSH para empezar a recibir practicantes.',
     };
+    // Mismo total que «Por atender» de la campana
+    $totalPendientes = \App\Support\Pendientes::total(auth()->user());
+    $subtitulo .= $totalPendientes
+        ? ' Tienes ' . $totalPendientes . ' ' . ($totalPendientes === 1 ? 'pendiente' : 'pendientes') . ' por atender.'
+        : ' No tienes pendientes por atender.';
 @endphp
 
 <div class="space-y-6">

@@ -151,7 +151,7 @@ test('programas: la empresa dueña y la coordinación de esa carrera', function 
         ->and($this->coordAbog->can('gestionar', $this->programaAbog))->toBeTrue()
         ->and($this->coordAbog->can('gestionar', $this->programaHist))->toBeFalse()
         ->and($this->vinculacion->can('gestionar', $this->programaHist))->toBeFalse()   // Vinculación no opera vacantes
-        ->and($this->adminTecnico->can('gestionar', $this->programaHist))->toBeTrue();
+        ->and($this->adminTecnico->can('gestionar', $this->programaHist))->toBeFalse();   // el administrador supervisa, no opera vacantes
 });
 
 test('postulaciones: el alumno sube documentos pero no se valida a sí mismo', function () {
@@ -163,7 +163,7 @@ test('postulaciones: el alumno sube documentos pero no se valida a sí mismo', f
         ->and($this->coordAbog->can('gestionar', $this->poLuis))->toBeFalse()
         ->and($this->vinculacion->can('gestionar', $this->poAna))->toBeFalse()          // Lorena no emite cartas
         ->and($this->coordSinPerfil->can('gestionar', $this->poAna))->toBeFalse()
-        ->and($this->adminTecnico->can('gestionar', $this->poLuis))->toBeTrue();
+        ->and($this->adminTecnico->can('gestionar', $this->poLuis))->toBeFalse();   // ni emite cartas de presentación
 });
 
 test('prácticas y reportes: cada actor toca solo lo que le corresponde', function () {

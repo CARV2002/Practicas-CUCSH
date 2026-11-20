@@ -11,9 +11,11 @@
 
 <div class="space-y-6">
 
-    <x-dashboard.encabezado eyebrow="Vinculación · Convenios"
+    <x-dashboard.encabezado :eyebrow="$esAdministrador ? 'Coordinación de Servicios Académicos · Supervisión' : 'Vinculación · Convenios'"
         :titulo="'Hola, ' . $nombre"
-        :subtitulo="ucfirst(now()->translatedFormat('l j \d\e F')) . ' · ' . $kpis['en_tramite'] . ' ' . ($kpis['en_tramite'] === 1 ? 'convenio en trámite' : 'convenios en trámite') . ($kpis['excedidas'] ? ', ' . $kpis['excedidas'] . ' ' . ($kpis['excedidas'] === 1 ? 'etapa excede' : 'etapas exceden') . ' su plazo.' : '.')">
+        :subtitulo="ucfirst(now()->translatedFormat('l j \d\e F')) . ' · '
+            . ($totalPendientes ? 'Tienes ' . $totalPendientes . ' ' . ($totalPendientes === 1 ? 'pendiente' : 'pendientes') . ' por atender (detalle en la campana).' : 'Todo al día: no tienes pendientes por atender.')
+            . ' ' . $kpis['en_tramite'] . ' ' . ($kpis['en_tramite'] === 1 ? 'convenio en trámite' : 'convenios en trámite') . '.'">
         <x-slot:acciones>
             <a href="{{ route('admin.lista-convenios') }}" class="boton bg-oro-400 text-udg-950 hover:bg-oro-300 focus-visible:ring-oro-300/50">
                 <x-dashboard.icono nombre="documento" clase="size-4" /> Bandeja de convenios
@@ -21,6 +23,65 @@
             <a href="{{ route('admin.lista-dictamenes') }}" class="boton border border-white/25 text-white hover:bg-white/10">Dictámenes</a>
         </x-slot:acciones>
     </x-dashboard.encabezado>
+
+    {{-- Panorama del CUCSH: solo para el administrador (supervisión, solo lectura) --}}
+    @if ($panorama)
+        @php $maxActivas = max(1, $panorama['divisiones']->max('activas')); @endphp
+        <section class="grid grid-cols-1 gap-6 xl:grid-cols-3" aria-label="Panorama del CUCSH">
+            <x-dashboard.panel titulo="Prácticas en todo el CUCSH" icono="informe" descripcion="Solo lectura: lo académico lo opera cada coordinación de carrera." class="xl:col-span-2">
+                <dl class="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                    @foreach ([
+                        ['Alumnos registrados', $panorama['alumnos'], 'text-gray-900'],
+                        ['En curso', $panorama['activas'], 'text-udg-900'],
+                        ['En cierre', $panorama['en_cierre'], 'text-teal-700'],
+                        ['Acreditadas', $panorama['acreditadas'], 'text-emerald-700'],
+                        ['Bajas', $panorama['bajas'], 'text-rose-700'],
+                    ] as [$texto, $valor, $color])
+                        <div class="rounded-xl bg-gray-50 p-3.5 ring-1 ring-inset ring-gray-100">
+                            <dt class="text-xs text-gray-500">{{ $texto }}</dt>
+                            <dd class="mt-1 font-display text-2xl font-bold tabular-nums {{ $color }}">{{ number_format($valor) }}</dd>
+                        </div>
+                    @endforeach
+                </dl>
+
+                <h3 class="mt-6 text-sm font-semibold text-gray-900">Prácticas en curso por división</h3>
+                <ul class="mt-3 space-y-3">
+                    @forelse ($panorama['divisiones'] as $d)
+                        <li>
+                            <div class="flex items-baseline justify-between gap-3 text-sm">
+                                <span class="min-w-0 truncate font-medium text-gray-800">{{ $d->nombre }}</span>
+                                <span class="shrink-0 text-xs text-gray-500"><span class="font-display text-base font-bold tabular-nums text-gray-900">{{ $d->activas }}</span> en curso · {{ $d->alumnos }} alumnos · {{ $d->carreras }} {{ $d->carreras === 1 ? 'carrera' : 'carreras' }}</span>
+                            </div>
+                            <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100" role="img" aria-label="{{ $d->activas }} prácticas en curso">
+                                <div class="h-full rounded-full bg-udg-800" style="width: {{ round($d->activas / $maxActivas * 100) }}%"></div>
+                            </div>
+                        </li>
+                    @empty
+                        <li><p class="dato-vacio">Aún no hay divisiones en el catálogo.</p></li>
+                    @endforelse
+                </ul>
+            </x-dashboard.panel>
+
+            <x-dashboard.panel titulo="Coordinaciones en la plataforma" icono="usuarios" descripcion="Cada carrera necesita su cuenta de coordinación para operar.">
+                @if ($panorama['sin_coordinacion']->isEmpty())
+                    <p class="flex items-center gap-2 rounded-xl bg-emerald-50 px-3.5 py-3 text-sm text-emerald-800 ring-1 ring-inset ring-emerald-100"><x-dashboard.icono nombre="check" clase="size-4 shrink-0" /> Todas las carreras tienen coordinación.</p>
+                @else
+                    <p class="text-sm text-gray-700"><span class="font-semibold text-rose-700">{{ $panorama['sin_coordinacion']->count() }} {{ $panorama['sin_coordinacion']->count() === 1 ? 'carrera no tiene' : 'carreras no tienen' }}</span> cuenta de coordinación: sus avisos te llegan a ti.</p>
+                    <ul class="mt-3 max-h-56 space-y-1.5 overflow-y-auto pr-1">
+                        @foreach ($panorama['sin_coordinacion'] as $c)
+                            <li class="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm ring-1 ring-inset ring-gray-100">
+                                <span class="min-w-0 truncate text-gray-800">{{ $c->nombre }}</span>
+                                <span class="shrink-0 text-xs text-gray-500">{{ $c->carrera_clave }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                    <a href="{{ route('admin.lista-usuarios') }}" class="boton boton-primario mt-4 w-full"><x-dashboard.icono nombre="usuarios" clase="size-4" /> Crear cuentas de coordinación</a>
+                @endif
+            </x-dashboard.panel>
+        </section>
+
+        <h2 class="font-display text-lg font-bold text-gray-900">Convenios de Vinculación</h2>
+    @endif
 
     {{-- KPIs del flujo de convenios: revisión → dictamen → jurídica → firmas → vigentes --}}
     <section aria-label="Convenios por etapa">

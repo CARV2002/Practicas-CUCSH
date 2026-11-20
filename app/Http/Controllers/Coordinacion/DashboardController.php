@@ -30,17 +30,6 @@ class DashboardController extends Controller
             ->where('estado', ProgramaEstado::Publicado->value)
             ->get(['id', 'cupos_totales']);
 
-        // Documentos del expediente por validar: IMSS (del alumno) y kardex (de la postulación)
-        $enCurso = Postulacion::visiblesPara($personal)
-            ->whereIn('estado', PostulacionEstado::valores([PostulacionEstado::Pendiente, ...PostulacionEstado::enTramite()]))
-            ->with(['media', 'alumno.media'])
-            ->get();
-        $porValidar = fn ($doc) => $doc !== null && in_array($doc->getCustomProperty('estado'), [null, ValidacionEstado::Pendiente->value], true);
-        // Expedientes (kardex + IMSS) por revisar: requisito previo a la postulación
-        $porRevisar = Alumno::conExpedientePorRevisar($personal);
-        $kardexPendientes = $porRevisar->filter(fn ($al) => $porValidar($al->documentoVigente('kardex')))->count();
-        $imssPendientes = $porRevisar->filter(fn ($al) => $porValidar($al->documentoVigente('constancia_imss')))->count();
-
         $totalCupos = (int) $publicados->sum('cupos_totales');
         $ocupados = (int) $publicados->sum('cupos_ocupados');
 
@@ -56,21 +45,9 @@ class DashboardController extends Controller
                 'cupos_ocupados' => $ocupados,
                 'cupos_totales' => $totalCupos,
             ],
-            'pendientes' => [
-                'postulaciones' => Postulacion::visiblesPara($personal)
-                    ->where('estado', PostulacionEstado::Pendiente->value)->count(),
-                'reportes' => Reporte::where('estado', ReporteEstado::Pendiente->value)
-                    ->whereHas('practica', fn($p) => $p->visiblesPara($personal))->count(),
-                'cierres' => Practica::visiblesPara($personal)->where(fn($q) => $q
-                    ->where('estado', PracticaEstado::EnCierre->value)
-                    ->orWhere(fn($w) => $w->where('estado', PracticaEstado::EnCurso->value)
-                        ->whereHas('cartaTermino', fn($c) => $c->where('estado_validacion', ValidacionEstado::Pendiente->value))))
-                    ->count(),
-                'imss' => $imssPendientes,
-                'kardex' => $kardexPendientes,
-                'vacantes_por_aprobar' => $enAlcance(Programa::query())
-                    ->where('estado', ProgramaEstado::PendienteAprobacion->value)->count(),
-            ],
+            // Misma fuente que la campana: el saludo y las tarjetas siempre coinciden
+            'pendientes' => $pendientes = \App\Support\Pendientes::conteosCoordinacion($personal),
+            'totalPendientes' => \App\Support\Pendientes::totalCoordinacion($pendientes),
             'programas_recientes' => $enAlcance(Programa::with(['convenio.empresa', 'carrera'])->conCuposOcupados())
                 ->latest('id')
                 ->limit(5)

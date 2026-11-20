@@ -69,7 +69,8 @@
             </form>
         </x-slot:herramientas>
 
-        <table class="tabla">
+        <table class="tabla table-fixed md:[&_td:first-child>*]:min-w-0!">
+            <colgroup><col><col class="w-28"><col class="w-24"><col class="w-36"><col class="w-72"></colgroup>
             <thead>
                 <tr>
                     <th class="tabla-th px-6">Programa</th>
@@ -114,17 +115,20 @@
                         <td class="px-4 py-4">
                             <x-ui.estatus :estado="$pr->estado" />
                             @if ($pr->estado === PE::Rechazado && $pr->motivo_rechazo)
-                                <p class="mt-1 max-w-[14rem] text-xs text-rose-600">Motivo: {{ $pr->motivo_rechazo }}</p>
+                                <p class="mt-1 text-xs text-rose-600">Motivo: {{ $pr->motivo_rechazo }}</p>
                             @elseif ($pr->estado === PE::PendienteAprobacion)
-                                <p class="mt-1 max-w-[14rem] text-xs text-gray-500">La coordinación de la carrera la revisa.</p>
+                                <p class="mt-1 text-xs text-gray-500">La coordinación de la carrera la revisa.</p>
                             @endif
                         </td>
-                        <td class="acciones whitespace-nowrap px-6 py-4 text-right">
-                            <div class="flex items-center justify-end gap-2">
+                        <td class="acciones whitespace-nowrap py-4 pl-2 pr-6 text-right">
+                            {{-- Siempre el mismo orden y lugar: Postulantes · Editar · Cerrar · Eliminar (el hueco conserva la alineación) --}}
+                            <div class="inline-grid grid-cols-[auto_2.25rem_2.25rem_2.25rem] items-center gap-2">
                                 <x-ui.boton-icono :href="route('empresa.programas.postulantes', $pr)" icono="usuarios" etiqueta="Postulantes" tono="primario" con-texto />
                                 <x-ui.boton-icono icono="editar" etiqueta="Editar" x-on:click="editar(@js($datos))" />
                                 @if ($pr->estado === PE::Publicado)
                                     <x-ui.boton-icono :accion="route('empresa.programas.estado', $pr)" icono="candado" etiqueta="Cerrar postulaciones" confirmar="¿Cerrar las postulaciones de esta vacante?"><input type="hidden" name="estado" value="cerrado"></x-ui.boton-icono>
+                                @else
+                                    <span aria-hidden="true"></span>
                                 @endif
                                 <x-ui.boton-icono :accion="route('empresa.programas.destroy', $pr)" metodo="DELETE" icono="basura" etiqueta="Eliminar" tono="peligro" confirmar="¿Eliminar este programa? No se puede deshacer." />
                             </div>

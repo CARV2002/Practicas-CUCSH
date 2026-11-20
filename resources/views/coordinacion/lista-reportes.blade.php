@@ -29,9 +29,16 @@
         {{-- Reportes --}}
         <x-tabla.marco titulo="Reportes" :total="$reportes->total()">
             <x-slot:herramientas>
+                {{-- Acceso rápido: proyectos internos de la carrera u organizaciones externas --}}
+                <x-tabla.filtros-estado parametro="origen" etiqueta="Filtrar por origen de la vacante" :actual="request('origen', '')" :opciones="[
+                    ['valor' => '', 'texto' => 'Todas las vacantes', 'conteo' => $porOrigen['interno'] + $porOrigen['externo']],
+                    ['valor' => 'externo', 'texto' => 'Organizaciones externas', 'conteo' => $porOrigen['externo'], 'familia' => 'indigo'],
+                    ['valor' => 'interno', 'texto' => 'Proyectos internos', 'conteo' => $porOrigen['interno'], 'familia' => 'turquesa'],
+                ]" />
                 <x-tabla.filtros-estado :actual="request('estado', '')" :opciones="collect($estados)->map(fn ($e) => ['valor' => $e->value, 'texto' => ucfirst($e->value), 'familia' => $e->familia()])->prepend(['valor' => '', 'texto' => 'Todos'])->all()" />
                 <form method="GET" class="flex flex-col gap-2 sm:flex-row" role="search">
                     @if (request('estado'))<input type="hidden" name="estado" value="{{ request('estado') }}">@endif
+                    @if (request('origen'))<input type="hidden" name="origen" value="{{ request('origen') }}">@endif
                     <div class="relative flex-1 sm:max-w-xs">
                         <x-dashboard.icono nombre="buscar" clase="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
                         <label for="q" class="sr-only">Buscar por nombre o código</label>
@@ -52,7 +59,7 @@
                         @endforeach
                     </select>
                     <button class="boton boton-secundario">Buscar</button>
-                    @if (request()->hasAny(['q', 'carrera_id', 'tipo', 'estado']))
+                    @if (request()->hasAny(['q', 'carrera_id', 'tipo', 'estado', 'origen']))
                         <a href="{{ route('coordinacion.lista-reportes') }}" class="boton text-gray-500 hover:bg-gray-100 hover:text-gray-800">Limpiar</a>
                     @endif
                 </form>
@@ -104,7 +111,7 @@
                                     @if ($r->retroalimentacion_empresa)
                                         <p class="text-gray-600"><span class="font-semibold text-gray-800">Empresa:</span> {{ $r->retroalimentacion_empresa }}</p>
                                     @else
-                                        <p class="dato-vacio">Sin comentarios de la empresa</p>
+                                        <p class="dato-vacio">{{ $r->practica->postulacion->programa->convenio_id ? 'Sin comentarios de la empresa' : 'Proyecto interno: lo supervisa la carrera' }}</p>
                                     @endif
                                 </div>
                             </td>

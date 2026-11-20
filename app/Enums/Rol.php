@@ -61,9 +61,13 @@ enum Rol: string
         return [self::Vinculacion->value, self::Administrador->value];
     }
 
-    /** @return string[] Roles que entran a coordinacion/ (proceso académico del alumno). */
+    /**
+     * @return string[] Roles que entran a coordinacion/ (proceso académico del alumno).
+     * Solo las coordinaciones de carrera: el administrador (Coordinación de Servicios Académicos) no tiene autoridad
+     * académica sobre las licenciaturas, así que no valida kardex, vacantes, reportes ni cierres.
+     */
     public static function deCoordinacion(): array
     {
-        return [self::Coordinador->value, self::Administrador->value];
+        return [self::Coordinador->value];
     }
 }

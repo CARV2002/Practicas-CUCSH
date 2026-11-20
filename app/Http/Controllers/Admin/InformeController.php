@@ -116,7 +116,7 @@ class InformeController extends Controller
     public function exportar(Request $request, string $tipo): StreamedResponse
     {
         // Vinculación solo exporta convenios; prácticas, postulaciones y programas son del ámbito académico
-        abort_unless(in_array($tipo, ['convenios', 'empresas'], true) || $this->esAdministrador($request), 403);
+        abort_unless(in_array($tipo, ['convenios', 'empresas', 'documentos-fisicos'], true) || $this->esAdministrador($request), 403);
 
         $this->validar($request);
 
@@ -128,12 +128,13 @@ class InformeController extends Controller
             'convenios' => $this->exportarConvenios($request, $personal),
             'programas' => $this->exportarProgramas($request, $personal),
             'empresas' => $this->exportarEmpresas($request),
+            'documentos-fisicos' => $this->exportarDocumentosFisicos($request, $personal),
         };
 
         Auditoria::registrar(
             'informe.exportado',
             "Exportó el informe de {$tipo} (".(clone $consulta)->count().' filas)',
-            cambios: ['filtros' => $request->only(['carrera_id', 'estado', 'ciclo', 'desde', 'hasta'])],
+            cambios: ['filtros' => $request->only(['carrera_id', 'estado', 'ciclo', 'desde', 'hasta', 'vista', 'q'])],
             tipo: 'Informe',
         );
 
@@ -173,6 +174,41 @@ class InformeController extends Controller
      *
      * @return array{0:string[],1:Builder,2:callable}
      */
+    /**
+     * Dónde está cada papel del trámite (los mismos filtros de la pantalla «Documentos físicos»).
+     *
+     * @return array{0:string[],1:Builder,2:callable}
+     */
+    private function exportarDocumentosFisicos(Request $request, Personal $personal): array
+    {
+        $consulta = \App\Models\DocumentoFisico::with('convenio.empresa')
+            ->whereHas('convenio', fn ($c) => $c->visiblesPara($personal))
+            ->enVista($request->string('vista')->toString() ?: 'activos', $request->string('q')->toString());
+
+        return [
+            ['Organización', 'Folio del convenio', 'Papel', 'Estado', 'Lo tiene', 'Desde', 'Días hábiles en ese estado', 'Debe regresar', 'Situación', 'Destino del juego', 'Notas'],
+            $consulta,
+            fn (\App\Models\DocumentoFisico $d) => [
+                $d->convenio->empresa->razon_social,
+                $d->convenio->folio ?? 'Sin folio',
+                $d->nombre(),
+                $d->estado->label(),
+                $d->estado->custodio(),
+                $d->fecha_estado?->format('d/m/Y'),
+                $d->diasEnEstado(),
+                $d->estado->fueraDeOficina() ? $d->fecha_compromiso?->format('d/m/Y') : '',
+                match (true) {
+                    $d->estado->concluido() => 'Concluido',
+                    !$d->estado->fueraDeOficina() => 'En la oficina de Vínculos',
+                    $d->vencido() => 'Regreso vencido',
+                    $d->porVencer() => 'Regresa muy pronto',
+                    default => 'A tiempo',
+                },
+                $d->destino,
+                $d->notas,
+            ],
+        ];
+    }
     private function exportarEmpresas(Request $request): array
     {
         $situacion = $request->string('estado')->toString();

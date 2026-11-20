@@ -16,14 +16,14 @@ trait ResuelveActores
         return $user->hasAnyRole(Rol::deVinculacion()) && $user->personal !== null;
     }
 
-    /** Coordinación de carrera/división (con alcance obligatorio) o administrador. */
+    /** Coordinación de carrera/división (con alcance obligatorio). El administrador no opera lo académico. */
     protected function esCoordinacion(User $user): bool
     {
         if (! $user->hasAnyRole(Rol::deCoordinacion()) || $user->personal === null) {
             return false;
         }
 
-        return $user->hasRole(Rol::Administrador->value) || $user->personal->tieneAlcanceDeCoordinacion();
+        return $user->personal->tieneAlcanceDeCoordinacion();
     }
 
     /** Coordinación con alcance sobre esa carrera: la única que opera el proceso del alumno. */

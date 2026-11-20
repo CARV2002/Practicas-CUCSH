@@ -57,7 +57,7 @@ final class Pendientes
             ->count();
         if ($rechazados > 0) {
             $items[] = self::item('error', "Tienes {$rechazados} reporte(s) rechazado(s): corrígelos y vuelve a subirlos para que tus horas cuenten.",
-                route('alumno.mis-documentos', absolute: false));
+                route('alumno.mis-documentos', absolute: false), $rechazados);
         }
 
         $carta = Practica::whereHas('postulacion', fn ($p) => $p->where('alumno_id', $alumno->id))
@@ -72,33 +72,67 @@ final class Pendientes
         return $items;
     }
 
-    private static function coordinacion(User $user): array
+    /**
+     * Conteos de lo que la coordinación tiene por atender. Es la única fuente: la usan la campana,
+     * el saludo del panel («Tienes N pendientes») y sus tarjetas, para que siempre coincidan.
+     *
+     * @return array{expedientes:int, imss:int, kardex:int, postulaciones:int, cartas_aceptacion:int, reportes:int,
+     *               cartas_termino:int, en_cierre:int, vacantes:int, bloqueados:int}
+     */
+    public static function conteosCoordinacion(\App\Models\Personal $personal): array
     {
-        $personal = $user->personal;
         $ids = $personal->carreraIdsEnAlcance();
         $enAlcance = fn ($q) => $ids === null ? $q : $q->whereIn('carrera_id', $ids);
+        $porValidar = fn ($doc) => $doc !== null && in_array($doc->getCustomProperty('estado'), [null, ValidacionEstado::Pendiente->value], true);
+        $expedientes = Alumno::conExpedientePorRevisar($personal);
+
+        return [
+            'expedientes' => $expedientes->count(),
+            'imss' => $expedientes->filter(fn ($a) => $porValidar($a->documentoVigente('constancia_imss')))->count(),
+            'kardex' => $expedientes->filter(fn ($a) => $porValidar($a->documentoVigente('kardex')))->count(),
+            'postulaciones' => Postulacion::visiblesPara($personal)->where('estado', PostulacionEstado::Pendiente->value)->count(),
+            'cartas_aceptacion' => Postulacion::visiblesPara($personal)->where('estado', PostulacionEstado::CartaAceptacionRecibida->value)->count(),
+            // Solo los que el alumno ya entregó firmados: los que esperan archivo son pendiente del alumno
+            'reportes' => Reporte::where('estado', ReporteEstado::Pendiente->value)
+                ->whereHas('practica', fn ($p) => $p->visiblesPara($personal)->activas())->whereHas('media')->count(),
+            'cartas_termino' => Practica::visiblesPara($personal)->where('estado', PracticaEstado::EnCurso->value)
+                ->whereHas('cartaTermino', fn ($c) => $c->where('estado_validacion', ValidacionEstado::Pendiente->value))->count(),
+            'en_cierre' => Practica::visiblesPara($personal)->where('estado', PracticaEstado::EnCierre->value)->count(),
+            'vacantes' => $enAlcance(Programa::query())->where('estado', ProgramaEstado::PendienteAprobacion->value)->count(),
+            'bloqueados' => Alumno::bloqueadosPara($personal)->count(),
+        ];
+    }
+
+    /** Total de pendientes de la coordinación (lo que dice el saludo del panel). */
+    public static function totalCoordinacion(array $c): int
+    {
+        return $c['expedientes'] + $c['postulaciones'] + $c['cartas_aceptacion'] + $c['reportes']
+            + $c['cartas_termino'] + $c['en_cierre'] + $c['vacantes'] + $c['bloqueados'];
+    }
+
+    private static function coordinacion(User $user): array
+    {
+        $c = self::conteosCoordinacion($user->personal);
         $practicantes = route('coordinacion.lista-practicantes', absolute: false);
+        $cierres = route('coordinacion.lista-cierres', absolute: false);
 
         $conteos = [
-            [Alumno::conExpedientePorRevisar($personal)->count(), 'advertencia', 'expediente(s) de alumnos (kardex e IMSS) por revisar: al validarlos, el alumno ya puede postularse.', $practicantes],
-            [Postulacion::visiblesPara($personal)->where('estado', PostulacionEstado::Pendiente->value)->count(), 'advertencia', 'alumno(s) ya se postularon con su expediente validado: emite su carta de presentación.', $practicantes],
-            [Postulacion::visiblesPara($personal)->where('estado', PostulacionEstado::CartaAceptacionRecibida->value)->count(), 'info', 'carta(s) de aceptación registradas: activa la práctica.', $practicantes],
-            [Reporte::where('estado', ReporteEstado::Pendiente->value)->whereHas('practica', fn ($p) => $p->visiblesPara($personal)->activas())
-                ->whereHas('media')->count(), 'info', 'reporte(s) firmados por revisar.', route('coordinacion.lista-reportes', absolute: false)],
-            [Practica::visiblesPara($personal)->where('estado', PracticaEstado::EnCurso->value)
-                ->whereHas('cartaTermino', fn ($c) => $c->where('estado_validacion', ValidacionEstado::Pendiente->value))->count(),
-                'info', 'carta(s) de término por validar.', route('coordinacion.lista-cierres', absolute: false)],
-            [$enAlcance(Programa::query())->where('estado', ProgramaEstado::PendienteAprobacion->value)->count(), 'info', 'vacante(s) de empresas por aprobar.', route('coordinacion.lista-programas', absolute: false)],
-            [Alumno::bloqueadosPara($personal)->count(), 'info', 'alumno(s) bloqueados por bajas: solo tú puedes hacer un desbloqueo excepcional.', $practicantes],
+            [$c['expedientes'], 'advertencia', 'expediente(s) de alumnos (kardex e IMSS) por revisar: al validarlos, el alumno ya puede postularse.', $practicantes],
+            [$c['postulaciones'], 'advertencia', 'alumno(s) ya se postularon con su expediente validado: emite su carta de presentación.', $practicantes],
+            [$c['cartas_aceptacion'], 'info', 'carta(s) de aceptación registradas: activa la práctica.', $practicantes],
+            [$c['reportes'], 'info', 'reporte(s) firmados por revisar.', route('coordinacion.lista-reportes', absolute: false)],
+            [$c['cartas_termino'], 'info', 'carta(s) de término por validar.', $cierres],
+            [$c['en_cierre'], 'info', 'práctica(s) en cierre: envía el oficio a Control Escolar y registra la captura en SIIAU.', $cierres],
+            [$c['vacantes'], 'info', 'vacante(s) de empresas por aprobar.', route('coordinacion.lista-programas', ['estado' => 'pendiente_aprobacion'], false)],
+            [$c['bloqueados'], 'info', 'alumno(s) bloqueados por bajas: solo tú puedes hacer un desbloqueo excepcional.', $practicantes],
         ];
 
         return collect($conteos)
-            ->filter(fn ($c) => $c[0] > 0)
-            ->map(fn ($c) => self::item($c[1], "{$c[0]} {$c[2]}", $c[3]))
+            ->filter(fn ($x) => $x[0] > 0)
+            ->map(fn ($x) => self::item($x[1], "{$x[0]} {$x[2]}", $x[3], $x[0]))
             ->values()
             ->all();
     }
-
     private static function empresa(Empresa $empresa): array
     {
         $items = [];
@@ -107,39 +141,96 @@ final class Pendientes
             ->filter(fn ($col) => $empresa->documentoVigente($col)?->getCustomProperty('estado') === ValidacionEstado::Rechazada->value)
             ->count();
         if ($rechazados > 0) {
-            $items[] = self::item('error', "Vinculación te devolvió {$rechazados} documento(s): revisa el motivo y súbelos corregidos.", route('empresa.documentos', absolute: false));
+            $items[] = self::item('error', "Vinculación te devolvió {$rechazados} documento(s): revisa el motivo y súbelos corregidos.", route('empresa.documentos', absolute: false), $rechazados);
         }
 
         if (!$empresa->convenios()->exists() && ($motivo = Requisitos::empresaSolicitarConvenio($empresa))) {
             $items[] = self::item('advertencia', "Para solicitar tu convenio: {$motivo}", route('empresa.documentos', absolute: false));
         }
 
+        $juegos = \App\Models\DocumentoFisico::where('estado', \App\Enums\EstadoDocumentoFisico::ConEmpresa->value)
+            ->whereHas('convenio', fn ($c) => $c->where('empresa_id', $empresa->id))->count();
+        if ($juegos > 0) {
+            $items[] = self::item('advertencia', "Tienes {$juegos} juego(s) original(es) del convenio por firmar y entregar en Vinculación.", route('empresa.convenio', absolute: false), $juegos);
+        }
+
+        $sinComentar = Reporte::whereHas('practica', fn ($p) => $p->activas()
+                ->whereHas('postulacion.programa.convenio', fn ($c) => $c->where('empresa_id', $empresa->id)))
+            ->where('estado', ReporteEstado::Pendiente->value)->whereNull('retroalimentacion_empresa')->count();
+        if ($sinComentar > 0) {
+            $items[] = self::item('info', "{$sinComentar} reporte(s) de tus practicantes esperan tu comentario.", route('empresa.lista-practicantes', absolute: false), $sinComentar);
+        }
         $rechazadas = Programa::whereHas('convenio', fn ($c) => $c->where('empresa_id', $empresa->id))
             ->where('estado', ProgramaEstado::Rechazado->value)->count();
         if ($rechazadas > 0) {
-            $items[] = self::item('info', "{$rechazadas} vacante(s) no fueron aprobadas: revisa las observaciones de la coordinación.", route('empresa.lista-programas', absolute: false));
+            $items[] = self::item('info', "{$rechazadas} vacante(s) no fueron aprobadas: revisa las observaciones de la coordinación.", route('empresa.lista-programas', absolute: false), $rechazadas);
         }
 
         return $items;
     }
 
-    private static function vinculacion(User $user): array
+    /**
+     * Lo que Vinculación tiene por atender: los convenios donde le toca actuar (lo mismo que «Te toca a ti»
+     * en la bandeja), los papeles fuera de plazo y los convenios por vencer. Misma fuente para la campana y el saludo.
+     *
+     * @return array{te_tocan:\Illuminate\Support\Collection, fisicos_vencidos:int, por_vencer:int}
+     */
+    public static function conteosVinculacion(): array
     {
-        $solicitados = Convenio::where('estado', ConvenioEstado::Solicitado->value)->count();
-        $sinCoordinacion = !$user->hasRole(Rol::Administrador->value) ? 0 : Carrera::all()->filter(fn (Carrera $c) => $c->coordinadores()->isEmpty())->count();
+        $teTocan = Convenio::with(['empresa.media', 'seguimientos', 'dictamenes', 'documentosFisicos'])
+            ->whereNot('estado', ConvenioEstado::Rechazado->value)->get()
+            ->map(fn (Convenio $c) => $c->estadoDetallado())
+            ->filter(fn ($d) => $d['responsable'] === 'Vinculación')
+            ->countBy('texto');
 
-        return collect([
-            [$solicitados, 'advertencia', 'solicitud(es) de convenio por revisar.', route('admin.lista-convenios', ['estado' => 'solicitado'], false)],
-            [$sinCoordinacion, 'info', 'carrera(s) sin coordinación en la plataforma: sus avisos te llegan a ti.', route('admin.lista-usuarios', absolute: false)],
-        ])
-            ->filter(fn ($c) => $c[0] > 0)
-            ->map(fn ($c) => self::item($c[1], "{$c[0]} {$c[2]}", $c[3]))
-            ->values()
-            ->all();
+        return [
+            'te_tocan' => $teTocan,
+            'fisicos_vencidos' => \App\Models\DocumentoFisico::deTramiteVivo()->vencidos()->count(),
+            'por_vencer' => Convenio::porVencer(60)->count(),
+        ];
     }
 
-    private static function item(string $tipo, string $mensaje, string $url): array
+    public static function totalVinculacion(array $c): int
     {
-        return compact('tipo', 'mensaje', 'url');
+        return $c['te_tocan']->sum() + $c['fisicos_vencidos'] + $c['por_vencer'];
+    }
+
+    private static function vinculacion(User $user): array
+    {
+        $c = self::conteosVinculacion();
+        $items = $c['te_tocan']
+            ->map(fn (int $n, string $texto) => $texto === 'Convenio activo (vigente)'
+                // Formalizado y vigente, pero con juegos por entregar o archivar: es trabajo de papeles
+                ? self::item('advertencia', "{$n} convenio(s) formalizados con juegos por entregar o archivar.", route('admin.documentos-fisicos', ['vista' => 'casa'], false), $n)
+                : self::item('advertencia', "{$n} convenio(s) en «{$texto}»: te toca atenderlos.", route('admin.lista-convenios', absolute: false), $n))
+            ->values()->all();
+
+        if ($c['fisicos_vencidos'] > 0) {
+            $items[] = self::item('error', "{$c['fisicos_vencidos']} documento(s) físico(s) fuera del plazo acordado: da seguimiento.", route('admin.documentos-fisicos', ['vista' => 'vencidos'], false), $c['fisicos_vencidos']);
+        }
+        if ($c['por_vencer'] > 0) {
+            $items[] = self::item('info', "{$c['por_vencer']} convenio(s) vencen en los próximos 60 días: avisa a la organización para que renueve.", route('admin.lista-convenios', absolute: false), $c['por_vencer']);
+        }
+
+        if ($user->hasRole(Rol::Administrador->value)) {
+            $sinCoordinacion = Carrera::all()->filter(fn (Carrera $x) => $x->coordinadores()->isEmpty())->count();
+            if ($sinCoordinacion > 0) {
+                $items[] = self::item('info', "{$sinCoordinacion} carrera(s) sin coordinación en la plataforma: crea su cuenta en Usuarios.", route('admin.lista-usuarios', absolute: false), $sinCoordinacion);
+            }
+        }
+
+        return $items;
+    }
+
+    /** $n: cuántas cosas representa el aviso (para que el saludo del panel sume lo mismo que la campana). */
+    private static function item(string $tipo, string $mensaje, string $url, int $n = 1): array
+    {
+        return compact('tipo', 'mensaje', 'url', 'n');
+    }
+
+    /** Total de pendientes del usuario: lo que dice el saludo de su panel. */
+    public static function total(User $user): int
+    {
+        return (int) array_sum(array_column(self::de($user), 'n'));
     }
 }

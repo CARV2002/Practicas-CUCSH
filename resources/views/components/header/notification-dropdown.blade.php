@@ -4,6 +4,8 @@
     noLeidas: 0,
     items: [],
     pendientes: [],
+    // Cuántas cosas hay por atender (no cuántos avisos): lo mismo que dice el saludo del panel
+    get porAtender() { return this.pendientes.reduce((t, p) => t + (p.n ?? 1), 0); },
     async cargar() {
         this.cargando = true;
         try {
@@ -30,12 +32,12 @@
 
     <button type="button" @click="toggle()"
         :aria-expanded="abierto.toString()"
-        :aria-label="`Notificaciones: ${noLeidas} sin leer, ${pendientes.length} por atender`"
+        :aria-label="`Notificaciones: ${noLeidas} sin leer, ${porAtender} por atender`"
         class="relative flex size-10 items-center justify-center rounded-full border border-white/20 text-white/90 transition-colors duration-150 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oro-300 lg:size-11"
         :class="{ 'bg-white/10': abierto }">
-        <span x-show="noLeidas + pendientes.length > 0" x-cloak aria-hidden="true"
+        <span x-show="noLeidas + porAtender > 0" x-cloak aria-hidden="true"
             class="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-oro-400 px-1 text-[10px] font-bold text-udg-950 ring-2 ring-udg-900"
-            x-text="noLeidas + pendientes.length > 9 ? '9+' : noLeidas + pendientes.length"></span>
+            x-text="noLeidas + porAtender > 9 ? '9+' : noLeidas + porAtender"></span>
         <svg class="fill-current" width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path fill-rule="evenodd" clip-rule="evenodd" d="M10.75 2.29248C10.75 1.87827 10.4143 1.54248 10 1.54248C9.58583 1.54248 9.25004 1.87827 9.25004 2.29248V2.83613C6.08266 3.20733 3.62504 5.9004 3.62504 9.16748V14.4591H3.33337C2.91916 14.4591 2.58337 14.7949 2.58337 15.2091C2.58337 15.6234 2.91916 15.9591 3.33337 15.9591H4.37504H15.625H16.6667C17.0809 15.9591 17.4167 15.6234 17.4167 15.2091C17.4167 14.7949 17.0809 14.4591 16.6667 14.4591H16.375V9.16748C16.375 5.9004 13.9174 3.20733 10.75 2.83613V2.29248ZM14.875 14.4591V9.16748C14.875 6.47509 12.6924 4.29248 10 4.29248C7.30765 4.29248 5.12504 6.47509 5.12504 9.16748V14.4591H14.875ZM8.00004 17.7085C8.00004 18.1228 8.33583 18.4585 8.75004 18.4585H11.25C11.6643 18.4585 12 18.1228 12 17.7085C12 17.2943 11.6643 16.9585 11.25 16.9585H8.75004C8.33583 16.9585 8.00004 17.2943 8.00004 17.7085Z" fill=""/>
         </svg>
@@ -59,7 +61,7 @@
         {{-- Por atender: sale de la situación actual del usuario, no de avisos previos --}}
         <template x-if="pendientes.length > 0">
             <div class="mb-3">
-                <p class="px-1 pb-2 text-xs font-semibold text-gray-500">Por atender</p>
+                <p class="px-1 pb-2 text-xs font-semibold text-gray-500">Por atender <span class="font-normal" x-text="'· ' + porAtender"></span></p>
                 <ul class="space-y-1.5">
                     <template x-for="(p, i) in pendientes" :key="'p' + i">
                         <li>

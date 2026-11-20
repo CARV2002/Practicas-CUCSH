@@ -53,7 +53,10 @@ beforeEach(function () {
     $this->hist = Carrera::create($datos + ['carrera_clave' => 'HIST', 'nombre' => 'Historia']);
 
     $this->adminUser = trnUser(Rol::Administrador);
-    $this->admin = Personal::create(['user_id' => $this->adminUser->id, 'puesto' => 'Coordinación']);
+    $this->admin = Personal::create(['user_id' => $this->adminUser->id, 'puesto' => 'Coordinación de Servicios Académicos']);
+    // Lo académico lo opera la coordinación de la carrera; el administrador solo supervisa
+    $this->coordUser = trnUser(Rol::Coordinador);
+    $this->coord = Personal::create(['user_id' => $this->coordUser->id, 'carrera_id' => $this->abog->id, 'puesto' => 'Coordinación de Abogado']);
 
     $this->empresaUser = trnUser(Rol::Empresa);
     $this->empresa = Empresa::create([
@@ -117,7 +120,7 @@ test('cancelar una práctica libera el cupo y anula solo los reportes pendientes
 
     expect($this->programa->refresh()->cupos_disponibles)->toBe(0);
 
-    $this->actingAs($this->adminUser)->post(route('coordinacion.practicas.cancelar', $this->practica), ['motivo_baja' => 'renuncia', 'detalle_baja' => 'Renunció'])->assertSessionHasNoErrors();
+    $this->actingAs($this->coordUser)->post(route('coordinacion.practicas.cancelar', $this->practica), ['motivo_baja' => 'renuncia', 'detalle_baja' => 'Renunció'])->assertSessionHasNoErrors();
 
     expect($this->practica->refresh()->estado)->toBe(PracticaEstado::Cancelada)
         ->and($this->poAna->refresh()->estado)->toBe(PostulacionEstado::Cancelada)
@@ -131,7 +134,7 @@ test('no se cancela una práctica cuyo oficio ya se envió a Control Escolar', f
     OficioAcreditacion::create(['practica_id' => $this->practica->id, 'emitido_por' => $this->admin->id,
         'estado_validacion' => 'validada', 'enviado_control_escolar_at' => now()]);
 
-    $this->actingAs($this->adminUser)->post(route('coordinacion.practicas.cancelar', $this->practica), ['motivo_baja' => 'renuncia', 'detalle_baja' => 'Renunció'])
+    $this->actingAs($this->coordUser)->post(route('coordinacion.practicas.cancelar', $this->practica), ['motivo_baja' => 'renuncia', 'detalle_baja' => 'Renunció'])
         ->assertSessionHasErrors('practica');
 
     expect($this->practica->refresh()->estado)->toBe(PracticaEstado::EnCierre);
@@ -141,7 +144,7 @@ test('con la práctica en cierre no se tocan reportes ni se crean nuevos', funct
     $validado = ($this->reporte)(ReporteEstado::Validado, 250);
     $this->practica->update(['estado' => PracticaEstado::EnCierre]);
 
-    $this->actingAs($this->adminUser)->post(route('coordinacion.reportes.resolver', $validado), ['estado' => 'rechazado'])
+    $this->actingAs($this->coordUser)->post(route('coordinacion.reportes.resolver', $validado), ['estado' => 'rechazado'])
         ->assertSessionHasErrors('reporte');
     expect($validado->refresh()->estado)->toBe(ReporteEstado::Validado);
 
@@ -158,7 +161,7 @@ test('la carta de término no se valida mientras haya reportes pendientes', func
     $carta = CartaTermino::create(['practica_id' => $this->practica->id]);
     $carta->addMedia(trnPdf())->toMediaCollection('carta_termino');
 
-    $admin = $this->actingAs($this->adminUser);
+    $admin = $this->actingAs($this->coordUser);
 
     $admin->post(route('coordinacion.cierres.carta', $this->practica), ['estado' => 'validada'])->assertSessionHasErrors('carta');
     expect($this->practica->refresh()->estado)->toBe(PracticaEstado::EnCurso);
@@ -177,7 +180,7 @@ test('un dictamen ya emitido no se puede cambiar', function () {
     $emitido = $convenio->dictamenes()->create(['carrera_id' => $this->abog->id, 'dictamen' => Dictamen::Aprobatorio]);
     $convenio->dictamenes()->create(['carrera_id' => $this->hist->id, 'dictamen' => Dictamen::Pendiente]);
 
-    expect(fn () => app(ConvenioWorkflow::class)->registrarDictamenCarrera($emitido, Dictamen::Negativo, 'cambio de opinión', $this->admin))
+    expect(fn () => app(ConvenioWorkflow::class)->registrarDictamenCarrera($emitido, Dictamen::Negativo, 'cambio de opinión', $this->coord))
         ->toThrow(ValidationException::class, 'ya fue emitido');
 });
 
@@ -221,9 +224,10 @@ test('acciones fuera de etapa: supervisor, borrador y documentos de un convenio 
     $profesor = Profesor::create(['division_id' => $this->abog->division_id, 'nombre' => 'Dr. Prueba']);
     $admin = $this->actingAs($this->adminUser);
 
-    $admin->post(route('coordinacion.practicas.supervisor', $this->practica), ['profesor_id' => $profesor->id])
+    $this->actingAs($this->coordUser)->post(route('coordinacion.practicas.supervisor', $this->practica), ['profesor_id' => $profesor->id])
         ->assertSessionHasErrors('practica');
 
+    $admin = $this->actingAs($this->adminUser);
     $admin->post(route('admin.convenios.borrador', $this->convenio), ['borrador' => trnPdf()])
         ->assertSessionHasErrors('convenio');
     expect($this->convenio->getMedia('borrador_convenio'))->toHaveCount(0);

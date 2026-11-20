@@ -2,8 +2,6 @@
 
 @section('content')
 @php
-    $totalPendientes = $pendientes['vacantes_por_aprobar'] + $pendientes['postulaciones'] + $pendientes['imss'] + $pendientes['kardex'] + $pendientes['reportes'] + $pendientes['cierres'];
-    $docs = $pendientes['imss'] + $pendientes['kardex'];
     $alcance = $carreras->count() === 1 ? 'Coordinación de ' . $carreras->first()->nombre : 'Coordinación · ' . $carreras->count() . ' carreras';
     $familiaPractica = fn (string $etiqueta) => collect(\App\Enums\PracticaEstado::cases())->first(fn ($e) => $e->label() === $etiqueta)?->familia() ?? 'gris';
 @endphp
@@ -31,22 +29,25 @@
 
     {{-- Pendientes de la carrera: acceso directo en un clic --}}
     <section aria-label="Pendientes de tu coordinación">
-        <div class="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div class="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3">
+            <x-dashboard.kpi :href="route('coordinacion.lista-practicantes')"
+                etiqueta="Expedientes por revisar" :valor="$pendientes['expedientes']" icono="imss" tono="lavanda" :orden="0"
+                :detalle="$pendientes['imss'] . ' IMSS · ' . $pendientes['kardex'] . ' kardex por validar'" accion="Revisar" />
+            <x-dashboard.kpi :href="route('coordinacion.lista-practicantes')"
+                etiqueta="Postulaciones por atender" :valor="$pendientes['postulaciones'] + $pendientes['cartas_aceptacion']" icono="usuarios" tono="cielo" :orden="1"
+                :detalle="$pendientes['postulaciones'] . ' por carta de presentación · ' . $pendientes['cartas_aceptacion'] . ' por activar'" accion="Atender" />
             <x-dashboard.kpi :href="route('coordinacion.lista-programas', ['estado' => 'pendiente_aprobacion'])"
-                etiqueta="Vacantes por aprobar" :valor="$pendientes['vacantes_por_aprobar']" icono="vacante" tono="ambar" :orden="0"
+                etiqueta="Vacantes por aprobar" :valor="$pendientes['vacantes']" icono="vacante" tono="ambar" :orden="2"
                 detalle="Propuestas de empresas para tu carrera" accion="Revisar" />
-            <x-dashboard.kpi :href="route('coordinacion.lista-practicantes')"
-                etiqueta="Postulaciones nuevas" :valor="$pendientes['postulaciones']" icono="usuarios" tono="cielo" :orden="1"
-                detalle="Valida créditos y emite la carta de presentación" accion="Revisar" />
-            <x-dashboard.kpi :href="route('coordinacion.lista-practicantes')"
-                etiqueta="IMSS y kardex por validar" :valor="$docs" icono="imss" tono="lavanda" :orden="2"
-                :detalle="$pendientes['imss'] . ' IMSS · ' . $pendientes['kardex'] . ' kardex'" accion="Validar" />
             <x-dashboard.kpi :href="route('coordinacion.lista-reportes')"
                 etiqueta="Reportes por validar" :valor="$pendientes['reportes']" icono="reporte" tono="indigo" :orden="3"
-                detalle="Las horas cuentan cuando los validas" accion="Validar" />
+                detalle="Entregados firmados: las horas cuentan al validarlos" accion="Validar" />
             <x-dashboard.kpi :href="route('coordinacion.lista-cierres')"
-                etiqueta="Cierres por atender" :valor="$pendientes['cierres']" icono="cierre" tono="menta" :orden="4"
-                detalle="Carta de término, oficio y SIIAU" accion="Atender" />
+                etiqueta="Cierres por atender" :valor="$pendientes['cartas_termino'] + $pendientes['en_cierre']" icono="cierre" tono="menta" :orden="4"
+                :detalle="$pendientes['cartas_termino'] . ' cartas de término · ' . $pendientes['en_cierre'] . ' oficios y SIIAU'" accion="Atender" />
+            <x-dashboard.kpi :href="route('coordinacion.lista-practicantes')"
+                etiqueta="Alumnos bloqueados" :valor="$pendientes['bloqueados']" icono="alerta" tono="rosa" :orden="5"
+                detalle="Por bajas: solo tú haces el desbloqueo excepcional" accion="Revisar" />
         </div>
     </section>
 

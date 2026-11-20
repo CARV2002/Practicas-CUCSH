@@ -54,7 +54,6 @@ function pantallasDelAdministrador(): array
 {
     return [
         ...pantallasPorRol()[Rol::Vinculacion->value],
-        ...pantallasPorRol()[Rol::Coordinador->value],
         ...pantallasDelSistema(),
     ];
 }
@@ -97,12 +96,19 @@ test('cada rol entra a todas sus pantallas y se renderizan', function () {
     }
 });
 
-test('el administrador entra a Vinculación, Coordinación y a la administración del sistema', function () {
+test('el administrador supervisa Vinculación y administra el sistema, pero no entra a las coordinaciones', function () {
     $admin = usuarioConRol(Rol::Administrador->value);
 
     foreach (pantallasDelAdministrador() as $ruta) {
         $this->actingAs($admin)->get(route($ruta))->assertOk();
     }
+    // Autonomía académica: no valida kardex, no aprueba vacantes ni opera reportes o cierres
+    foreach (pantallasPorRol()[Rol::Coordinador->value] as $ruta) {
+        $this->actingAs($admin)->get(route($ruta))->assertForbidden();
+    }
+    $this->actingAs($admin)->get(route('admin.dashboard'))->assertOk()
+        ->assertSee('Prácticas en todo el CUCSH')->assertSee('Coordinaciones en la plataforma')
+        ->assertDontSee('Cierre de prácticas');
 });
 
 test('ningún rol entra a las pantallas de otro rol', function () {

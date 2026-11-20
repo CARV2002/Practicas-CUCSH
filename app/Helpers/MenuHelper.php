@@ -14,9 +14,9 @@ class MenuHelper
     {
         $user = auth()->user();
 
-        // El administrador ve ambos paneles; Vinculación y Coordinación solo el suyo
+        // El administrador (jefa de Vinculación) supervisa convenios y administra el sistema; no opera lo académico
         if ($user->hasRole(Rol::Administrador->value)) {
-            return [...self::sistemaMenu(), ...self::vinculacionMenu(), ...self::coordinacionMenu()];
+            return [...self::supervisionMenu(), ...self::sistemaMenu()];
         }
 
         if ($user->hasRole(Rol::Vinculacion->value)) {
@@ -133,6 +133,27 @@ class MenuHelper
             [
                 'title' => 'Vinculación',
                 'items' => $items,
+            ],
+        ];
+    }
+
+    /**
+     * Administrador: supervisión global. Ve el panel general (solo lectura) y el módulo de convenios de Vinculación
+     * para auditar su trabajo o cubrir una ausencia; no tiene las bandejas de las coordinaciones de carrera.
+     */
+    private static function supervisionMenu()
+    {
+        return [
+            [
+                'title' => 'Supervisión',
+                'items' => [
+                    ['name' => 'Panel general', 'icon' => 'dashboard', 'path' => '/admin/dashboard'],
+                    ['name' => 'Convenios', 'icon' => 'pages', 'path' => '/admin/lista-convenios'],
+                    ['name' => 'Dictámenes', 'icon' => 'task', 'path' => '/admin/lista-dictamenes'],
+                    ['name' => 'Documentos físicos', 'icon' => 'forms', 'path' => '/admin/documentos-fisicos'],
+                    ['name' => 'Empresas', 'icon' => 'ui-elements', 'path' => '/admin/lista-empresas'],
+                    ['name' => 'Informes', 'icon' => 'charts', 'path' => '/admin/informes'],
+                ],
             ],
         ];
     }
