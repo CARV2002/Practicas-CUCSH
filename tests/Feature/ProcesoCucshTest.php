@@ -353,11 +353,11 @@ test('cada coordinación emite su dictamen; Vinculación registra los turnos y y
 
     // La coordinación ve la propuesta y dictamina solo su carrera
     $this->actingAs($this->coordAbog)->get(route('coordinacion.lista-dictamenes'))->assertOk()->assertSee('Análisis de casos');
-    $this->actingAs($this->coordAbog)->post(route('coordinacion.dictamenes.registrar', $dCrim), ['dictamen' => 'aprobatorio'])->assertForbidden();
-    $this->actingAs($this->vinculacion)->post(route('coordinacion.dictamenes.registrar', $dAbog), ['dictamen' => 'aprobatorio'])->assertForbidden();
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.dictamenes.registrar', $dCrim), ['dictamen' => 'aprobatorio', 'documento' => \Illuminate\Http\UploadedFile::fake()->create('dictamen.pdf', 40, 'application/pdf')])->assertForbidden();
+    $this->actingAs($this->vinculacion)->post(route('coordinacion.dictamenes.registrar', $dAbog), ['dictamen' => 'aprobatorio', 'documento' => \Illuminate\Http\UploadedFile::fake()->create('dictamen.pdf', 40, 'application/pdf')])->assertForbidden();
 
-    $this->actingAs($this->coordAbog)->post(route('coordinacion.dictamenes.registrar', $dAbog), ['dictamen' => 'aprobatorio'])->assertSessionHasNoErrors();
-    $this->actingAs($this->coordCrim)->post(route('coordinacion.dictamenes.registrar', $dCrim), ['dictamen' => 'negativo', 'observaciones' => 'No afín'])
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.dictamenes.registrar', $dAbog), ['dictamen' => 'aprobatorio', 'documento' => \Illuminate\Http\UploadedFile::fake()->create('dictamen.pdf', 40, 'application/pdf')])->assertSessionHasNoErrors();
+    $this->actingAs($this->coordCrim)->post(route('coordinacion.dictamenes.registrar', $dCrim), ['dictamen' => 'negativo', 'documento' => \Illuminate\Http\UploadedFile::fake()->create('dictamen.pdf', 40, 'application/pdf'), 'observaciones' => 'No afín'])
         ->assertSessionHasNoErrors();
 
     expect($dAbog->refresh()->dictamen)->toBe(Dictamen::Aprobatorio)
@@ -383,7 +383,7 @@ test('la empresa no solicita convenio sin representante legal', function () {
 
     $this->actingAs($u)->post(route('empresa.convenio.solicitar'), $solicitud)->assertSessionHasErrors('convenio');
 
-    $this->actingAs($u)->put(route('empresa.datos-legales'), ['representante_legal' => 'Ing. Pedro Firma', 'representante_cargo' => 'Director', 'domicilio_fiscal' => 'Av. 1', 'constitucion' => 'escritura 1', 'objeto_social' => 'servicios', 'facultad_firmante' => 'poder 2'])->assertSessionHasNoErrors();
+    $this->actingAs($u)->put(route('empresa.datos-legales'), ['representante_legal' => 'Ing. Pedro Firma', 'representante_cargo' => 'Director', 'domicilio_fiscal' => 'Av. 1 núm. 20, Guadalajara', ...datosNotarialesPrueba(), 'objeto_social' => 'servicios de consultoría legal', 'facultad_firmante' => 'el poder notarial número 2'])->assertSessionHasNoErrors();
     $this->actingAs($u)->post(route('empresa.convenio.solicitar'), $solicitud)->assertSessionHasNoErrors();
 
     expect($e->refresh()->representante_legal)->toBe('Ing. Pedro Firma')

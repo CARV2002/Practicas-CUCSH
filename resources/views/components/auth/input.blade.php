@@ -1,4 +1,4 @@
-@props(['name', 'label', 'type' => 'text', 'required' => true, 'placeholder' => '', 'autocomplete' => null])
+@props(['name', 'label', 'type' => 'text', 'required' => true, 'placeholder' => '', 'autocomplete' => null, 'ayuda' => null])
 
 {{--
     Campo de las pantallas de acceso. Las contraseñas tienen botón para mostrar/ocultar.
@@ -15,6 +15,7 @@
             value="{{ $type === 'password' ? '' : old($name) }}" placeholder="{{ $placeholder }}"
             @if ($autocomplete) autocomplete="{{ $autocomplete }}" @endif
             @required($required)
+            {{ $attributes->except(['class']) }}
             @class([
                 'h-12 w-full rounded-xl border border-gray-300 bg-gray-50/60 px-4 text-[15px] text-gray-900 shadow-theme-xs transition duration-200 ease-out placeholder:text-gray-400',
                 'hover:border-gray-400 focus:border-real-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-real-500/15',
@@ -30,6 +31,7 @@
             </button>
         @endif
     </div>
+    @if ($ayuda)<p class="mt-1 text-xs leading-relaxed text-gray-500">{{ $ayuda }}</p>@endif
     @error($name)
         <p class="mt-1.5 text-sm font-medium text-error-600">{{ $message }}</p>
     @enderror

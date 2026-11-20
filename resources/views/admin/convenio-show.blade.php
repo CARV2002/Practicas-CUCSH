@@ -88,6 +88,41 @@
             {{-- Expediente --}}
             <x-dashboard.panel titulo="Expediente de la empresa" icono="documento"
                 :descripcion="$estado === E::Solicitado ? 'Valida cada documento. Si rechazas uno, escribe el motivo: la empresa lo verá.' : 'Los documentos se validan durante la revisión de documentos.'">
+                {{-- Lo que capturó la empresa: se compara contra sus documentos --}}
+                <details class="group mb-4 rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-100" @if ($estado === E::Solicitado) open @endif>
+                    <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                        <span>
+                            <span class="block text-sm font-semibold text-gray-900">Datos capturados por la empresa</span>
+                            <span class="block text-xs text-gray-500">Compáralos con el acta, la constancia fiscal y la identificación.</span>
+                        </span>
+                        <svg class="size-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+                    </summary>
+                    @php
+                        $usaEscritura = \App\Support\DatosNotariales::usaEscritura($empresa->tipo_organismo);
+                        $capturados = array_filter([
+                            'Razón social' => $empresa->razon_social,
+                            'RFC' => $empresa->rfc,
+                            'Domicilio legal' => $empresa->domicilio_fiscal,
+                            'Representante legal' => trim($empresa->representante_legal . ($empresa->representante_cargo ? ', ' . $empresa->representante_cargo : '')),
+                        ] + ($usaEscritura ? [
+                            'Escritura pública' => $empresa->escritura_numero ? 'Núm. ' . $empresa->escritura_numero . ' del ' . $empresa->escritura_fecha?->format('d/m/Y') : null,
+                            'Notario' => $empresa->notario_nombre ? $empresa->notario_nombre . ', notaría ' . $empresa->notaria_numero . ' de ' . $empresa->notaria_ciudad : null,
+                            'Folio mercantil' => $empresa->folio_mercantil ?: 'No indicado',
+                        ] : ['Ley o decreto de creación' => $empresa->constitucion]), fn ($v) => $v !== null);
+                    @endphp
+                    <dl class="grid grid-cols-1 gap-x-6 gap-y-3 border-t border-gray-100 px-4 py-3 sm:grid-cols-2">
+                        @foreach ($capturados as $k => $val)
+                            <div class="min-w-0"><dt class="text-xs text-gray-500">{{ $k }}</dt><dd class="break-words text-sm font-medium text-gray-900">{{ $val }}</dd></div>
+                        @endforeach
+                        @if ($usaEscritura && blank($empresa->escritura_numero))
+                            <div class="sm:col-span-2"><p class="text-xs font-medium text-amber-700">La empresa aún no captura sus datos notariales por separado. Pídeselos o escríbelos al generar el borrador.</p></div>
+                        @endif
+                        <div class="min-w-0 sm:col-span-2"><dt class="text-xs text-gray-500">Carreras solicitadas</dt><dd class="text-sm font-medium text-gray-900">{{ $convenio->dictamenes->map(fn ($d) => $d->carrera->carrera_clave)->join(', ') }}</dd></div>
+                        @if ($convenio->actividades_propuestas)
+                            <div class="min-w-0 sm:col-span-2"><dt class="text-xs text-gray-500">Actividades propuestas</dt><dd class="whitespace-pre-line text-sm text-gray-800">{{ $convenio->actividades_propuestas }}</dd></div>
+                        @endif
+                    </dl>
+                </details>
                 <ul class="-my-1 divide-y divide-gray-100">
                     @foreach ($colecciones as $col)
                         @php
@@ -142,13 +177,14 @@
                 </ul>
 
                 @if ($estado === E::Solicitado)
-                    <div class="mt-4 flex justify-end border-t border-gray-100 pt-4">
+                    <div class="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <p class="text-xs leading-relaxed text-gray-500 sm:max-w-md">Revisa que cada archivo sea legible, esté vigente y coincida con los datos capturados. Al aprobar el último documento, la propuesta se envía sola a las coordinaciones de las carreras solicitadas.</p>
                         @if ($faltaTurnar = \App\Support\Requisitos::turnarAValidacionAcademica($convenio))
-                            <x-ui.accion-bloqueada :motivo="$faltaTurnar">Turnar a las carreras</x-ui.accion-bloqueada>
+                            <x-ui.accion-bloqueada :motivo="$faltaTurnar">Enviar a dictamen académico</x-ui.accion-bloqueada>
                         @else
-                            <form method="POST" action="{{ route('admin.convenios.validacion-academica', $convenio) }}">
+                            <form method="POST" action="{{ route('admin.convenios.validacion-academica', $convenio) }}" class="shrink-0">
                                 @csrf
-                                <button class="boton boton-primario"><x-dashboard.icono nombre="enviar" clase="size-4" /> Turnar a las carreras</button>
+                                <button class="boton boton-primario"><x-dashboard.icono nombre="enviar" clase="size-4" /> Enviar a dictamen académico</button>
                             </form>
                         @endif
                     </div>
@@ -156,28 +192,34 @@
             </x-dashboard.panel>
 
             {{-- Validación académica --}}
-            <x-dashboard.panel titulo="Turno académico y dictámenes por carrera" icono="academico"
-                descripcion="Secretaría Académica y la División solo turnan el oficio; cada coordinación de carrera emite su dictamen desde su panel.">
-                <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    @foreach ([['Turnado a Secretaría Académica', $convenio->fecha_turno_secretaria], ['Turnado a la División', $convenio->fecha_turno_division]] as [$k, $f])
-                        <div class="rounded-xl bg-gray-50 p-3.5 ring-1 ring-inset ring-gray-100">
-                            <dt class="text-xs text-gray-500">{{ $k }}</dt>
-                            <dd class="mt-0.5 text-sm font-semibold {{ $f ? 'text-gray-900' : 'italic font-normal text-gray-400' }}">{{ $f?->format('d/m/Y') ?? 'Fecha sin registrar' }}</dd>
-                        </div>
-                    @endforeach
-                </dl>
-                @if ($estado === E::EnValidacionAcademica)
-                    <form method="POST" action="{{ route('admin.convenios.turnos', $convenio) }}" class="mt-3 grid grid-cols-1 gap-3 rounded-xl border border-dashed border-gray-300 p-4 md:grid-cols-3 md:items-end">
-                        @csrf
-                        <div><label for="f-sec" class="etiqueta">Secretaría Académica</label>
-                            <input id="f-sec" type="date" name="fecha_turno_secretaria" max="{{ today()->toDateString() }}" value="{{ old('fecha_turno_secretaria', $convenio->fecha_turno_secretaria?->toDateString()) }}" class="campo h-10"></div>
-                        <div><label for="f-div" class="etiqueta">División</label>
-                            <input id="f-div" type="date" name="fecha_turno_division" max="{{ today()->toDateString() }}" value="{{ old('fecha_turno_division', $convenio->fecha_turno_division?->toDateString()) }}" class="campo h-10"></div>
-                        <button class="boton boton-secundario h-10">Guardar fechas</button>
-                    </form>
+            <x-dashboard.panel titulo="Dictamen académico por carrera" icono="academico"
+                descripcion="La propuesta llega solo a las coordinaciones de las carreras solicitadas. Cada una vota y sube su dictamen firmado; tú solo das seguimiento.">
+                @if ($estado === E::EnValidacionAcademica || $convenio->fecha_turno_secretaria || $convenio->fecha_turno_division)
+                    <details class="group mb-4 rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-100">
+                        <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                            <span>
+                                <span class="block text-sm font-semibold text-gray-900">Paso del oficio por Secretaría Académica y la División</span>
+                                <span class="block text-xs text-gray-500">Opcional: solo sirve para medir tiempos; no detiene el dictamen.
+                                    @if ($convenio->fecha_turno_secretaria) Secretaría: {{ $convenio->fecha_turno_secretaria->format('d/m/Y') }}. @endif
+                                    @if ($convenio->fecha_turno_division) División: {{ $convenio->fecha_turno_division->format('d/m/Y') }}. @endif
+                                </span>
+                            </span>
+                            @if ($estado === E::EnValidacionAcademica)<span class="shrink-0 text-xs font-semibold text-real-600 group-open:hidden">Registrar fechas</span>@endif
+                        </summary>
+                        @if ($estado === E::EnValidacionAcademica)
+                            <form method="POST" action="{{ route('admin.convenios.turnos', $convenio) }}" class="grid grid-cols-1 gap-3 border-t border-gray-100 p-4 md:grid-cols-3 md:items-end">
+                                @csrf
+                                <div><label for="f-sec" class="etiqueta">Secretaría Académica</label>
+                                    <input id="f-sec" type="date" name="fecha_turno_secretaria" max="{{ today()->toDateString() }}" value="{{ old('fecha_turno_secretaria', $convenio->fecha_turno_secretaria?->toDateString()) }}" class="campo h-10"></div>
+                                <div><label for="f-div" class="etiqueta">División</label>
+                                    <input id="f-div" type="date" name="fecha_turno_division" max="{{ today()->toDateString() }}" value="{{ old('fecha_turno_division', $convenio->fecha_turno_division?->toDateString()) }}" class="campo h-10"></div>
+                                <button class="boton boton-secundario h-10">Guardar fechas</button>
+                            </form>
+                        @endif
+                    </details>
                 @endif
 
-                <ul class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <ul class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     @forelse ($convenio->dictamenes as $d)
                         <li class="rounded-xl border border-gray-200 p-4">
                             <div class="flex items-start justify-between gap-2">
@@ -195,6 +237,12 @@
                                 <p class="dato-vacio mt-2">Sin dictamen</p>
                             @endif
                             @if ($d->observaciones)<p class="mt-1 text-xs leading-relaxed text-gray-600">{{ $d->observaciones }}</p>@endif
+                            @if ($d->dictamen === \App\Enums\Dictamen::Negativo && $estado !== E::Rechazado)
+                                <p class="mt-2 rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">Esta carrera queda fuera del convenio: no aparece en el contrato y sus alumnos no verán a la organización.</p>
+                            @endif
+                            @if ($pdfDictamen = $d->getFirstMedia('dictamen_pertinencia'))
+                                <a href="{{ route('admin.dictamenes.archivos.descargar', [$d, $pdfDictamen]) }}" data-sin-vista class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-real-600 hover:underline"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Dictamen firmado</a>
+                            @endif
                         </li>
                     @empty
                         <li class="sm:col-span-2"><x-dashboard.vacio icono="academico" titulo="Aún no se turna a las carreras" texto="Al validar el expediente, turna el convenio para que cada carrera dictamine." /></li>
@@ -295,17 +343,20 @@
 
                     @if ($estado === E::EnRevisionJuridica && $etapa === Et::DictamenJuridico)
                         <form method="POST" enctype="multipart/form-data" action="{{ route('admin.convenios.juridica.dictamen', $convenio) }}"
-                            class="grid grid-cols-1 gap-3 rounded-xl border border-dashed border-gray-300 p-4 md:grid-cols-[11rem_1fr_14rem_auto] md:items-end">
+                            class="grid grid-cols-1 gap-3 rounded-xl border border-dashed border-gray-300 p-4 md:grid-cols-3 md:items-end">
                             @csrf
+                            <p class="text-sm font-semibold text-gray-900 md:col-span-3">¿Qué respondió la Unidad Jurídica?</p>
                             <div><label class="etiqueta" for="j-res">Resultado</label>
                                 <select id="j-res" name="resultado" required class="campo h-11">
-                                    <option value="aprobado">Aprobado</option>
-                                    <option value="observado">Observado</option>
-                                    <option value="rechazado">Rechazado</option>
+                                    <option value="aprobado">Viable: pasa a firmas</option>
+                                    <option value="observado">Pide correcciones</option>
+                                    <option value="rechazado">No viable: cerrar trámite</option>
                                 </select></div>
-                            <div><label class="etiqueta" for="j-com">Comentario</label><input id="j-com" type="text" name="comentario" placeholder="Obligatorio si no aprueba" class="campo h-11"></div>
+                            <div><label class="etiqueta" for="j-fecha">Fecha del dictamen</label><input id="j-fecha" type="date" name="fecha_dictamen" max="{{ today()->toDateString() }}" value="{{ old('fecha_dictamen', today()->toDateString()) }}" class="campo h-11"></div>
+                            <div><label class="etiqueta" for="j-com">Comentario</label><input id="j-com" type="text" name="comentario" placeholder="Obligatorio si pide correcciones o no es viable" class="campo h-11"></div>
                             <div class="md:col-span-2"><x-ui.zona-archivo name="documento" etiqueta="Dictamen escaneado" :requerido="false" ayuda="Opcional: el Dictamen de Viabilidad Jurídica firmado." /></div>
                             <button class="boton boton-primario h-11">Registrar dictamen</button>
+                            <p class="ayuda md:col-span-3">Si pide correcciones, el trámite regresa a redacción: corrige los datos, genera el borrador otra vez y vuélvelo a turnar.</p>
                         </form>
                     @endif
                 </x-dashboard.panel>
@@ -315,11 +366,19 @@
             @if ($estado === E::EnFirmas)
                 <x-dashboard.panel titulo="Firmas y formalización" icono="firma" descripcion="Registra cada firma y, al final, formaliza con folio y vigencia.">
                     @if (in_array($etapa, [Et::FirmaEmpresa, Et::FirmaRectoria], true))
-                        <form method="POST" action="{{ route('admin.convenios.firmas', $convenio) }}" class="flex flex-col gap-2 sm:flex-row sm:items-end">
+                        <p class="mb-4 rounded-xl bg-udg-50/60 px-4 py-3 text-sm leading-relaxed text-udg-900 ring-1 ring-inset ring-udg-100">{{ $etapa === Et::FirmaEmpresa
+                            ? 'Imprime los 3 juegos del convenio definitivo y avisa a la empresa para que pase por ellos. Su representante rubrica cada hoja en el margen izquierdo, firma y sella la última hoja, y los regresa. Cuando los tengas de vuelta, escanea la última hoja de los 3 juegos y regístralo aquí.'
+                            : 'Lleva los 3 juegos ya firmados por la empresa a Rectoría. Cuando regresen con la firma autógrafa y el sello oficial, escanea un juego completo en un solo PDF: ese archivo queda como el convenio firmado.' }}</p>
+                        <form method="POST" enctype="multipart/form-data" action="{{ route('admin.convenios.firmas', $convenio) }}" class="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto] md:items-end">
                             @csrf
                             <input type="hidden" name="etapa" value="{{ $etapa->value }}">
-                            <div class="flex-1"><label class="etiqueta" for="fir-com">Comentario (opcional)</label><input id="fir-com" type="text" name="comentario" class="campo h-11"></div>
-                            <button class="boton boton-primario h-11"><x-dashboard.icono nombre="firma" clase="size-4" /> Registrar: {{ $etapa->label() }}</button>
+                            <div class="md:col-span-2">
+                                <x-ui.zona-archivo name="evidencia" :max-mb="20"
+                                    :etiqueta="$etapa === Et::FirmaEmpresa ? 'Evidencia: última hoja firmada y sellada por la empresa' : 'Evidencia: juego completo con las firmas y sellos de ambas partes'"
+                                    :ayuda="$etapa === Et::FirmaEmpresa ? 'Un PDF con la última hoja de los 3 juegos (firma completa y sello de la empresa).' : 'Un solo PDF con todas las hojas: rúbricas al margen, firmas y sellos visibles.'" />
+                            </div>
+                            <div><label class="etiqueta" for="fir-com">Comentario (opcional)</label><input id="fir-com" type="text" name="comentario" maxlength="1000" class="campo h-11"></div>
+                            <button class="boton boton-primario h-11 whitespace-nowrap"><x-dashboard.icono nombre="firma" clase="size-4" /> {{ $etapa === Et::FirmaEmpresa ? 'La empresa ya firmó los 3 juegos' : 'Rectoría ya firmó los 3 juegos' }}</button>
                         </form>
                     @elseif ($etapa === Et::ArchivoDistribucion)
                         <form method="POST" enctype="multipart/form-data" action="{{ route('admin.convenios.formalizar', $convenio) }}" class="grid grid-cols-1 gap-4 md:grid-cols-4"
@@ -337,9 +396,22 @@
                                 </select>
                                 <p class="ayuda" x-text="fin ? 'Vence el ' + fin + ' (avisos a 60 y 30 días)' : 'La fecha de fin se calcula sola'"></p>
                             </div>
-                            <div class="md:col-span-4"><x-ui.zona-archivo name="convenio_firmado" etiqueta="Escaneo de un juego firmado por ambas partes" :max-mb="20" ayuda="Un solo PDF con todas las hojas, firmas al calce y sellos visibles." /></div>
+                            <div class="md:col-span-4">
+                                @if ($firmado)
+                                    <div class="flex flex-col gap-2 rounded-xl bg-emerald-50 px-4 py-3 ring-1 ring-inset ring-emerald-100 sm:flex-row sm:items-center sm:justify-between">
+                                        <p class="flex items-center gap-2 text-sm text-emerald-800"><x-dashboard.icono nombre="check" clase="size-4 shrink-0" /> El convenio firmado ya se subió al registrar la firma de Rectoría.</p>
+                                        <a href="{{ route('admin.convenios.archivos.descargar', [$convenio, $firmado]) }}" data-sin-vista class="text-sm font-semibold text-real-600 hover:underline">Ver {{ $firmado->file_name }}</a>
+                                    </div>
+                                    <details class="mt-2"><summary class="cursor-pointer text-xs font-semibold text-gray-500 hover:text-gray-700">Reemplazar el escaneo</summary>
+                                        <div class="mt-2"><x-ui.zona-archivo name="convenio_firmado" etiqueta="Nuevo escaneo del convenio firmado" :max-mb="20" :requerido="false" /></div>
+                                    </details>
+                                @else
+                                    <x-ui.zona-archivo name="convenio_firmado" etiqueta="Escaneo de un juego firmado por ambas partes" :max-mb="20" ayuda="Un solo PDF con todas las hojas, firmas al calce y sellos visibles." />
+                                @endif
+                            </div>
                             <div class="md:col-span-3"><label class="etiqueta" for="fo-com">Comentario (opcional)</label><input id="fo-com" type="text" name="comentario" class="campo h-11"></div>
                             <div class="flex items-end"><button class="boton boton-exito h-11 w-full"><x-dashboard.icono nombre="vigente" clase="size-4" /> Formalizar convenio</button></div>
+                            <p class="ayuda md:col-span-4">Al formalizar, la organización queda activa: puede publicar vacantes y los alumnos de las carreras aprobadas pueden postularse. De los 3 juegos, uno se entrega a la empresa, otro queda en tu carpeta y el tercero va al archivo de la Unidad Jurídica (síguelos en Documentos físicos).</p>
                         </form>
                     @else
                         <p class="dato-vacio">No hay una firma pendiente por registrar.</p>
@@ -425,7 +497,19 @@
                                     {{ ucfirst($s->estado->value) }} · {{ $s->fecha_registro->format('d/m/Y') }}{{ $s->fecha_resolucion ? ' → ' . $s->fecha_resolucion->format('d/m/Y') : '' }}
                                     · {{ $s->diasHabiles() }} {{ $s->diasHabiles() === 1 ? 'día hábil' : 'días hábiles' }}
                                 </p>
-                                @if ($s->registrador?->user)<p class="text-xs text-gray-500">{{ $s->registrador->user->name }}</p>@endif
+                                @if ($s->estado === \App\Enums\SeguimientoEstado::Pendiente)
+                                    <p class="text-xs text-gray-500">Lo tiene: <span class="font-medium text-gray-700">{{ $s->etapa->responsable() }}</span></p>
+                                @else
+                                    @foreach ($s->resolvio($convenio) as $quien)
+                                        <p class="text-xs text-gray-700"><span class="text-gray-500">{{ $s->etapa === \App\Enums\EtapaConvenio::TurnoAcademico ? '' : ($s->etapa->responsable() === 'Vinculación' ? 'Atendió: ' : 'Resolvió: ') }}</span><span class="font-medium">{{ $quien }}</span></p>
+                                    @endforeach
+                                    @if ($s->capturadoPorTerceros() && $s->registrador?->user)
+                                        <p class="text-[11px] text-gray-400">Registrado en el sistema por {{ $s->registrador->user->name }}</p>
+                                    @endif
+                                @endif
+                                @foreach ($s->media as $evidencia)
+                                    <a href="{{ route('admin.convenios.archivos.descargar', [$convenio, $evidencia]) }}" data-sin-vista class="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-real-600 hover:underline"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> {{ $s->etapa === \App\Enums\EtapaConvenio::DictamenJuridico ? 'Dictamen jurídico' : 'Evidencia' }}</a>
+                                @endforeach
                                 @if ($s->comentario)<p class="mt-1 rounded-lg bg-gray-50 px-2.5 py-1.5 text-xs leading-relaxed text-gray-600">{{ $s->comentario }}</p>@endif
                             </li>
                         @endforeach

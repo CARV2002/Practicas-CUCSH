@@ -84,7 +84,104 @@ class DemoOperacionSeeder extends Seeder
         $this->alumnosYPostulaciones($p);
         $this->usuarioInactivo();
         $this->avisosDemo();
+        $this->datosLegalesDemo();
         $this->documentosFisicosDemo();
+        $this->completarDemo();
+    }
+
+    /**
+     * Completa los datos de demostración para que cada pantalla tenga información en cada situación
+     * (solo llena lo que falta; se puede correr varias veces):
+     *  - contacto, teléfono, descripción y proyectos de cada organización;
+     *  - quién dictaminó cada carrera (su coordinación, no Vinculación) y su dictamen firmado en PDF;
+     *  - bitácora completa, borrador y convenio firmado de los convenios formalizados;
+     *  - evidencia escaneada de cada firma y del dictamen jurídico.
+     */
+    private function completarDemo(): void
+    {
+        $contactos = [
+            ['Coordinadora de Recursos Humanos', 'Brindamos servicios a la comunidad de Jalisco y abrimos espacios para que estudiantes del CUCSH apliquen lo que aprenden.'],
+            ['Jefe de Vinculación', 'Institución con más de diez años de trabajo en su sector y experiencia recibiendo practicantes universitarios.'],
+            ['Director Administrativo', 'Organización comprometida con la formación profesional de jóvenes en ciencias sociales y humanidades.'],
+        ];
+
+        $personas = [
+            ['Mtra. Claudia Herrera Vázquez', 'Lic. Jorge Ramírez Lozano'],
+            ['Lic. Patricia Navarro Gil', 'Mtro. Arturo Medina Castañeda'],
+            ['Lic. Sofía Delgado Ibarra', 'Dr. Raúl Fonseca Aguirre'],
+            ['Ing. Daniela Ruvalcaba Ortiz', 'Lic. Héctor Villalobos Mora'],
+        ];
+
+        Empresa::with('user')->get()->each(function (Empresa $e, int $i) use ($contactos, $personas) {
+            [$cargo, $descripcion] = $contactos[$i % count($contactos)];
+            [$contacto, $representante] = $personas[$i % count($personas)];
+
+            // Nombres de relleno («Contacto …», «Representante de …») → nombres de persona
+            if (str_starts_with((string) $e->representante_legal, 'Representante de ') || blank($e->representante_legal)) {
+                $e->representante_legal = $representante;
+            }
+            if (str_starts_with((string) $e->contacto_nombre, 'Contacto ')) {
+                $e->contacto_nombre = $contacto;
+            }
+            if ($e->user && str_starts_with($e->user->name, 'Contacto ')) {
+                $e->user->update(['name' => $contacto]);
+            }
+            $e->save();
+            $e->update(array_filter([
+                'contacto_cargo' => $e->contacto_cargo ?: $cargo,
+                'contacto_telefono' => $e->contacto_telefono ?: '33' . str_pad((string) (31000000 + $e->id * 1371), 8, '0', STR_PAD_LEFT),
+                'descripcion' => $e->descripcion ?: $descripcion,
+                'proyectos_principales' => $e->proyectos_principales ?: 'Atención al público, gestión documental y proyectos de investigación aplicada.',
+            ]));
+        });
+
+        Convenio::with(['dictamenes.carrera', 'seguimientos', 'empresa'])->get()->each(function (Convenio $c) {
+            // Dictámenes: los emite la coordinación de cada carrera, con su PDF firmado y sellado
+            foreach ($c->dictamenes->where('dictamen', '!=', Dictamen::Pendiente) as $d) {
+                $coordinacion = Personal::where('carrera_id', $d->carrera_id)->first()
+                    ?? Personal::where('division_id', $d->carrera->division_id)->whereNull('carrera_id')->first();
+                $d->update(array_filter([
+                    'dictaminado_por' => $coordinacion?->id ?? $d->dictaminado_por,
+                    'fecha_dictamen' => $d->fecha_dictamen ?? $c->fecha_recepcion?->copy()->addDays(10),
+                    'observaciones' => $d->dictamen === Dictamen::Negativo && blank($d->observaciones)
+                        ? 'Las actividades propuestas no corresponden al perfil de egreso de la carrera.' : null,
+                ]));
+                $this->adjuntar($d, 'dictamen_pertinencia', "dictamen-{$d->carrera->carrera_clave}-{$c->id}.pdf");
+            }
+
+            // Formalizados: bitácora completa antes del inicio de vigencia, borrador y convenio firmado
+            if ($c->estado === ConvenioEstado::Formalizado) {
+                $inicio = ($c->fecha_inicio_vigencia ?? now())->copy();
+                foreach (EtapaConvenio::cases() as $i => $etapa) {
+                    if (!$c->seguimientos->contains(fn ($s) => $s->etapa === $etapa)) {
+                        $registro = $inicio->copy()->subDays(70 - $i * 10);
+                        $this->seguimiento($c, $etapa, SeguimientoEstado::Aprobado, $registro, $registro->copy()->addDays(6));
+                    }
+                }
+                $this->adjuntar($c, 'borrador_convenio', 'borrador-convenio.pdf');
+                $this->adjuntar($c, 'convenio_firmado', 'convenio-firmado.pdf');
+            }
+
+            // Rechazado: antes del dictamen, Vinculación aprobó los documentos
+            if ($c->estado === ConvenioEstado::Rechazado && !$c->seguimientos->contains(fn ($s) => $s->etapa === EtapaConvenio::RevisionDocumentos)) {
+                $primera = $c->seguimientos->min('fecha_registro');
+                $registro = ($primera ? $primera->copy()->subDays(4) : ($c->fecha_recepcion ?? now()->subMonth())->copy());
+                $this->seguimiento($c, EtapaConvenio::RevisionDocumentos, SeguimientoEstado::Aprobado, $registro, $registro->copy()->addDays(3));
+            }
+
+            // Evidencias en la bitácora: firmas (empresa y Rectoría) y dictamen jurídico
+            foreach ($c->seguimientos()->where('estado', '!=', SeguimientoEstado::Pendiente->value)->get() as $s) {
+                $archivo = match ($s->etapa) {
+                    EtapaConvenio::FirmaEmpresa => 'firma-empresa-ultima-hoja.pdf',
+                    EtapaConvenio::FirmaRectoria => 'convenio-firmado-rectoria.pdf',
+                    EtapaConvenio::DictamenJuridico => 'dictamen-juridico.pdf',
+                    default => null,
+                };
+                if ($archivo) {
+                    $this->adjuntar($s, 'documento_etapa', $archivo);
+                }
+            }
+        });
     }
 
 
@@ -374,6 +471,45 @@ class DemoOperacionSeeder extends Seeder
      * Avisos de ejemplo para que la campana de cada panel no aparezca vacía en local.
      * En operación real los generan las acciones (solicitudes, dictámenes, validaciones...).
      */
+    /**
+     * Declaraciones y datos notariales de las organizaciones de prueba (solo llena lo que falta).
+     * Sociedades y asociaciones acreditan su existencia con escritura pública; las dependencias públicas, con su decreto.
+     */
+    private function datosLegalesDemo(): void
+    {
+        $notarios = [
+            ['Lic. Ricardo Alatorre Gómez', '12', 'Guadalajara, Jalisco'],
+            ['Lic. Mariana Ochoa Villaseñor', '45', 'Zapopan, Jalisco'],
+            ['Lic. Fernando Íñiguez Ruiz', '7', 'Tlaquepaque, Jalisco'],
+        ];
+
+        \App\Models\Empresa::all()->each(function (\App\Models\Empresa $e, int $i) use ($notarios) {
+            $base = array_filter([
+                'representante_cargo' => $e->representante_cargo ?: 'Director General',
+                'domicilio_fiscal' => $e->domicilio_fiscal ?: 'Av. Juárez 976, Col. Centro, C.P. 44100, Guadalajara, Jalisco',
+                'objeto_social' => $e->objeto_social ?: 'Prestar servicios profesionales relacionados con su giro y colaborar con instituciones educativas en la formación de practicantes.',
+                'facultad_firmante' => $e->facultad_firmante ?: 'Cuenta con poder general para actos de administración, que no le ha sido revocado ni limitado a la fecha.',
+            ]);
+
+            if (\App\Support\DatosNotariales::usaEscritura($e->tipo_organismo)) {
+                if (blank($e->escritura_numero)) {
+                    [$notario, $notaria, $ciudad] = $notarios[$i % count($notarios)];
+                    $base = \App\Support\DatosNotariales::preparar($base + [
+                        'escritura_numero' => (string) (10200 + $e->id * 137),
+                        'escritura_fecha' => now()->subYears(6 + $e->id)->startOfMonth()->toDateString(),
+                        'notario_nombre' => $notario,
+                        'notaria_numero' => $notaria,
+                        'notaria_ciudad' => $ciudad,
+                        'folio_mercantil' => $e->tipo_organismo === \App\Enums\TipoOrganismo::Privado ? 'N-' . (2010 + $e->id) . '0' . (4500 + $e->id) : null,
+                    ], $e->tipo_organismo);
+                }
+            } elseif (blank($e->constitucion)) {
+                $base['constitucion'] = 'el decreto publicado en el Periódico Oficial «El Estado de Jalisco» el ' . now()->subYears(10 + $e->id)->locale('es')->translatedFormat('j \d\e F \d\e Y');
+            }
+
+            $e->update($base);
+        });
+    }
     private function avisosDemo(): void
     {
         $validado = 'Tu coordinación validó tu kardex y tu constancia IMSS. ¡Ya puedes postularte a una vacante de tu carrera!';
@@ -494,13 +630,19 @@ class DemoOperacionSeeder extends Seeder
     {
         $convenio->dictamenes()->firstOrCreate(['carrera_id' => $this->carreras[$clave]->id], [
             'dictamen' => $resultado,
-            'dictaminado_por' => $this->lorena->id,
+            // Dictamina la coordinación de la carrera (Vinculación solo da seguimiento)
+            'dictaminado_por' => Personal::where('carrera_id', $this->carreras[$clave]->id)->value('id') ?? $this->lorena->id,
             'fecha_dictamen' => now()->subMonths(5)->toDateString(),
         ]);
     }
 
     private function seguimiento(Convenio $convenio, EtapaConvenio $etapa, SeguimientoEstado $estado, Carbon $registro, ?Carbon $resolucion, ?string $comentario = null): void
     {
+        // Una etapa pendiente no se reabre si ya se trabajó en pantalla (volver a sembrar no la duplica)
+        if ($estado === SeguimientoEstado::Pendiente && $convenio->seguimientos()->where('etapa', $etapa->value)->exists()) {
+            return;
+        }
+
         $convenio->seguimientos()->firstOrCreate(
             ['etapa' => $etapa->value, 'estado' => $estado->value],
             [

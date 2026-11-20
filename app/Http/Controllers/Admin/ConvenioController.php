@@ -63,6 +63,7 @@ class ConvenioController extends Controller
             'dictamenes.carrera',
             'dictamenes.dictaminador.user',
             'seguimientos.registrador.user',
+            'seguimientos.media',
             'documentosFisicos',
         ]);
 
@@ -112,13 +113,16 @@ class ConvenioController extends Controller
                 asunto: 'Documento de tu expediente rechazado',
             ));
         } elseif ($empresa->fresh()->expedienteCompleto()) {
-            Avisos::enviar($empresa->user, new AvisoOperativo(
-                mensaje: 'Tu expediente quedó completo y validado. Vinculación turnará tu solicitud a las carreras.',
-                url: route('empresa.convenio', absolute: false),
-            ));
+            // Con el último documento aprobado, la plataforma turna sola la propuesta a las coordinaciones
+            // de las carreras solicitadas (y le avisa a la empresa): Lorena ya no tiene que hacerlo a mano.
+            $this->workflow->enviarAValidacionAcademica($convenio, $request->user()->personal);
+
+            return back()->with('status', 'Documentos aprobados. La propuesta se envió a las coordinaciones de las carreras solicitadas para su dictamen académico.');
         }
 
-        return back()->with('status', 'Documento actualizado.');
+        return back()->with('status', $datos['estado'] === ValidacionEstado::Rechazada->value
+            ? 'Documento rechazado. Avisamos a la empresa por correo para que suba solo ese documento corregido.'
+            : 'Documento aprobado.');
     }
 
     public function enviarAValidacionAcademica(Request $request, Convenio $convenio): RedirectResponse
@@ -170,6 +174,8 @@ class ConvenioController extends Controller
                 ])
             ],
             'comentario' => ['nullable', 'string', 'max:2000'],
+            // Fecha real en que la Unidad Jurídica otorgó (u observó) el dictamen: mide los tiempos de Jurídica
+            'fecha_dictamen' => ['nullable', 'date', 'before_or_equal:today'],
             'documento' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
         ]);
 
@@ -180,16 +186,24 @@ class ConvenioController extends Controller
             $request->user()->personal
         );
 
-        if ($request->hasFile('documento')) {
-            $seguimiento = $convenio->seguimientos()
-                ->where('etapa', EtapaConvenio::DictamenJuridico->value)
-                ->latest('id')
-                ->first();
+        $seguimiento = $convenio->seguimientos()
+            ->where('etapa', EtapaConvenio::DictamenJuridico->value)
+            ->latest('id')
+            ->first();
 
+        if (!empty($datos['fecha_dictamen'])) {
+            $seguimiento?->update(['fecha_resolucion' => $datos['fecha_dictamen']]);
+        }
+
+        if ($request->hasFile('documento')) {
             $seguimiento?->addMediaFromRequest('documento')->toMediaCollection('documento_etapa');
         }
 
-        return back()->with('status', 'Dictamen jurídico registrado.');
+        return back()->with('status', match ($datos['resultado']) {
+            SeguimientoEstado::Aprobado->value => 'Dictamen de viabilidad registrado. Imprime los 3 juegos del convenio definitivo y avisa a la empresa para que pase a firmarlos.',
+            SeguimientoEstado::Observado->value => 'Observaciones registradas. Corrige los datos, genera de nuevo el borrador y vuelve a turnarlo a Jurídica.',
+            default => 'Jurídica rechazó el convenio: el trámite quedó cerrado y la empresa fue notificada.',
+        });
     }
 
     public function registrarFirma(Request $request, Convenio $convenio): RedirectResponse
@@ -199,16 +213,31 @@ class ConvenioController extends Controller
         $datos = $request->validate([
             'etapa' => ['required', Rule::in([EtapaConvenio::FirmaEmpresa->value, EtapaConvenio::FirmaRectoria->value])],
             'comentario' => ['nullable', 'string', 'max:1000'],
+            // Evidencia de que los papeles regresaron firmados: sin ella no se registra la firma
+            'evidencia' => ['required', 'file', 'mimes:pdf', 'max:20480'],
+        ], [
+            'evidencia.required' => $request->input('etapa') === EtapaConvenio::FirmaRectoria->value
+                ? 'Sube el escaneo completo de un juego con las firmas y sellos de la empresa y de Rectoría.'
+                : 'Sube el escaneo de la última hoja de los 3 juegos con la firma y el sello de la empresa.',
+            'evidencia.mimes' => 'La evidencia debe ser un PDF.',
         ]);
 
-        $this->workflow->registrarFirma(
-            $convenio,
-            EtapaConvenio::from($datos['etapa']),
-            $request->user()->personal,
-            $datos['comentario'] ?? null
-        );
+        $etapa = EtapaConvenio::from($datos['etapa']);
+        $this->workflow->registrarFirma($convenio, $etapa, $request->user()->personal, $datos['comentario'] ?? null);
 
-        return back()->with('status', 'Firma registrada.');
+        // La evidencia queda en la bitácora de esa etapa
+        $convenio->seguimientos()->where('etapa', $etapa->value)->latest('id')->first()
+            ?->addMedia($request->file('evidencia'))->preservingOriginal()->toMediaCollection('documento_etapa');
+
+        // El juego completo firmado por Rectoría ES el convenio firmado: ya no se vuelve a pedir al formalizar
+        if ($etapa === EtapaConvenio::FirmaRectoria) {
+            $convenio->clearMediaCollection('convenio_firmado');
+            $convenio->addMedia($request->file('evidencia'))->toMediaCollection('convenio_firmado');
+        }
+
+        return back()->with('status', $etapa === EtapaConvenio::FirmaEmpresa
+            ? 'Firma de la empresa registrada con su evidencia. Lleva los 3 juegos a Rectoría.'
+            : 'Firma de Rectoría registrada. El escaneo quedó como convenio firmado: solo falta capturar folio y vigencia para formalizar.');
     }
 
     public function formalizar(Request $request, Convenio $convenio): RedirectResponse
@@ -284,7 +313,9 @@ class ConvenioController extends Controller
     public function descargar(Convenio $convenio, Media $media)
     {
         $pertenece = ($media->model_type === Convenio::class && (int) $media->model_id === (int) $convenio->id)
-            || ($media->model_type === Empresa::class && (int) $media->model_id === (int) $convenio->empresa_id);
+            || ($media->model_type === Empresa::class && (int) $media->model_id === (int) $convenio->empresa_id)
+            || ($media->model_type === \App\Models\ConvenioSeguimiento::class
+                && \App\Models\ConvenioSeguimiento::whereKey($media->model_id)->where('convenio_id', $convenio->id)->exists());
 
         abort_unless($pertenece, 404);
 

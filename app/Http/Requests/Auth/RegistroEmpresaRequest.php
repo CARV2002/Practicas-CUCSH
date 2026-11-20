@@ -20,7 +20,12 @@ class RegistroEmpresaRequest extends FormRequest
     {
         $this->merge([
             'email' => Str::lower(trim((string) $this->input('email'))),
-            'rfc' => Str::upper(trim((string) $this->input('rfc'))),
+            'rfc' => Str::upper(preg_replace('/[\s-]+/', '', (string) $this->input('rfc'))),
+            'contacto_telefono' => \App\Support\Formatos::digitos($this->input('contacto_telefono')) ?: null,
+            'name' => \App\Support\Formatos::limpiar($this->input('name')),
+            'representante_legal' => \App\Support\Formatos::limpiar($this->input('representante_legal')),
+            'escritura_numero' => \App\Support\Formatos::digitos($this->input('escritura_numero')) ?: null,
+            'folio_mercantil' => Str::upper(trim((string) $this->input('folio_mercantil'))) ?: null,
         ]);
     }
 
@@ -29,25 +34,26 @@ class RegistroEmpresaRequest extends FormRequest
     {
         return [
             // Persona de contacto (quien administra la cuenta de la empresa)
-            'name' => ['required', 'string', 'max:255'],
-            'contacto_cargo' => ['nullable', 'string', 'max:255'],
-            'contacto_telefono' => ['nullable', 'string', 'max:20'],
+            'name' => ['required', 'string', 'min:5', 'max:255', 'regex:' . \App\Support\Formatos::NOMBRE_PERSONA],
+            'contacto_cargo' => ['nullable', 'string', 'max:255', 'regex:' . \App\Support\Formatos::TEXTO_LETRAS],
+            'contacto_telefono' => ['nullable', 'regex:' . \App\Support\Formatos::TELEFONO],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)],
             'password' => ['required', 'confirmed', Password::defaults()],
 
             // Identidad legal: son los datos que el convenio necesita, por eso se piden bien escritos.
-            'razon_social' => ['required', 'string', 'max:255'],
+            'razon_social' => ['required', 'string', 'min:3', 'max:255'],
             // RFC de persona moral (12) o física (13): 3-4 letras, 6 dígitos de fecha, 3 de homoclave.
-            'rfc' => ['required', 'string', 'regex:/^[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}$/u', Rule::unique('empresas', 'rfc')],
+            'rfc' => ['required', 'string', 'regex:' . \App\Support\Formatos::RFC, Rule::unique('empresas', 'rfc')],
             'tipo_organismo' => ['required', Rule::enum(TipoOrganismo::class)],
             // Quien firma el convenio por parte de la empresa
-            'representante_legal' => ['required', 'string', 'max:255'],
+            'representante_legal' => ['required', 'string', 'min:5', 'max:255', 'regex:' . \App\Support\Formatos::NOMBRE_PERSONA],
             // Declaraciones de la ENTIDAD del Formato de PP (van tal cual al convenio)
-            'representante_cargo' => ['required', 'string', 'max:255'],
-            'domicilio_fiscal' => ['required', 'string', 'max:500'],
-            'constitucion' => ['required', 'string', 'max:1500'],
-            'objeto_social' => ['required', 'string', 'max:1500'],
-            'facultad_firmante' => ['required', 'string', 'max:1500'],
+            'representante_cargo' => ['required', 'string', 'min:3', 'max:255', 'regex:' . \App\Support\Formatos::TEXTO_LETRAS],
+            'domicilio_fiscal' => ['required', 'string', 'min:10', 'max:500'],
+            // Datos notariales (escritura) o ley/decreto de creación, según el tipo de organismo
+            ...\App\Support\DatosNotariales::reglas(),
+            'objeto_social' => ['required', 'string', 'min:20', 'max:1500'],
+            'facultad_firmante' => ['required', 'string', 'min:20', 'max:1500'],
 
             'aviso_privacidad' => ['accepted'],
         ];
@@ -68,7 +74,13 @@ class RegistroEmpresaRequest extends FormRequest
             'representante_legal' => 'representante legal',
             'representante_cargo' => 'cargo del representante',
             'domicilio_fiscal' => 'domicilio legal',
-            'constitucion' => 'acta o decreto de creación',
+            'constitucion' => 'ley o decreto de creación',
+            'escritura_numero' => 'número de escritura',
+            'escritura_fecha' => 'fecha de la escritura',
+            'notario_nombre' => 'notario',
+            'notaria_numero' => 'número de notaría',
+            'notaria_ciudad' => 'ciudad de la notaría',
+            'folio_mercantil' => 'folio mercantil',
             'objeto_social' => 'objeto social o atribuciones',
             'facultad_firmante' => 'facultad de quien firma',
             'aviso_privacidad' => 'aviso de privacidad',
@@ -87,6 +99,9 @@ class RegistroEmpresaRequest extends FormRequest
             'tipo_organismo.enum' => 'Selecciona un tipo de organismo válido.',
             'password.confirmed' => 'Las contraseñas no coinciden. Escribe la misma en ambos campos.',
             'aviso_privacidad.accepted' => 'Debes aceptar el aviso de privacidad para registrarte.',
+            ...\App\Support\DatosNotariales::mensajes(),
+            ...\App\Support\Formatos::mensajes(),
+            'min' => '«:attribute» es muy corto: escribe al menos :min caracteres.',
         ];
     }
 }

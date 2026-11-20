@@ -108,12 +108,15 @@ class GoogleAuthController extends Controller
             return redirect()->route('login');
         }
 
-        $request->merge(['num_control' => trim((string) $request->input('num_control'))]);
+        $request->merge([
+            'num_control' => \App\Support\Formatos::digitos($request->input('num_control')),
+            'name' => \App\Support\Formatos::limpiar($request->input('name')),
+        ]);
 
         $validado = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'min:5', 'max:255', 'regex:' . \App\Support\Formatos::NOMBRE_PERSONA],
             'carrera_id' => ['required', 'integer', Rule::exists('carreras', 'id')],
-            'num_control' => ['required', 'string', 'max:20', Rule::unique('alumnos', 'num_control')],
+            'num_control' => ['required', 'regex:' . \App\Support\Formatos::CODIGO_ALUMNO, Rule::unique('alumnos', 'num_control')],
             'grado' => ['required', 'integer', 'between:1,12'],
             'turno' => ['required', Rule::enum(\App\Enums\Turno::class)],
             'aviso_privacidad' => ['accepted'],
@@ -122,6 +125,7 @@ class GoogleAuthController extends Controller
             'carrera_id.exists' => 'Selecciona una carrera válida.',
             'num_control.unique' => 'Ya existe una cuenta con ese código de alumno.',
             'aviso_privacidad.accepted' => 'Debes aceptar el aviso de privacidad para registrarte.',
+            ...\App\Support\Formatos::mensajes(),
         ], [
             'name' => 'nombre',
             'carrera_id' => 'carrera',

@@ -210,7 +210,74 @@ function avisoFormulario(form, mostrar) {
     aviso.hidden = false;
 }
 
+/**
+ * Filtros de captura (data-solo): el campo no acepta lo que no corresponde, ni al teclear ni al pegar.
+ *  digitos → solo números (código de alumno, teléfono, número de escritura o notaría)
+ *  letras  → letras, espacios, punto, guion y apóstrofo (nombres de personas, cargos, ciudades)
+ *  rfc     → mayúsculas, sin espacios ni guiones
+ *  clave   → mayúsculas, números y guiones (folio mercantil)
+ */
+const FILTROS = {
+    digitos: (v) => v.replace(/\D+/g, ''),
+    letras: (v) => v.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ' .,-]+/g, '').replace(/\s{2,}/g, ' '),
+    rfc: (v) => v.toUpperCase().replace(/[^A-ZÑ&0-9]+/g, ''),
+    clave: (v) => v.toUpperCase().replace(/[^A-Z0-9-]+/g, ''),
+};
+
+function filtrar(campo) {
+    const filtro = FILTROS[campo.dataset?.solo];
+    if (!filtro) return;
+    const antes = campo.value;
+    const despues = filtro(antes);
+    if (antes === despues) return;
+    // Conserva la posición del cursor aunque se quiten caracteres
+    const pos = Math.max(0, (campo.selectionStart ?? despues.length) - (antes.length - despues.length));
+    campo.value = despues;
+    try { campo.setSelectionRange(pos, pos); } catch { /* type=email/number no admiten selección */ }
+}
+
+/** Contador «6 de 9 dígitos» bajo los campos con data-contador (largo exacto). */
+function contador(campo) {
+    const total = parseInt(campo.getAttribute('maxlength') || '0', 10);
+    if (!total) return;
+    const ayuda = document.createElement('p');
+    ayuda.className = 'js-contador mt-1 text-xs text-gray-500';
+    ayuda.setAttribute('aria-live', 'polite');
+    (campo.parentElement?.classList.contains('relative') ? campo.parentElement : campo).insertAdjacentElement('afterend', ayuda);
+    const unidad = campo.dataset.contador || 'caracteres';
+    const pintar = () => {
+        const n = campo.value.length;
+        ayuda.textContent = n === total ? `✓ ${n} de ${total} ${unidad}` : `${n} de ${total} ${unidad}`;
+        ayuda.className = `js-contador mt-1 text-xs ${n === total ? 'text-success-600' : 'text-gray-500'}`;
+    };
+    campo.addEventListener('input', pintar);
+    pintar();
+}
+
 function iniciar() {
+    // 0. Filtros de captura: antes que la validación en vivo.
+    //    Al teclear se detiene el carácter que no va (o se escribe ya transformado, p. ej. en mayúsculas)
+    //    sin tocar el resto del valor, así el cursor no salta; lo pegado o autocompletado se limpia después.
+    document.addEventListener('beforeinput', (e) => {
+        const campo = e.target;
+        const filtro = campo instanceof HTMLInputElement ? FILTROS[campo.dataset.solo] : null;
+        if (!filtro || e.inputType !== 'insertText' || !e.data) return;
+        const limpio = filtro(e.data);
+        if (limpio === e.data) return;
+        e.preventDefault();
+        if (!limpio) return;
+        const max = campo.maxLength > 0 ? campo.maxLength : Infinity;
+        const inicio = campo.selectionStart ?? campo.value.length;
+        const fin = campo.selectionEnd ?? inicio;
+        const cabe = limpio.slice(0, Math.max(0, max - (campo.value.length - (fin - inicio))));
+        if (!cabe) return;
+        campo.setRangeText(cabe, inicio, fin, 'end');
+        campo.dispatchEvent(new Event('input', { bubbles: true }));
+    }, true);
+    document.addEventListener('input', (e) => { if (e.target instanceof HTMLInputElement) filtrar(e.target); }, true);
+    document.querySelectorAll('input[data-solo]').forEach(filtrar);
+    document.querySelectorAll('input[data-contador]').forEach(contador);
+
     // 1. Errores del navegador: se cancelan los globos nativos y se muestra el mensaje propio
     document.addEventListener('invalid', (e) => {
         const campo = e.target;

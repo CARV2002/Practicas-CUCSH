@@ -118,10 +118,17 @@
         @endif
 
         @php $ultimoRechazo = $historial->first(fn ($h) => $h->estado === \App\Enums\ConvenioEstado::Rechazado); @endphp
-        @if (!$vigente && !$enTramite && $ultimoRechazo && $historial->first()?->is($ultimoRechazo))
+        @php $propuestaAnterior = (!$vigente && !$enTramite && $ultimoRechazo && $historial->first()?->is($ultimoRechazo)) ? $ultimoRechazo : null; @endphp
+        @if ($propuestaAnterior)
             <x-ui.aviso tipo="error" titulo="Tu última solicitud fue rechazada">
-                {{ $ultimoRechazo->seguimientos->where('estado', \App\Enums\SeguimientoEstado::Rechazado)->last()?->comentario ?? 'Consulta el motivo en tu historial.' }}
-                Para obtener el convenio debes iniciar de nuevo todo el trámite con una nueva solicitud{{ $mostrarForm ? ' (formulario de abajo)' : '' }}. Tu expediente se conserva; las carreras vuelven a dictaminar.
+                <p>{{ $propuestaAnterior->seguimientos->where('estado', \App\Enums\SeguimientoEstado::Rechazado)->last()?->comentario ?? 'Consulta el motivo en tu historial.' }}</p>
+                @php $negativos = $propuestaAnterior->dictamenes->where('dictamen', \App\Enums\Dictamen::Negativo)->filter(fn ($d) => filled($d->observaciones)); @endphp
+                @if ($negativos->isNotEmpty())
+                    <ul class="mt-2 list-disc space-y-1 pl-5">
+                        @foreach ($negativos as $d)<li><span class="font-semibold">{{ $d->carrera->nombre }}:</span> {{ $d->observaciones }}</li>@endforeach
+                    </ul>
+                @endif
+                <p class="mt-2">Puedes empezar el trámite de nuevo{{ $mostrarForm ? ' con el formulario de abajo' : '' }}: lo llenamos con tu propuesta anterior para que ajustes las actividades y elijas otra vez las carreras. Tu expediente se conserva; Vinculación lo revisa de nuevo y las carreras vuelven a dictaminar.</p>
             </x-ui.aviso>
         @endif
 
@@ -140,33 +147,33 @@
                 x-data="{ elegidas: @js(array_map('intval', (array) old('carreras', []))) }">
                 @csrf
                 <div class="border-b border-gray-100 px-5 py-4 sm:px-6">
-                    <h2 class="font-display text-base font-bold text-gray-900">{{ $puedeRenovar ? 'Solicitar renovación' : 'Solicitar convenio con el CUCSH' }}</h2>
+                    <h2 class="font-display text-base font-bold text-gray-900">{{ $puedeRenovar ? 'Solicitar renovación' : ($propuestaAnterior ? 'Enviar una nueva propuesta' : 'Solicitar convenio con el CUCSH') }}</h2>
                     <p class="mt-0.5 text-xs text-gray-500">Describe la colaboración que propones. Vinculación revisará tu expediente y lo turnará a las carreras que elijas.</p>
                 </div>
                 <div class="space-y-5 p-5 sm:p-6">
                     <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
                         <div>
                             <label class="etiqueta" for="c-obj">Objetivos de la colaboración</label>
-                            <textarea id="c-obj" name="objetivos" rows="4" required maxlength="3000" class="campo">{{ old('objetivos') }}</textarea>
+                            <textarea id="c-obj" name="objetivos" rows="4" required maxlength="3000" class="campo">{{ old('objetivos', $propuestaAnterior?->objetivos) }}</textarea>
                         </div>
                         <div>
                             <label class="etiqueta" for="c-act">Actividades que realizarían los practicantes</label>
-                            <textarea id="c-act" name="actividades_propuestas" rows="4" required maxlength="3000" class="campo">{{ old('actividades_propuestas') }}</textarea>
+                            <textarea id="c-act" name="actividades_propuestas" rows="4" required maxlength="3000" class="campo">{{ old('actividades_propuestas', $propuestaAnterior?->actividades_propuestas) }}</textarea>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
                         <div>
                             <label class="etiqueta" for="c-plazas">Plazas estimadas por ciclo</label>
-                            <input id="c-plazas" type="number" name="plazas_estimadas" value="{{ old('plazas_estimadas') }}" required min="1" max="500" class="campo h-11 tabular-nums">
+                            <input id="c-plazas" type="number" name="plazas_estimadas" value="{{ old('plazas_estimadas', $propuestaAnterior?->plazas_estimadas) }}" required min="1" max="500" class="campo h-11 tabular-nums">
                         </div>
                         <div class="md:col-span-2">
                             <label class="etiqueta" for="c-medio">¿Cómo conociste el programa? <span class="font-normal text-gray-400">(opcional)</span></label>
-                            <input id="c-medio" type="text" name="medio_conocimiento" value="{{ old('medio_conocimiento') }}" maxlength="255" class="campo h-11">
+                            <input id="c-medio" type="text" name="medio_conocimiento" value="{{ old('medio_conocimiento', $propuestaAnterior?->medio_conocimiento) }}" maxlength="255" class="campo h-11">
                         </div>
                     </div>
                     <div>
                         <label class="etiqueta" for="c-exp">Experiencia previa con practicantes <span class="font-normal text-gray-400">(opcional)</span></label>
-                        <textarea id="c-exp" name="experiencia_previa" rows="2" maxlength="3000" class="campo">{{ old('experiencia_previa') }}</textarea>
+                        <textarea id="c-exp" name="experiencia_previa" rows="2" maxlength="3000" class="campo">{{ old('experiencia_previa', $propuestaAnterior?->experiencia_previa) }}</textarea>
                     </div>
 
                     <fieldset>

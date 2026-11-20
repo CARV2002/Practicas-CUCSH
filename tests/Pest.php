@@ -88,3 +88,10 @@ function conPerfil(\App\Models\User $user): \App\Models\User
 
     return $user->unsetRelation('roles');
 }
+
+/** Datos notariales válidos de una sociedad o asociación (escritura pública). */
+function datosNotarialesPrueba(): array
+{
+    return ['escritura_numero' => '1234', 'escritura_fecha' => '2010-01-10', 'notario_nombre' => 'Lic. Juan Notario',
+        'notaria_numero' => '5', 'notaria_ciudad' => 'Guadalajara, Jalisco', 'folio_mercantil' => 'N-2010001'];
+}

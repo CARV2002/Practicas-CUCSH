@@ -157,7 +157,7 @@
                                         <label for="obs-{{ $d->id }}" class="etiqueta">Observaciones</label>
                                         <input id="obs-{{ $d->id }}" type="text" name="observaciones" placeholder="Obligatorias si el dictamen es negativo" class="campo h-11">
                                     </div>
-                                    <x-ui.zona-archivo name="documento" etiqueta="Dictamen firmado" :requerido="false" ayuda="Opcional: el dictamen de pertinencia firmado y sellado." />
+                                    <x-ui.zona-archivo name="documento" etiqueta="Dictamen firmado y sellado" ayuda="Obligatorio: el dictamen de pertinencia escaneado con firma y sello." />
                                     <button class="boton boton-primario h-11">Registrar dictamen</button>
                                 </form>
                                 <p class="ayuda">Un dictamen registrado ya no se puede cambiar.</p>

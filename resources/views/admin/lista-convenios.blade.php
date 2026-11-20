@@ -5,7 +5,7 @@
     use App\Enums\SeguimientoEstado;
 
     $opciones = collect($estados)->map(fn ($e) => [
-        'valor' => $e->value, 'texto' => $e === \App\Enums\ConvenioEstado::Solicitado ? 'Documentos' : $e->label(),
+        'valor' => $e->value, 'texto' => $e === \App\Enums\ConvenioEstado::Solicitado ? 'Por revisar' : $e->label(),
         'conteo' => (int) ($conteos[$e->value] ?? 0), 'familia' => $e->familia(),
     ])->prepend(['valor' => '', 'texto' => 'Todos', 'conteo' => (int) $conteos->sum()])->all();
 @endphp
@@ -43,15 +43,19 @@
             </form>
         </x-slot:herramientas>
 
-        <table class="tabla">
+        <table class="tabla table-fixed">
+            <colgroup>
+                <col class="w-[34%]">
+                <col>
+                <col class="w-36">
+                <col class="w-44">
+            </colgroup>
             <thead>
                 <tr>
                     <th class="tabla-th px-6">Organización</th>
-                    <th class="tabla-th">Fase</th>
-                    <th class="tabla-th">En qué va</th>
-                    <th class="tabla-th text-right">Espera</th>
-                    <th class="tabla-th">Vigencia</th>
-                    <th class="tabla-th px-6 text-right"><span class="sr-only">Acciones</span></th>
+                    <th class="tabla-th">Situación</th>
+                    <th class="tabla-th">Tiempo</th>
+                    <th class="tabla-th px-6 text-right"><span class="sr-only">Acción</span></th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -62,65 +66,61 @@
                         $dias = $abierta?->diasHabiles();
                         $avance = $abierta && $max ? min(100, (int) round($dias / max(1, $max) * 100)) : null;
                         $excede = $abierta?->excedeEspera();
+                        $det = $convenio->estadoDetallado();
+                        $leToca = $det['responsable'] === 'Vinculación';
                     @endphp
-                    <tr class="tabla-fila">
+                    <tr class="tabla-fila align-top">
                         <td class="px-6 py-4">
                             <div class="flex items-start gap-3">
                                 <span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-udg-50 font-display text-sm font-bold text-udg-900 ring-1 ring-inset ring-udg-100" aria-hidden="true">{{ mb_strtoupper(mb_substr($convenio->empresa->razon_social, 0, 1)) }}</span>
                                 <div class="min-w-0">
-                                    <a href="{{ route('admin.convenios.show', $convenio) }}" class="block font-semibold text-gray-900 hover:text-udg-900 hover:underline underline-offset-2">{{ $convenio->empresa->razon_social }}</a>
+                                    <a href="{{ route('admin.convenios.show', $convenio) }}" class="block break-words font-semibold text-gray-900 hover:text-udg-900 hover:underline underline-offset-2">{{ $convenio->empresa->razon_social }}</a>
                                     <p class="mt-0.5 text-xs text-gray-500"><span class="font-mono">{{ $convenio->empresa->rfc }}</span></p>
-                                    <p class="text-xs text-gray-500">{{ $convenio->folio ? 'Folio ' . $convenio->folio : 'Sin folio aún' }}</p>
+                                    <p class="text-xs text-gray-500">{{ $convenio->folio ? 'Folio ' . $convenio->folio : 'Recibido el ' . $convenio->fecha_recepcion->format('d/m/Y') }}</p>
                                 </div>
                             </div>
                         </td>
                         <td class="px-4 py-4">
-                            <x-ui.estatus :estado="$convenio->estado" />
-                            <x-convenio.pista :estado="$convenio->estado" class="mt-2" />
+                            <div class="flex flex-wrap items-center gap-2">
+                                <x-ui.estatus :estado="$convenio->estado" />
+                                <x-convenio.pista :estado="$convenio->estado" />
+                            </div>
+                            <p class="mt-2 flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                                <span class="size-2 shrink-0 rounded-full {{ \App\Support\Estatus::punto($det['familia']) }}" aria-hidden="true"></span>{{ $det['texto'] }}
+                            </p>
+                            <p class="text-xs text-gray-600">{{ $det['detalle'] ?? ($abierta ? $abierta->etapa->label() : 'Sin detalle') }}</p>
+                            <p @class(['mt-1 text-[11px]', 'font-semibold text-udg-900' => $leToca, 'text-gray-400' => !$leToca])>{{ $leToca ? 'Te toca a ti' : 'Lo tiene: ' . $det['responsable'] }}</p>
                         </td>
                         <td class="px-4 py-4">
-                            @php $det = $convenio->estadoDetallado(); @endphp
-                            <div class="md:min-w-56">
-                                <p class="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
-                                    <span class="size-2 shrink-0 rounded-full {{ \App\Support\Estatus::punto($det['familia']) }}" aria-hidden="true"></span>{{ $det['texto'] }}
-                                </p>
-                                <p class="text-xs text-gray-600">{{ $det['detalle'] ?? ($abierta ? $abierta->etapa->label() : 'Sin detalle') }}</p>
-                                <p class="mt-0.5 text-[11px] text-gray-400">Lo tiene: {{ $det['responsable'] }}</p>
-                            </div>
-                        </td>
-                        <td class="whitespace-nowrap px-4 py-4 text-right">
                             @if ($abierta)
-                                <p @class(['font-display text-lg font-bold leading-none', 'text-rose-600' => $excede, 'text-gray-900' => !$excede])>{{ $dias }}<span class="ml-1 font-sans text-xs font-medium text-gray-500">{{ $dias === 1 ? 'día' : 'días' }}</span></p>
+                                <p @class(['font-display text-lg font-bold leading-none', 'text-rose-600' => $excede, 'text-gray-900' => !$excede])>{{ $dias }}<span class="ml-1 font-sans text-xs font-medium text-gray-500">{{ $dias === 1 ? 'día hábil' : 'días hábiles' }}</span></p>
                                 @if ($max)
-                                    <div class="ml-auto mt-1.5 h-1 w-20 overflow-hidden rounded-full bg-gray-100" title="Máximo documentado: {{ $max }} días hábiles">
+                                    <div class="mt-1.5 h-1 w-full max-w-24 overflow-hidden rounded-full bg-gray-100" title="Máximo documentado: {{ $max }} días hábiles">
                                         <div @class(['h-full rounded-full', 'bg-rose-500' => $excede, 'bg-amber-400' => !$excede && $avance >= 80, 'bg-udg-800' => !$excede && $avance < 80]) style="width: {{ $avance }}%"></div>
                                     </div>
-                                    <p class="mt-1 text-[11px] {{ $excede ? 'font-semibold text-rose-600' : 'text-gray-400' }}">{{ $excede ? 'Fuera de plazo' : 'de ' . $max . ' hábiles' }}</p>
+                                    <p class="mt-1 text-[11px] {{ $excede ? 'font-semibold text-rose-600' : 'text-gray-400' }}">{{ $excede ? 'Fuera de plazo' : 'Máximo ' . $max . ' hábiles' }}</p>
                                 @else
                                     <p class="mt-1 text-[11px] text-gray-400">Sin plazo fijo</p>
                                 @endif
+                            @elseif ($convenio->fecha_fin_vigencia)
+                                <p class="text-xs text-gray-500">Vigente hasta</p>
+                                <p class="text-sm font-semibold text-gray-900">{{ $convenio->fecha_fin_vigencia->format('d/m/Y') }}</p>
+                                <p class="text-[11px] text-gray-400">desde {{ $convenio->fecha_inicio_vigencia->format('d/m/Y') }}</p>
                             @else
-                                <span class="dato-vacio">Sin espera</span>
+                                <span class="dato-vacio">Trámite cerrado</span>
                             @endif
                         </td>
-                        <td class="whitespace-nowrap px-4 py-4">
-                            @if ($convenio->fecha_fin_vigencia)
-                                <p class="text-sm font-medium text-gray-800">{{ $convenio->fecha_fin_vigencia->format('d/m/Y') }}</p>
-                                <p class="text-xs text-gray-500">desde {{ $convenio->fecha_inicio_vigencia->format('d/m/Y') }}</p>
-                            @else
-                                <p class="text-xs text-gray-500">Recibido {{ $convenio->fecha_recepcion->format('d/m/Y') }}</p>
-                                <span class="dato-vacio">Vigencia al formalizar</span>
-                            @endif
-                        </td>
-                        <td class="acciones whitespace-nowrap px-6 py-4 text-right">
-                            <div class="flex items-center justify-end gap-2">
-                                <x-ui.boton-icono :href="route('admin.convenios.show', $convenio)" icono="flecha" :etiqueta="$convenio->estado->esFinal() ? 'Ver' : 'Gestionar'" tono="primario" con-texto />
-                            </div>
+                        <td class="acciones py-4 pl-2 pr-6 text-right">
+                            <a href="{{ route('admin.convenios.show', $convenio) }}"
+                                @class(['boton h-9 whitespace-nowrap px-3 text-sm', 'boton-primario' => $leToca, 'boton-secundario' => !$leToca])>
+                                {{ $leToca ? 'Atender' : ($convenio->estado->esFinal() ? 'Ver' : 'Seguimiento') }}
+                                <x-dashboard.icono nombre="flecha" clase="size-4" />
+                            </a>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-4">
+                        <td colspan="4" class="px-6 py-4">
                             <x-dashboard.vacio icono="documento" titulo="{{ request()->hasAny(['q', 'estado']) ? 'No hay convenios con ese filtro' : 'Aún no hay convenios' }}"
                                 texto="{{ request()->hasAny(['q', 'estado']) ? 'Prueba con otra búsqueda o quita los filtros.' : 'Cuando una organización envíe su solicitud aparecerá aquí.' }}" />
                         </td>

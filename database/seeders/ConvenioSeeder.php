@@ -145,6 +145,11 @@ class ConvenioSeeder extends Seeder
         Personal $por,
         ?string $comentario = null
     ): void {
+        // Una etapa pendiente no se reabre si ya se trabajó en pantalla (volver a sembrar no la duplica)
+        if ($estado === SeguimientoEstado::Pendiente && $convenio->seguimientos()->where('etapa', $etapa->value)->exists()) {
+            return;
+        }
+
         $convenio->seguimientos()->firstOrCreate(
             ['etapa' => $etapa->value, 'estado' => $estado->value],
             [

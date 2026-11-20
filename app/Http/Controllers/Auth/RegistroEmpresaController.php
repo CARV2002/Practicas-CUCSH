@@ -25,7 +25,7 @@ class RegistroEmpresaController extends Controller
 
     public function store(RegistroEmpresaRequest $request): RedirectResponse
     {
-        $datos = $request->validated();
+        $datos = \App\Support\DatosNotariales::preparar($request->validated(), $request->input('tipo_organismo'));
 
         $user = DB::transaction(function () use ($datos) {
             $user = User::create([
@@ -45,6 +45,7 @@ class RegistroEmpresaController extends Controller
                 'representante_cargo' => $datos['representante_cargo'],
                 'domicilio_fiscal' => $datos['domicilio_fiscal'],
                 'constitucion' => $datos['constitucion'],
+                ...\Illuminate\Support\Arr::only($datos, \App\Support\DatosNotariales::CAMPOS),
                 'objeto_social' => $datos['objeto_social'],
                 'facultad_firmante' => $datos['facultad_firmante'],
                 'contacto_nombre' => $datos['name'],

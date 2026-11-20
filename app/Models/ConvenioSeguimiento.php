@@ -69,4 +69,35 @@ class ConvenioSeguimiento extends Model implements HasMedia
 
         return $rango !== null && $this->diasHabiles() > $rango[1];
     }
+    /**
+     * Quién resolvió realmente la etapa (no quién la capturó): Lorena registra en el sistema lo que
+     * deciden las coordinaciones, la Unidad Jurídica, la empresa y Rectoría.
+     *
+     * @return string[] una línea por actor
+     */
+    public function resolvio(Convenio $convenio): array
+    {
+        if ($this->estado === SeguimientoEstado::Pendiente) {
+            return [];
+        }
+
+        $registrador = $this->registrador?->user?->name;
+
+        return match ($this->etapa) {
+            EtapaConvenio::TurnoAcademico => $convenio->dictamenes
+                ->filter(fn ($d) => $d->dictamen !== \App\Enums\Dictamen::Pendiente)
+                ->map(fn ($d) => "Coordinación de {$d->carrera->carrera_clave}" . ($d->dictaminador?->user ? " ({$d->dictaminador->user->name})" : "") . " " . ($d->dictamen === \App\Enums\Dictamen::Aprobatorio ? "aprobó" : "rechazó"))
+                ->values()->all(),
+            EtapaConvenio::DictamenJuridico => ["Unidad Jurídica del CUCSH"],
+            EtapaConvenio::FirmaEmpresa => [trim(($convenio->empresa->representante_legal ?: "Representante legal") . ", " . $convenio->empresa->razon_social)],
+            EtapaConvenio::FirmaRectoria => ["Rectoría del CUCSH (" . \Illuminate\Support\Str::title(mb_strtolower(config("practicas.rectora"))) . ")"],
+            default => array_filter([$registrador ? "{$registrador} (Vinculación)" : null]),
+        };
+    }
+
+    /** ¿Lo resolvió alguien distinto de quien lo capturó? Entonces se muestra también «Registró». */
+    public function capturadoPorTerceros(): bool
+    {
+        return in_array($this->etapa, [EtapaConvenio::TurnoAcademico, EtapaConvenio::DictamenJuridico, EtapaConvenio::FirmaEmpresa, EtapaConvenio::FirmaRectoria], true);
+    }
 }

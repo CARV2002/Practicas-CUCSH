@@ -16,7 +16,7 @@
     ];
 @endphp
 <nav aria-label="{{ $etiqueta }}" {{ $attributes->merge(['class' => '-mx-4 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:px-0']) }}>
-    <ul class="flex w-max gap-1 rounded-xl bg-gray-100/80 p-1">
+    <ul class="flex w-max gap-1 rounded-xl bg-gray-100/80 p-1 lg:w-auto lg:flex-wrap">
         @foreach ($opciones as $o)
             @php
                 $activo = (string) $actual === (string) $o['valor'];

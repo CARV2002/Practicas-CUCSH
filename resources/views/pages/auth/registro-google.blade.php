@@ -17,13 +17,13 @@
 
                 <div>
                     <label for="name" class="{{ $label }}">Nombre completo<span class="text-error-500">*</span></label>
-                    <input id="name" name="name" type="text" required maxlength="255" value="{{ old('name', $datos['name']) }}" class="{{ $input }}">
+                    <input id="name" name="name" type="text" required minlength="5" maxlength="255" data-solo="letras" pattern="{{ \App\Support\Formatos::NOMBRE_PERSONA_HTML }}" data-msg-formato="Escribe tu nombre completo (nombre y apellido), solo con letras." value="{{ old('name', $datos['name']) }}" class="{{ $input }}">
                     @error('name')<p class="text-error-500 mt-1 text-sm">{{ $message }}</p>@enderror
                 </div>
 
                 <div>
                     <label for="num_control" class="{{ $label }}">Código de alumno<span class="text-error-500">*</span></label>
-                    <input id="num_control" name="num_control" type="text" required maxlength="20" value="{{ old('num_control') }}" class="{{ $input }}">
+                    <input id="num_control" name="num_control" type="text" required inputmode="numeric" autocomplete="off" data-solo="digitos" data-contador="dígitos" minlength="9" maxlength="9" pattern="{{ \App\Support\Formatos::CODIGO_ALUMNO_HTML }}" data-msg-formato="El código de alumno son exactamente 9 números (por ejemplo 219123456)." placeholder="Ej. 219123456" value="{{ old('num_control') }}" class="{{ $input }}">
                     @error('num_control')<p class="text-error-500 mt-1 text-sm">{{ $message }}</p>@enderror
                 </div>
 

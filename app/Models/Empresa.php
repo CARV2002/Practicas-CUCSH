@@ -28,6 +28,7 @@ class Empresa extends Model implements HasMedia
         'representante_legal',
         'representante_cargo',
         'constitucion',
+        'escritura_numero', 'escritura_fecha', 'notario_nombre', 'notaria_numero', 'notaria_ciudad', 'folio_mercantil',
         'objeto_social',
         'facultad_firmante',
         'contacto_nombre',
@@ -39,7 +40,7 @@ class Empresa extends Model implements HasMedia
 
     protected function casts(): array
     {
-        return ['tipo_organismo' => TipoOrganismo::class];
+        return ['tipo_organismo' => TipoOrganismo::class, 'escritura_fecha' => 'date'];
     }
 
     /** Expediente: datos personales sensibles -> disco "local" (privado, storage/app/private). */

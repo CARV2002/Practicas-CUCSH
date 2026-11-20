@@ -8,7 +8,7 @@
         ['valor' => 'activos', 'texto' => 'En seguimiento', 'conteo' => $conteos['activos']],
         ['valor' => 'fuera', 'texto' => 'Fuera de la oficina', 'conteo' => $conteos['fuera'], 'familia' => 'ambar'],
         ['valor' => 'vencidos', 'texto' => 'Regreso vencido', 'conteo' => $conteos['vencidos'], 'familia' => 'rosa'],
-        ['valor' => 'casa', 'texto' => 'En Vinculación', 'conteo' => $conteos['casa'], 'familia' => 'cielo'],
+        ['valor' => 'casa', 'texto' => 'En mi oficina', 'conteo' => $conteos['casa'], 'familia' => 'cielo'],
         ['valor' => 'concluidos', 'texto' => 'Concluidos', 'conteo' => $conteos['concluidos'], 'familia' => 'piedra'],
     ];
     $fuera = EF::fuera();
@@ -16,7 +16,7 @@
         'activos' => ['Todo en orden', 'No hay papeles en seguimiento. Aparecen solos cuando un convenio se turna a las carreras.'],
         'fuera' => ['Ningún papel fuera de la oficina', 'Todo lo que salió ya regresó a Vinculación.'],
         'vencidos' => ['Sin regresos vencidos', 'Ningún papel rebasó su fecha de regreso.'],
-        'casa' => ['Nada pendiente en Vinculación', 'No hay papeles esperando a ser enviados o archivados.'],
+        'casa' => ['Nada pendiente en tu oficina', 'No hay papeles esperando a ser enviados o archivados.'],
         'concluidos' => ['Aún no hay papeles concluidos', 'Los juegos entregados y los oficios archivados aparecerán aquí.'],
     ];
 @endphp
@@ -34,7 +34,7 @@
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <x-dashboard.kpi :href="route('admin.documentos-fisicos', ['vista' => 'fuera'])" etiqueta="Fuera de la oficina" :valor="$conteos['fuera']" icono="enviar" tono="ambar" detalle="Con la empresa, Jurídica, Rectoría…" :orden="0" />
         <x-dashboard.kpi :href="route('admin.documentos-fisicos', ['vista' => 'vencidos'])" etiqueta="Regreso vencido" :valor="$conteos['vencidos']" icono="alerta" tono="rosa" :alerta="$conteos['vencidos'] > 0 ? 'Requiere seguimiento' : null" detalle="Pasó su fecha de regreso" :orden="1" />
-        <x-dashboard.kpi :href="route('admin.documentos-fisicos', ['vista' => 'casa'])" etiqueta="En Vinculación" :valor="$conteos['casa']" icono="documento" tono="cielo" detalle="Por enviar, firmar o archivar" :orden="2" />
+        <x-dashboard.kpi :href="route('admin.documentos-fisicos', ['vista' => 'casa'])" etiqueta="En mi oficina" :valor="$conteos['casa']" icono="documento" tono="cielo" detalle="Por enviar, firmar o archivar" :orden="2" />
         <x-dashboard.kpi :href="route('admin.documentos-fisicos', ['vista' => 'concluidos'])" etiqueta="Concluidos" :valor="$conteos['concluidos']" icono="check" tono="menta" detalle="Entregados o archivados" :orden="3" />
     </div>
 
@@ -134,7 +134,7 @@
                                                     <p @class(['font-semibold tabular-nums', 'text-rose-600' => $vencido, 'text-amber-700' => $porVencer, 'text-gray-800' => !$vencido && !$porVencer])>{{ $d->fecha_compromiso->format('d/m/Y') }}</p>
                                                     <p @class(['text-rose-600 font-medium' => $vencido, 'text-amber-700' => $porVencer, 'text-gray-500' => !$vencido && !$porVencer])>{{ $vencido ? 'Vencido' : ($porVencer ? 'Muy pronto' : 'A tiempo') }}</p>
                                                 @else
-                                                    <p class="dato-vacio">{{ $d->estado->concluido() ? 'Concluido' : 'Está en casa' }}</p>
+                                                    <p class="dato-vacio">{{ $d->estado->concluido() ? 'Concluido' : 'Está en tu oficina' }}</p>
                                                 @endif
                                             </div>
                                         </div>

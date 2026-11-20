@@ -61,7 +61,7 @@ class DictamenController extends Controller
         ]);
     }
 
-    /** La coordinación emite su dictamen (aprobatorio/negativo) con observaciones y, opcionalmente, el PDF firmado. */
+    /** La coordinación emite su voto (aprobado/rechazado) con observaciones y su dictamen escaneado, firmado y sellado. */
     public function registrar(Request $request, ConvenioCarrera $dictamen): RedirectResponse
     {
         abort_unless($request->user()->personal->puedeVerCarrera((int) $dictamen->carrera_id), 403);
@@ -69,7 +69,9 @@ class DictamenController extends Controller
         $datos = $request->validate([
             'dictamen' => ['required', Rule::in([Dictamen::Aprobatorio->value, Dictamen::Negativo->value])],
             'observaciones' => ['nullable', 'string', 'max:2000'],
-            'documento' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
+            'documento' => ['required', 'file', 'mimes:pdf', 'max:10240'],
+        ], [
+            'documento.required' => 'Sube tu dictamen escaneado, firmado y sellado (PDF).',
         ]);
 
         $this->workflow->registrarDictamenCarrera(
@@ -79,9 +81,7 @@ class DictamenController extends Controller
             $request->user()->personal
         );
 
-        if ($request->hasFile('documento')) {
-            $dictamen->addMediaFromRequest('documento')->toMediaCollection('dictamen_pertinencia');
-        }
+        $dictamen->addMediaFromRequest('documento')->toMediaCollection('dictamen_pertinencia');
 
         return back()->with('status', 'Dictamen emitido. Vinculación fue notificada.');
     }

@@ -27,7 +27,7 @@ enum EstadoDocumentoFisico: string
     {
         return match ($this) {
             self::PorElaborar => 'Por imprimir',
-            self::EnVinculacion => 'En Vinculación',
+            self::EnVinculacion => 'En la oficina de Vínculos',
             self::EnSecretaria => 'En Secretaría Académica',
             self::EnDivision => 'En la División',
             self::AcuseRecibido => 'Acuse recibido',

@@ -91,23 +91,23 @@
                 {{-- Representante legal --}}
                 @php
                     $legales = ['representante_legal', 'representante_cargo', 'domicilio_fiscal', 'constitucion', 'objeto_social', 'facultad_firmante'];
-                    $faltanLegales = collect($legales)->filter(fn ($c) => blank($empresa->{$c}))->count();
+                    $faltanLegales = collect($legales)->filter(fn ($c) => blank($empresa->{$c}))->count()
+                        + (\App\Support\DatosNotariales::usaEscritura($empresa->tipo_organismo) && blank($empresa->escritura_numero) ? 1 : 0);
                 @endphp
                 <x-dashboard.panel titulo="Datos legales del convenio" icono="firma" descripcion="Son tus declaraciones en el convenio; van tal cual al documento. Deben coincidir con tu acta y tu identificación.">
                     @if ($faltanLegales > 0)
                         <x-ui.aviso tipo="advertencia" class="mb-3">Faltan {{ $faltanLegales }} {{ $faltanLegales === 1 ? 'dato' : 'datos' }}: complétalos para que Vinculación no tenga que pedírtelos.</x-ui.aviso>
                     @endif
-                    <form method="POST" action="{{ route('empresa.datos-legales') }}" class="space-y-3">
+                    <form method="POST" action="{{ route('empresa.datos-legales') }}" class="space-y-3" x-data="{ tipo: @js($empresa->tipo_organismo->value) }">
                         @csrf
                         @method('PUT')
                         <div><label for="rep" class="etiqueta">Representante legal</label>
-                            <input id="rep" type="text" name="representante_legal" required maxlength="255" value="{{ old('representante_legal', $empresa->representante_legal) }}" placeholder="Nombre completo" @disabled($bloqueado) class="campo h-11"></div>
+                            <input id="rep" type="text" name="representante_legal" required minlength="5" maxlength="255" data-solo="letras" pattern="{{ \App\Support\Formatos::NOMBRE_PERSONA_HTML }}" data-msg-formato="Escribe el nombre completo del representante (nombre y apellido), solo con letras." value="{{ old('representante_legal', $empresa->representante_legal) }}" placeholder="Nombre completo" @disabled($bloqueado) class="campo h-11"></div>
                         <div><label for="rep-cargo" class="etiqueta">Cargo</label>
-                            <input id="rep-cargo" type="text" name="representante_cargo" required maxlength="255" value="{{ old('representante_cargo', $empresa->representante_cargo) }}" placeholder="Director General" @disabled($bloqueado) class="campo h-11"></div>
+                            <input id="rep-cargo" type="text" name="representante_cargo" required minlength="3" maxlength="255" data-solo="letras" value="{{ old('representante_cargo', $empresa->representante_cargo) }}" placeholder="Director General" @disabled($bloqueado) class="campo h-11"></div>
                         <div><label for="dom" class="etiqueta">Domicilio legal</label>
                             <input id="dom" type="text" name="domicilio_fiscal" required maxlength="500" value="{{ old('domicilio_fiscal', $empresa->domicilio_fiscal) }}" @disabled($bloqueado) class="campo h-11"></div>
-                        <div><label for="const" class="etiqueta">Acta o decreto de creación</label>
-                            <textarea id="const" name="constitucion" rows="2" required maxlength="1500" @disabled($bloqueado) class="campo">{{ old('constitucion', $empresa->constitucion) }}</textarea></div>
+                        <x-empresa.datos-notariales :empresa="$empresa" :bloqueado="$bloqueado" />
                         <div><label for="obj" class="etiqueta">Objeto social o atribuciones</label>
                             <textarea id="obj" name="objeto_social" rows="2" required maxlength="1500" @disabled($bloqueado) class="campo">{{ old('objeto_social', $empresa->objeto_social) }}</textarea></div>
                         <div><label for="fac" class="etiqueta">Facultad de quien firma</label>

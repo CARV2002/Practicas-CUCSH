@@ -19,7 +19,8 @@ class RegistroAlumnoRequest extends FormRequest
     {
         $this->merge([
             'email' => Str::lower(trim((string) $this->input('email'))),
-            'num_control' => trim((string) $this->input('num_control')),
+            'num_control' => \App\Support\Formatos::digitos($this->input('num_control')),
+            'name' => \App\Support\Formatos::limpiar($this->input('name')),
         ]);
     }
 
@@ -27,11 +28,11 @@ class RegistroAlumnoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'min:5', 'max:255', 'regex:' . \App\Support\Formatos::NOMBRE_PERSONA],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)],
             'password' => ['required', 'confirmed', Password::defaults()],
             'carrera_id' => ['required', 'integer', Rule::exists('carreras', 'id')],
-            'num_control' => ['required', 'string', 'max:20', Rule::unique('alumnos', 'num_control')],
+            'num_control' => ['required', 'regex:' . \App\Support\Formatos::CODIGO_ALUMNO, Rule::unique('alumnos', 'num_control')],
             'grado' => ['required', 'integer', 'between:1,12'],
             'turno' => ['required', Rule::enum(\App\Enums\Turno::class)],
             'aviso_privacidad' => ['accepted'],
@@ -64,6 +65,8 @@ class RegistroAlumnoRequest extends FormRequest
             'carrera_id.exists' => 'Selecciona una carrera válida.',
             'password.confirmed' => 'Las contraseñas no coinciden. Escribe la misma en ambos campos.',
             'aviso_privacidad.accepted' => 'Debes aceptar el aviso de privacidad para registrarte.',
+            'grado.between' => 'El grado va del 1 al 12.',
+            ...\App\Support\Formatos::mensajes(),
         ];
     }
 }

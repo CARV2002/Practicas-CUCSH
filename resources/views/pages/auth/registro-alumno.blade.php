@@ -11,8 +11,8 @@
         <form method="POST" action="{{ route('registro.alumno') }}">
             @csrf
             <div class="space-y-5">
-                <x-auth.input name="name" label="Nombre completo" autocomplete="name" />
-                <x-auth.input name="num_control" label="Código de alumno" />
+                <x-auth.input name="name" label="Nombre completo" autocomplete="name" placeholder="Nombre(s) y apellidos" data-solo="letras" minlength="5" maxlength="255" :pattern="\App\Support\Formatos::NOMBRE_PERSONA_HTML" data-msg-formato="Escribe tu nombre completo (nombre y apellido), solo con letras." />
+                <x-auth.input name="num_control" label="Código de alumno" placeholder="Ej. 219123456" autocomplete="off" inputmode="numeric" data-solo="digitos" data-contador="dígitos" minlength="9" maxlength="9" :pattern="\App\Support\Formatos::CODIGO_ALUMNO_HTML" data-msg-formato="El código de alumno son exactamente 9 números (por ejemplo 219123456)." ayuda="Son los 9 números de tu código UdG; aparece en tu credencial y en SIIAU." />
 
                 <div>
                     <label for="carrera_id" class="etiqueta">

@@ -21,8 +21,8 @@ enum ConvenioEstado: string
     public function label(): string
     {
         return match ($this) {
-            self::Solicitado => 'Solicitado (revisión de documentos)',
-            self::EnValidacionAcademica => 'En validación académica',
+            self::Solicitado => 'En revisión de documentos',
+            self::EnValidacionAcademica => 'En dictamen académico',
             self::EnRevisionJuridica => 'En revisión jurídica',
             self::EnFirmas => 'En firmas',
             self::Formalizado => 'Formalizado',

@@ -202,9 +202,6 @@
                     </div>
 
                     <div class="mt-4 flex justify-end gap-2 border-t border-gray-100 pt-4">
-                        @if ($e['tipo'] === 'empresas')
-                            <a href="{{ route('admin.empresas.pdf') }}" data-sin-vista class="boton boton-secundario"><x-dashboard.icono nombre="documento" clase="size-4" /> PDF por situación</a>
-                        @endif
                         <button class="boton boton-primario" data-sin-bloqueo="1"><x-dashboard.icono nombre="descargar" clase="size-4" /> Descargar CSV</button>
                     </div>
                 </form>

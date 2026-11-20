@@ -103,7 +103,7 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
         'password' => 'Clave-segura-2026', 'password_confirmation' => 'Clave-segura-2026',
         'razon_social' => 'Museo Regional A.C.', 'rfc' => 'MRE010101AB1', 'tipo_organismo' => 'sociedad_civil',
         'representante_legal' => 'Mtra. Elena Firma', 'representante_cargo' => 'Directora General',
-        'domicilio_fiscal' => 'Av. Hidalgo 100, Guadalajara', 'constitucion' => 'la escritura pública 777 ante el notario 3',
+        'domicilio_fiscal' => 'Av. Hidalgo 100, Guadalajara', ...datosNotarialesPrueba(),
         'objeto_social' => 'la difusión del patrimonio cultural', 'facultad_firmante' => 'el poder notarial 888',
         'aviso_privacidad' => '1',
     ])->assertSessionHasNoErrors();
@@ -122,11 +122,10 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
     $convenio = Convenio::where('empresa_id', $empresa->id)->firstOrFail();
     Notification::assertSentTo($lorena, NuevaSolicitudConvenio::class);
 
-    // ── 5. Vinculación valida el expediente y turna a la carrera ────────────────
+    // ── 5. Vinculación valida el expediente: al aprobar el último documento se turna sola a la carrera ──
     foreach ($empresa->fresh()->media as $media) {
         $this->actingAs($lorena)->post(route('admin.convenios.documentos.resolver', [$convenio, $media]), ['estado' => 'validada'])->assertSessionHasNoErrors();
     }
-    $this->actingAs($lorena)->post(route('admin.convenios.validacion-academica', $convenio))->assertSessionHasNoErrors();
     expect($convenio->fresh()->estado)->toBe(ConvenioEstado::EnValidacionAcademica);
     expect(e2eAvisos($coord, 'emite el dictamen de pertinencia'))->toBe(1);
 
@@ -137,7 +136,7 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
 
     // ── 6. Coordinación dictamina ───────────────────────────────────────────────
     $dictamen = ConvenioCarrera::where('convenio_id', $convenio->id)->firstOrFail();
-    $this->actingAs($coord)->post(route('coordinacion.dictamenes.registrar', $dictamen), ['dictamen' => 'aprobatorio'])->assertSessionHasNoErrors();
+    $this->actingAs($coord)->post(route('coordinacion.dictamenes.registrar', $dictamen), ['dictamen' => 'aprobatorio', 'documento' => \Illuminate\Http\UploadedFile::fake()->create('dictamen.pdf', 40, 'application/pdf')])->assertSessionHasNoErrors();
     expect(e2eAvisos($lorena, 'emitió dictamen aprobatorio'))->toBe(1);
 
     // ── 7. Vinculación: borrador, Jurídica, firmas y formalización ──────────────
@@ -154,12 +153,20 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
     }
     $this->actingAs($empresaUser)->get(route('empresa.convenio'))->assertSee('juegos originales del convenio por firmar');
 
-    $this->actingAs($lorena)->post(route('admin.convenios.firmas', $convenio), ['etapa' => 'firma_empresa'])->assertSessionHasNoErrors();
-    $this->actingAs($lorena)->post(route('admin.convenios.firmas', $convenio), ['etapa' => 'firma_rectoria'])->assertSessionHasNoErrors();
+    // Cada firma se registra con su evidencia escaneada
+    $this->actingAs($lorena)->post(route('admin.convenios.firmas', $convenio), ['etapa' => 'firma_empresa'])->assertSessionHasErrors('evidencia');
+    $this->actingAs($lorena)->post(route('admin.convenios.firmas', $convenio), ['etapa' => 'firma_empresa', 'evidencia' => e2ePdf('firma-empresa.pdf')])->assertSessionHasNoErrors();
+    $this->actingAs($lorena)->post(route('admin.convenios.firmas', $convenio), ['etapa' => 'firma_rectoria', 'evidencia' => e2ePdf('juego-firmado.pdf')])->assertSessionHasNoErrors();
+    // El juego firmado por Rectoría ya es el convenio firmado; la bitácora dice quién firmó y guarda la evidencia
+    expect($convenio->getMedia('convenio_firmado'))->toHaveCount(1)
+        ->and($convenio->seguimientos()->where('etapa', 'firma_rectoria')->first()->getMedia('documento_etapa'))->toHaveCount(1);
+    $this->actingAs($lorena)->get(route('admin.convenios.show', $convenio))->assertOk()
+        ->assertSee('Mtra. Elena Firma, Museo Regional A.C.')->assertSee('Rectoría del CUCSH')->assertSee('Registrado en el sistema por')
+        ->assertSee('El convenio firmado ya se subió al registrar la firma de Rectoría.');
     expect($convenio->documentosFisicos()->where('estado', EF::Firmado->value)->count())->toBe(3);
 
     $this->actingAs($lorena)->post(route('admin.convenios.formalizar', $convenio), [
-        'folio' => 'CV-ANTR-001', 'fecha_inicio_vigencia' => today()->subMonths(3)->toDateString(), 'convenio_firmado' => e2ePdf('firmado.pdf'),
+        'folio' => 'CV-ANTR-001', 'fecha_inicio_vigencia' => today()->subMonths(3)->toDateString(),
     ])->assertSessionHasNoErrors();
     $convenio->refresh();
     expect($convenio->estado)->toBe(ConvenioEstado::Formalizado)->and($convenio->estaVigente())->toBeTrue()

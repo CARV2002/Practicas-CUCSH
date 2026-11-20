@@ -105,21 +105,28 @@ class DocumentoController extends Controller
         }
 
         // Declaraciones de la ENTIDAD del Formato de PP: van tal cual al convenio
-        $empresa->update($request->validate([
-            'representante_legal' => ['required', 'string', 'max:255'],
-            'representante_cargo' => ['required', 'string', 'max:255'],
-            'domicilio_fiscal' => ['required', 'string', 'max:500'],
-            'constitucion' => ['required', 'string', 'max:1500'],
+        $request->merge([
+            'tipo_organismo' => $empresa->tipo_organismo->value,
+            'representante_legal' => \App\Support\Formatos::limpiar($request->input('representante_legal')),
+            'escritura_numero' => \App\Support\Formatos::digitos($request->input('escritura_numero')) ?: null,
+            'folio_mercantil' => strtoupper(trim((string) $request->input('folio_mercantil'))) ?: null,
+        ]);
+        $empresa->update(\App\Support\DatosNotariales::preparar($request->validate([
+            'representante_legal' => ['required', 'string', 'min:5', 'max:255', 'regex:' . \App\Support\Formatos::NOMBRE_PERSONA],
+            'representante_cargo' => ['required', 'string', 'min:3', 'max:255', 'regex:' . \App\Support\Formatos::TEXTO_LETRAS],
+            'domicilio_fiscal' => ['required', 'string', 'min:10', 'max:500'],
+            ...\App\Support\DatosNotariales::reglas(),
             'objeto_social' => ['required', 'string', 'max:1500'],
             'facultad_firmante' => ['required', 'string', 'max:1500'],
         ], [
             'representante_legal.required' => 'Escribe el nombre del representante legal.',
             'representante_cargo.required' => 'Escribe el cargo del representante legal.',
             'domicilio_fiscal.required' => 'Escribe el domicilio legal.',
-            'constitucion.required' => 'Escribe los datos del acta o decreto de creación.',
+            ...\App\Support\DatosNotariales::mensajes(),
+            ...\App\Support\Formatos::mensajes(),
             'objeto_social.required' => 'Escribe el objeto social o las atribuciones.',
             'facultad_firmante.required' => 'Escribe la facultad de quien firma.',
-        ]));
+        ]), $empresa->tipo_organismo));
 
         return back()->with('status', 'Datos legales actualizados.');
     }

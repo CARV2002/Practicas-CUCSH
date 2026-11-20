@@ -145,12 +145,14 @@ test('al formalizar, la fecha de fin se calcula con la duración pactada', funct
 
 test('la empresa captura sus datos legales en Documentos', function () {
     $this->actingAs($this->empresaUser)->put(route('empresa.datos-legales'), [
-        'representante_legal' => 'Ing. Nuevo', 'representante_cargo' => 'Apoderado', 'domicilio_fiscal' => 'Calle 2',
-        'constitucion' => 'decreto del 1 de enero', 'objeto_social' => 'servicios públicos', 'facultad_firmante' => 'reglamento interior',
+        'representante_legal' => 'Ing. Nuevo Representante', 'representante_cargo' => 'Apoderado', 'domicilio_fiscal' => 'Calle 2 núm. 15, Guadalajara',
+        ...datosNotarialesPrueba(), 'objeto_social' => 'servicios públicos de asesoría', 'facultad_firmante' => 'el reglamento interior vigente',
     ])->assertSessionHasNoErrors();
 
     expect($this->empresa->refresh()->representante_cargo)->toBe('Apoderado')
-        ->and($this->empresa->constitucion)->toBe('decreto del 1 de enero');
+        ->and($this->empresa->escritura_numero)->toBe('1234')
+        // La declaración del convenio se redacta sola con los datos notariales
+        ->and($this->empresa->constitucion)->toContain('escritura pública número 1234')->toContain('Lic. Juan Notario, Notario Público número 5');
 });
 
 test('postularse exige confirmar SIIAU y un convenio con vigencia suficiente', function () {
@@ -227,7 +229,7 @@ test('el rechazo pide reiniciar el trámite y el vencimiento avisa por correo a 
     // Sin convenio vigente, la página explica que debe iniciar de nuevo
     $this->convenio->delete();
     $this->actingAs($this->empresaUser)->get(route('empresa.convenio'))->assertOk()
-        ->assertSee('Tu última solicitud fue rechazada')->assertSee('iniciar de nuevo todo el trámite');
+        ->assertSee('Tu última solicitud fue rechazada')->assertSee('Puedes empezar el trámite de nuevo');
 });
 
 /* ------------------- Bajas: criterios de la Coordinación de Carrera ------------------- */
@@ -344,4 +346,80 @@ test('la campana avisa al alumno que su coordinación le devolvió un documento 
     $this->actingAs($this->alumnoUser)->getJson(route('notificaciones.resumen'))->assertOk()
         ->assertJsonPath('pendientes.0.tipo', 'error')
         ->assertJsonPath('pendientes.0.mensaje', fn ($m) => str_contains($m, 'te devolvió tu constancia IMSS') && str_contains($m, 'Está vencida'));
+});
+
+/* ------------------- Proceso de Vinculación (documento «PROCESO VINCU») ------------------- */
+
+/** Solicitud nueva de la empresa con su expediente completo, aún sin revisar. */
+function acSolicitudConExpediente($test): Convenio
+{
+    $convenio = app(ConvenioWorkflow::class)->solicitar($test->empresa, [
+        'objetivos' => 'Formar practicantes', 'actividades_propuestas' => 'Apoyo en audiencias', 'plazas_estimadas' => 2,
+    ], [$test->abog->id]);
+    foreach (Empresa::coleccionesObligatorias() as $col) {
+        $test->empresa->addMedia(acPdf("{$col}.pdf"))->toMediaCollection($col);
+    }
+
+    return $convenio;
+}
+
+test('al aprobar el último documento la propuesta llega sola a la coordinación de la carrera', function () {
+    Notification::fake();
+    $convenio = acSolicitudConExpediente($this);
+    $media = $this->empresa->fresh()->media;
+
+    foreach ($media->slice(0, -1) as $m) {
+        $this->actingAs($this->lorena)->post(route('admin.convenios.documentos.resolver', [$convenio, $m]), ['estado' => 'validada'])
+            ->assertSessionHas('status', 'Documento aprobado.');
+    }
+    expect($convenio->fresh()->estado)->toBe(ConvenioEstado::Solicitado);
+
+    $this->actingAs($this->lorena)->post(route('admin.convenios.documentos.resolver', [$convenio, $media->last()]), ['estado' => 'validada'])
+        ->assertSessionHas('status', fn ($s) => str_contains($s, 'se envió a las coordinaciones'));
+
+    expect($convenio->fresh()->estado)->toBe(ConvenioEstado::EnValidacionAcademica);
+    Notification::assertSentTo($this->coordUser, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'emite el dictamen de pertinencia'));
+});
+
+test('la coordinación vota con su dictamen escaneado firmado y sellado', function () {
+    Notification::fake();
+    $convenio = acSolicitudConExpediente($this);
+    foreach ($this->empresa->fresh()->media as $m) {
+        $this->actingAs($this->lorena)->post(route('admin.convenios.documentos.resolver', [$convenio, $m]), ['estado' => 'validada']);
+    }
+    $dictamen = $convenio->dictamenes()->first();
+
+    $this->actingAs($this->coordUser)->post(route('coordinacion.dictamenes.registrar', $dictamen), ['dictamen' => 'aprobatorio'])
+        ->assertSessionHasErrors(['documento' => 'Sube tu dictamen escaneado, firmado y sellado (PDF).']);
+
+    $this->actingAs($this->coordUser)->post(route('coordinacion.dictamenes.registrar', $dictamen), ['dictamen' => 'aprobatorio', 'documento' => acPdf('dictamen.pdf')])
+        ->assertSessionHasNoErrors();
+
+    expect($dictamen->fresh()->dictamen)->toBe(Dictamen::Aprobatorio)
+        ->and($dictamen->fresh()->getMedia('dictamen_pertinencia'))->toHaveCount(1);
+    // Lorena lo ve (y lo descarga) en el convenio; ella no califica
+    $this->actingAs($this->lorena)->get(route('admin.convenios.show', $convenio))->assertOk()
+        ->assertSee('Dictamen académico por carrera')->assertSee('Dictamen firmado');
+});
+
+test('la bandeja de Vinculación usa nombres propios: por revisar, en mi oficina y sin PDF duplicado en informes', function () {
+    acSolicitudConExpediente($this);
+
+    $this->actingAs($this->lorena)->get(route('admin.lista-convenios'))->assertOk()
+        ->assertSee('Por revisar')->assertSee('Te toca a ti')->assertSee('Atender');
+    $this->actingAs($this->lorena)->get(route('admin.documentos-fisicos'))->assertOk()
+        ->assertSee('En mi oficina')->assertDontSee('En Vinculación');
+    $this->actingAs($this->lorena)->get(route('admin.informes'))->assertOk()->assertDontSee('PDF por situación');
+});
+
+test('tras el rechazo total la empresa ve el motivo por carrera y una nueva propuesta precargada', function () {
+    Notification::fake();
+    $this->convenio->update(['estado' => ConvenioEstado::Rechazado, 'fecha_fin_vigencia' => null, 'fecha_inicio_vigencia' => null]);
+    $this->convenio->dictamenes()->update(['dictamen' => Dictamen::Negativo->value, 'observaciones' => 'Las actividades no son afines a Derecho.']);
+
+    $this->actingAs($this->empresaUser)->get(route('empresa.convenio'))->assertOk()
+        ->assertSee('Tu última solicitud fue rechazada')
+        ->assertSee('Las actividades no son afines a Derecho.')
+        ->assertSee('Enviar una nueva propuesta')
+        ->assertSee('Apoyo en litigio');   // actividades de la propuesta anterior, para ajustarlas
 });

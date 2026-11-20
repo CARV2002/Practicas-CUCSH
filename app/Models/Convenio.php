@@ -332,8 +332,6 @@ class Convenio extends Model implements HasMedia
                     'Redacción del borrador',
                     $this->getMedia('borrador_convenio')->isEmpty() ? 'Sin borrador adjunto' : 'Borrador v' . $this->getMedia('borrador_convenio')->count() . ' listo para turnar',
                     'lavanda', 'Vinculación'),
-                $this->fecha_turno_secretaria === null => $r('Oficio por turnar', 'Falta registrar el paso por Secretaría Académica', 'lavanda', 'Vinculación'),
-                $this->fecha_turno_division === null => $r('En Secretaría Académica', 'Turnado el ' . $this->fecha_turno_secretaria->format('d/m/Y'), 'lavanda', 'Secretaría Académica'),
                 default => $this->detalleDictamenes($r),
             },
 
@@ -345,10 +343,10 @@ class Convenio extends Model implements HasMedia
                 EtapaConvenio::FirmaEmpresa => $juegos->isEmpty() || $juegos->contains(fn ($j) => $j->estado === EstadoDocumentoFisico::PorElaborar)
                     ? $r('Imprimir los 3 juegos', 'Para entregarlos a la empresa', 'ambar', 'Vinculación')
                     : $r(
-                        'Firma de la empresa',
+                        'Pendiente de firma de la empresa',
                         $juegos->where('estado', EstadoDocumentoFisico::ConEmpresa)->count() . ' de 3 juegos con la empresa · ' . $juegos->where('estado', EstadoDocumentoFisico::FirmadoEmpresa)->count() . ' de vuelta',
                         $juegos->contains(fn ($j) => $j->vencido()) ? 'rosa' : 'ambar', 'Empresa'),
-                EtapaConvenio::FirmaRectoria => $r('Firma de Rectoría', $enDias, $abierta->excedeEspera() ? 'rosa' : 'ambar', 'Rectoría'),
+                EtapaConvenio::FirmaRectoria => $r('Pendiente de firma de Rectoría', $enDias, $abierta->excedeEspera() ? 'rosa' : 'ambar', 'Rectoría'),
                 EtapaConvenio::ArchivoDistribucion => $r('Por formalizar', 'Registrar folio, vigencia y escaneo', 'turquesa', 'Vinculación'),
                 default => $r('En firmas', null, 'ambar', 'Vinculación'),
             },
@@ -374,7 +372,8 @@ class Convenio extends Model implements HasMedia
         return match (true) {
             $rechazados > 0 => $r('Esperando correcciones', "{$rechazados} documento(s) rechazado(s) por corregir", 'rosa', 'Empresa'),
             $vigentes->count() < $total => $r('Expediente incompleto', 'Faltan ' . ($total - $vigentes->count()) . " de {$total} documentos", 'cielo', 'Empresa'),
-            $validados < $total => $r('Revisión de documentos', "{$validados} de {$total} validados", 'cielo', 'Vinculación'),
+            $validados === 0 => $r('Solicitud recibida', "{$total} documentos por revisar", 'cielo', 'Vinculación'),
+            $validados < $total => $r('En revisión de documentos', "{$validados} de {$total} validados", 'cielo', 'Vinculación'),
             default => $r('Listo para turnar', 'Expediente completo y validado', 'turquesa', 'Vinculación'),
         };
     }
@@ -402,8 +401,8 @@ class Convenio extends Model implements HasMedia
 
         return match (true) {
             $dias <= 60 => $r('Por vencer', "Vence en {$dias} días ({$this->fecha_fin_vigencia->format('d/m/Y')})", 'ambar', 'Empresa (renovación)'),
-            $porEntregar > 0 => $r('Vigente', "{$porEntregar} juego(s) por entregar o archivar", 'menta', 'Vinculación'),
-            default => $r('Vigente', 'Hasta el ' . $this->fecha_fin_vigencia->format('d/m/Y'), 'menta', '—'),
+            $porEntregar > 0 => $r('Convenio activo (vigente)', "{$porEntregar} juego(s) por entregar o archivar", 'menta', 'Vinculación'),
+            default => $r('Convenio activo (vigente)', 'Hasta el ' . $this->fecha_fin_vigencia->format('d/m/Y'), 'menta', '—'),
         };
     }
 }

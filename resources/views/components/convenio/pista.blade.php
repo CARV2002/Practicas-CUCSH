@@ -9,9 +9,9 @@
     use App\Enums\ConvenioEstado as E;
 
     $fases = [
-        ['nombre' => 'Documentos', 'estado' => E::Solicitado, 'punto' => 'bg-sky-400', 'halo' => 'ring-sky-100'],
-        ['nombre' => 'Académica', 'estado' => E::EnValidacionAcademica, 'punto' => 'bg-violet-400', 'halo' => 'ring-violet-100'],
-        ['nombre' => 'Jurídica', 'estado' => E::EnRevisionJuridica, 'punto' => 'bg-indigo-400', 'halo' => 'ring-indigo-100'],
+        ['nombre' => 'Revisión de documentos', 'estado' => E::Solicitado, 'punto' => 'bg-sky-400', 'halo' => 'ring-sky-100'],
+        ['nombre' => 'Dictamen académico', 'estado' => E::EnValidacionAcademica, 'punto' => 'bg-violet-400', 'halo' => 'ring-violet-100'],
+        ['nombre' => 'Revisión jurídica', 'estado' => E::EnRevisionJuridica, 'punto' => 'bg-indigo-400', 'halo' => 'ring-indigo-100'],
         ['nombre' => 'Firmas', 'estado' => E::EnFirmas, 'punto' => 'bg-amber-400', 'halo' => 'ring-amber-100'],
     ];
     $orden = [E::Solicitado->value => 0, E::EnValidacionAcademica->value => 1, E::EnRevisionJuridica->value => 2, E::EnFirmas->value => 3, E::Formalizado->value => 4];
