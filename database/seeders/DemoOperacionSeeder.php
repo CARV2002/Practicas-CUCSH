@@ -30,6 +30,7 @@ use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 
 /**
@@ -273,9 +274,9 @@ class DemoOperacionSeeder extends Seeder
         $acepta = $this->alumno('alumno.aceptacion@test.com', 'Ana Aceptación', 'ABOG', 'DEMO0004', $vigente, creditos: 80);
         $this->postulacion($acepta, $p['abog_abierto'], PostulacionEstado::CartaAceptacionRecibida, 80, validada: true, presentacion: true, aceptacion: true);
 
-        // 4. Restringido: envió su expediente con créditos insuficientes (30% < 50%); está en revisión
-        //    y su coordinación debe devolverlo. No puede postularse mientras tanto.
-        $this->alumno('alumno.restringido@test.com', 'Rafael Restringido', 'ABOG', 'DEMO0005', $vigente, creditos: 30, expediente: 'en_revision');
+        // 4. Restringido (paso 1): subió una constancia IMSS vencida y su coordinación se la devolvió.
+        //    No tiene postulaciones: nadie se postula sin su expediente validado.
+        $this->alumno('alumno.restringido@test.com', 'Rafael Restringido', 'ABOG', 'DEMO0005', now()->subMonths(2), creditos: 62, expediente: 'imss_vencido');
 
         // 5. Práctica EN CURSO con reportes
         $enCurso = $this->alumno('alumno.practica@test.com', 'Paula Práctica', 'ABOG', 'DEMO0006', $vigente, creditos: 85);
@@ -287,9 +288,27 @@ class DemoOperacionSeeder extends Seeder
         $cancelada = $this->alumno('alumno.cancelada@test.com', 'Carlos Cancelado', 'ABOG', 'DEMO0007', $vigente, creditos: 60);
         $po = $this->postulacion($cancelada, $p['abog_abierto'], PostulacionEstado::Cancelada, 60, validada: true, presentacion: true, aceptacion: true);
         $practica = $this->practica($po, 'ABOG', PracticaEstado::Cancelada, now()->subMonths(4), now()->addMonths(2), $this->profes['juridico_2']);
-        // Baja formal: la coordinación decidió conservar sus horas; su expediente sigue validado y puede postularse de nuevo
-        $practica->update(['motivo_baja' => 'cambio_plaza', 'detalle_baja' => 'La organización cerró el área.', 'conserva_horas' => true]);
+        // Baja parcial acreditada (cierre de la organización con un reporte validado): conserva sus 40 h,
+        // su expediente sigue validado y puede postularse de nuevo (1 de 2 bajas)
         $this->reporte($practica, ReporteTipo::Mensual, ReporteEstado::Validado, 40, now()->subMonths(4), now()->subMonths(3), true, 'Buen inicio.');
+        $this->baja($practica, 'cierre_empresa', 'La organización cerró el área donde estaba el alumno.', now()->subMonths(2));
+
+        // 6b. Bloqueado por límite: dos bajas (una sin reportes y otra parcial) → ya no puede postularse por su cuenta
+        $bloqueado = $this->alumno('alumno.bloqueado@test.com', 'Bruno Bloqueado', 'ABOG', 'DEMO0010', $vigente, creditos: 75);
+        $po = $this->postulacion($bloqueado, $p['abog_cerrado'], PostulacionEstado::Cancelada, 75, validada: true, presentacion: true, aceptacion: true);
+        $practica = $this->practica($po, 'ABOG', PracticaEstado::Cancelada, now()->subMonths(8), now()->subMonths(4), $this->profes['juridico_1']);
+        $this->baja($practica, 'cambio_proyecto', 'El proyecto terminó antes de su primer reporte.', now()->subMonths(7));
+        $po = $this->postulacion($bloqueado, $p['abog_interno'], PostulacionEstado::Cancelada, 75, validada: true, presentacion: true, aceptacion: true);
+        $practica = $this->practica($po, 'ABOG', PracticaEstado::Cancelada, now()->subMonths(5), now()->addMonth(), $this->profes['juridico_2']);
+        $this->reporte($practica, ReporteTipo::Mensual, ReporteEstado::Validado, 60, now()->subMonths(5), now()->subMonths(4), true, 'Cumplido.');
+        $this->baja($practica, 'mutuo_acuerdo', 'El área receptora y el alumno acordaron terminar la práctica.', now()->subWeeks(3));
+
+        // 6c. Bloqueado por sanción: abandono injustificado → horas invalidadas y bloqueo hasta que la coordinación lo levante
+        $sancion = $this->alumno('alumno.sancion@test.com', 'Sergio Sancionado', 'CRIM', 'DEMO0011', $vigente, creditos: 70);
+        $po = $this->postulacion($sancion, $p['crim_abierto'], PostulacionEstado::Cancelada, 70, validada: true, presentacion: true, aceptacion: true);
+        $practica = $this->practica($po, 'CRIM', PracticaEstado::Cancelada, now()->subMonths(4), now()->addMonths(2), $this->profes['juridico_1']);
+        $this->reporte($practica, ReporteTipo::Mensual, ReporteEstado::Validado, 35, now()->subMonths(4), now()->subMonths(3), true, 'Regular.');
+        $this->baja($practica, 'abandono', 'La organización reportó que el alumno dejó de asistir sin avisar.', now()->subWeeks(2));
 
         // 7. Práctica ACREDITADA (ciclo completo: carta de término + oficio + SIIAU). Ocupa el único cupo de crim_agotado.
         $acreditada = $this->alumno('alumno.acreditada@test.com', 'Alicia Acreditada', 'CRIM', 'DEMO0008', $vigente, creditos: 90);
@@ -357,6 +376,7 @@ class DemoOperacionSeeder extends Seeder
      */
     private function avisosDemo(): void
     {
+        $validado = 'Tu coordinación validó tu kardex y tu constancia IMSS. ¡Ya puedes postularte a una vacante de tu carrera!';
         $avisos = [
             'vinculacion@test.com' => [
                 ['Nueva solicitud de convenio: Bufete Jurídico Integral S.C.', '/admin/lista-convenios?estado=solicitado', 'Bufete Jurídico Integral S.C.'],
@@ -364,28 +384,68 @@ class DemoOperacionSeeder extends Seeder
             ],
             'coord.abog@test.com' => [
                 ['Empresa Demo S.A. de C.V. registró la vacante «Apoyo en litigio civil (por aprobar)». Revisa horario y actividades para aprobarla.', '/coordinacion/lista-programas?estado=pendiente_aprobacion', 'Apoyo en litigio civil'],
-                ['Elena Elegible (ABOG) se postuló a «Auxiliar jurídico en archivo judicial». Valida créditos e IMSS.', '/coordinacion/lista-practicantes', 'Auxiliar jurídico en archivo judicial'],
+                ['Elena Elegible (ABOG) se postuló a «Auxiliar jurídico en archivo judicial». Su kardex e IMSS ya están validados: emite su carta de presentación.', '/coordinacion/lista-practicantes', 'Auxiliar jurídico en archivo judicial'],
+                ['Rafael Restringido (ABOG) envió su kardex y su constancia IMSS para revisión.', '/coordinacion/lista-practicantes', null],
+                ['Bruno Bloqueado (ABOG) llegó al límite de 2 bajas: ya no puede postularse sin un desbloqueo excepcional.', '/coordinacion/lista-practicantes', null],
+            ],
+            'coord.crim@test.com' => [
+                ['La práctica de Sergio Sancionado se registró como baja por sanción (abandono injustificado). Quedó bloqueado hasta que levantes la restricción.', '/coordinacion/lista-practicantes', null],
             ],
             'empresa@test.com' => [
                 ['Tu convenio quedó formalizado (folio CV-DEMO-001). Ya puedes proponer vacantes para las carreras aprobadas.', '/empresa/convenio', 'CV-DEMO-001'],
             ],
             'alumno.elegible@test.com' => [
-                ['Tu coordinación validó tu constancia IMSS.', '/alumno/mis-documentos', null],
+                [$validado, '/alumno/oferta-programas', null],
+            ],
+            'alumno.tramite@test.com' => [
+                [$validado, '/alumno/oferta-programas', null],
+                ['Tu carta de presentación para «Auxiliar jurídico en archivo judicial» está generada: descárgala, preséntala en la organización y entrega tu carta de aceptación.', '/alumno/mis-documentos', null],
+            ],
+            'alumno.aceptacion@test.com' => [
+                [$validado, '/alumno/oferta-programas', null],
+                ['Tu carta de presentación para «Auxiliar jurídico en archivo judicial» está generada: descárgala, preséntala en la organización y entrega tu carta de aceptación.', '/alumno/mis-documentos', null],
+                ['Tu coordinación registró tu carta de aceptación. Activará tu práctica en breve y te avisaremos cuando puedas reportar horas.', '/alumno/mis-documentos', null],
+            ],
+            'alumno.restringido@test.com' => [
+                ['Tu coordinación te devolvió tu constancia IMSS: está vencida. Sube una vigente en Mis documentos para que revise tu expediente y puedas postularte.', '/alumno/mis-documentos', null],
+            ],
+            'alumno.practica@test.com' => [
+                ['Tu práctica en «Auxiliar jurídico en archivo judicial» está activa. Entrega tus reportes firmados a tiempo para que cuenten tus horas.', '/alumno/mis-practicas', null],
+            ],
+            'alumno.cancelada@test.com' => [
+                ['Tu práctica en «Auxiliar jurídico en archivo judicial» se dio de baja (Cierre o baja de la organización). Conservas tus 40 horas validadas: en tu siguiente plaza solo cubrirás las restantes. Ya puedes postularte a otra vacante.', '/alumno/mis-documentos', null],
+            ],
+            'alumno.bloqueado@test.com' => [
+                ['Tu práctica en «Proyecto interno: clínica jurídica» se dio de baja (Mutuo acuerdo). Llegaste al límite de 2 bajas: acude a tu Coordinación de Carrera si tuviste una causa de fuerza mayor.', '/alumno/mis-documentos', null],
+            ],
+            'alumno.sancion@test.com' => [
+                ['Tu práctica en «Analista de política criminal» se dio de baja por sanción (Abandono injustificado). Tus horas no se conservan y no puedes postularte hasta que tu coordinación levante la restricción.', '/alumno/mis-documentos', null],
+            ],
+            'alumno.acreditada@test.com' => [
+                ['¡Tu práctica profesional quedó acreditada! Control Escolar capturó tu acreditación en SIIAU.', '/alumno/mis-practicas', null],
             ],
         ];
 
+        // Avisos de demostración que ya no corresponden a las reglas vigentes
+        DB::table('notifications')->whereIn('data->mensaje', [
+            'Tu coordinación validó tu constancia IMSS.',
+            'Elena Elegible (ABOG) se postuló a «Auxiliar jurídico en archivo judicial». Valida créditos e IMSS.',
+        ])->delete();
+
         foreach ($avisos as $email => $lista) {
             $user = User::where('email', $email)->first();
-            if (!$user || $user->notifications()->exists()) {
-                continue;   // idempotente
+            if (!$user) {
+                continue;
             }
             foreach ($lista as [$mensaje, $url, $detalle]) {
+                if ($user->notifications()->where('data->mensaje', $mensaje)->exists()) {
+                    continue;   // idempotente
+                }
                 // Solo campana (sin correo): AvisoOperativo con correo=false
                 $user->notify(new \App\Notifications\AvisoOperativo($mensaje, $url, $detalle));
             }
         }
     }
-
     private function usuarioInactivo(): void
     {
         // Para probar el bloqueo de login de cuentas desactivadas
@@ -454,7 +514,7 @@ class DemoOperacionSeeder extends Seeder
 
     /**
      * Alumno con su expediente (kardex + IMSS), que se valida ANTES de postularse.
-     * $expediente: validado | en_revision | devuelto | sin_enviar
+     * $expediente: validado | en_revision | devuelto | imss_vencido | sin_enviar
      */
     private function alumno(string $email, string $nombre, string $clave, string $control, ?Carbon $imss,
         bool $activo = true, ?float $creditos = null, string $expediente = 'validado'): Alumno
@@ -470,7 +530,12 @@ class DemoOperacionSeeder extends Seeder
             'porcentaje_creditos' => $creditos,
         ]);
 
-        if ($imss && $expediente !== 'sin_enviar') {
+        if ($expediente === 'imss_vencido') {
+            // Subió una constancia ya vencida: la coordinación se la devolvió; el kardex espera revisión
+            $this->adjuntar($alumno, 'kardex', 'kardex.pdf');
+            $this->adjuntar($alumno, 'constancia_imss', 'constancia-imss.pdf', ValidacionEstado::Rechazada,
+                'La constancia está vencida (vigencia al ' . $imss?->format('d/m/Y') . '). Descarga una vigente en el portal del IMSS.');
+        } elseif ($imss && $expediente !== 'sin_enviar') {
             $estado = match ($expediente) {
                 'validado' => ValidacionEstado::Validada,
                 'devuelto' => ValidacionEstado::Rechazada,
@@ -520,6 +585,19 @@ class DemoOperacionSeeder extends Seeder
             'fecha_fin' => $fin->toDateString(),
             'horas_requeridas' => $this->carreras[$clave]->horas_requeridas,
             'estado' => $estado,
+        ]);
+    }
+
+    /** Baja formal: el tipo sale del motivo y de los reportes validados, como en la coordinación. */
+    private function baja(Practica $practica, string $motivo, string $detalle, Carbon $fecha): void
+    {
+        $tipo = $practica->fresh()->resolverBaja($motivo);
+        $practica->update([
+            'motivo_baja' => $motivo,
+            'detalle_baja' => $detalle,
+            'tipo_baja' => $tipo,
+            'conserva_horas' => $tipo === 'parcial_acreditada',
+            'fecha_baja' => $fecha,
         ]);
     }
 

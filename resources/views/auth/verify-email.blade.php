@@ -6,6 +6,8 @@
 
         @if (session('status') == 'verification-link-sent')
             <div class="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">Te enviamos un nuevo enlace de verificación.</div>
+        @elseif (session('status') == 'verification-failed')
+            <div class="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">No pudimos enviar el correo de confirmación en este momento. Inténtalo de nuevo con «Reenviar correo de verificación»; si sigue fallando, avisa a la Coordinación de Prácticas.</div>
         @endif
 
         <div class="space-y-4">

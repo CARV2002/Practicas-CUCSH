@@ -11,7 +11,7 @@ function usuarioDe(string $rol, bool $activo = true): User
     $user = User::factory()->create(['activo' => $activo]);
     $user->assignRole($rol);
 
-    return $user;
+    return conPerfil($user);
 }
 
 test('un usuario inactivo no puede iniciar sesión aunque la contraseña sea correcta', function () {
@@ -57,4 +57,16 @@ test('un administrador no puede desactivarse a sí mismo', function () {
         ->assertSessionHasErrors('usuario');
 
     expect($admin->refresh()->activo)->toBeTrue();
+});
+test('un alumno cuyo perfil se borró de la base ya no entra ni se le pide verificar el correo', function () {
+    $user = User::factory()->unverified()->create();
+    $user->assignRole(Rol::Alumno->value);   // sin perfil de alumno: como si se hubiera borrado de la tabla alumnos
+
+    $this->post('/signin', ['email' => $user->email, 'password' => 'password'])
+        ->assertSessionHasErrors(['email' => trans('auth.failed')]);
+    $this->assertGuest();
+
+    // Si tenía la sesión abierta, se cierra en vez de mandarlo a verificar el correo
+    $this->actingAs($user)->get('/dashboard')->assertRedirect(route('login'));
+    $this->assertGuest();
 });

@@ -8,6 +8,7 @@ use App\Enums\ReporteEstado;
 use App\Enums\ValidacionEstado;
 use App\Http\Controllers\Controller;
 use App\Models\Practica;
+use App\Support\TramiteAlumno;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -21,10 +22,12 @@ class DashboardController extends Controller
         $practica = Practica::whereHas('postulacion', fn ($p) => $p->where('alumno_id', $alumno->id))
             ->with(['postulacion.programa.convenio.empresa', 'supervisor', 'reportes.media', 'cartaTermino'])
             ->conHorasAcumuladas()
+            // Una práctica dada de baja ya no es «su práctica»: su situación la explica TramiteAlumno
+            ->where('estado', '!=', PracticaEstado::Cancelada->value)
             ->latest('id')
-            ->get()
-            ->sortByDesc(fn ($p) => in_array($p->estado, PracticaEstado::activas(), true))
             ->first();
+
+        $tramite = TramiteAlumno::de($alumno);
 
         $enTramite = $alumno->postulaciones()
             ->with('programa.convenio.empresa')
@@ -35,11 +38,9 @@ class DashboardController extends Controller
         $imss = $alumno->documentoVigente('constancia_imss');
         $imssEstado = $imss?->getCustomProperty('estado');
 
-        $postulacionPendiente = ! $practica && ! $enTramite
-            && $alumno->postulaciones()->where('estado', PostulacionEstado::Pendiente->value)->exists();
-
         $base = [
-            'etapa' => $this->etapa($practica, $enTramite, $postulacionPendiente),
+            'tramite' => $tramite,
+            'situacion' => $tramite->situacion(),
             'alumno' => $alumno,
             'practica' => $practica,
             'enTramite' => $enTramite,
@@ -50,10 +51,10 @@ class DashboardController extends Controller
 
         if (! $practica) {
             return view('alumno.dashboard', $base + [
-                'paso' => $this->pasoSinPractica($alumno, $enTramite, $imss !== null),
+                'paso' => $tramite->situacion()['texto'],
                 'kpis' => null,
                 'alertas' => collect(),
-                'motivacion' => $this->motivacion(0, false, false),
+                'motivacion' => $this->motivacionSinPractica($tramite),
             ]);
         }
 
@@ -87,9 +88,6 @@ class DashboardController extends Controller
         }
         if ($activa && $practica->supervisor === null) {
             $alertas->push(['tipo' => 'info', 'titulo' => 'Supervisor por asignar', 'texto' => 'Tu coordinación te asignará un profesor supervisor.']);
-        }
-        if ($alertas->isEmpty()) {
-            $alertas->push(['tipo' => 'info', 'titulo' => 'Todo en orden', 'texto' => 'No tienes pendientes por atender.']);
         }
 
         return view('alumno.dashboard', $base + [
@@ -128,51 +126,17 @@ class DashboardController extends Controller
         };
     }
 
-    /**
-     * Paso actual del trámite para el indicador visual:
-     * 0 Postúlate · 1 Carta de presentación · 2 Carta de aceptación · 3 Práctica en curso · 4 Cierre · 5 Acreditada
-     * (6 = todo completo).
-     */
-    private function etapa(?Practica $practica, $enTramite, bool $pendiente): int
+    /** @return array{icono:string,titulo:string,texto:string} */
+    /** Antes de la práctica: según el paso en que va (mismo cálculo que la guía de pasos). */
+    private function motivacionSinPractica(TramiteAlumno $tramite): array
     {
-        if ($practica) {
-            return match ($practica->estado) {
-                PracticaEstado::Acreditada => 6,
-                PracticaEstado::EnCierre => 4,
-                default => 3,
-            };
-        }
-
         return match (true) {
-            $enTramite?->estado === PostulacionEstado::CartaAceptacionRecibida => 3,
-            $enTramite?->estado === PostulacionEstado::CartaPresentacionEmitida => 2,
-            $pendiente => 1,
-            default => 0,
+            $tramite->bloqueo !== null => ['icono' => '🧭', 'titulo' => 'Habla con tu coordinación', 'texto' => 'Tu coordinación puede revisar tu caso en persona y, si hubo una causa de fuerza mayor, levantar la restricción.'],
+            $tramite->paso() === 4 => ['icono' => '🤝', 'titulo' => 'Ya casi empiezas', 'texto' => 'Con tus cartas en orden, tu coordinación activará tu práctica y empezarás a sumar horas.'],
+            $tramite->paso() === 3 => ['icono' => '🎯', 'titulo' => 'Elige bien tu plaza', 'texto' => 'Te postulas a una organización a la vez: revisa horario, actividades y sede antes de decidir.'],
+            default => ['icono' => '🛡️', 'titulo' => 'Tu primer paso cuenta', 'texto' => 'Entrega tu kardex e IMSS; con tu expediente validado podrás postularte al programa que más te guste.'],
         };
     }
-
-    private function pasoSinPractica($alumno, $enTramite, bool $tieneImss): string
-    {
-        if ($enTramite) {
-            return $enTramite->estado === PostulacionEstado::CartaPresentacionEmitida
-                ? 'Tu carta de presentación está lista. Preséntate con '.($enTramite->programa->convenio?->empresa->razon_social ?? 'el programa').' y sube la carta de aceptación en Mis documentos.'
-                : 'Tu coordinación registrará tu carta de aceptación y activará tu práctica en breve.';
-        }
-
-        if ($alumno->postulaciones()->where('estado', PostulacionEstado::Pendiente->value)->exists()) {
-            return 'Ya te postulaste. Tu coordinación emitirá tu carta de presentación y te avisaremos por correo cuando esté lista.';
-        }
-
-        // Antes de postularse: el expediente (kardex + IMSS) debe estar validado
-        return match ($alumno->estadoExpediente()) {
-            'validado' => 'Tu coordinación validó tu kardex y tu constancia IMSS. Ya puedes postularte a una vacante de tu carrera.',
-            'en_revision' => 'Tu coordinación está revisando juntos tu kardex y tu constancia IMSS. Si están correctos, te avisaremos y podrás postularte a una vacante.',
-            'devuelto' => 'Tu coordinación te pidió corregir un documento de tu expediente. Sube el PDF corregido en Mis documentos para poder postularte.',
-            'imss_vencido' => 'Tu constancia IMSS venció. Sube una vigente en Mis documentos para continuar.',
-            default => 'Empieza entregando tu kardex y tu constancia IMSS a tu coordinación en Mis documentos. Cuando los valide, podrás postularte.',
-        };
-    }
-
 
     /** @return array{icono:string,titulo:string,texto:string} */
     private function motivacion(int $pct, bool $activa, bool $acreditada): array

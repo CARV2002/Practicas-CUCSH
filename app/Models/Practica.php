@@ -34,6 +34,8 @@ class Practica extends Model
         'fecha_fin',
         'horas_requeridas',
         'motivo_baja',
+        'tipo_baja',
+        'fecha_baja',
         'detalle_baja',
         'conserva_horas',
         'horas_reconocidas',
@@ -49,6 +51,7 @@ class Practica extends Model
             'fecha_fin' => 'date',
             'horas_requeridas' => 'integer',
             'conserva_horas' => 'boolean',
+            'fecha_baja' => 'datetime',
             'horas_reconocidas' => 'integer',
         ];
     }
@@ -123,18 +126,59 @@ class Practica extends Model
         });
     }
 
-    /** Motivos formales de baja o cambio de plaza. */
+    /** Motivos formales de baja o cambio de plaza (criterios de la Coordinación de Carrera). */
     public const MOTIVOS_BAJA = [
-        'baja_temporal' => 'Baja temporal del alumno',
-        'renuncia' => 'Renuncia del alumno',
-        'despido' => 'Terminación por la organización',
+        'cierre_empresa' => 'Cierre o baja de la organización',
+        'cambio_proyecto' => 'Cambio o término del proyecto',
+        'mutuo_acuerdo' => 'Mutuo acuerdo',
         'cambio_plaza' => 'Cambio de plaza',
+        'baja_temporal' => 'Baja temporal del alumno',
+        'renuncia' => 'Renuncia del alumno con aviso',
+        'despido' => 'Despido por la organización',
+        'abandono' => 'Abandono injustificado',
+        'falta_grave' => 'Falta grave o administrativa',
         'otro' => 'Otro motivo',
+    ];
+
+    /** Motivos que la coordinación sanciona: invalidan las horas y bloquean al alumno. */
+    public const MOTIVOS_SANCION = ['despido', 'abandono', 'falta_grave'];
+
+    /** Cómo quedó resuelta la baja. */
+    public const TIPOS_BAJA = [
+        'sin_reportes' => 'Baja sin reportes validados',
+        'parcial_acreditada' => 'Baja parcial acreditada',
+        'sancion' => 'Baja por sanción',
     ];
 
     public function motivoBajaTexto(): ?string
     {
         return $this->motivo_baja ? (self::MOTIVOS_BAJA[$this->motivo_baja] ?? $this->motivo_baja) : null;
+    }
+
+    public function tipoBajaTexto(): ?string
+    {
+        return $this->tipo_baja ? (self::TIPOS_BAJA[$this->tipo_baja] ?? $this->tipo_baja) : null;
+    }
+
+    /**
+     * Resolución de la baja según el motivo y los reportes validados:
+     * sanción → 0 horas; justificada con horas validadas → se conservan; sin reportes → se pierden.
+     */
+    public function resolverBaja(string $motivo): string
+    {
+        return match (true) {
+            in_array($motivo, self::MOTIVOS_SANCION, true) => 'sancion',
+            $this->horas_acumuladas > 0 => 'parcial_acreditada',
+            default => 'sin_reportes',
+        };
+    }
+
+    /** Horas que la baja deja al alumno para su siguiente plaza. */
+    public function horasQueConserva(): int
+    {
+        return $this->tipo_baja === 'parcial_acreditada' || ($this->tipo_baja === null && $this->conserva_horas)
+            ? (int) $this->horas_acumuladas
+            : 0;
     }
 
     public function scopeConHorasAcumuladas(Builder $query): Builder

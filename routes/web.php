@@ -236,6 +236,7 @@ Route::prefix('coordinacion')
         Route::post('/documentos/{media}/resolver', [ExpedienteController::class, 'resolver'])->name('documentos.resolver');
         Route::get('/alumnos/{alumno}/archivos/{media}', [ExpedienteController::class, 'descargarAlumno'])->name('alumnos.archivos');
         Route::post('/alumnos/{alumno}/expediente', [PracticanteController::class, 'revisarExpediente'])->name('alumnos.expediente');
+        Route::post('/alumnos/{alumno}/desbloquear', [PracticanteController::class, 'desbloquear'])->name('alumnos.desbloquear');
 
         // Practicantes y postulaciones
         Route::get('/lista-practicantes', [PracticanteController::class, 'index'])->name('lista-practicantes');

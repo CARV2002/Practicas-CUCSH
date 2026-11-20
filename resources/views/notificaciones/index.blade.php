@@ -4,6 +4,24 @@
 @section('content')
     <x-common.page-breadcrumb pageTitle="Notificaciones" />
 
+    @if (count($pendientes))
+        {{-- Por atender: tu situación actual (no depende de que te hayan enviado un aviso) --}}
+        <section class="tarjeta mb-6 overflow-hidden" aria-labelledby="titulo-pendientes">
+            <div class="border-b border-gray-100 px-6 py-4">
+                <h3 id="titulo-pendientes" class="text-lg font-bold text-gray-900">Por atender</h3>
+                <p class="text-sm text-gray-500">Se actualiza solo según el estado de tu trámite.</p>
+            </div>
+            <div class="space-y-3 p-6">
+                @foreach ($pendientes as $p)
+                    <x-ui.aviso :tipo="$p['tipo']">
+                        {{ $p['mensaje'] }}
+                        <a href="{{ $p['url'] }}" class="enlace mt-1 block font-semibold">Ir ahora</a>
+                    </x-ui.aviso>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
     <div class="tarjeta overflow-hidden">
         <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
             <h3 class="text-lg font-bold text-gray-900">Todas las notificaciones</h3>

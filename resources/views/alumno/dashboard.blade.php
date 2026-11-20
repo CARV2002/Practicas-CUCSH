@@ -2,18 +2,9 @@
 
 @section('content')
 @php
-    $pasos = [
-        ['Entrega tu expediente', 'Kardex e IMSS a tu coordinación'],
-        ['Postúlate', 'Con tu expediente validado'],
-        ['Carta de presentación', 'Tu coordinación la emite'],
-        ['Carta de aceptación', 'La organización te acepta'],
-        ['Práctica en curso', 'Reporta tus horas'],
-        ['Cierre', 'Carta de término y oficio'],
-        ['Acreditada', 'Captura en SIIAU'],
-    ];
+    // Los mismos pasos que «Mis documentos» (App\Support\TramiteAlumno)
+    $pasos = $tramite->pasos();
     $pct = $kpis['pct'] ?? 0;
-    // Paso 0 = entregar el expediente (kardex + IMSS); una vez validado, la guía sigue en «Postúlate»
-    $etapa = ($etapa === 0 && !$alumno->expedienteValidado()) ? 0 : $etapa + 1;
     $bloqueoOferta = \App\Support\Requisitos::alumnoVerOferta($alumno);
 @endphp
 
@@ -114,8 +105,8 @@
             {{-- Pasos del trámite --}}
             <x-dashboard.panel titulo="Tu trámite paso a paso" icono="check" descripcion="Así avanza tu práctica profesional, del registro a la acreditación.">
                 <ol class="grid grid-cols-1 gap-0 sm:grid-cols-3 sm:gap-y-6 lg:grid-cols-6">
-                    @foreach ($pasos as $i => [$titulo, $ayuda])
-                        @php $hecho = $i < $etapa; $actual = $i === $etapa; @endphp
+                    @foreach ($pasos as $i => ['titulo' => $titulo, 'ayuda' => $ayuda, 'estado' => $estadoPaso])
+                        @php $hecho = $estadoPaso === 'hecho'; $alerta = $estadoPaso === 'alerta'; $actual = $estadoPaso === 'actual' || $alerta; @endphp
                         <li class="relative flex gap-3 pb-6 last:pb-0 sm:flex-col sm:items-center sm:gap-2 sm:pb-0 sm:text-center">
                             {{-- Conector --}}
                             @if (!$loop->last)
@@ -126,10 +117,11 @@
                             <span @class([
                                 'relative z-1 flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition',
                                 'bg-udg-800 text-white' => $hecho,
-                                'bg-oro-400 text-udg-950 ring-4 ring-oro-100' => $actual,
+                                'bg-oro-400 text-udg-950 ring-4 ring-oro-100' => $actual && !$alerta,
+                                'bg-rose-500 text-white ring-4 ring-rose-100' => $alerta,
                                 'bg-gray-100 text-gray-400 ring-1 ring-inset ring-gray-200' => !$hecho && !$actual,
                             ])>
-                                @if ($hecho)<x-dashboard.icono nombre="check" clase="size-4" />@else{{ $i + 1 }}@endif
+                                @if ($hecho)<x-dashboard.icono nombre="check" clase="size-4" />@elseif ($alerta)!@else{{ $i + 1 }}@endif
                             </span>
                             <div class="min-w-0 pt-1 sm:pt-0">
                                 <p @class(['text-sm leading-snug', 'font-semibold text-gray-900' => $actual, 'font-medium text-gray-700' => $hecho, 'text-gray-400' => !$hecho && !$actual])>
@@ -200,29 +192,18 @@
                 </x-ui.aviso>
             @endunless
 
+            {{-- Avisos: primero su situación real (TramiteAlumno), luego lo puntual (reportes, IMSS, supervisor) --}}
             <x-dashboard.panel titulo="Avisos" icono="alerta">
                 <div class="space-y-3">
-                    @forelse ($alertas as $a)
+                    <x-ui.aviso :tipo="$situacion['tipo']" :titulo="$situacion['titulo']">
+                        {{ $situacion['texto'] }}
+                        @if ($situacion['accion'])
+                            <a href="{{ $situacion['accion'][1] }}" class="enlace mt-2 block font-semibold">{{ $situacion['accion'][0] }}</a>
+                        @endif
+                    </x-ui.aviso>
+                    @foreach ($alertas as $a)
                         <x-ui.aviso :tipo="$a['tipo'] === 'danger' ? 'error' : 'info'" :titulo="$a['titulo']">{{ $a['texto'] }}</x-ui.aviso>
-                    @empty
-                        @php $exp = $alumno->estadoExpediente(); @endphp
-                        <x-ui.aviso :tipo="match ($exp) { 'validado' => 'exito', 'devuelto' => 'error', 'en_revision' => 'info', default => 'advertencia' }"
-                            :titulo="match ($exp) {
-                                'validado' => 'Kardex e IMSS validados',
-                                'en_revision' => 'Tu expediente está en revisión',
-                                'devuelto' => 'Corrige un documento de tu expediente',
-                                'imss_vencido' => 'Tu constancia IMSS venció',
-                                default => 'Entrega tu kardex y tu constancia IMSS',
-                            }">
-                            {{ match ($exp) {
-                                'validado' => 'Ya puedes postularte a una vacante de tu carrera.',
-                                'en_revision' => 'Tu coordinación los revisa juntos. Si están correctos, te avisaremos y podrás postularte.',
-                                'devuelto' => 'Sube el PDF corregido en Mis documentos para poder postularte.',
-                                'imss_vencido' => 'Sube una constancia vigente en Mis documentos.',
-                                default => 'Entrégalos a tu coordinación en Mis documentos; cuando los valide, podrás postularte a una vacante.',
-                            } }}
-                        </x-ui.aviso>
-                    @endforelse
+                    @endforeach
                 </div>
             </x-dashboard.panel>
 

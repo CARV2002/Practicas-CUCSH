@@ -89,6 +89,7 @@ class Requisitos
             $alumno->yaAcreditado() => 'Ya acreditaste tus prácticas profesionales.',
             $alumno->tienePracticaActiva() => 'Ya tienes una práctica activa.',
             $alumno->tieneBajaSinResolver() => 'Tu práctica fue cancelada; consulta a tu coordinación de carrera antes de postularte de nuevo.',
+            $alumno->estaBloqueado() => $alumno->textoBloqueo(),
             $alumno->postulaciones()->whereIn('estado', PostulacionEstado::valores([PostulacionEstado::Pendiente, ...PostulacionEstado::enTramite()]))->exists()
                 => 'Ya tienes una postulación en trámite; termina ese proceso antes de postularte a otra.',
             $alumno->grado === null || $alumno->turno === null
@@ -121,6 +122,7 @@ class Requisitos
         return match (true) {
             $alumno->yaAcreditado() => 'Ya acreditaste tus prácticas profesionales.',
             $alumno->tienePracticaActiva() => 'Ya tienes una práctica en curso: consulta tu avance en «Mis prácticas».',
+            $alumno->estaBloqueado() => $alumno->textoBloqueo(),
             $estados->contains(PostulacionEstado::Pendiente)
                 => 'Ya te postulaste: tu coordinación emitirá tu carta de presentación. Se habilita de nuevo si tu postulación se rechaza o cancela.',
             $estados->contains(fn ($e) => in_array($e, [PostulacionEstado::CartaPresentacionEmitida, PostulacionEstado::CartaAceptacionRecibida], true))

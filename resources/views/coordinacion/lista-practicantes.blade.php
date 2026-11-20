@@ -132,6 +132,47 @@
             @endif
         </x-tabla.marco>
 
+        {{-- Alumnos bloqueados: baja por sanción o límite de bajas. Solo la coordinación los libera, con justificación. --}}
+        @if ($bloqueados->isNotEmpty())
+            <x-tabla.marco titulo="Alumnos bloqueados" descripcion="No pueden postularse por su cuenta: tuvieron una baja por sanción o llegaron al límite de {{ \App\Models\Alumno::LIMITE_BAJAS }} bajas. Si el alumno acude con una causa de fuerza mayor, puedes hacer un desbloqueo excepcional." :total="$bloqueados->count()">
+                <ul class="divide-y divide-gray-100">
+                    @foreach ($bloqueados as $al)
+                        @php $bajas = $al->bajasVigentes(); $motivoBloqueo = $al->motivoBloqueo(); @endphp
+                        <li class="grid gap-4 px-6 py-5 lg:grid-cols-[1fr_minmax(0,24rem)]" x-data="{ abierto: false }">
+                            <div class="flex items-start gap-3">
+                                <x-ui.user-avatar :user="$al->user" size="size-10 shrink-0 text-xs ring-2 ring-white" />
+                                <div class="min-w-0">
+                                    <p class="font-semibold text-gray-900">{{ $al->user->name }}</p>
+                                    <p class="text-xs text-gray-500">{{ $al->num_control }} · {{ $al->carrera->carrera_clave }}</p>
+                                    <p class="mt-2 inline-flex rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold text-rose-700 ring-1 ring-inset ring-rose-200">
+                                        {{ $motivoBloqueo === 'sancion' ? 'Baja por sanción' : 'Límite de bajas alcanzado' }}
+                                    </p>
+                                    <ul class="mt-2 space-y-1 text-xs text-gray-600">
+                                        @foreach ($bajas as $b)
+                                            <li>{{ $b->fecha_baja?->format('d/m/Y') ?? 'Sin fecha' }} · {{ $b->motivoBajaTexto() ?? 'Sin motivo' }} · <span class="font-medium">{{ $b->tipoBajaTexto() ?? 'Sin clasificar' }}</span></li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            </div>
+                            <div>
+                                <button type="button" x-show="!abierto" x-on:click="abierto = true" class="boton boton-secundario w-full">Desbloqueo excepcional</button>
+                                <form x-show="abierto" x-cloak method="POST" action="{{ route('coordinacion.alumnos.desbloquear', $al) }}" class="space-y-2">
+                                    @csrf
+                                    <label class="etiqueta" for="just-{{ $al->id }}">Justificación (causa de fuerza mayor)</label>
+                                    <textarea id="just-{{ $al->id }}" name="justificacion" rows="3" required minlength="10" maxlength="1000" class="campo"
+                                        placeholder="Ej. Las dos organizaciones cerraron de forma definitiva; el alumno presentó los comprobantes."></textarea>
+                                    <div class="flex justify-end gap-2">
+                                        <button type="button" x-on:click="abierto = false" class="boton boton-secundario boton-chico">Cancelar</button>
+                                        <button type="submit" class="boton boton-primario boton-chico">Desbloquear alumno</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+            </x-tabla.marco>
+        @endif
+
         {{-- Postulaciones en trámite --}}
         <x-tabla.marco titulo="Postulaciones en trámite" descripcion="Cada fila te dice cuál es el siguiente paso." :total="$postulaciones->total()">
             <table class="tabla">
@@ -343,7 +384,7 @@
                                         <p class="mt-1 text-[11px] text-gray-500">Incluye {{ $pr->horas_reconocidas }} h de su plaza anterior</p>
                                     @endif
                                     @if ($pr->motivo_baja)
-                                        <p class="mt-1 text-[11px] font-medium text-rose-600">{{ $pr->motivoBajaTexto() }} · {{ $pr->conserva_horas ? 'conserva horas' : 'horas reiniciadas' }}</p>
+                                        <p class="mt-1 text-[11px] font-medium text-rose-600">{{ $pr->motivoBajaTexto() }} · {{ $pr->tipoBajaTexto() ?? ($pr->conserva_horas ? 'conserva horas' : 'horas reiniciadas') }}</p>
                                     @endif
                                 </div>
                             </td>
@@ -372,7 +413,7 @@
                                 <div class="flex items-center justify-end gap-2">
                                     @if ($activa)
                                         <button type="button" x-data
-                                            x-on:click="$dispatch('abrir-baja', { id: {{ $pr->id }}, nombre: @js($al->user->name), horas: {{ $horas }} })"
+                                            x-on:click="$dispatch('abrir-baja', { id: {{ $pr->id }}, nombre: @js($al->user->name), horas: {{ $horas }}, bajas: {{ $al->bajasVigentes()->count() }} })"
                                             class="group/btn relative inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 text-sm font-semibold text-rose-600 shadow-theme-xs transition hover:border-rose-300 hover:bg-rose-50 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25">
                                             <x-dashboard.icono nombre="equis" clase="size-4" /> Baja o cambio
                                         </button>
@@ -390,9 +431,25 @@
             <x-slot:pie>{{ $practicas->links() }}</x-slot:pie>
         </x-tabla.marco>
 
-        {{-- Baja o cambio de plaza: la coordinación decide qué pasa con las horas --}}
-        <div x-data="{ abierto: false, p: { id: 0, nombre: '', horas: 0 }, conserva: '1', url: '{{ route('coordinacion.practicas.cancelar', 0) }}' }"
-            x-on:abrir-baja.window="p = $event.detail; conserva = '1'; abierto = true">
+        {{-- Baja de práctica: la resolución sale del motivo y de los reportes validados (criterios de la Coordinación de Carrera) --}}
+        @php
+            $sanciones = \App\Models\Practica::MOTIVOS_SANCION;
+            $motivosJustificados = collect(\App\Models\Practica::MOTIVOS_BAJA)->except($sanciones);
+            $motivosSancion = collect(\App\Models\Practica::MOTIVOS_BAJA)->only($sanciones);
+        @endphp
+        <div x-data="{ abierto: false, p: { id: 0, nombre: '', horas: 0, bajas: 0 }, motivo: 'cierre_empresa', sanciones: @js($sanciones), limite: {{ \App\Models\Alumno::LIMITE_BAJAS }}, url: '{{ route('coordinacion.practicas.cancelar', 0) }}',
+                get tipo() { return this.sanciones.includes(this.motivo) ? 'sancion' : (this.p.horas > 0 ? 'parcial' : 'sin_reportes'); },
+                get bloquea() { return this.tipo === 'sancion' || this.p.bajas + 1 >= this.limite; },
+                get explicacion() {
+                    return { parcial: 'Conserva sus ' + this.p.horas + ' h validadas: en su siguiente plaza solo cubrirá las horas restantes.',
+                        sin_reportes: 'No tiene reportes validados: sus horas no se conservan y deberá iniciar un trámite nuevo.',
+                        sancion: 'Se invalidan todas sus horas (' + this.p.horas + ' h), aunque tenga reportes firmados.' }[this.tipo];
+                },
+                get consecuencia() {
+                    if (this.tipo === 'sancion') return 'El alumno quedará bloqueado hasta que levantes la restricción.';
+                    return 'Será su baja número ' + (this.p.bajas + 1) + ' de ' + this.limite + (this.bloquea ? ': alcanza el límite y quedará bloqueado para postularse.' : '. Podrá postularse de nuevo.');
+                } }"
+            x-on:abrir-baja.window="p = $event.detail; motivo = 'cierre_empresa'; abierto = true">
         <template x-teleport="body">
         <div x-show="abierto" x-cloak x-transition.opacity.duration.200ms x-on:keydown.escape.window="abierto = false"
             class="fixed inset-0 z-[100050] flex items-start justify-center overflow-y-auto p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="titulo-baja">
@@ -400,35 +457,39 @@
             <form method="POST" :action="url.replace(/0$/, p.id)" x-on:click.stop class="relative w-full max-w-lg animate-entrada overflow-hidden rounded-2xl bg-white shadow-theme-xl motion-reduce:animate-none">
                 @csrf
                 <div class="border-b border-gray-100 px-6 py-4">
-                    <h3 id="titulo-baja" class="font-display text-lg font-bold text-gray-900">Baja o cambio de plaza</h3>
+                    <h3 id="titulo-baja" class="font-display text-lg font-bold text-gray-900">Baja de práctica</h3>
                     <p class="text-sm text-gray-500">Práctica de <span class="font-semibold text-gray-800" x-text="p.nombre"></span>. Se libera el cupo y se avisa al alumno y a la organización.</p>
                 </div>
                 <div class="space-y-4 px-6 py-5">
                     <div>
                         <label class="etiqueta" for="baja-motivo">Motivo</label>
-                        <select id="baja-motivo" name="motivo_baja" required class="campo h-11">
-                            @foreach (\App\Models\Practica::MOTIVOS_BAJA as $valor => $texto)
-                                <option value="{{ $valor }}">{{ $texto }}</option>
-                            @endforeach
+                        <select id="baja-motivo" name="motivo_baja" required class="campo h-11" x-model="motivo">
+                            <optgroup label="Baja justificada">
+                                @foreach ($motivosJustificados as $valor => $texto)
+                                    <option value="{{ $valor }}">{{ $texto }}</option>
+                                @endforeach
+                            </optgroup>
+                            <optgroup label="Sanción (invalida horas y bloquea)">
+                                @foreach ($motivosSancion as $valor => $texto)
+                                    <option value="{{ $valor }}">{{ $texto }}</option>
+                                @endforeach
+                            </optgroup>
                         </select>
                     </div>
                     <div>
                         <label class="etiqueta" for="baja-detalle">Qué pasó</label>
                         <textarea id="baja-detalle" name="detalle_baja" rows="2" required maxlength="1000" class="campo" placeholder="Ej. La organización cerró el área; el alumno continuará en otra plaza."></textarea>
                     </div>
-                    <fieldset>
-                        <legend class="etiqueta">¿Qué pasa con sus horas validadas?</legend>
-                        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <label class="flex cursor-pointer flex-col rounded-xl border border-gray-200 px-3 py-2.5 transition hover:border-udg-200 has-[:checked]:border-udg-800 has-[:checked]:bg-udg-50">
-                                <span class="flex items-center gap-2 text-sm font-semibold text-gray-900"><input type="radio" name="conserva_horas" value="1" x-model="conserva"> Se conservan</span>
-                                <span class="mt-0.5 text-xs text-gray-500">Las <span x-text="p.horas"></span> h validadas se suman a su siguiente plaza.</span>
-                            </label>
-                            <label class="flex cursor-pointer flex-col rounded-xl border border-gray-200 px-3 py-2.5 transition hover:border-rose-200 has-[:checked]:border-rose-400 has-[:checked]:bg-rose-50">
-                                <span class="flex items-center gap-2 text-sm font-semibold text-gray-900"><input type="radio" name="conserva_horas" value="0" x-model="conserva"> Se reinician</span>
-                                <span class="mt-0.5 text-xs text-gray-500">Empieza de cero en la nueva institución.</span>
-                            </label>
-                        </div>
-                    </fieldset>
+
+                    {{-- Resultado: se calcula, la coordinación solo elige el motivo --}}
+                    <div class="rounded-xl p-4 ring-1 ring-inset" aria-live="polite"
+                        :class="tipo === 'sancion' ? 'bg-rose-50 ring-rose-200' : (tipo === 'parcial' ? 'bg-emerald-50 ring-emerald-200' : 'bg-amber-50 ring-amber-200')">
+                        <p class="text-sm font-semibold"
+                            :class="tipo === 'sancion' ? 'text-rose-800' : (tipo === 'parcial' ? 'text-emerald-800' : 'text-amber-800')"
+                            x-text="tipo === 'sancion' ? 'Baja por sanción' : (tipo === 'parcial' ? 'Baja parcial acreditada' : 'Baja sin reportes validados')"></p>
+                        <p class="mt-1 text-xs leading-relaxed text-gray-700" x-text="explicacion"></p>
+                        <p class="mt-2 text-xs" :class="bloquea ? 'font-semibold text-rose-700' : 'text-gray-600'" x-text="consecuencia"></p>
+                    </div>
                 </div>
                 <div class="flex justify-end gap-2 border-t border-gray-100 bg-gray-50/60 px-6 py-4">
                     <button type="button" x-on:click="abierto = false" class="boton boton-secundario">Cancelar</button>

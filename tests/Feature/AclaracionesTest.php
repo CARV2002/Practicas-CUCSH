@@ -179,7 +179,7 @@ test('postularse exige confirmar SIIAU y un convenio con vigencia suficiente', f
     $this->actingAs($this->alumnoUser)->get(route('alumno.dashboard'))->assertOk()->assertSee('Agenda la materia en SIIAU');
 });
 
-test('la baja con «conservar horas» pasa las horas validadas a la siguiente plaza', function () {
+test('la baja justificada con reportes validados (parcial acreditada) pasa las horas a la siguiente plaza', function () {
     Notification::fake();
     $programa = ($this->programa)($this->convenio);
     $po = Postulacion::create(['alumno_id' => $this->alumno->id, 'programa_id' => $programa->id, 'estado' => PostulacionEstado::Aceptada,
@@ -190,10 +190,10 @@ test('la baja con «conservar horas» pasa las horas validadas a la siguiente pl
         'horas_reportadas' => 80, 'estado' => ReporteEstado::Validado]);
 
     $this->actingAs($this->coordUser)->post(route('coordinacion.practicas.cancelar', $practica), [])
-        ->assertSessionHasErrors(['motivo_baja', 'detalle_baja', 'conserva_horas']);
+        ->assertSessionHasErrors(['motivo_baja', 'detalle_baja']);
 
     $this->actingAs($this->coordUser)->post(route('coordinacion.practicas.cancelar', $practica), [
-        'motivo_baja' => 'cambio_plaza', 'detalle_baja' => 'La organización cerró el área.', 'conserva_horas' => '1',
+        'motivo_baja' => 'cierre_empresa', 'detalle_baja' => 'La organización cerró el área.',
     ])->assertSessionHasNoErrors();
 
     expect($practica->refresh()->estado)->toBe(PracticaEstado::Cancelada)
@@ -228,4 +228,120 @@ test('el rechazo pide reiniciar el trámite y el vencimiento avisa por correo a 
     $this->convenio->delete();
     $this->actingAs($this->empresaUser)->get(route('empresa.convenio'))->assertOk()
         ->assertSee('Tu última solicitud fue rechazada')->assertSee('iniciar de nuevo todo el trámite');
+});
+
+/* ------------------- Bajas: criterios de la Coordinación de Carrera ------------------- */
+
+/** Práctica en curso del alumno con $horas validadas. */
+function acPracticaConHoras($test, int $horas): Practica
+{
+    $programa = ($test->programa)($test->convenio);
+    $po = Postulacion::create(['alumno_id' => $test->alumno->id, 'programa_id' => $programa->id, 'estado' => PostulacionEstado::Aceptada,
+        'porcentaje_creditos_declarado' => 70, 'fecha_postulacion' => today()]);
+    $practica = Practica::create(['postulacion_id' => $po->id, 'modalidad' => 'externa', 'fecha_inicio' => today()->subMonths(2),
+        'fecha_fin' => today()->addMonths(3), 'horas_requeridas' => 250, 'estado' => PracticaEstado::EnCurso]);
+    if ($horas > 0) {
+        Reporte::create(['practica_id' => $practica->id, 'tipo' => 'mensual', 'periodo_inicio' => today()->subMonth(), 'periodo_fin' => today(),
+            'horas_reportadas' => $horas, 'estado' => ReporteEstado::Validado]);
+    }
+
+    return $practica;
+}
+
+test('la baja sin reportes validados pierde las horas y deja postularse de nuevo', function () {
+    Notification::fake();
+    $practica = acPracticaConHoras($this, 0);
+
+    $this->actingAs($this->coordUser)->post(route('coordinacion.practicas.cancelar', $practica), [
+        'motivo_baja' => 'cambio_proyecto', 'detalle_baja' => 'El proyecto terminó antes del primer reporte.',
+    ])->assertSessionHasNoErrors();
+
+    expect($practica->refresh()->tipo_baja)->toBe('sin_reportes')
+        ->and($practica->fecha_baja)->not->toBeNull()
+        ->and($this->alumno->fresh()->horasConservadas())->toBe(0)
+        ->and($this->alumno->fresh()->estaBloqueado())->toBeFalse()
+        ->and(\App\Support\Requisitos::alumnoPostularse($this->alumno->fresh()))->toBeNull();
+    Notification::assertSentTo($this->alumnoUser, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'no tenías reportes validados'));
+});
+
+test('la baja por sanción invalida las horas, bloquea al alumno y solo la coordinación lo desbloquea', function () {
+    Notification::fake();
+    $practica = acPracticaConHoras($this, 120);
+
+    $this->actingAs($this->coordUser)->post(route('coordinacion.practicas.cancelar', $practica), [
+        'motivo_baja' => 'abandono', 'detalle_baja' => 'Dejó de asistir sin avisar.',
+    ])->assertSessionHasNoErrors();
+
+    $alumno = $this->alumno->fresh();
+    expect($practica->refresh()->tipo_baja)->toBe('sancion')
+        ->and($alumno->horasConservadas())->toBe(0)
+        ->and($alumno->motivoBloqueo())->toBe('sancion')
+        ->and(\App\Support\Requisitos::alumnoPostularse($alumno))->toContain('sanción');
+
+    // No puede postularse por su cuenta y su panel lo explica
+    $otro = ($this->programa)($this->convenio);
+    $this->actingAs($this->alumnoUser)->post(route('alumno.oferta-programas.postular', $otro), ['siiau' => '1'])
+        ->assertSessionHasErrors('postulacion');
+    $this->actingAs($this->alumnoUser)->get(route('alumno.dashboard'))->assertOk()->assertSee('No puedes postularte por ahora');
+
+    // La coordinación lo ve en «Alumnos bloqueados» y hace un desbloqueo excepcional justificado
+    $this->actingAs($this->coordUser)->get(route('coordinacion.lista-practicantes'))->assertOk()->assertSee('Alumnos bloqueados');
+    $this->actingAs($this->coordUser)->post(route('coordinacion.alumnos.desbloquear', $alumno), [])
+        ->assertSessionHasErrors('justificacion');
+    $this->actingAs($this->coordUser)->post(route('coordinacion.alumnos.desbloquear', $alumno), [
+        'justificacion' => 'La organización reconoció un error en el reporte de asistencia.',
+    ])->assertSessionHasNoErrors();
+
+    expect($alumno->fresh()->estaBloqueado())->toBeFalse()
+        ->and($alumno->fresh()->desbloqueo_justificacion)->toContain('error en el reporte');
+    Notification::assertSentTo($this->alumnoUser, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'levantó la restricción'));
+});
+
+test('al llegar a 2 bajas el alumno queda bloqueado para una tercera postulación', function () {
+    Notification::fake();
+    $primera = acPracticaConHoras($this, 0);
+    $this->actingAs($this->coordUser)->post(route('coordinacion.practicas.cancelar', $primera), [
+        'motivo_baja' => 'cambio_proyecto', 'detalle_baja' => 'Cambio de proyecto.',
+    ])->assertSessionHasNoErrors();
+    expect($this->alumno->fresh()->estaBloqueado())->toBeFalse();
+
+    $segunda = acPracticaConHoras($this, 50);
+    $this->actingAs($this->coordUser)->post(route('coordinacion.practicas.cancelar', $segunda), [
+        'motivo_baja' => 'cierre_empresa', 'detalle_baja' => 'Cerró la organización.',
+    ])->assertSessionHasNoErrors()->assertSessionHas('status', fn ($s) => str_contains($s, 'quedó bloqueado'));
+
+    $alumno = $this->alumno->fresh();
+    expect($alumno->motivoBloqueo())->toBe('limite')
+        ->and($alumno->horasConservadas())->toBe(50)   // la baja justificada conserva sus horas aunque quede bloqueado
+        ->and(\App\Support\Requisitos::alumnoVerOferta($alumno))->toContain('límite de 2 bajas');
+    Notification::assertSentTo($this->alumnoUser, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'límite de 2 bajas'));
+});
+
+test('el panel, mis documentos y la campana muestran la etapa real del alumno', function () {
+    $programa = ($this->programa)($this->convenio);
+    Postulacion::create(['alumno_id' => $this->alumno->id, 'programa_id' => $programa->id, 'estado' => PostulacionEstado::CartaAceptacionRecibida,
+        'porcentaje_creditos_declarado' => 70, 'fecha_postulacion' => today()]);
+
+    $tramite = \App\Support\TramiteAlumno::de($this->alumno->fresh());
+    expect($tramite->paso())->toBe(4)
+        ->and($tramite->situacion()['titulo'])->toBe('Tu carta de aceptación quedó registrada');
+
+    // Avisos ya no dice «Kardex e IMSS validados» cuando el alumno va en las cartas
+    $this->actingAs($this->alumnoUser)->get(route('alumno.dashboard'))->assertOk()
+        ->assertSee('Tu carta de aceptación quedó registrada')->assertDontSee('Kardex e IMSS validados')
+        ->assertSee('Cartas de presentación y aceptación');
+    $this->actingAs($this->alumnoUser)->get(route('alumno.mis-documentos'))->assertOk()->assertSee('Cartas de presentación y aceptación');
+
+    $this->actingAs($this->alumnoUser)->getJson(route('notificaciones.resumen'))->assertOk()
+        ->assertJsonPath('pendientes.0.mensaje', fn ($m) => str_contains($m, 'Tu carta de aceptación quedó registrada'));
+});
+
+test('la campana avisa al alumno que su coordinación le devolvió un documento aunque no tenga notificaciones', function () {
+    $alumno = $this->alumno->fresh();
+    $imss = $alumno->documentoVigente('constancia_imss');
+    $alumno->resolverDocumento($imss, ValidacionEstado::Rechazada, 'Está vencida.', $this->coordUser->id);
+
+    $this->actingAs($this->alumnoUser)->getJson(route('notificaciones.resumen'))->assertOk()
+        ->assertJsonPath('pendientes.0.tipo', 'error')
+        ->assertJsonPath('pendientes.0.mensaje', fn ($m) => str_contains($m, 'te devolvió tu constancia IMSS') && str_contains($m, 'Está vencida'));
 });

@@ -126,7 +126,11 @@ class MisPracticasController extends Controller
             return '¡Felicidades! Tu práctica profesional quedó acreditada. Misión cumplida. 🎓';
         }
         if ($p->estado === PracticaEstado::Cancelada) {
-            return 'Esta práctica fue cancelada. Si crees que es un error, consulta a tu coordinación de carrera.';
+            return 'Esta práctica se dio de baja (' . ($p->tipoBajaTexto() ?? 'baja registrada por tu coordinación') . '). '
+                . ($p->horasQueConserva() > 0
+                    ? "Conservas {$p->horasQueConserva()} horas validadas para tu siguiente plaza."
+                    : 'Sus horas no se conservan.')
+                . ' Consulta los detalles en Mis documentos.';
         }
         if ($p->estado === PracticaEstado::EnCierre) {
             return 'Tu carta de término ya fue validada. Solo falta que tu coordinación envíe tu oficio y Control Escolar capture tu acreditación en SIIAU; no tienes que hacer nada más.';

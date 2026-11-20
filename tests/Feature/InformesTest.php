@@ -80,8 +80,8 @@ beforeEach(function () {
 test('solo la coordinación ve los informes', function () {
     $this->actingAs($this->adminGlobal)->get(route('admin.informes'))->assertOk()->assertSee('Resumen de prácticas');
 
-    $this->actingAs(infUser(Rol::Alumno))->get(route('admin.informes'))->assertForbidden();
-    $this->actingAs(infUser(Rol::Empresa))->get(route('admin.informes.exportar', 'practicas'))->assertForbidden();
+    $this->actingAs(conPerfil(infUser(Rol::Alumno)))->get(route('admin.informes'))->assertForbidden();
+    $this->actingAs(conPerfil(infUser(Rol::Empresa)))->get(route('admin.informes.exportar', 'practicas'))->assertForbidden();
 });
 
 test('la exportación es un CSV con BOM, neutraliza fórmulas y respeta filtros', function () {

@@ -21,6 +21,7 @@ test('sin correo verificado no se entra a ningún panel', function () {
     foreach ($paneles as $rol => $ruta) {
         $user = User::factory()->unverified()->create();
         $user->assignRole($rol);
+        conPerfil($user);
 
         $this->actingAs($user)->get(route($ruta))->assertRedirect(route('verification.notice'));
         $this->actingAs($user)->get('/dashboard')->assertRedirect(route('verification.notice'));
@@ -30,6 +31,7 @@ test('sin correo verificado no se entra a ningún panel', function () {
 test('un usuario sin verificar aún puede ver el aviso, la ayuda y cerrar sesión', function () {
     $user = User::factory()->unverified()->create();
     $user->assignRole(Rol::Alumno->value);
+    conPerfil($user);
 
     $this->actingAs($user)->get(route('verification.notice'))->assertOk();
     $this->actingAs($user)->get(route('ayuda'))->assertOk();

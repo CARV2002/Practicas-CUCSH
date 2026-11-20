@@ -21,16 +21,9 @@
         $practicaActiva = $practicas->first(fn ($p) => in_array($p->estado, PrE::activas(), true));
         $puedePostularse = \App\Support\Requisitos::alumnoVerOferta($alumno) === null;
 
-        // Guía: en qué paso va
-        $paso = match (true) {
-            $alumno->yaAcreditado() => 6,
-            $practicaActiva !== null => 5,
-            $enCurso !== null || $pendiente !== null => 4,
-            $expediente === 'validado' => 3,
-            in_array($expediente, ['en_revision', 'devuelto'], true) => 2,
-            default => 1,
-        };
-        $pasos = ['Entrega tu kardex e IMSS', $expediente === 'devuelto' ? 'Corrige lo que te pidan' : 'Revisión de tu coordinación', 'Postúlate a una vacante', 'Cartas de presentación y aceptación', 'Práctica y reportes', 'Acreditada'];
+        // Guía: los mismos pasos que el panel (App\Support\TramiteAlumno)
+        $tramite = \App\Support\TramiteAlumno::de($alumno);
+        $pasos = $tramite->pasos();
         $minimo = \App\Support\Formato::porcentaje($alumno->carrera->porcentaje_creditos_minimo);
     @endphp
 
@@ -47,8 +40,8 @@
         {{-- Guía: en qué paso vas --}}
         <nav aria-label="Avance de tu trámite" class="overflow-x-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs no-scrollbar sm:p-5">
             <ol class="flex min-w-max items-center gap-2 sm:min-w-0 sm:gap-0">
-                @foreach ($pasos as $i => $nombre)
-                    @php $n = $i + 1; $hecho = $n < $paso; $actual = $n === $paso; $alerta = $actual && $n === 2 && $expediente === 'devuelto'; @endphp
+                @foreach ($pasos as $i => ['titulo' => $nombre, 'estado' => $estadoPaso])
+                    @php $n = $i + 1; $hecho = $estadoPaso === 'hecho'; $alerta = $estadoPaso === 'alerta'; $actual = $estadoPaso === 'actual' || $alerta; @endphp
                     <li class="flex flex-1 items-center gap-2 sm:gap-3" @if ($actual) aria-current="step" @endif>
                         <span @class([
                             'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ring-4 transition',
@@ -65,6 +58,10 @@
                 @endforeach
             </ol>
         </nav>
+
+        @if ($tramite->bloqueo)
+            <x-ui.aviso tipo="error" titulo="No puedes postularte por ahora">{{ $alumno->textoBloqueo() }}</x-ui.aviso>
+        @endif
 
         {{-- Expediente: kardex + IMSS --}}
         <section aria-labelledby="titulo-expediente" class="space-y-3">
@@ -201,7 +198,14 @@
                 </div>
 
                 @if (in_array($po->estado, [PE::Rechazada, PE::Cancelada], true))
-                    <p class="px-5 py-4 text-sm text-gray-600 sm:px-6">Esta postulación ya no está activa. Tu expediente sigue validado: puedes postularte a otra vacante de tu carrera.</p>
+                    <p class="px-5 py-4 text-sm text-gray-600 sm:px-6">
+                        Esta postulación ya no está activa.
+                        @if ($puedePostularse)
+                            Tu expediente sigue validado: puedes postularte a otra vacante de tu carrera.
+                        @elseif ($motivoOferta = \App\Support\Requisitos::alumnoVerOferta($alumno))
+                            {{ $motivoOferta }}
+                        @endif
+                    </p>
                 @else
                     <div class="grid grid-cols-1 gap-4 p-5 sm:p-6 lg:grid-cols-2">
                         <x-ui.carga-documento titulo="Carta de presentación" compacto
@@ -280,14 +284,22 @@
                             <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
                                 <p class="font-semibold text-gray-900">Esta práctica se dio de baja</p>
                                 <p class="mt-1">{{ $pr->motivoBajaTexto() ?? 'Baja registrada por tu coordinación' }}{{ $pr->detalle_baja ? ': ' . $pr->detalle_baja : '.' }}</p>
+                                @if ($pr->tipoBajaTexto())
+                                    <p class="mt-2 inline-flex rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-gray-700 ring-1 ring-inset ring-gray-200">{{ $pr->tipoBajaTexto() }}{{ $pr->fecha_baja ? ' · ' . $pr->fecha_baja->format('d/m/Y') : '' }}</p>
+                                @endif
                                 <p class="mt-2">
-                                    @if ($pr->conserva_horas)
-                                        Tu coordinación decidió que <span class="font-semibold">conservas tus {{ $horas }} horas validadas</span>: se sumarán a tu siguiente plaza.
+                                    @if ($pr->horasQueConserva() > 0)
+                                        <span class="font-semibold">Conservas tus {{ $pr->horasQueConserva() }} horas validadas</span>: en tu siguiente plaza solo cubrirás las horas restantes.
+                                    @elseif ($pr->tipo_baja === 'sancion')
+                                        Por ser una baja por sanción, <span class="font-semibold">tus horas no se conservan</span>.
                                     @else
-                                        Tus horas se reinician: empezarás de cero en tu siguiente plaza.
+                                        No tenías reportes validados: <span class="font-semibold">tus horas no se conservan</span> y tu siguiente plaza empieza de cero.
                                     @endif
                                 </p>
-                                @if (\App\Support\Requisitos::alumnoVerOferta($alumno) === null)
+                                @if ($alumno->estaBloqueado())
+                                    <p class="mt-2 font-medium text-rose-700">{{ $alumno->textoBloqueo() }}</p>
+                                @endif
+                                @if ($puedePostularse && $practicas->first(fn ($x) => $x->estado !== PrE::Cancelada) === null)
                                     <a href="{{ route('alumno.oferta-programas') }}" class="boton boton-primario mt-3"><x-dashboard.icono nombre="buscar" clase="size-4" /> Buscar otra vacante</a>
                                 @endif
                             </div>

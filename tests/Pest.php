@@ -68,3 +68,23 @@ function expedienteDe(\App\Models\Alumno $alumno, float $creditos = 70, string $
 
     return $alumno->fresh();
 }
+
+/** Da al usuario el perfil que exige su rol (alumno o empresa): sin él, la cuenta no puede entrar. */
+function conPerfil(\App\Models\User $user): \App\Models\User
+{
+    $rol = $user->rolPrincipal();
+
+    if ($rol === \App\Enums\Rol::Alumno) {
+        $carrera = \App\Models\Carrera::first() ?? \App\Models\Carrera::create([
+            'division_id' => \App\Models\Division::create(['nombre' => 'División de perfil'])->id,
+            'carrera_clave' => 'PERF', 'nombre' => 'Carrera de perfil',
+            'horas_requeridas' => 250, 'porcentaje_creditos_minimo' => 50, 'creditos_otorgados' => 8,
+        ]);
+        \App\Models\Alumno::create(['user_id' => $user->id, 'num_control' => \Illuminate\Support\Str::random(9), 'carrera_id' => $carrera->id]);
+    } elseif ($rol === \App\Enums\Rol::Empresa) {
+        \App\Models\Empresa::create(['user_id' => $user->id, 'rfc' => 'T' . \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(11)),
+            'razon_social' => 'Empresa de perfil', 'tipo_organismo' => \App\Enums\TipoOrganismo::Privado, 'contacto_nombre' => 'Contacto']);
+    }
+
+    return $user->unsetRelation('roles');
+}

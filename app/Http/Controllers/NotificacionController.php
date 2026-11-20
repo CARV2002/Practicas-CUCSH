@@ -13,6 +13,7 @@ class NotificacionController extends Controller
     public function index(Request $request): View
     {
         return view('notificaciones.index', [
+            'pendientes' => \App\Support\Pendientes::de($request->user()),
             'notificaciones' => $request->user()->notifications()->paginate(20),
         ]);
     }
@@ -23,6 +24,8 @@ class NotificacionController extends Controller
         $user = $request->user();
 
         return response()->json([
+            // Lo que el usuario tiene por atender según su situación actual (no depende de avisos previos)
+            'pendientes' => \App\Support\Pendientes::de($user),
             'no_leidas' => $user->unreadNotifications()->count(),
             'items' => $user->notifications()->limit(8)->get()->map(fn($n) => [
                 'id' => $n->id,

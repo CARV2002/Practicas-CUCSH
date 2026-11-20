@@ -56,6 +56,15 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Cuenta sin perfil (su alumno, empresa o personal se eliminó): se trata como si no existiera
+        if ($user && !$user->tienePerfil()) {
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => trans('auth.failed'),
+            ]);
+        }
+
         if (
             !Auth::attempt(
                 [...$this->only('email', 'password'), 'activo' => true],

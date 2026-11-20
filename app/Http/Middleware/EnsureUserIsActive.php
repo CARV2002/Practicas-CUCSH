@@ -23,6 +23,17 @@ class EnsureUserIsActive
             ]);
         }
 
+        // Sesión abierta de una cuenta cuyo perfil se eliminó: se cierra en vez de pedirle verificar el correo
+        if ($user && !$user->tienePerfil()) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->withErrors([
+                'email' => 'Tu cuenta ya no está registrada en el sistema. Si crees que es un error, contacta a la Coordinación de Prácticas Profesionales.',
+            ]);
+        }
+
         return $next($request);
     }
 }

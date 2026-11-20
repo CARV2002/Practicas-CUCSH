@@ -58,6 +58,10 @@ class GoogleAuthController extends Controller
                 return $this->fallo('Tu cuenta está desactivada. Contacta a la Coordinación de Prácticas.');
             }
 
+            if (! $user->tienePerfil()) {
+                return $this->fallo('Tu cuenta ya no está registrada en el sistema. Contacta a la Coordinación de Prácticas.');
+            }
+
             if ($user->email_verified_at === null) {
                 // Google ya comprobó que el correo es suyo: se confirma y se invalida
                 // la contraseña anterior por si otra persona registró esa cuenta.

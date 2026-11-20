@@ -19,11 +19,16 @@ class Alumno extends Model implements HasMedia
 
     protected $table = 'alumnos';
 
-    protected $fillable = ['user_id', 'carrera_id', 'num_control', 'grado', 'turno', 'vigencia_imss', 'porcentaje_creditos'];
+    protected $fillable = ['user_id', 'carrera_id', 'num_control', 'grado', 'turno', 'vigencia_imss', 'porcentaje_creditos',
+        'desbloqueado_at', 'desbloqueo_justificacion', 'desbloqueado_por'];
+
+    /** Al llegar a este número de bajas el alumno ya no puede postularse por su cuenta. */
+    public const LIMITE_BAJAS = 2;
 
     protected function casts(): array
     {
-        return ['vigencia_imss' => 'date', 'grado' => 'integer', 'turno' => \App\Enums\Turno::class, 'porcentaje_creditos' => 'decimal:2'];
+        return ['vigencia_imss' => 'date', 'grado' => 'integer', 'turno' => \App\Enums\Turno::class, 'porcentaje_creditos' => 'decimal:2',
+            'desbloqueado_at' => 'datetime'];
     }
 
     public function registerMediaCollections(): void
@@ -100,7 +105,9 @@ class Alumno extends Model implements HasMedia
             ->when($ids !== null, fn ($q) => $q->whereIn('carrera_id', $ids))
             ->whereHas('media', fn ($m) => $m->whereIn('collection_name', ['constancia_imss', 'kardex']))
             ->get()
-            ->filter(fn (self $a) => $pendiente($a->documentoVigente('kardex')) || $pendiente($a->documentoVigente('constancia_imss')))
+            // Devuelto: la coordinación ya lo revisó y espera la corrección del alumno
+            ->filter(fn (self $a) => $a->estadoExpediente() !== 'devuelto'
+                && ($pendiente($a->documentoVigente('kardex')) || $pendiente($a->documentoVigente('constancia_imss'))))
             ->values();
     }
 
@@ -110,15 +117,73 @@ class Alumno extends Model implements HasMedia
         return self::conExpedientePorRevisar($personal);
     }
 
-    /** Horas validadas que la coordinación decidió conservar de la última baja (0 si se reiniciaron). */
+    /** Horas validadas que conserva de su última baja (solo «baja parcial acreditada»; 0 en los demás casos). */
     public function horasConservadas(): int
     {
-        $ultima = $this->practicas()
+        return $this->ultimaBaja()?->horasQueConserva() ?? 0;
+    }
+
+    public function ultimaBaja(): ?Practica
+    {
+        return $this->practicas()
             ->where('practicas.estado', PracticaEstado::Cancelada->value)
             ->latest('practicas.id')
             ->first();
+    }
 
-        return $ultima && $ultima->conserva_horas ? $ultima->horas_acumuladas : 0;
+    /** Bajas que cuentan para el bloqueo: las posteriores al último desbloqueo excepcional. */
+    public function bajasVigentes(): \Illuminate\Support\Collection
+    {
+        return $this->practicas()
+            ->where('practicas.estado', PracticaEstado::Cancelada->value)
+            ->when($this->desbloqueado_at, fn ($q) => $q->where(fn ($w) => $w
+                ->where('practicas.fecha_baja', '>', $this->desbloqueado_at)
+                ->orWhereNull('practicas.fecha_baja')))
+            ->get();
+    }
+
+    /**
+     * Motivo por el que el alumno no puede postularse por su cuenta (null si no está bloqueado):
+     *  'sancion' → baja por despido, abandono o falta grave
+     *  'limite'  → alcanzó el límite de bajas
+     */
+    public function motivoBloqueo(): ?string
+    {
+        $bajas = $this->bajasVigentes();
+
+        return match (true) {
+            $bajas->contains(fn (Practica $p) => $p->tipo_baja === 'sancion') => 'sancion',
+            $bajas->count() >= self::LIMITE_BAJAS => 'limite',
+            default => null,
+        };
+    }
+
+    public function estaBloqueado(): bool
+    {
+        return $this->motivoBloqueo() !== null;
+    }
+
+    /** Texto para el alumno (y la coordinación) que explica el bloqueo. */
+    public function textoBloqueo(): ?string
+    {
+        return match ($this->motivoBloqueo()) {
+            'sancion' => 'Tu última práctica se dio de baja por sanción: tus horas no se conservan y no puedes postularte hasta que tu coordinación levante la restricción. Acude en persona a tu Coordinación de Carrera.',
+            'limite' => 'Llegaste al límite de ' . self::LIMITE_BAJAS . ' bajas de práctica, así que ya no puedes postularte por tu cuenta. Si tuviste una causa de fuerza mayor, acude en persona a tu Coordinación de Carrera para solicitar un desbloqueo excepcional.',
+            default => null,
+        };
+    }
+
+    /** Alumnos bloqueados del alcance de una coordinación (para el desbloqueo excepcional). */
+    public static function bloqueadosPara(Personal $personal): \Illuminate\Support\Collection
+    {
+        $ids = $personal->carreraIdsEnAlcance();
+
+        return self::with(['user', 'carrera'])
+            ->when($ids !== null, fn ($q) => $q->whereIn('carrera_id', $ids))
+            ->whereHas('practicas', fn ($q) => $q->where('practicas.estado', PracticaEstado::Cancelada->value))
+            ->get()
+            ->filter(fn (self $a) => $a->estaBloqueado())
+            ->values();
     }
 
     /**

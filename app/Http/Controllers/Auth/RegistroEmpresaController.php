@@ -55,9 +55,16 @@ class RegistroEmpresaController extends Controller
             return $user;
         });
 
-        event(new Registered($user));
-
         Auth::login($user);
+
+        // Si Gmail no acepta el envío, la cuenta ya existe: se avisa y puede reenviar el correo de confirmación
+        try {
+            event(new Registered($user));
+        } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
+            report($e);
+
+            return redirect()->route('verification.notice')->with('status', 'verification-failed');
+        }
 
         return redirect(route('dashboard', absolute: false));
     }

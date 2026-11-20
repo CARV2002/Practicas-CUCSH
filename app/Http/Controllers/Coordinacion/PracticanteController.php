@@ -9,6 +9,7 @@ use App\Actions\ActivarPractica;
 use App\Actions\EmitirCartaPresentacion;
 use App\Actions\RegistrarCartaAceptacion;
 use App\Http\Controllers\Controller;
+use App\Models\Alumno;
 use App\Models\Carrera;
 use App\Models\Postulacion;
 use App\Models\Practica;
@@ -56,6 +57,8 @@ class PracticanteController extends Controller
         return view('coordinacion.lista-practicantes', [
             // Kardex e IMSS se revisan juntos ANTES de que el alumno pueda postularse
             'expedientesPorRevisar' => \App\Models\Alumno::conExpedientePorRevisar($personal),
+            // Alumnos con bloqueo por sanción o por límite de bajas: solo un desbloqueo excepcional los libera
+            'bloqueados' => \App\Models\Alumno::bloqueadosPara($personal),
             'practicas' => $practicas,
             'postulaciones' => $postulaciones,
             'carreras' => Carrera::enAlcance($personal)->orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
@@ -286,34 +289,84 @@ class PracticanteController extends Controller
         $datos = $request->validate([
             'motivo_baja' => ['required', \Illuminate\Validation\Rule::in(array_keys(\App\Models\Practica::MOTIVOS_BAJA))],
             'detalle_baja' => ['required', 'string', 'max:1000'],
-            'conserva_horas' => ['required', 'boolean'],
         ], [
             'motivo_baja.required' => 'Indica el motivo de la baja.',
             'detalle_baja.required' => 'Describe brevemente lo que pasó.',
-            'conserva_horas.required' => 'Decide si el alumno conserva sus horas validadas o reinicia en cero.',
         ]);
 
+        // La resolución sale del motivo y de los reportes validados (criterios de la Coordinación de Carrera)
         $horas = $practica->horas_acumuladas;
-        $practica->update(['estado' => PracticaEstado::Cancelada] + $datos);
+        $tipo = $practica->resolverBaja($datos['motivo_baja']);
+        $practica->update($datos + [
+            'estado' => PracticaEstado::Cancelada,
+            'tipo_baja' => $tipo,
+            'conserva_horas' => $tipo === 'parcial_acreditada',
+            'fecha_baja' => now(),
+        ]);
 
+        $alumno = $practica->postulacion->alumno->fresh();
         $titulo = $practica->postulacion->programa->titulo;
-        $decision = $datos['conserva_horas']
-            ? "Conservas tus {$horas} horas validadas para tu siguiente plaza."
-            : 'Tus horas se reinician: empezarás de cero en tu siguiente plaza.';
+        $decision = match ($tipo) {
+            'parcial_acreditada' => "Conservas tus {$horas} horas validadas: en tu siguiente plaza solo cubrirás las horas restantes.",
+            'sancion' => 'Por ser una baja por sanción, tus horas no se conservan.',
+            default => 'Como no tenías reportes validados, tus horas no se conservan y empezarás un trámite nuevo.',
+        };
+        $siguiente = $alumno->estaBloqueado()
+            ? ' ' . $alumno->textoBloqueo()
+            : ' Ya puedes postularte a otra vacante (te queda ' . (Alumno::LIMITE_BAJAS - $alumno->bajasVigentes()->count()) . ' oportunidad antes del límite de bajas).';
 
         Avisos::enviar(Avisos::alumnoDe($practica), new AvisoOperativo(
-            mensaje: "Tu práctica en «{$titulo}» se dio de baja ({$practica->motivoBajaTexto()}). {$decision} Ya puedes postularte a otra vacante.",
-            url: route('alumno.mis-practicas', absolute: false),
+            mensaje: "Tu práctica en «{$titulo}» se dio de baja ({$practica->motivoBajaTexto()}). {$decision}{$siguiente}",
+            url: route('alumno.mis-documentos', absolute: false),
             correo: true,
-            asunto: 'Tu práctica fue cancelada',
+            asunto: 'Tu práctica se dio de baja',
         ));
 
         Avisos::enviar(Avisos::empresaDe($practica), new AvisoOperativo(
-            mensaje: "La práctica de {$practica->postulacion->alumno->user->name} en «{$titulo}» se dio de baja por la Coordinación ({$practica->motivoBajaTexto()}).",
+            mensaje: "La práctica de {$alumno->user->name} en «{$titulo}» se dio de baja por la Coordinación ({$practica->motivoBajaTexto()}).",
             url: route('empresa.practicantes.show', $practica, false),
         ));
 
-        return back()->with('status', 'Baja registrada: ' . ($datos['conserva_horas'] ? "el alumno conserva {$horas} horas." : 'las horas se reinician.'));
+        $resumen = match ($tipo) {
+            'parcial_acreditada' => "baja parcial acreditada: el alumno conserva {$horas} horas.",
+            'sancion' => 'baja por sanción: las horas se invalidan.',
+            default => 'baja sin reportes validados: las horas no se conservan.',
+        };
+
+        return back()->with('status', 'Baja registrada como ' . $resumen
+            . ($alumno->estaBloqueado() ? ' El alumno quedó bloqueado para postularse.' : ''));
+    }
+
+    /** Desbloqueo excepcional: la coordinación levanta la restricción con una justificación. */
+    public function desbloquear(Request $request, Alumno $alumno): RedirectResponse
+    {
+        abort_unless($request->user()->personal?->puedeVerCarrera((int) $alumno->carrera_id), 403);
+
+        $datos = $request->validate([
+            'justificacion' => ['required', 'string', 'min:10', 'max:1000'],
+        ], [
+            'justificacion.required' => 'Escribe la justificación del desbloqueo.',
+            'justificacion.min' => 'Explica con más detalle la causa de fuerza mayor.',
+        ]);
+
+        if (!$alumno->estaBloqueado()) {
+            return back()->withErrors(['desbloqueo' => 'Este alumno no está bloqueado.']);
+        }
+
+        $alumno->update([
+            'desbloqueado_at' => now(),
+            'desbloqueo_justificacion' => $datos['justificacion'],
+            'desbloqueado_por' => $request->user()->id,
+        ]);
+
+        Avisos::enviar($alumno->user, new AvisoOperativo(
+            mensaje: 'Tu coordinación levantó la restricción de tu perfil (desbloqueo excepcional). Ya puedes postularte a una vacante de tu carrera.',
+            url: route('alumno.oferta-programas', absolute: false),
+            correo: true,
+            asunto: 'Ya puedes postularte de nuevo',
+        ));
+
+        return back()->with('status', "Desbloqueaste a {$alumno->user->name}: ya puede postularse de nuevo.");
     }
 
     /** Descarga de archivos de una postulación (kardex, cartas). */

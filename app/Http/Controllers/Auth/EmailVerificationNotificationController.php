@@ -17,7 +17,13 @@ class EmailVerificationNotificationController extends Controller
             return redirect()->intended(route('dashboard', absolute: false));
         }
 
-        $request->user()->sendEmailVerificationNotification();
+        try {
+            $request->user()->sendEmailVerificationNotification();
+        } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
+            report($e);
+
+            return back()->with('status', 'verification-failed');
+        }
 
         return back()->with('status', 'verification-link-sent');
     }

@@ -98,6 +98,23 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         return \App\Enums\Rol::tryFrom((string) $this->roles->first()?->name);
     }
 
+    /**
+     * ¿La cuenta tiene el perfil que exige su rol? Un alumno o empresa cuyo perfil
+     * se borró (p. ej. directo en la base) ya no es una cuenta válida y no puede entrar.
+     */
+    public function tienePerfil(): bool
+    {
+        $rol = $this->rolPrincipal();
+
+        return match (true) {
+            $rol === null => true,   // sin rol: no entra a ningún panel; esta regla solo cuida el perfil de su rol
+            $rol === \App\Enums\Rol::Alumno => $this->alumno()->exists(),
+            $rol === \App\Enums\Rol::Empresa => $this->empresa()->exists(),
+            // El personal sin perfil ya recibe un 403 en su panel (RoleMiddleware)
+            default => true,
+        };
+    }
+
     /** ¿Ve el Centro de ayuda? Vinculación y el Administrador no (operan el sistema). */
     public function tieneAyuda(): bool
     {

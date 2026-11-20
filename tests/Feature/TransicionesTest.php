@@ -117,7 +117,7 @@ test('cancelar una práctica libera el cupo y anula solo los reportes pendientes
 
     expect($this->programa->refresh()->cupos_disponibles)->toBe(0);
 
-    $this->actingAs($this->adminUser)->post(route('coordinacion.practicas.cancelar', $this->practica), ['motivo_baja' => 'renuncia', 'detalle_baja' => 'Renunció', 'conserva_horas' => '1'])->assertSessionHasNoErrors();
+    $this->actingAs($this->adminUser)->post(route('coordinacion.practicas.cancelar', $this->practica), ['motivo_baja' => 'renuncia', 'detalle_baja' => 'Renunció'])->assertSessionHasNoErrors();
 
     expect($this->practica->refresh()->estado)->toBe(PracticaEstado::Cancelada)
         ->and($this->poAna->refresh()->estado)->toBe(PostulacionEstado::Cancelada)
@@ -131,7 +131,7 @@ test('no se cancela una práctica cuyo oficio ya se envió a Control Escolar', f
     OficioAcreditacion::create(['practica_id' => $this->practica->id, 'emitido_por' => $this->admin->id,
         'estado_validacion' => 'validada', 'enviado_control_escolar_at' => now()]);
 
-    $this->actingAs($this->adminUser)->post(route('coordinacion.practicas.cancelar', $this->practica), ['motivo_baja' => 'renuncia', 'detalle_baja' => 'Renunció', 'conserva_horas' => '1'])
+    $this->actingAs($this->adminUser)->post(route('coordinacion.practicas.cancelar', $this->practica), ['motivo_baja' => 'renuncia', 'detalle_baja' => 'Renunció'])
         ->assertSessionHasErrors('practica');
 
     expect($this->practica->refresh()->estado)->toBe(PracticaEstado::EnCierre);
