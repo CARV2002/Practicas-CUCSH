@@ -94,9 +94,13 @@ test('validar o rechazar un documento deja el motivo y la subida queda registrad
 test('las contraseñas nunca se guardan, ni siquiera cifradas', function () {
     $otro = audUser(Rol::Alumno);
 
-    $this->actingAs($this->adminUser)->post(route('admin.usuarios.password', $otro), [
-        'password' => 'clave-nueva-segura-1', 'password_confirmation' => 'clave-nueva-segura-1',
-    ])->assertSessionHasNoErrors();
+    // El administrador solo envía el enlace; la persona escribe su contraseña
+    \Illuminate\Support\Facades\Notification::fake();
+    $this->actingAs($this->adminUser)->post(route('admin.usuarios.password', $otro))->assertSessionHasNoErrors();
+    $token = \Illuminate\Support\Facades\Password::broker('invitaciones')->createToken($otro);
+    auth()->logout();
+    $this->post(route('cuenta.activar.store'), ['token' => $token, 'email' => $otro->email,
+        'password' => 'clave-nueva-segura-1', 'password_confirmation' => 'clave-nueva-segura-1'])->assertSessionHasNoErrors();
 
     $log = AuditLog::where('accion', 'usuario.actualizado')->where('entidad_id', $otro->id)->firstOrFail();
 

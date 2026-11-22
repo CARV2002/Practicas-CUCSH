@@ -123,14 +123,14 @@
                             <x-ui.campo-paso paso="1" etiqueta="Porcentaje de créditos cursados" name="porcentaje_creditos" type="number"
                                 step="0.01" min="{{ $alumno->carrera->porcentaje_creditos_minimo }}" max="100" placeholder="Ej. 72.5"
                                 ayuda="Lo ves en tu kardex. Tu carrera pide al menos {{ $minimo }}%." />
-                            <x-ui.zona-archivo paso="2" name="kardex" etiqueta="Kardex simple del ciclo actual" accept=".pdf,.jpg,.jpeg,.png" formatos="PDF, JPG o PNG"
+                            <x-ui.zona-archivo paso="2" name="kardex" etiqueta="Kardex simple del ciclo actual" accept=".pdf" formatos="PDF"
                                 ayuda="Descárgalo de SIIAU. Si es de un ciclo anterior, tu coordinación lo devolverá." />
                         </div>
                         <div class="space-y-4">
                             <p class="font-display text-base font-bold text-gray-900">Constancia IMSS</p>
                             <x-ui.campo-paso paso="3" etiqueta="¿Hasta qué fecha está vigente tu seguro?" name="vigencia_imss" type="date"
                                 min="{{ now()->addDay()->toDateString() }}" ayuda="Aparece en tu constancia como «Vigencia» o «Vigente hasta»." />
-                            <x-ui.zona-archivo paso="4" name="imss" etiqueta="Constancia de vigencia de derechos" accept=".pdf,.jpg,.jpeg,.png" formatos="PDF, JPG o PNG"
+                            <x-ui.zona-archivo paso="4" name="imss" etiqueta="Constancia de vigencia de derechos" accept=".pdf" formatos="PDF"
                                 ayuda="Descárgala en imss.gob.mx con tu NSS. Si aparece «dado de baja», no se podrá validar." />
                         </div>
                     </div>
@@ -148,7 +148,7 @@
                         :action="route('alumno.documentos.kardex')"
                         titulo="Kardex simple"
                         instrucciones="Descárgalo de SIIAU (Kardex simple) del ciclo actual."
-                        accept=".pdf,.jpg,.jpeg,.png" formatos="PDF, JPG o PNG"
+                        accept=".pdf" formatos="PDF"
                         :estado="$kardexSt" :motivo="$kardex?->getCustomProperty('motivo')"
                         :archivo="$kardex?->file_name" :url-archivo="$kardex ? route('alumno.documentos.descargar', $kardex) : null"
                         :fecha="$kardex?->created_at?->format('d/m/Y')"
@@ -162,7 +162,7 @@
                         :instrucciones="$imssVencido
                             ? 'Tu constancia venció el ' . $alumno->vigencia_imss->format('d/m/Y') . '. Descarga una actualizada en imss.gob.mx y súbela.'
                             : 'Descárgala en imss.gob.mx con tu NSS. Debe estar vigente durante toda tu práctica.'"
-                        accept=".pdf,.jpg,.jpeg,.png" formatos="PDF, JPG o PNG"
+                        accept=".pdf" formatos="PDF"
                         :estado="$imssSt" :motivo="$imss?->getCustomProperty('motivo')"
                         :archivo="$imss?->file_name" :url-archivo="$imss ? route('alumno.documentos.descargar', $imss) : null"
                         :fecha="$imss?->created_at?->format('d/m/Y')"

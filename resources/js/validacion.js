@@ -245,10 +245,13 @@ function contador(campo) {
     ayuda.setAttribute('aria-live', 'polite');
     (campo.parentElement?.classList.contains('relative') ? campo.parentElement : campo).insertAdjacentElement('afterend', ayuda);
     const unidad = campo.dataset.contador || 'caracteres';
+    // Largo exacto (código de alumno, teléfono): ✓ al completarlo. Largo libre (nombres): solo avisa cerca del límite.
+    const exacto = campo.minLength === total;
     const pintar = () => {
         const n = campo.value.length;
-        ayuda.textContent = n === total ? `✓ ${n} de ${total} ${unidad}` : `${n} de ${total} ${unidad}`;
-        ayuda.className = `js-contador mt-1 text-xs ${n === total ? 'text-success-600' : 'text-gray-500'}`;
+        const listo = exacto && n === total;
+        ayuda.textContent = exacto ? `${listo ? '✓ ' : ''}${n} de ${total} ${unidad}` : `${n} / ${total} ${unidad}`;
+        ayuda.className = `js-contador mt-1 text-xs ${listo ? 'text-success-600' : (!exacto && n >= total * 0.9 ? 'text-amber-700' : 'text-gray-500')}`;
     };
     campo.addEventListener('input', pintar);
     pintar();

@@ -362,7 +362,7 @@ class Convenio extends Model implements HasMedia
     private function detalleSolicitud(\Closure $r): array
     {
         $empresa = $this->empresa;
-        $colecciones = Empresa::coleccionesObligatorias();
+        $colecciones = $empresa?->obligatorias() ?? Empresa::coleccionesObligatorias();
         $media = $empresa === null ? collect() : ($empresa->relationLoaded('media') ? $empresa->media : $empresa->media()->get())->whereIn('collection_name', $colecciones);
         $vigentes = collect($colecciones)->map(fn ($c) => $media->where('collection_name', $c)->sortByDesc('id')->first())->filter();
         $validados = $vigentes->filter(fn ($m) => $m->getCustomProperty('estado') === 'validada')->count();

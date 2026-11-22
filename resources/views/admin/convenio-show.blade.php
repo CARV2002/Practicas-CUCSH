@@ -86,8 +86,8 @@
         <div class="space-y-6 xl:col-span-2">
 
             {{-- Expediente --}}
-            <x-dashboard.panel titulo="Expediente de la empresa" icono="documento"
-                :descripcion="$estado === E::Solicitado ? 'Valida cada documento. Si rechazas uno, escribe el motivo: la empresa lo verá.' : 'Los documentos se validan durante la revisión de documentos.'">
+            <x-dashboard.panel id="expediente" class="scroll-mt-24" titulo="Expediente de la empresa" icono="documento"
+                :descripcion="$estado === E::Solicitado ? 'Valida cada documento en el orden que quieras, o marca varios y valídalos juntos. Si alguno está mal, devuélvelo con su motivo. Lo validado ya no se rechaza.' : 'Los documentos se validan durante la revisión de documentos.'">
                 {{-- Lo que capturó la empresa: se compara contra sus documentos --}}
                 <details class="group mb-4 rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-100" @if ($estado === E::Solicitado) open @endif>
                     <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
@@ -123,58 +123,105 @@
                         @endif
                     </dl>
                 </details>
-                <ul class="-my-1 divide-y divide-gray-100">
-                    @foreach ($colecciones as $col)
-                        @php
-                            $media = $empresa->documentoVigente($col);
-                            $st = $media?->getCustomProperty('estado') ?? ($media ? 'pendiente' : null);
-                        @endphp
-                        <li class="flex flex-col gap-3 py-3.5 lg:flex-row lg:items-center lg:justify-between">
-                            <div class="flex min-w-0 items-start gap-3">
-                                <span @class([
-                                    'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset',
-                                    'bg-emerald-50 text-emerald-600 ring-emerald-100' => $st === 'validada',
-                                    'bg-rose-50 text-rose-600 ring-rose-100' => $st === 'rechazada',
-                                    'bg-amber-50 text-amber-600 ring-amber-100' => $st === 'pendiente',
-                                    'bg-gray-50 text-gray-400 ring-gray-200' => !$st,
-                                ])><x-dashboard.icono :nombre="$st === 'validada' ? 'check' : ($st === 'rechazada' ? 'equis' : 'documento')" clase="size-[18px]" /></span>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-semibold text-gray-900">{{ \App\Models\Empresa::nombreDocumento($col) }}</p>
-                                    @if ($media)
-                                        <a href="{{ route('admin.convenios.archivos.descargar', [$convenio, $media]) }}" class="inline-flex max-w-full items-center gap-1 text-xs font-medium text-real-600 hover:text-real-700">
-                                            <x-dashboard.icono nombre="descargar" clase="size-3.5 shrink-0" /><span class="truncate">{{ $media->file_name }}</span>
-                                        </a>
-                                        @if ($media->getCustomProperty('motivo'))<p class="text-xs text-rose-600">Motivo: {{ $media->getCustomProperty('motivo') }}</p>@endif
+                @php
+                    $pendientesLote = collect($colecciones)->map(fn ($c) => $empresa->documentoVigente($c))
+                        ->filter(fn ($m) => $m && in_array($m->getCustomProperty('estado'), [null, 'pendiente'], true));
+                    $revisable = $estado === E::Solicitado;
+                @endphp
+                <div x-data="{ elegidos: [], todos: @js($pendientesLote->pluck('id')->values()) }">
+                    @if ($revisable && $pendientesLote->isNotEmpty())
+                        {{-- Validar por lote: Lorena elige los que ya revisó, en el orden que quiera --}}
+                        <form id="validar-lote" method="POST" action="{{ route('admin.convenios.documentos.validar', $convenio) }}"
+                            class="mb-3 flex flex-col gap-2 rounded-xl bg-emerald-50/60 px-4 py-3 ring-1 ring-inset ring-emerald-100 sm:flex-row sm:items-center sm:justify-between">
+                            @csrf
+                            <label class="flex items-center gap-2 text-sm text-gray-800">
+                                <input type="checkbox" class="rounded border-gray-300" :checked="elegidos.length === todos.length"
+                                    x-on:change="elegidos = $event.target.checked ? [...todos] : []">
+                                Seleccionar los {{ $pendientesLote->count() }} pendientes de revisar
+                            </label>
+                            <button class="boton boton-exito boton-chico" :disabled="elegidos.length === 0" :class="elegidos.length === 0 && 'opacity-50 cursor-not-allowed'">
+                                <x-dashboard.icono nombre="check" clase="size-3.5" /> Validar seleccionados <span x-text="'(' + elegidos.length + ')'"></span>
+                            </button>
+                        </form>
+                    @endif
+
+                    <ul class="-my-1 divide-y divide-gray-100">
+                        @foreach ($colecciones as $col)
+                            @php
+                                $media = $empresa->documentoVigente($col);
+                                $st = $media?->getCustomProperty('estado') ?? ($media ? 'pendiente' : null);
+                                $emision = $media?->getCustomProperty('fecha_emision') ? \Illuminate\Support\Carbon::parse($media->getCustomProperty('fecha_emision')) : null;
+                                $obligatorio = in_array($col, $empresa->obligatorias(), true);
+                            @endphp
+                            <li class="flex flex-col gap-3 py-3.5 lg:flex-row lg:items-center lg:justify-between" x-data="{ rechazar: false }">
+                                <div class="flex min-w-0 items-start gap-3">
+                                    @if ($revisable && $st === 'pendiente')
+                                        <input type="checkbox" form="validar-lote" name="documentos[]" value="{{ $media->id }}" x-model.number="elegidos"
+                                            class="mt-2.5 size-4 shrink-0 rounded border-gray-300" aria-label="Seleccionar {{ \App\Models\Empresa::nombreDocumento($col) }}">
+                                    @endif
+                                    <span @class([
+                                        'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset',
+                                        'bg-emerald-50 text-emerald-600 ring-emerald-100' => $st === 'validada',
+                                        'bg-rose-50 text-rose-600 ring-rose-100' => $st === 'rechazada',
+                                        'bg-amber-50 text-amber-600 ring-amber-100' => $st === 'pendiente',
+                                        'bg-gray-50 text-gray-400 ring-gray-200' => !$st,
+                                    ])><x-dashboard.icono :nombre="$st === 'validada' ? 'check' : ($st === 'rechazada' ? 'equis' : 'documento')" clase="size-[18px]" /></span>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-semibold text-gray-900">{{ \App\Models\Empresa::nombreDocumento($col) }}@unless ($obligatorio)<span class="ml-1 font-normal text-gray-400">(opcional)</span>@endunless</p>
+                                        @if ($media)
+                                            <a href="{{ route('admin.convenios.archivos.descargar', [$convenio, $media]) }}" class="inline-flex max-w-full items-center gap-1 text-xs font-semibold text-real-600 hover:text-real-700">
+                                                <x-dashboard.icono nombre="documento" clase="size-3.5 shrink-0" /><span class="truncate">Ver documento · {{ $media->file_name }}</span>
+                                            </a>
+                                            @if ($emision)
+                                                <p @class(['text-xs', 'font-semibold text-rose-600' => $emision->lt(today()->subMonths(3)), 'text-gray-500' => !$emision->lt(today()->subMonths(3))])>
+                                                    Emitido el {{ $emision->format('d/m/Y') }}{{ $emision->lt(today()->subMonths(3)) ? ' · tiene más de 3 meses' : '' }}
+                                                </p>
+                                            @endif
+                                            @if ($st === 'rechazada' && $media->getCustomProperty('motivo'))<p class="text-xs text-rose-600">Motivo: {{ $media->getCustomProperty('motivo') }}</p>@endif
+                                        @else
+                                            <p class="dato-vacio">La empresa aún no sube este documento</p>
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2 lg:justify-end">
+                                    @if ($st)
+                                        <x-ui.estatus :familia="$estadosDoc[$st][0]" :texto="$st === 'rechazada' ? 'Devuelto: espera corrección' : $estadosDoc[$st][1]" />
+                                        @if ($revisable && $st === 'pendiente')
+                                            {{-- Uno por uno: validar o devolver este documento --}}
+                                            <div x-show="!rechazar" class="flex items-center gap-2">
+                                                <form method="POST" action="{{ route('admin.convenios.documentos.resolver', [$convenio, $media]) }}">
+                                                    @csrf
+                                                    <input type="hidden" name="estado" value="validada">
+                                                    <button class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 active:scale-95">
+                                                        <x-dashboard.icono nombre="check" clase="size-4" /> Validar
+                                                    </button>
+                                                </form>
+                                                <button type="button" x-on:click="rechazar = true; $nextTick(() => $refs.motivo.focus())"
+                                                    class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 active:scale-95">
+                                                    <x-dashboard.icono nombre="equis" clase="size-4" /> Devolver
+                                                </button>
+                                            </div>
+                                            <form x-show="rechazar" x-cloak x-transition.opacity method="POST" action="{{ route('admin.convenios.documentos.resolver', [$convenio, $media]) }}"
+                                                class="flex w-full flex-col gap-2 rounded-xl bg-rose-50/70 p-3 ring-1 ring-inset ring-rose-200 lg:w-80">
+                                                @csrf
+                                                <input type="hidden" name="estado" value="rechazada">
+                                                <label for="motivo-{{ $col }}" class="text-xs font-semibold text-rose-800">¿Qué debe corregir la empresa? <span class="text-rose-500">*</span></label>
+                                                <input id="motivo-{{ $col }}" x-ref="motivo" type="text" name="motivo" required maxlength="1000" pattern=".*\S.*"
+                                                    data-msg-formato="Escribe el motivo para que la empresa sepa qué corregir." placeholder="Ej. Borroso, vencido, incompleto…" class="campo h-9 text-sm">
+                                                <div class="flex justify-end gap-2">
+                                                    <button type="button" x-on:click="rechazar = false" class="boton boton-chico text-gray-500 hover:bg-white">Cancelar</button>
+                                                    <button class="boton boton-chico boton-peligro">Devolver a la empresa</button>
+                                                </div>
+                                            </form>
+                                        @endif
                                     @else
-                                        <p class="dato-vacio">La empresa aún no sube este documento</p>
+                                        <x-ui.estatus familia="gris" texto="Sin archivo" />
                                     @endif
                                 </div>
-                            </div>
-                            <div class="flex flex-wrap items-center gap-2 lg:justify-end">
-                                @if ($st)
-                                    <x-ui.estatus :familia="$estadosDoc[$st][0]" :texto="$estadosDoc[$st][1]" />
-                                    @if ($estado === E::Solicitado)
-                                        <form method="POST" action="{{ route('admin.convenios.documentos.resolver', [$convenio, $media]) }}" class="flex flex-wrap items-center gap-2">
-                                            @csrf
-                                            <label for="motivo-{{ $col }}" class="sr-only">Motivo del rechazo</label>
-                                            <input id="motivo-{{ $col }}" type="text" name="motivo" placeholder="Motivo (si rechazas)" class="campo h-9 w-44 text-xs">
-                                            <button name="estado" value="validada" data-sin-bloqueo="1" title="Validar documento"
-                                                class="inline-flex h-9 items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 active:scale-95">
-                                                <x-dashboard.icono nombre="check" clase="size-3.5" /> Validar
-                                            </button>
-                                            <button name="estado" value="rechazada" data-sin-bloqueo="1" title="Rechazar documento"
-                                                class="inline-flex h-9 items-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 active:scale-95">
-                                                <x-dashboard.icono nombre="equis" clase="size-3.5" /> Rechazar
-                                            </button>
-                                        </form>
-                                    @endif
-                                @else
-                                    <x-ui.estatus familia="gris" texto="Sin archivo" />
-                                @endif
-                            </div>
-                        </li>
-                    @endforeach
-                </ul>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
 
                 @if ($estado === E::Solicitado)
                     <div class="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
@@ -241,7 +288,7 @@
                                 <p class="mt-2 rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">Esta carrera queda fuera del convenio: no aparece en el contrato y sus alumnos no verán a la organización.</p>
                             @endif
                             @if ($pdfDictamen = $d->getFirstMedia('dictamen_pertinencia'))
-                                <a href="{{ route('admin.dictamenes.archivos.descargar', [$d, $pdfDictamen]) }}" data-sin-vista class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-real-600 hover:underline"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Dictamen firmado</a>
+                                <a href="{{ route('admin.dictamenes.archivos.descargar', [$d, $pdfDictamen]) }}" class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-real-600 hover:underline"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Dictamen firmado</a>
                             @endif
                         </li>
                     @empty
@@ -400,7 +447,7 @@
                                 @if ($firmado)
                                     <div class="flex flex-col gap-2 rounded-xl bg-emerald-50 px-4 py-3 ring-1 ring-inset ring-emerald-100 sm:flex-row sm:items-center sm:justify-between">
                                         <p class="flex items-center gap-2 text-sm text-emerald-800"><x-dashboard.icono nombre="check" clase="size-4 shrink-0" /> El convenio firmado ya se subió al registrar la firma de Rectoría.</p>
-                                        <a href="{{ route('admin.convenios.archivos.descargar', [$convenio, $firmado]) }}" data-sin-vista class="text-sm font-semibold text-real-600 hover:underline">Ver {{ $firmado->file_name }}</a>
+                                        <a href="{{ route('admin.convenios.archivos.descargar', [$convenio, $firmado]) }}" class="text-sm font-semibold text-real-600 hover:underline">Ver {{ $firmado->file_name }}</a>
                                     </div>
                                     <details class="mt-2"><summary class="cursor-pointer text-xs font-semibold text-gray-500 hover:text-gray-700">Reemplazar el escaneo</summary>
                                         <div class="mt-2"><x-ui.zona-archivo name="convenio_firmado" etiqueta="Nuevo escaneo del convenio firmado" :max-mb="20" :requerido="false" /></div>
@@ -508,7 +555,7 @@
                                     @endif
                                 @endif
                                 @foreach ($s->media as $evidencia)
-                                    <a href="{{ route('admin.convenios.archivos.descargar', [$convenio, $evidencia]) }}" data-sin-vista class="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-real-600 hover:underline"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> {{ $s->etapa === \App\Enums\EtapaConvenio::DictamenJuridico ? 'Dictamen jurídico' : 'Evidencia' }}</a>
+                                    <a href="{{ route('admin.convenios.archivos.descargar', [$convenio, $evidencia]) }}" class="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-real-600 hover:underline"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> {{ $s->etapa === \App\Enums\EtapaConvenio::DictamenJuridico ? 'Dictamen jurídico' : 'Evidencia' }}</a>
                                 @endforeach
                                 @if ($s->comentario)<p class="mt-1 rounded-lg bg-gray-50 px-2.5 py-1.5 text-xs leading-relaxed text-gray-600">{{ $s->comentario }}</p>@endif
                             </li>

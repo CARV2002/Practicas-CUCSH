@@ -40,7 +40,7 @@
             </div>
             <div class="sm:col-span-2">
                 <label for="dn-notario" class="{{ $etiqueta }}">Notario que dio fe <span class="text-error-500" aria-hidden="true">*</span></label>
-                <input id="dn-notario" type="text" name="notario_nombre" minlength="5" maxlength="255" data-solo="letras" pattern="{{ \App\Support\Formatos::NOMBRE_PERSONA_HTML }}" data-msg-formato="Escribe el nombre completo del notario (nombre y apellido), solo con letras." value="{{ $v('notario_nombre') }}" placeholder="Nombre completo del notario"
+                <input id="dn-notario" type="text" name="notario_nombre" minlength="5" maxlength="80" data-solo="letras" pattern="{{ \App\Support\Formatos::NOMBRE_PERSONA_HTML }}" data-msg-formato="Escribe el nombre completo del notario (nombre y apellido), solo con letras." value="{{ $v('notario_nombre') }}" placeholder="Nombre completo del notario"
                     x-bind:disabled="{{ $fijo }} || !({{ $escritura }})" x-bind:required="{{ $escritura }}" class="{{ $campo }}">
                 @if ($m = $err('notario_nombre'))<p class="mt-1 text-sm text-error-500">{{ $m }}</p>@endif
             </div>

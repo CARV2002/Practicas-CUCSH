@@ -33,7 +33,7 @@ class DatosNotariales
         return [
             'escritura_numero' => [Rule::requiredIf(fn () => in_array(request($campoTipo), $escritura, true)), 'nullable', 'regex:' . Formatos::NUMERO],
             'escritura_fecha' => [Rule::requiredIf(fn () => in_array(request($campoTipo), $escritura, true)), 'nullable', 'date', 'before_or_equal:today'],
-            'notario_nombre' => [Rule::requiredIf(fn () => in_array(request($campoTipo), $escritura, true)), 'nullable', 'string', 'min:5', 'max:255', 'regex:' . Formatos::NOMBRE_PERSONA],
+            'notario_nombre' => [Rule::requiredIf(fn () => in_array(request($campoTipo), $escritura, true)), 'nullable', 'string', 'min:5', 'max:' . Formatos::MAX_NOMBRE_PERSONA, 'regex:' . Formatos::NOMBRE_PERSONA],
             'notaria_numero' => [Rule::requiredIf(fn () => in_array(request($campoTipo), $escritura, true)), 'nullable', 'regex:' . Formatos::NUMERO],
             'notaria_ciudad' => [Rule::requiredIf(fn () => in_array(request($campoTipo), $escritura, true)), 'nullable', 'string', 'max:120', 'regex:' . Formatos::TEXTO_LETRAS],
             'folio_mercantil' => ['nullable', 'regex:' . Formatos::FOLIO],

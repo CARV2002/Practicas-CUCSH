@@ -46,6 +46,10 @@ Route::middleware('guest')->group(function () {
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
 
+    // Personal dado de alta por el administrador: configura su propia contraseña con el enlace de su correo
+    Route::get('cuenta/activar/{token}', [\App\Http\Controllers\Auth\ActivarCuentaController::class, 'create'])->name('cuenta.activar');
+    Route::post('cuenta/activar', [\App\Http\Controllers\Auth\ActivarCuentaController::class, 'store'])->middleware('throttle:10,1')->name('cuenta.activar.store');
+
     Route::get('auth/google', [GoogleAuthController::class, 'redirect'])->name('google.redirect');
     Route::get('auth/google/callback', [GoogleAuthController::class, 'callback'])->name('google.callback');
     Route::get('registro/google', [GoogleAuthController::class, 'completar'])->name('registro.google');

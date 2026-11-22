@@ -94,6 +94,11 @@ class ReporteController extends Controller
             return back()->withErrors(['reporte' => 'Los reportes solo se revisan mientras la práctica está en curso.']);
         }
 
+        // Lo validado ya no se rechaza: sus horas ya cuentan para el alumno
+        if ($reporte->estado === ReporteEstado::Validado && $datos['estado'] === ReporteEstado::Rechazado->value) {
+            return back()->withErrors(['reporte' => 'Este reporte ya está validado y sus horas ya cuentan: no se puede rechazar.']);
+        }
+
         $reporte->update($datos);
 
         $ok = $datos['estado'] === ReporteEstado::Validado->value;

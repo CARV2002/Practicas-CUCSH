@@ -59,10 +59,16 @@ class UsuarioController extends Controller
         $permitidos = array_map(fn(Rol $r) => $r->value, $this->rolesQuePuedeCrear($request->user()));
         $esCoordinador = $request->input('rol') === Rol::Coordinador->value;
 
+        // Solo correos institucionales de la UdG (p. ej. @academicos.udg.mx o @csh.udg.mx)
+        $dominios = config('practicas.google.dominios_personal');
         $datos = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)],
-            'password' => ['required', 'confirmed', Password::defaults()],
+            'name' => ['required', 'string', 'min:5', 'max:' . \App\Support\Formatos::MAX_NOMBRE_PERSONA, 'regex:' . \App\Support\Formatos::NOMBRE_PERSONA],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class),
+                function ($atributo, $valor, $falla) use ($dominios) {
+                    if (!in_array(Str::after((string) $valor, '@'), $dominios, true)) {
+                        $falla('Usa su correo institucional: ' . collect($dominios)->map(fn ($d) => '@' . $d)->join(', ', ' o ') . '.');
+                    }
+                }],
             'puesto' => ['nullable', 'string', 'max:255'],
             'rol' => ['required', Rule::in($permitidos)],
             // Un coordinador SIEMPRE tiene alcance: carrera o división (no ambas)
@@ -73,18 +79,20 @@ class UsuarioController extends Controller
             'carrera_id.required' => 'Elige la carrera (o la división) que coordinará.',
             'division_id.required' => 'Elige la carrera (o la división) que coordinará.',
             'carrera_id.prohibits' => 'Elige carrera o división, no ambas.',
+            'name.regex' => 'Escribe nombre y apellido, solo con letras.',
         ]);
 
         $rol = Rol::from($datos['rol']);
 
-        DB::transaction(function () use ($datos, $rol, $esCoordinador) {
+        $user = DB::transaction(function () use ($datos, $rol, $esCoordinador) {
+            // Contraseña aleatoria, encriptada e inaccesible: nadie (tampoco el administrador) la conoce.
+            // El correo se verifica cuando la persona configura su contraseña desde su bandeja institucional.
             $user = User::create([
                 'name' => $datos['name'],
                 'email' => $datos['email'],
-                'password' => $datos['password'],
+                'password' => Str::random(64),
             ]);
 
-            $user->markEmailAsVerified();
             $user->assignRole($rol->value);
 
             \App\Services\Auditoria::registrar('usuario.rol_asignado', "Rol «{$rol->value}» asignado a {$user->email}", $user);
@@ -101,9 +109,15 @@ class UsuarioController extends Controller
             if ($esCoordinador) {
                 $this->avisarPendientes($user, $personal);
             }
+
+            return $user;
         });
 
-        return back()->with('status', "Cuenta de {$rol->label()} creada.");
+        $enviado = $this->enviarEnlace($user, 'alta');
+
+        return back()->with('status', $enviado
+            ? "Cuenta de {$rol->label()} creada. Enviamos a {$user->email} el enlace para que configure su contraseña (vence en 72 horas)."
+            : "Cuenta de {$rol->label()} creada, pero no se pudo enviar el correo. Usa «Enviar enlace de contraseña» cuando el correo funcione.");
     }
 
     /** Activar o desactivar la cuenta. */
@@ -118,16 +132,36 @@ class UsuarioController extends Controller
         return back()->with('status', $usuario->activo ? 'Cuenta activada.' : 'Cuenta desactivada.');
     }
 
-    /** Restablece la contraseña de una cuenta. */
+    /**
+     * Reenvía el enlace «Configurar mi contraseña» (olvido o cuenta sin activar).
+     * El administrador ya no escribe contraseñas: nunca conoce la clave de otra persona.
+     */
     public function restablecerPassword(Request $request, User $usuario): RedirectResponse
     {
-        $datos = $request->validate([
-            'password' => ['required', 'confirmed', Password::defaults()],
-        ]);
+        if ($usuario->id === $request->user()->id) {
+            return back()->withErrors(['usuario' => 'Para cambiar tu propia contraseña usa tu perfil.']);
+        }
 
-        $usuario->update(['password' => $datos['password']]);
+        return $this->enviarEnlace($usuario, 'restablecer')
+            ? back()->with('status', "Enviamos a {$usuario->email} un enlace para configurar su contraseña (vence en 72 horas).")
+            : back()->withErrors(['usuario' => 'No se pudo enviar el correo. Revisa la configuración del correo e inténtalo de nuevo.']);
+    }
 
-        return back()->with('status', 'Contraseña actualizada.');
+    /** Enlace único y temporal para que la persona ponga su propia contraseña. */
+    private function enviarEnlace(User $usuario, string $motivo): bool
+    {
+        $token = \Illuminate\Support\Facades\Password::broker('invitaciones')->createToken($usuario);
+
+        try {
+            $usuario->notify(new \App\Notifications\ConfigurarContrasena($token, $motivo));
+            \App\Services\Auditoria::registrar('usuario.enlace_contrasena', "Enlace para configurar contraseña enviado a {$usuario->email}", $usuario);
+
+            return true;
+        } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
+            report($e);
+
+            return false;
+        }
     }
 
     public function verificarCorreo(User $usuario): RedirectResponse

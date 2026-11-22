@@ -25,7 +25,7 @@ class RegistroEmpresaController extends Controller
 
     public function store(RegistroEmpresaRequest $request): RedirectResponse
     {
-        $datos = \App\Support\DatosNotariales::preparar($request->validated(), $request->input('tipo_organismo'));
+        $datos = $request->validated();
 
         $user = DB::transaction(function () use ($datos) {
             $user = User::create([
@@ -37,20 +37,15 @@ class RegistroEmpresaController extends Controller
 
             $user->assignRole(Rol::Empresa->value);
 
+            // Solo la cuenta: los datos fiscales, legales y el expediente se llenan en «Mi convenio»
             $user->empresa()->create([
                 'rfc' => $datos['rfc'],
                 'razon_social' => $datos['razon_social'],
                 'tipo_organismo' => $datos['tipo_organismo'],
-                'representante_legal' => $datos['representante_legal'],
-                'representante_cargo' => $datos['representante_cargo'],
-                'domicilio_fiscal' => $datos['domicilio_fiscal'],
-                'constitucion' => $datos['constitucion'],
-                ...\Illuminate\Support\Arr::only($datos, \App\Support\DatosNotariales::CAMPOS),
-                'objeto_social' => $datos['objeto_social'],
-                'facultad_firmante' => $datos['facultad_firmante'],
+                'tipo_organismo_otro' => $datos['tipo_organismo'] === 'otro' ? ($datos['tipo_organismo_otro'] ?? null) : null,
                 'contacto_nombre' => $datos['name'],
-                'contacto_cargo' => $datos['contacto_cargo'] ?? null,
-                'contacto_telefono' => $datos['contacto_telefono'] ?? null,
+                'contacto_cargo' => $datos['contacto_cargo'],
+                'contacto_telefono' => $datos['contacto_telefono'],
             ]);
 
             return $user;

@@ -154,7 +154,7 @@ test('sin convenio vigente la empresa ve bloqueadas sus vacantes y practicantes,
 
 test('la empresa ve deshabilitado «Enviar solicitud» mientras le falten documentos', function () {
     $this->actingAs($this->empresaUser)->get(route('empresa.convenio'))->assertOk()
-        ->assertSee('Sube todos los documentos obligatorios en la sección Documentos (faltan 5).');
+        ->assertSee('Documentos en PDF')->assertSee('Cuando las 4 secciones estén completas podrás enviar la solicitud a Vinculación.');
 });
 
 test('el alumno sin grado/turno o sin IMSS no puede postularse y se le dice qué hacer', function () {

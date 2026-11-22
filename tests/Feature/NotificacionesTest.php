@@ -205,9 +205,8 @@ test('una solicitud de convenio avisa por correo y campana solo a Vinculación a
 
     Notification::fake();
 
-    $this->actingAs($u)->post(route('empresa.convenio.solicitar'), [
-        'objetivos' => 'x', 'actividades_propuestas' => 'y', 'plazas_estimadas' => 3, 'carreras' => [$this->abog->id],
-    ])->assertSessionHasNoErrors();
+    solicitudLista($nueva, [$this->abog->id]);
+    $this->actingAs($u)->post(route('empresa.convenio.solicitar'))->assertSessionHasNoErrors();
 
     Notification::assertSentTo($this->adminGlobal, NuevaSolicitudConvenio::class,
         fn ($n, $canales) => in_array('mail', $canales, true) && in_array('database', $canales, true));

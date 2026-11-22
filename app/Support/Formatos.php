@@ -9,6 +9,15 @@ namespace App\Support;
  */
 class Formatos
 {
+    /** Largo máximo del nombre completo de una persona (alumno, contacto, representante, notario). */
+    public const MAX_NOMBRE_PERSONA = 80;
+
+    /** Largo máximo de la razón social (la del SAT rara vez pasa de 120). */
+    public const MAX_RAZON_SOCIAL = 150;
+
+    /** Código postal de México: 5 dígitos. */
+    public const CODIGO_POSTAL = '/^\d{5}$/';
+
     /** Código de alumno UdG: exactamente 9 dígitos. */
     public const CODIGO_ALUMNO = '/^\d{9}$/';
 

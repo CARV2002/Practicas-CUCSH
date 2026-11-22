@@ -81,6 +81,10 @@ class CierreController extends Controller
 
         $estado = ValidacionEstado::from($datos['estado']);
 
+        if ($carta->estado_validacion === ValidacionEstado::Validada && $estado !== ValidacionEstado::Validada) {
+            return back()->withErrors(['carta' => 'La carta de término ya está validada: no se puede rechazar.']);
+        }
+
         DB::transaction(function () use ($carta, $archivo, $estado, $datos, $request) {
             $carta->update(['estado_validacion' => $estado]);   // si faltan horas, el observer lanza ValidationException
             $carta->resolverDocumento($archivo, $estado, $datos['motivo'] ?? null, $request->user()->id);

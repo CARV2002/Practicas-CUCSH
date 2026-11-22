@@ -36,24 +36,19 @@ class Empresa extends Model implements HasMedia
         'contacto_telefono',
         'descripcion',
         'proyectos_principales',
+        'tipo_organismo_otro', 'giro', 'calle', 'numero_exterior', 'numero_interior', 'colonia', 'codigo_postal', 'municipio', 'entidad',
+        'facultad_origen', 'poder_escritura_numero', 'poder_fecha', 'poder_notario_nombre', 'poder_notaria_numero', 'poder_notaria_ciudad',
+        'solicitud_borrador',
     ];
 
     protected function casts(): array
     {
-        return ['tipo_organismo' => TipoOrganismo::class, 'escritura_fecha' => 'date'];
+        return ['tipo_organismo' => TipoOrganismo::class, 'escritura_fecha' => 'date', 'poder_fecha' => 'date', 'solicitud_borrador' => 'array'];
     }
 
     /** Expediente: datos personales sensibles -> disco "local" (privado, storage/app/private). */
     public function registerMediaCollections(): void
     {
-        $this->addMediaCollection('cv_instancia')
-            ->useDisk('local')
-            ->acceptsMimeTypes([
-                'application/pdf',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            ]);
-
         foreach (self::coleccionesPdf() as $coleccion) {
             $this->addMediaCollection($coleccion)
                 ->useDisk('local')
@@ -75,11 +70,14 @@ class Empresa extends Model implements HasMedia
     public static function coleccionesPdf(): array
     {
         return [
-            'identificacion_representante',
             'acta_constitutiva',
+            'documento_creacion',
+            'nombramiento_representante',
             'constancia_situacion_fiscal',
+            'identificacion_representante',
             'comprobante_domicilio',
-            'poder_notarial',   // opcional: pendiente de confirmar si se pide aparte del acta
+            'poder_notarial',
+            'cv_instancia',
         ];
     }
 
@@ -89,29 +87,73 @@ class Empresa extends Model implements HasMedia
     {
         return [
             'cv_instancia' => 'Currículum de la instancia',
-            'identificacion_representante' => 'Identificación oficial del representante',
-            'acta_constitutiva' => 'Acta constitutiva o nombramiento legal',
+            'identificacion_representante' => 'Identificación oficial del representante (INE o pasaporte)',
+            'acta_constitutiva' => 'Acta constitutiva',
+            'documento_creacion' => 'Documento de creación (ley, decreto o acuerdo)',
+            'nombramiento_representante' => 'Nombramiento oficial vigente del titular',
             'constancia_situacion_fiscal' => 'Constancia de situación fiscal',
             'comprobante_domicilio' => 'Comprobante de domicilio',
-            'poder_notarial' => 'Poder notarial (opcional)',
+            'poder_notarial' => 'Poder notarial del representante',
         ][$coleccion] ?? \Illuminate\Support\Str::headline($coleccion);
     }
 
-    public static function coleccionesObligatorias(): array
+    /** Peso máximo de cada PDF del expediente (MB): suficiente para un escaneo legible. */
+    public const MAX_MB = 5;
+
+    /** Documentos que no pueden tener más de 3 meses de antigüedad al subirse. */
+    public const CON_VIGENCIA = ['constancia_situacion_fiscal', 'comprobante_domicilio'];
+
+    /**
+     * Documentos obligatorios según el tipo de organismo (sin argumento: los de una empresa privada).
+     *  Privada / sociedad civil: acta constitutiva, CSF, identificación del representante y comprobante de domicilio
+     *                            (+ poder notarial si sus facultades vienen de un poder).
+     *  Pública / otro:           documento de creación y nombramiento vigente del titular, en lugar del acta.
+     */
+    public static function coleccionesObligatorias(TipoOrganismo|string|null $tipo = null, ?string $facultadOrigen = null): array
     {
-        return [
-            'cv_instancia',
-            'identificacion_representante',
-            'acta_constitutiva',
+        $tipo = $tipo instanceof TipoOrganismo ? $tipo : (TipoOrganismo::tryFrom((string) $tipo) ?? TipoOrganismo::Privado);
+        $escritura = \App\Support\DatosNotariales::usaEscritura($tipo);
+
+        return array_values(array_filter([
+            $escritura ? 'acta_constitutiva' : 'documento_creacion',
+            $escritura ? null : 'nombramiento_representante',
             'constancia_situacion_fiscal',
+            'identificacion_representante',
             'comprobante_domicilio',
-        ];
+            'cv_instancia',   // «Anexar un breve CV de la instancia» (formulario oficial)
+            $escritura && $facultadOrigen === 'poder' ? 'poder_notarial' : null,
+        ]));
+    }
+
+    /** Documentos obligatorios de ESTA organización. */
+    public function obligatorias(): array
+    {
+        return self::coleccionesObligatorias($this->tipo_organismo, $this->facultad_origen);
+    }
+
+    /** Documentos que la organización puede subir (obligatorios + opcionales que le aplican). */
+    public function documentosAplicables(): array
+    {
+        $escritura = \App\Support\DatosNotariales::usaEscritura($this->tipo_organismo);
+
+        return array_values(array_unique([...$this->obligatorias(), ...($escritura ? ['poder_notarial'] : [])]));
+    }
+
+    /** Domicilio fiscal en una línea (para el convenio), armado con sus partes. */
+    public function domicilioCompleto(): ?string
+    {
+        if (blank($this->calle)) {
+            return $this->domicilio_fiscal;
+        }
+
+        return trim($this->calle . ' ' . $this->numero_exterior . ($this->numero_interior ? ' int. ' . $this->numero_interior : '')
+            . ', col. ' . $this->colonia . ', C.P. ' . $this->codigo_postal . ', ' . $this->municipio . ', ' . $this->entidad);
     }
 
     /** Lo que Lorena hoy revisa "a ojo" en el paso 1.1. */
     public function expedienteCompleto(): bool
     {
-        foreach (self::coleccionesObligatorias() as $coleccion) {
+        foreach ($this->obligatorias() as $coleccion) {
             if (!$this->documentoValidado($coleccion)) {
                 return false;
             }

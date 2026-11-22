@@ -109,12 +109,14 @@ Route::prefix('empresa')
         // Route::view('/convenio', 'empresa.convenio')->name('convenio');
         Route::get('/convenio', [EmpresaConvenioController::class, 'show'])->name('convenio');
         Route::post('/convenio', [EmpresaConvenioController::class, 'solicitar'])->name('convenio.solicitar');
+        Route::put('/convenio/secciones/{seccion}', [EmpresaConvenioController::class, 'guardarSeccion'])->whereIn('seccion', ['generales', 'legales', 'perfiles'])->name('convenio.seccion');
+        Route::get('/codigo-postal/{cp}', [EmpresaConvenioController::class, 'codigoPostal'])->where('cp', '[0-9]{5}')->middleware('throttle:30,1')->name('codigo-postal');
         Route::get('/convenio/{convenio}/archivo', [EmpresaConvenioController::class, 'descargar'])->name('convenio.archivo');
 
         //Route::view('/documentos', 'empresa.documentos')->name('documentos');
         Route::get('/documentos', [DocumentoController::class, 'index'])->name('documentos');
         Route::post('/documentos', [DocumentoController::class, 'subir'])->name('documentos.subir');
-        Route::put('/datos-legales', [DocumentoController::class, 'datosLegales'])->name('datos-legales');
+        Route::put('/datos-legales', [EmpresaConvenioController::class, 'datosLegales'])->name('datos-legales');
         Route::patch('/perfil', [\App\Http\Controllers\Empresa\PerfilController::class, 'update'])->name('perfil.update');
         Route::get('/documentos/{media}', [DocumentoController::class, 'descargar'])->name('documentos.descargar');
 
@@ -149,6 +151,7 @@ Route::prefix('admin')
         Route::get('/lista-convenios', [ConvenioController::class, 'index'])->name('lista-convenios');
         Route::prefix('convenios/{convenio}')->name('convenios.')->group(function () {
             Route::get('/', [ConvenioController::class, 'show'])->name('show');
+            Route::post('/documentos/validar', [ConvenioController::class, 'validarDocumentos'])->name('documentos.validar');
             Route::post('/documentos/{media}', [ConvenioController::class, 'resolverDocumento'])->name('documentos.resolver');
             Route::get('/archivos/{media}', [ConvenioController::class, 'descargar'])->name('archivos.descargar');
             Route::post('/validacion-academica', [ConvenioController::class, 'enviarAValidacionAcademica'])->name('validacion-academica');

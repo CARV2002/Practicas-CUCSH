@@ -68,10 +68,10 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
 
     // Cuenta de Vinculación
     $this->actingAs($this->admin)->post(route('admin.usuarios.store'), [
-        'name' => 'Lorena Vinculación', 'email' => 'lorena@cucsh.test', 'rol' => Rol::Vinculacion->value,
-        'password' => 'Clave-segura-2026', 'password_confirmation' => 'Clave-segura-2026',
+        'name' => 'Lorena Vinculación', 'email' => 'lorena@csh.udg.mx', 'rol' => Rol::Vinculacion->value,
     ])->assertSessionHasNoErrors();
-    $lorena = User::where('email', 'lorena@cucsh.test')->firstOrFail();
+    $lorena = User::where('email', 'lorena@csh.udg.mx')->firstOrFail();
+    $lorena->markEmailAsVerified();   // (configura su contraseña con el enlace de su correo)
 
     // ── 2. Alumno: se registra cuando su carrera AÚN NO tiene coordinación ──
     auth()->logout();
@@ -91,34 +91,61 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
 
     // ── 3. Administrador crea la coordinación: hereda el pendiente ──────────────
     $this->actingAs($this->admin)->post(route('admin.usuarios.store'), [
-        'name' => 'Coordinación de Antropología', 'email' => 'antropologia@cucsh.test', 'rol' => Rol::Coordinador->value,
-        'carrera_id' => $carrera->id, 'password' => 'Clave-segura-2026', 'password_confirmation' => 'Clave-segura-2026',
+        'name' => 'Coordinación de Antropología', 'email' => 'antropologia@academicos.udg.mx', 'rol' => Rol::Coordinador->value,
+        'carrera_id' => $carrera->id,
     ])->assertSessionHasNoErrors();
-    $coord = User::where('email', 'antropologia@cucsh.test')->firstOrFail();
+    $coord = User::where('email', 'antropologia@academicos.udg.mx')->firstOrFail();
+    $coord->markEmailAsVerified();
 
-    // ── 4. Empresa: registro con datos legales, expediente y solicitud ──────────
+    // ── 4. Empresa: cuenta corta; luego la solicitud por secciones, el expediente en un envío y la solicitud ──
     auth()->logout();
     $this->post('/registro/empresa', [
-        'name' => 'Ana Contacto', 'contacto_cargo' => 'RH', 'email' => 'rh@museo.test',
+        'name' => 'Ana Contacto', 'contacto_cargo' => 'Recursos Humanos', 'contacto_telefono' => '3312345678', 'email' => 'rh@museo.test',
         'password' => 'Clave-segura-2026', 'password_confirmation' => 'Clave-segura-2026',
         'razon_social' => 'Museo Regional A.C.', 'rfc' => 'MRE010101AB1', 'tipo_organismo' => 'sociedad_civil',
-        'representante_legal' => 'Mtra. Elena Firma', 'representante_cargo' => 'Directora General',
-        'domicilio_fiscal' => 'Av. Hidalgo 100, Guadalajara', ...datosNotarialesPrueba(),
-        'objeto_social' => 'la difusión del patrimonio cultural', 'facultad_firmante' => 'el poder notarial 888',
         'aviso_privacidad' => '1',
     ])->assertSessionHasNoErrors();
     $empresaUser = User::where('email', 'rh@museo.test')->firstOrFail();
     $empresaUser->markEmailAsVerified();
     $empresa = $empresaUser->empresa;
 
-    foreach (Empresa::coleccionesObligatorias() as $col) {
-        $this->actingAs($empresaUser->fresh())->post(route('empresa.documentos.subir'), ['coleccion' => $col, 'archivo' => e2ePdf("$col.pdf")])->assertSessionHasNoErrors();
-    }
-    $empresaUser = $empresaUser->fresh();   // cada petición real recarga al usuario y sus archivos
-    $this->actingAs($empresaUser)->post(route('empresa.convenio.solicitar'), [
-        'objetivos' => 'Vincular estudiantes con proyectos de museografía', 'actividades_propuestas' => 'Catalogación y guía de visitas',
-        'plazas_estimadas' => 3, 'carreras' => [$carrera->id],
+    $this->actingAs($empresaUser)->put(route('empresa.convenio.seccion', 'generales'), [
+        'razon_social' => 'Museo Regional A.C.', 'giro' => 'Museo y difusión cultural',
+        'descripcion' => 'Museo dedicado a la conservación y difusión del patrimonio cultural de Jalisco.',
+        'proyectos_principales' => 'Exposiciones temporales y visitas guiadas', 'calle' => 'Av. Hidalgo', 'numero_exterior' => '100',
+        'colonia' => 'Centro', 'codigo_postal' => '44100', 'municipio' => 'Guadalajara', 'entidad' => 'Jalisco',
+        'contacto_nombre' => 'Ana Contacto', 'contacto_cargo' => 'Recursos Humanos', 'contacto_telefono' => '3312345678',
     ])->assertSessionHasNoErrors();
+    // Guarda su avance aunque le falte el poder; luego lo completa
+    $this->actingAs($empresaUser)->put(route('empresa.convenio.seccion', 'legales'), [
+        'representante_legal' => 'Mtra. Elena Firma', 'representante_cargo' => 'Directora General', ...datosNotarialesPrueba(),
+        'objeto_social' => 'la difusión del patrimonio cultural', 'facultad_origen' => 'poder',
+    ])->assertSessionHasNoErrors();
+    expect(\App\Support\SolicitudEmpresa::faltantes($empresa->fresh())['legales'])->not->toBeEmpty();
+    $this->actingAs($empresaUser)->put(route('empresa.convenio.seccion', 'legales'), [
+        'representante_legal' => 'Mtra. Elena Firma', 'representante_cargo' => 'Directora General', ...datosNotarialesPrueba(),
+        'objeto_social' => 'la difusión del patrimonio cultural', 'facultad_origen' => 'poder',
+        'poder_escritura_numero' => '888', 'poder_fecha' => '2020-02-02', 'poder_notario_nombre' => 'Lic. Juan Notario', 'poder_notaria_numero' => '5', 'poder_notaria_ciudad' => 'Guadalajara',
+    ])->assertSessionHasNoErrors();
+    $this->actingAs($empresaUser)->put(route('empresa.convenio.seccion', 'perfiles'), [
+        'carreras' => [$carrera->id], 'objetivos' => 'Vincular estudiantes con proyectos de museografía',
+        'actividades_propuestas' => 'Catalogación de piezas y guía de visitas escolares', 'plazas_estimadas' => 3,
+        'medio_conocimiento' => 'Por un egresado del CUCSH', 'experiencia_previa' => '4 practicantes desde 2021',
+    ])->assertSessionHasNoErrors();
+    $empresa->refresh();
+    expect($empresa->domicilio_fiscal)->toBe('Av. Hidalgo 100, col. Centro, C.P. 44100, Guadalajara, Jalisco')
+        ->and($empresa->facultad_firmante)->toContain('poder notarial contenido en la escritura pública número 888')
+        ->and($empresa->obligatorias())->toContain('poder_notarial');
+
+    // Un solo envío con todo el expediente (PDF); la constancia y el comprobante con su fecha de emisión
+    $archivos = collect($empresa->obligatorias())->mapWithKeys(fn ($c) => [$c => e2ePdf("$c.pdf")])->all();
+    // Al enviarlos, como la solicitud aún no se manda, regresa a «Mi convenio» para enviarla
+    $this->actingAs($empresaUser->fresh())->post(route('empresa.documentos.subir'), ['archivos' => $archivos])
+        ->assertSessionHasNoErrors()->assertRedirect(route('empresa.convenio', ['seccion' => 'documentos']));
+
+    $empresaUser = $empresaUser->fresh();   // cada petición real recarga al usuario y sus archivos
+    $this->actingAs($empresaUser)->post(route('empresa.convenio.solicitar'))->assertSessionHasNoErrors();
+    expect($empresa->fresh()->solicitud_borrador)->toBeNull();
     $convenio = Convenio::where('empresa_id', $empresa->id)->firstOrFail();
     Notification::assertSentTo($lorena, NuevaSolicitudConvenio::class);
 

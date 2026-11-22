@@ -60,7 +60,7 @@ class MenuHelper
                         'bloqueado' => $sinPracticantes,
                     ],
                     [
-                        'name' => 'Convenio CUCSH',
+                        'name' => 'Mi convenio',
                         'icon' => 'pages',
                         'path' => '/empresa/convenio',
                     ],

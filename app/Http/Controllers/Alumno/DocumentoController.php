@@ -62,8 +62,8 @@ class DocumentoController extends Controller
 
         $datos = $request->validate([
             'porcentaje_creditos' => ['required', 'numeric', 'min:' . $minimo, 'max:100'],
-            'kardex' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
-            'imss' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'kardex' => ['required', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:10240'],
+            'imss' => ['required', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:10240'],
             'vigencia_imss' => ['required', 'date', 'after:today'],
         ], [
             'porcentaje_creditos.required' => 'Escribe tu porcentaje de créditos cursados (lo ves en tu kardex).',
@@ -95,7 +95,7 @@ class DocumentoController extends Controller
         }
 
         $datos = $request->validate([
-            'archivo' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'archivo' => ['required', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:10240'],
             'vigencia_imss' => ['required', 'date', 'after:today'],
         ], [
             'archivo.required' => 'Elige el PDF o la imagen de tu constancia de vigencia de derechos.',
@@ -126,7 +126,7 @@ class DocumentoController extends Controller
             throw ValidationException::withMessages(['archivo' => 'Tu kardex ya fue validado: no necesitas subirlo de nuevo.']);
         }
 
-        $request->validate(['archivo' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240']], [
+        $request->validate(['archivo' => ['required', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:10240']], [
             'archivo.required' => 'Elige el PDF o la imagen de tu kardex simple del ciclo actual.',
         ]);
 

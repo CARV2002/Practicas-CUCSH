@@ -210,7 +210,7 @@
                                         <p class="text-xs text-gray-500">{{ $po->alumno->num_control }} · {{ $po->alumno->carrera->carrera_clave }} · {{ $po->alumno->grado ? $po->alumno->grado . '.º sem.' : 'sin grado' }}</p>
                                         <p class="mt-1 flex flex-wrap items-center gap-x-2 text-xs">
                                             <span class="{{ $imssVigente ? 'text-gray-500' : 'font-semibold text-rose-600' }}">IMSS {{ $po->alumno->vigencia_imss ? 'al ' . $po->alumno->vigencia_imss->format('d/m/Y') : 'sin vigencia' }}</span>
-                                            @if ($imss)<a href="{{ route('coordinacion.alumnos.archivos', [$po->alumno, $imss]) }}" data-sin-vista class="font-semibold text-real-600 hover:underline">Ver</a>@endif
+                                            @if ($imss)<a href="{{ route('coordinacion.alumnos.archivos', [$po->alumno, $imss]) }}" class="font-semibold text-real-600 hover:underline">Ver</a>@endif
                                         </p>
                                     </div>
                                 </div>
@@ -222,14 +222,14 @@
                             <td class="px-4 py-4">
                                 <p @class(['font-display text-lg font-bold leading-none tabular-nums', 'text-emerald-700' => $cumple, 'text-rose-600' => !$cumple])>{{ \App\Support\Formato::porcentaje($po->porcentaje_creditos_declarado) }}%</p>
                                 <p class="mt-1 text-xs text-gray-500">mínimo {{ \App\Support\Formato::porcentaje($min) }}%</p>
-                                @if ($kardex)<a href="{{ route('coordinacion.alumnos.archivos', [$po->alumno, $kardex]) }}" data-sin-vista class="text-xs font-semibold text-real-600 hover:underline">Kardex</a>@endif
+                                @if ($kardex)<a href="{{ route('coordinacion.alumnos.archivos', [$po->alumno, $kardex]) }}" class="text-xs font-semibold text-real-600 hover:underline">Kardex</a>@endif
                             </td>
                             <td class="px-4 py-4">
                                 <x-ui.estatus :estado="$po->estado" />
                                 <p class="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                                    @if ($presentacion)<a href="{{ route('coordinacion.postulaciones.archivos', [$po, $presentacion]) }}" data-sin-vista class="inline-flex items-center gap-1 font-semibold text-real-600 hover:underline"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Presentación</a>@endif
-                                    @if ($aceptacion)<a href="{{ route('coordinacion.postulaciones.archivos', [$po, $aceptacion]) }}" data-sin-vista class="inline-flex items-center gap-1 font-semibold text-real-600 hover:underline"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Aceptación</a>@endif
-                                    @if ($oficioInterno)<a href="{{ route('coordinacion.postulaciones.archivos', [$po, $oficioInterno]) }}" data-sin-vista class="inline-flex items-center gap-1 font-semibold text-real-600 hover:underline"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Oficio interno</a>@endif
+                                    @if ($presentacion)<a href="{{ route('coordinacion.postulaciones.archivos', [$po, $presentacion]) }}" class="inline-flex items-center gap-1 font-semibold text-real-600 hover:underline"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Presentación</a>@endif
+                                    @if ($aceptacion)<a href="{{ route('coordinacion.postulaciones.archivos', [$po, $aceptacion]) }}" class="inline-flex items-center gap-1 font-semibold text-real-600 hover:underline"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Aceptación</a>@endif
+                                    @if ($oficioInterno)<a href="{{ route('coordinacion.postulaciones.archivos', [$po, $oficioInterno]) }}" class="inline-flex items-center gap-1 font-semibold text-real-600 hover:underline"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Oficio interno</a>@endif
                                 </p>
                                 @if ($faltaOficio)<p class="mt-1 text-xs font-semibold text-rose-600">Falta el oficio de aceptación interno</p>@endif
                             </td>
@@ -282,7 +282,7 @@
                                                 <input type="hidden" name="postulacion" value="{{ $po->id }}">
                                                 <p class="text-sm font-semibold text-gray-900">Carta de aceptación de la organización</p>
                                                 @if ($aceptacion)
-                                                    <p class="text-xs text-gray-600">El alumno ya la subió: <a href="{{ route('coordinacion.postulaciones.archivos', [$po, $aceptacion]) }}" data-sin-vista class="font-semibold text-real-600 hover:underline">revísala</a> y confírmala, o sube otra si la recibiste tú.</p>
+                                                    <p class="text-xs text-gray-600">El alumno ya la subió: <a href="{{ route('coordinacion.postulaciones.archivos', [$po, $aceptacion]) }}" class="font-semibold text-real-600 hover:underline">revísala</a> y confírmala, o sube otra si la recibiste tú.</p>
                                                 @endif
                                                 <x-ui.zona-archivo name="archivo" :etiqueta="$aceptacion ? 'Otra carta (opcional)' : 'Carta de aceptación'" :requerido="!$aceptacion" />
                                                 <div class="flex justify-end gap-2">

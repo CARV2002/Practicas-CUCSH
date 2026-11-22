@@ -137,7 +137,7 @@ final class Pendientes
     {
         $items = [];
 
-        $rechazados = collect(Empresa::coleccionesObligatorias())
+        $rechazados = collect($empresa->obligatorias())
             ->filter(fn ($col) => $empresa->documentoVigente($col)?->getCustomProperty('estado') === ValidacionEstado::Rechazada->value)
             ->count();
         if ($rechazados > 0) {

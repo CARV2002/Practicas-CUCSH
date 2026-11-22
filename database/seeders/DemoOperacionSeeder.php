@@ -112,7 +112,8 @@ class DemoOperacionSeeder extends Seeder
             ['Ing. Daniela Ruvalcaba Ortiz', 'Lic. Héctor Villalobos Mora'],
         ];
 
-        Empresa::with('user')->get()->each(function (Empresa $e, int $i) use ($contactos, $personas) {
+        // Solo organizaciones de prueba (@test.com): nunca toca las que se registren de verdad
+        Empresa::with('user')->whereHas('user', fn ($u) => $u->where('email', 'like', '%@test.com'))->get()->each(function (Empresa $e, int $i) use ($contactos, $personas) {
             [$cargo, $descripcion] = $contactos[$i % count($contactos)];
             [$contacto, $representante] = $personas[$i % count($personas)];
 
@@ -133,9 +134,50 @@ class DemoOperacionSeeder extends Seeder
                 'descripcion' => $e->descripcion ?: $descripcion,
                 'proyectos_principales' => $e->proyectos_principales ?: 'Atención al público, gestión documental y proyectos de investigación aplicada.',
             ]));
+
+            // Solicitud por secciones: giro, domicilio desglosado y origen de las facultades de quien firma
+            $escritura = \App\Support\DatosNotariales::usaEscritura($e->tipo_organismo);
+            if (blank($e->calle)) {
+                $e->update([
+                    'giro' => $escritura ? 'Servicios profesionales' : 'Administración pública',
+                    'calle' => 'Av. Juárez', 'numero_exterior' => (string) (900 + $e->id * 7), 'colonia' => 'Centro',
+                    'codigo_postal' => '44100', 'municipio' => 'Guadalajara', 'entidad' => 'Jalisco',
+                ]);
+                $e->update(['domicilio_fiscal' => $e->domicilioCompleto()]);
+            }
+            if (blank($e->facultad_origen)) {
+                $e->update($escritura
+                    ? ['facultad_origen' => 'acta', 'facultad_firmante' => 'las facultades que le otorga la escritura constitutiva citada en la declaración I']
+                    : ['facultad_origen' => 'nombramiento', 'facultad_firmante' => 'el nombramiento de fecha 1 de enero de 2025 expedido por el titular de la dependencia']);
+            }
+
+            // Las dependencias públicas acreditan su existencia con su documento de creación y el nombramiento del titular
+            if (!$escritura) {
+                $enRevision = $e->convenios()->where('estado', ConvenioEstado::Solicitado->value)->exists();
+                $estado = $enRevision ? null : ValidacionEstado::Validada;
+                $this->adjuntar($e, 'documento_creacion', 'decreto-de-creacion.pdf', $estado);
+                $this->adjuntar($e, 'nombramiento_representante', 'nombramiento-titular.pdf', $estado);
+            }
+
+            // Quien ya pasó la revisión de documentos tiene su expediente completo y validado
+            $avanzado = $e->convenios()->whereNotIn('estado', [ConvenioEstado::Solicitado->value, ConvenioEstado::Rechazado->value])->exists();
+            if ($avanzado) {
+                foreach ($e->obligatorias() as $col) {
+                    $this->adjuntar($e->load('media'), $col, str_replace('_', '-', $col) . '.pdf', ValidacionEstado::Validada);
+                    $m = $e->load('media')->documentoVigente($col);
+                    if ($m->getCustomProperty('estado') !== ValidacionEstado::Validada->value) {
+                        $e->resolverDocumento($m, ValidacionEstado::Validada, null, $this->lorena->user_id);
+                    }
+                    if (in_array($col, Empresa::CON_VIGENCIA, true)) {
+                        $m->getCustomProperty('fecha_emision') || $m->setCustomProperty('fecha_emision', $m->created_at->copy()->subWeeks(2)->toDateString())->save();
+                    }
+                }
+            }
         });
 
-        Convenio::with(['dictamenes.carrera', 'seguimientos', 'empresa'])->get()->each(function (Convenio $c) {
+        Convenio::with(['dictamenes.carrera', 'seguimientos', 'empresa'])
+            ->whereHas('empresa.user', fn ($u) => $u->where('email', 'like', '%@test.com'))   // solo convenios de prueba
+            ->get()->each(function (Convenio $c) {
             // Dictámenes: los emite la coordinación de cada carrera, con su PDF firmado y sellado
             foreach ($c->dictamenes->where('dictamen', '!=', Dictamen::Pendiente) as $d) {
                 $coordinacion = Personal::where('carrera_id', $d->carrera_id)->first()
@@ -483,7 +525,8 @@ class DemoOperacionSeeder extends Seeder
             ['Lic. Fernando Íñiguez Ruiz', '7', 'Tlaquepaque, Jalisco'],
         ];
 
-        \App\Models\Empresa::all()->each(function (\App\Models\Empresa $e, int $i) use ($notarios) {
+        // Solo organizaciones de prueba (@test.com): nunca toca las que se registren de verdad
+        \App\Models\Empresa::whereHas('user', fn ($u) => $u->where('email', 'like', '%@test.com'))->get()->each(function (\App\Models\Empresa $e, int $i) use ($notarios) {
             $base = array_filter([
                 'representante_cargo' => $e->representante_cargo ?: 'Director General',
                 'domicilio_fiscal' => $e->domicilio_fiscal ?: 'Av. Juárez 976, Col. Centro, C.P. 44100, Guadalajara, Jalisco',

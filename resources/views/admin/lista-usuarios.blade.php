@@ -131,9 +131,9 @@
                                     @endunless
                                     <button type="button" x-on:click="cambiar({{ $u->id }}, @js($u->name))"
                                         class="group/btn relative inline-flex size-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-theme-xs transition hover:border-udg-200 hover:bg-udg-50 hover:text-udg-900 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25"
-                                        aria-label="Restablecer contraseña">
+                                        aria-label="Enviar enlace de contraseña">
                                         <x-dashboard.icono nombre="candado" clase="size-4" />
-                                        <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-udg-950 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-theme-md transition group-hover/btn:opacity-100" aria-hidden="true">Restablecer contraseña</span>
+                                        <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-udg-950 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-theme-md transition group-hover/btn:opacity-100" aria-hidden="true">Enviar enlace de contraseña</span>
                                     </button>
                                     @unless ($esYo)
                                         <x-ui.boton-icono :accion="route('admin.usuarios.activo', $u)" :icono="$u->activo ? 'apagar' : 'encender'"
@@ -169,7 +169,7 @@
             <div class="flex items-start justify-between gap-3 border-b border-gray-100 px-6 py-4">
                 <div>
                     <h3 id="titulo-alta" class="font-display text-lg font-bold text-gray-900">Nueva cuenta de personal</h3>
-                    <p class="text-xs text-gray-500">La persona entra con este correo y la contraseña que definas.</p>
+                    <p class="text-xs text-gray-500">La persona entra con este correo y la contraseña que ella misma configure.</p>
                 </div>
                 <button type="button" x-on:click="modalAlta = false" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="Cerrar"><x-dashboard.icono nombre="equis" clase="size-4" /></button>
             </div>
@@ -187,8 +187,8 @@
                     </div>
                 </fieldset>
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div><label class="etiqueta" for="alta-nombre">Nombre</label><input id="alta-nombre" type="text" name="name" value="{{ old('name') }}" required maxlength="255" class="campo h-11"></div>
-                    <div><label class="etiqueta" for="alta-correo">Correo</label><input id="alta-correo" type="email" name="email" value="{{ old('email') }}" required maxlength="255" class="campo h-11"></div>
+                    <div><label class="etiqueta" for="alta-nombre">Nombre completo <span class="text-rose-500">*</span></label><input id="alta-nombre" type="text" name="name" value="{{ old('name') }}" required minlength="5" maxlength="80" data-solo="letras" pattern="{{ \App\Support\Formatos::NOMBRE_PERSONA_HTML }}" data-msg-formato="Escribe nombre y apellido, solo con letras." placeholder="Ej. Mtra. Laura Gómez Ruiz" class="campo h-11"></div>
+                    <div><label class="etiqueta" for="alta-correo">Correo institucional <span class="text-rose-500">*</span></label><input id="alta-correo" type="email" name="email" value="{{ old('email') }}" required maxlength="255" placeholder="Ej. laura.gomez@academicos.udg.mx" pattern=".+@({{ collect(config('practicas.google.dominios_personal'))->map(fn ($x) => preg_quote($x))->join('|') }})" data-msg-formato="Usa su correo institucional de la UdG." class="campo h-11"></div>
                 </div>
                 <template x-if="rolAlta === 'coordinador'">
                     <div class="space-y-3 rounded-xl bg-gray-50 p-4 ring-1 ring-inset ring-gray-100">
@@ -217,10 +217,10 @@
                     </div>
                 </template>
                 <div><label class="etiqueta" for="alta-puesto">Puesto <span class="font-normal text-gray-400">(opcional)</span></label><input id="alta-puesto" type="text" name="puesto" value="{{ old('puesto') }}" maxlength="255" placeholder="Coordinación de la Licenciatura en…" class="campo h-11"></div>
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div><label class="etiqueta" for="alta-pass">Contraseña</label><input id="alta-pass" type="password" name="password" required autocomplete="new-password" class="campo h-11"></div>
-                    <div><label class="etiqueta" for="alta-pass2">Confirmar contraseña</label><input id="alta-pass2" type="password" name="password_confirmation" required autocomplete="new-password" class="campo h-11"></div>
-                </div>
+                <p class="flex items-start gap-2 rounded-xl bg-udg-50/60 px-4 py-3 text-sm text-udg-900 ring-1 ring-inset ring-udg-100">
+                    <x-dashboard.icono nombre="candado" clase="mt-0.5 size-4 shrink-0" />
+                    <span>No escribes contraseña: al crear la cuenta le enviamos a su correo institucional un enlace para que configure la suya (vence en 72 horas). Al usarlo, su cuenta se activa y su correo queda verificado.</span>
+                </p>
             </div>
             <div class="flex justify-end gap-2 border-t border-gray-100 bg-gray-50/60 px-6 py-4">
                 <button type="button" x-on:click="modalAlta = false" class="boton boton-secundario">Cancelar</button>
@@ -237,16 +237,15 @@
             class="relative w-full max-w-md animate-entrada overflow-hidden rounded-2xl bg-white shadow-theme-xl motion-reduce:animate-none">
             @csrf
             <div class="border-b border-gray-100 px-6 py-4">
-                <h3 id="titulo-pass" class="font-display text-lg font-bold text-gray-900">Restablecer contraseña</h3>
-                <p class="text-sm text-gray-500">Para <span class="font-semibold text-gray-800" x-text="pass.nombre"></span>. Compártela por un medio seguro.</p>
+                <h3 id="titulo-pass" class="font-display text-lg font-bold text-gray-900">Enviar enlace de contraseña</h3>
+                <p class="text-sm text-gray-500">Para <span class="font-semibold text-gray-800" x-text="pass.nombre"></span>.</p>
             </div>
-            <div class="space-y-4 px-6 py-5">
-                <div><label class="etiqueta" for="np">Nueva contraseña</label><input id="np" type="password" name="password" required autocomplete="new-password" class="campo h-11"></div>
-                <div><label class="etiqueta" for="np2">Confirmar contraseña</label><input id="np2" type="password" name="password_confirmation" required autocomplete="new-password" class="campo h-11"></div>
+            <div class="px-6 py-5 text-sm leading-relaxed text-gray-600">
+                Le enviaremos a su correo un enlace personal (vence en 72 horas) para que configure una contraseña nueva. Tú nunca conoces su contraseña.
             </div>
             <div class="flex justify-end gap-2 border-t border-gray-100 bg-gray-50/60 px-6 py-4">
                 <button type="button" x-on:click="modalPass = false" class="boton boton-secundario">Cancelar</button>
-                <button type="submit" class="boton boton-primario">Guardar contraseña</button>
+                <button type="submit" class="boton boton-primario"><x-dashboard.icono nombre="enviar" clase="size-4" /> Enviar enlace</button>
             </div>
         </form>
     </div>

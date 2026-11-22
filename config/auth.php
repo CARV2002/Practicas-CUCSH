@@ -97,6 +97,14 @@ return [
             'expire' => 60,
             'throttle' => 60,
         ],
+
+        // Cuentas de personal que crea el administrador: el enlace «Configurar mi contraseña» dura 72 horas
+        'invitaciones' => [
+            'provider' => 'users',
+            'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
+            'expire' => 4320,
+            'throttle' => 0,
+        ],
     ],
 
     /*

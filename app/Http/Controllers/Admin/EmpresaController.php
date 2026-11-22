@@ -73,7 +73,7 @@ class EmpresaController extends Controller
 
         return view('admin.empresa-show', [
             'empresa' => $empresa,
-            'colecciones' => Empresa::coleccionesObligatorias(),
+            'colecciones' => $empresa->documentosAplicables(),
             'expedienteCompleto' => $empresa->expedienteCompleto(),
         ]);
     }

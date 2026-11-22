@@ -70,7 +70,7 @@ class ConvenioController extends Controller
         return view('admin.convenio-show', [
             'convenio' => $convenio,
             'empresa' => $convenio->empresa,
-            'colecciones' => Empresa::coleccionesObligatorias(),
+            'colecciones' => $convenio->empresa->documentosAplicables(),
             'etapaAbierta' => $convenio->etapasAbiertas()->latest('id')->first(),
             'borradores' => $convenio->getMedia('borrador_convenio'),
             'firmado' => $convenio->getMedia('convenio_firmado')->last(),
@@ -94,7 +94,17 @@ class ConvenioController extends Controller
         $datos = $request->validate([
             'estado' => ['required', Rule::in([ValidacionEstado::Validada->value, ValidacionEstado::Rechazada->value])],
             'motivo' => ['nullable', 'string', 'max:1000', Rule::requiredIf($request->input('estado') === ValidacionEstado::Rechazada->value)],
+        ], [
+            'motivo.required' => 'Escribe el motivo para que la empresa sepa qué corregir.',
         ]);
+
+        // Solo se revisa lo que está pendiente: lo validado ya no se rechaza y lo devuelto espera su reemplazo
+        if ($media->getCustomProperty('estado') === ValidacionEstado::Validada->value) {
+            return back()->withErrors(['documento' => 'Ese documento ya está validado: no se puede rechazar.']);
+        }
+        if ($media->getCustomProperty('estado') === ValidacionEstado::Rechazada->value) {
+            return back()->withErrors(['documento' => 'Ese documento ya se devolvió: espera a que la empresa suba el corregido.']);
+        }
 
         $convenio->empresa->resolverDocumento(
             $media,
@@ -107,7 +117,7 @@ class ConvenioController extends Controller
 
         if ($datos['estado'] === ValidacionEstado::Rechazada->value) {
             Avisos::enviar($empresa->user, new AvisoOperativo(
-                mensaje: 'Rechazamos «' . Str::headline($media->collection_name) . '» de tu expediente: ' . $datos['motivo'] . ' Súbelo de nuevo para continuar con tu convenio.',
+                mensaje: 'Vinculación te devolvió «' . Empresa::nombreDocumento($media->collection_name) . '» de tu expediente: ' . $datos['motivo'] . ' Súbelo de nuevo para continuar con tu convenio.',
                 url: route('empresa.documentos', absolute: false),
                 correo: true,
                 asunto: 'Documento de tu expediente rechazado',
@@ -123,6 +133,42 @@ class ConvenioController extends Controller
         return back()->with('status', $datos['estado'] === ValidacionEstado::Rechazada->value
             ? 'Documento rechazado. Avisamos a la empresa por correo para que suba solo ese documento corregido.'
             : 'Documento aprobado.');
+    }
+
+    /** Valida de una vez los documentos que Lorena marcó (en cualquier orden). */
+    public function validarDocumentos(Request $request, Convenio $convenio): RedirectResponse
+    {
+        $this->authorize('gestionar', $convenio);
+
+        if ($convenio->estado !== ConvenioEstado::Solicitado) {
+            return back()->withErrors(['convenio' => 'Los documentos solo se validan mientras la solicitud está en revisión de documentos.']);
+        }
+
+        $datos = $request->validate(
+            ['documentos' => ['required', 'array', 'min:1'], 'documentos.*' => ['integer']],
+            ['documentos.required' => 'Marca al menos un documento para validar.']
+        );
+
+        $empresa = $convenio->empresa;
+        $medios = $empresa->media()->whereIn('id', $datos['documentos'])->get();
+        abort_if($medios->count() !== count(array_unique($datos['documentos'])), 404);
+
+        $validados = 0;
+        foreach ($medios as $media) {
+            // Lo ya validado o ya devuelto no cambia
+            if (in_array($media->getCustomProperty('estado'), [null, ValidacionEstado::Pendiente->value], true)) {
+                $empresa->resolverDocumento($media, ValidacionEstado::Validada, null, $request->user()->id);
+                $validados++;
+            }
+        }
+
+        if ($empresa->fresh()->expedienteCompleto()) {
+            $this->workflow->enviarAValidacionAcademica($convenio, $request->user()->personal);
+
+            return back()->with('status', "Validaste {$validados} documento(s) y el expediente quedó completo: la propuesta se envió a las coordinaciones de las carreras solicitadas.");
+        }
+
+        return back()->with('status', "Validaste {$validados} documento(s).");
     }
 
     public function enviarAValidacionAcademica(Request $request, Convenio $convenio): RedirectResponse

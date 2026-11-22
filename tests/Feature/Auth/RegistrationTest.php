@@ -48,12 +48,6 @@ function datosEmpresa(array $extra = []): array
         'razon_social' => 'Empresa de Prueba S.A. de C.V.',
         'rfc' => 'epr010101ab1',          // se normaliza a mayúsculas
         'tipo_organismo' => 'privado',
-        'representante_legal' => 'Lic. María Representante',
-        'representante_cargo' => 'Directora General',
-        'domicilio_fiscal' => 'Av. Juárez 100, Guadalajara, Jalisco',
-        ...datosNotarialesPrueba(),
-        'objeto_social' => 'la prestación de servicios de consultoría',
-        'facultad_firmante' => 'el poder notarial 567 del 2 de febrero de 2020',
         'aviso_privacidad' => '1',
     ], $extra);
 }
@@ -90,8 +84,9 @@ test('companies register with the company role and profile', function () {
 
     expect($user->hasRole(Rol::Empresa->value))->toBeTrue()
         ->and($user->empresa->rfc)->toBe('EPR010101AB1')
-        ->and($user->empresa->representante_legal)->toBe('Lic. María Representante')
-        ->and($user->empresa->contacto_nombre)->toBe('Pedro Contacto');
+        ->and($user->empresa->contacto_nombre)->toBe('Pedro Contacto')
+        // Solo la cuenta: lo legal y el expediente se llenan después en «Mi convenio»
+        ->and($user->empresa->representante_legal)->toBeNull();
 });
 
 test('registration requires accepting the privacy notice', function () {
@@ -156,22 +151,6 @@ test('el comando rechaza contraseñas cortas', function () {
     expect(User::where('email', 'lorena@udg.mx')->exists())->toBeFalse();
 });
 
-test('una sociedad captura su escritura por separado y una dependencia pública su decreto', function () {
-    $sinEscritura = array_diff_key(datosEmpresa(), array_flip(\App\Support\DatosNotariales::CAMPOS));
-
-    $this->post('/registro/empresa', $sinEscritura)
-        ->assertSessionHasErrors(['escritura_numero', 'escritura_fecha', 'notario_nombre', 'notaria_numero', 'notaria_ciudad']);
-    $this->assertGuest();
-
-    $this->post('/registro/empresa', array_merge($sinEscritura, ['tipo_organismo' => 'publico', 'constitucion' => '']))
-        ->assertSessionHasErrors('constitucion');
-
-    $this->post('/registro/empresa', array_merge($sinEscritura, ['tipo_organismo' => 'publico', 'constitucion' => 'el decreto 123 publicado el 1 de enero de 2000']))
-        ->assertSessionHasNoErrors();
-    $empresa = \App\Models\Empresa::latest('id')->first();
-    expect($empresa->escritura_numero)->toBeNull()->and($empresa->constitucion)->toBe('el decreto 123 publicado el 1 de enero de 2000');
-});
-
 test('el código de alumno son exactamente 9 números y el nombre lleva nombre y apellido', function () {
     foreach (['21512345', '2151234567', '21512345A', 'ABCDEFGHI'] as $malo) {
         $this->post('/registro/alumno', datosAlumno(['num_control' => $malo]))
@@ -187,18 +166,18 @@ test('el código de alumno son exactamente 9 números y el nombre lleva nombre y
         ->and(User::first()->name)->toBe('Ana López');
 });
 
-test('la empresa captura RFC, teléfono y datos notariales con su formato', function () {
+test('el registro de empresa valida el RFC del SAT y el teléfono', function () {
     $this->post('/registro/empresa', datosEmpresa(['contacto_telefono' => '33 1234']))
         ->assertSessionHasErrors(['contacto_telefono' => 'El teléfono son 10 números, sin espacios ni guiones (por ejemplo 3312345678).']);
-    $this->post('/registro/empresa', datosEmpresa(['escritura_numero' => 'doce', 'notaria_numero' => 'cinco']))
-        ->assertSessionHasErrors(['escritura_numero', 'notaria_numero']);
-    $this->post('/registro/empresa', datosEmpresa(['representante_legal' => 'Director']))->assertSessionHasErrors('representante_legal');
-    $this->post('/registro/empresa', datosEmpresa(['domicilio_fiscal' => 'Calle 1']))->assertSessionHasErrors('domicilio_fiscal');
+    // Genérico del SAT, fecha imposible y largo incorrecto
+    $this->post('/registro/empresa', datosEmpresa(['rfc' => 'XAXX010101000']))->assertSessionHasErrors(['rfc' => 'Ese es un RFC genérico del SAT: escribe el RFC propio de tu organización.']);
+    $this->post('/registro/empresa', datosEmpresa(['rfc' => 'ABC011340AB1']))->assertSessionHasErrors('rfc');
+    $this->post('/registro/empresa', datosEmpresa(['rfc' => 'ABC0101']))->assertSessionHasErrors('rfc');
+    $this->post('/registro/empresa', datosEmpresa(['name' => str_repeat('Nombre ', 15) . 'Largo']))->assertSessionHasErrors('name');
     $this->assertGuest();
 
-    // RFC en minúsculas o con guiones y teléfono con espacios: se normalizan
-    $this->post('/registro/empresa', datosEmpresa(['rfc' => 'abc-010101-ab1', 'contacto_telefono' => '33 1234 5678', 'escritura_numero' => '12,345']))
-        ->assertSessionHasNoErrors();
+    // Persona física (13) y RFC con guiones o en minúsculas: se normaliza
+    $this->post('/registro/empresa', datosEmpresa(['rfc' => 'pegs-850812-xyz', 'contacto_telefono' => '33 1234 5678']))->assertSessionHasNoErrors();
     $empresa = \App\Models\Empresa::first();
-    expect($empresa->rfc)->toBe('ABC010101AB1')->and($empresa->contacto_telefono)->toBe('3312345678')->and($empresa->escritura_numero)->toBe('12345');
+    expect($empresa->rfc)->toBe('PEGS850812XYZ')->and($empresa->contacto_telefono)->toBe('3312345678');
 });

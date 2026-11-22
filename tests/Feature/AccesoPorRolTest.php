@@ -231,8 +231,13 @@ test('un coordinador solo ve en sus pantallas las carreras de su alcance', funct
 });
 
 test('el administrador da de alta coordinadores con alcance obligatorio y a Vinculación', function () {
+    \Illuminate\Support\Facades\Notification::fake();
     $admin = usuarioConRol(Rol::Administrador->value);
-    $datos = ['name' => 'Coord Nueva', 'email' => 'coord.nueva@udg.mx', 'password' => 'Secreta123!', 'password_confirmation' => 'Secreta123!'];
+    $datos = ['name' => 'Coordinación Nueva', 'email' => 'coord.nueva@academicos.udg.mx'];
+
+    // Solo correos institucionales
+    $this->actingAs($admin)->post(route('admin.usuarios.store'), ['name' => 'Coordinación Nueva', 'email' => 'coord@gmail.com', 'rol' => 'coordinador', 'carrera_id' => carreraDePrueba()->id])
+        ->assertSessionHasErrors('email');
 
     // Un coordinador sin carrera ni división se rechaza
     $this->actingAs($admin)->post(route('admin.usuarios.store'), $datos + ['rol' => 'coordinador'])
@@ -241,20 +246,89 @@ test('el administrador da de alta coordinadores con alcance obligatorio y a Vinc
     $this->actingAs($admin)->post(route('admin.usuarios.store'), $datos + ['rol' => 'coordinador', 'carrera_id' => carreraDePrueba()->id])
         ->assertSessionHasNoErrors();
 
-    $nuevo = User::where('email', 'coord.nueva@udg.mx')->first();
+    $nuevo = User::where('email', 'coord.nueva@academicos.udg.mx')->first();
     expect($nuevo->hasRole(Rol::Coordinador->value))->toBeTrue()
         ->and($nuevo->personal->carrera_id)->toBe(carreraDePrueba()->id);
 
     // Vinculación nace con alcance global aunque se mande una carrera
     $this->actingAs($admin)->post(route('admin.usuarios.store'), [
-        'name' => 'Lorena', 'email' => 'vinculacion@udg.mx', 'password' => 'Secreta123!', 'password_confirmation' => 'Secreta123!',
+        'name' => 'Lorena Lozada', 'email' => 'vinculacion@csh.udg.mx',
         'rol' => 'vinculacion', 'carrera_id' => carreraDePrueba()->id,
     ])->assertSessionHasNoErrors();
 
-    $lorena = User::where('email', 'vinculacion@udg.mx')->first();
+    $lorena = User::where('email', 'vinculacion@csh.udg.mx')->first();
     expect($lorena->hasRole(Rol::Vinculacion->value))->toBeTrue()
         ->and($lorena->personal->tieneAlcanceGlobal())->toBeTrue();
 
+    // Nadie conoce su contraseña: les llega un enlace y hasta usarlo su correo no está verificado
+    expect($nuevo->hasVerifiedEmail())->toBeFalse();
+    \Illuminate\Support\Facades\Notification::assertSentTo($nuevo, \App\Notifications\ConfigurarContrasena::class);
+    $lorena->markEmailAsVerified();
+    $nuevo->markEmailAsVerified();
+
     $this->actingAs($lorena)->get(route('admin.dashboard'))->assertOk();
     $this->actingAs($nuevo)->get(route('coordinacion.dashboard'))->assertOk();
+});
+
+test('el personal nuevo configura su propia contraseña con el enlace y su correo queda verificado', function () {
+    \Illuminate\Support\Facades\Notification::fake();
+    $admin = usuarioConRol(Rol::Administrador->value);
+    $this->actingAs($admin)->post(route('admin.usuarios.store'), ['name' => 'Coordinación Nueva', 'email' => 'nueva@csh.udg.mx', 'rol' => 'coordinador', 'carrera_id' => carreraDePrueba()->id])
+        ->assertSessionHas('status', fn ($s) => str_contains($s, 'enlace'));
+    $nuevo = User::where('email', 'nueva@csh.udg.mx')->firstOrFail();
+
+    $token = null;
+    \Illuminate\Support\Facades\Notification::assertSentTo($nuevo, \App\Notifications\ConfigurarContrasena::class, function ($n) use (&$token) { $token = $n->token; return true; });
+    auth()->logout();
+
+    // Un enlace falso no sirve
+    $this->post(route('cuenta.activar.store'), ['token' => 'falso', 'email' => 'nueva@csh.udg.mx', 'password' => 'Clave-Segura-2026', 'password_confirmation' => 'Clave-Segura-2026'])
+        ->assertSessionHasErrors('email');
+
+    $this->get(route('cuenta.activar', ['token' => $token, 'email' => 'nueva@csh.udg.mx']))->assertOk()->assertSee('Configura tu contraseña');
+    $this->post(route('cuenta.activar.store'), ['token' => $token, 'email' => 'nueva@csh.udg.mx', 'password' => 'Clave-Segura-2026', 'password_confirmation' => 'Clave-Segura-2026'])
+        ->assertRedirect(route('dashboard'));
+
+    expect($nuevo->fresh()->hasVerifiedEmail())->toBeTrue()
+        ->and(\Illuminate\Support\Facades\Hash::check('Clave-Segura-2026', $nuevo->fresh()->password))->toBeTrue();
+    $this->assertAuthenticatedAs($nuevo->fresh());
+
+    // El enlace es de un solo uso
+    auth()->logout();
+    $this->post(route('cuenta.activar.store'), ['token' => $token, 'email' => 'nueva@csh.udg.mx', 'password' => 'Otra-Clave-2026', 'password_confirmation' => 'Otra-Clave-2026'])
+        ->assertSessionHasErrors('email');
+});
+
+test('ninguna ruta de otro rol se abre por URL directa (403)', function () {
+    $usuarios = collect([Rol::Alumno, Rol::Empresa, Rol::Coordinador, Rol::Vinculacion, Rol::Administrador])
+        ->mapWithKeys(fn (Rol $r) => [$r->value => usuarioConRol($r->value)]);
+    $revisadas = 0;
+
+    foreach (\Illuminate\Support\Facades\Route::getRoutes() as $ruta) {
+        // Roles permitidos según su middleware «role:…» (si hay varios, deben cumplirse todos)
+        $permitidos = null;
+        foreach ($ruta->gatherMiddleware() as $m) {
+            if (is_string($m) && str_starts_with($m, 'role:')) {
+                $lista = explode(',', substr($m, 5));
+                $permitidos = $permitidos === null ? $lista : array_values(array_intersect($permitidos, $lista));
+            }
+        }
+        if ($permitidos === null) {
+            continue;
+        }
+
+        $url = '/' . preg_replace('/\{[^}]+\}/', '1', $ruta->uri());
+        $metodo = collect($ruta->methods())->first(fn ($x) => $x !== 'HEAD');
+
+        foreach ($usuarios as $rol => $usuario) {
+            if (in_array($rol, $permitidos, true)) {
+                continue;
+            }
+            $estado = $this->actingAs($usuario)->call($metodo, $url)->status();
+            expect(in_array($estado, [403, 404], true))->toBeTrue("{$rol} abrió {$metodo} {$url} (respuesta {$estado})");
+            $revisadas++;
+        }
+    }
+
+    expect($revisadas)->toBeGreaterThan(300);
 });

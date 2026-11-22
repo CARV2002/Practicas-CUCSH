@@ -30,12 +30,13 @@ enum ConvenioEstado: string
         };
     }
 
-    /** Etiqueta general para la empresa (el detalle por etapa es del admin). */
+    /** Etiqueta para la empresa: en qué revisión va su solicitud. */
     public function etiquetaEmpresa(): string
     {
         return match ($this) {
             self::Solicitado => 'Revisión de documentos',
-            self::EnValidacionAcademica, self::EnRevisionJuridica => 'En revisión',
+            self::EnValidacionAcademica => 'En revisión académica',
+            self::EnRevisionJuridica => 'En revisión jurídica',
             self::EnFirmas => 'En firmas',
             self::Formalizado => 'Formalizado',
             self::Rechazado => 'Rechazado',
@@ -43,25 +44,25 @@ enum ConvenioEstado: string
     }
 
     /**
-     * Estimado de respuesta que ve la empresa (general, con los plazos documentados de EtapaConvenio).
-     * Vinculación ve el detalle exacto por etapa en su bandeja.
+     * Qué esperar en cada etapa. No hay plazos estipulados para cada proceso, así que no se promete
+     * una cifra: se dice quién tiene el trámite y que se responde lo más pronto posible.
      */
     public function estimadoEmpresa(): string
     {
         return match ($this) {
-            self::Solicitado => 'de 1 a 3 días hábiles para revisar tu expediente, una vez que esté completo.',
-            self::EnValidacionAcademica => 'sin plazo fijo: depende de que cada carrera emita su dictamen de pertinencia. Te avisaremos en cuanto respondan.',
-            self::EnRevisionJuridica => 'de 5 a 15 días hábiles para el dictamen de la Unidad Jurídica.',
-            self::EnFirmas => 'de 8 a 17 días hábiles: de 3 a 7 para tu firma de los 3 juegos y de 5 a 10 para la firma de Rectoría.',
-            self::Formalizado => 'trámite concluido.',
-            self::Rechazado => 'trámite cerrado; para continuar inicia una nueva solicitud.',
+            self::Solicitado => 'Vinculación revisa tus documentos. Te responderemos lo más pronto posible y te avisaremos por correo si alguno necesita corrección.',
+            self::EnValidacionAcademica => 'Las coordinaciones de las carreras que elegiste revisan tu propuesta. Te avisaremos en cuanto respondan.',
+            self::EnRevisionJuridica => 'La Unidad Jurídica del CUCSH revisa el convenio. Te avisaremos en cuanto lo apruebe.',
+            self::EnFirmas => 'Vinculación te avisará cuando los 3 juegos estén listos para que tu representante los firme; después pasan a firma de Rectoría.',
+            self::Formalizado => 'Trámite concluido.',
+            self::Rechazado => 'Trámite cerrado; para continuar inicia una nueva solicitud.',
         };
     }
 
-    /** @return string[] Pasos generales que ve la empresa. */
+    /** @return string[] Pasos que ve la empresa. */
     public static function pasosEmpresa(): array
     {
-        return ['Revisión de documentos', 'En revisión', 'En firmas', 'Formalizado'];
+        return ['Revisión de documentos', 'Revisión académica', 'Revisión jurídica', 'Firmas', 'Formalizado'];
     }
 
     /** Índice del paso actual en pasosEmpresa(); -1 si fue rechazado. */
@@ -69,9 +70,10 @@ enum ConvenioEstado: string
     {
         return match ($this) {
             self::Solicitado => 0,
-            self::EnValidacionAcademica, self::EnRevisionJuridica => 1,
-            self::EnFirmas => 2,
-            self::Formalizado => 3,
+            self::EnValidacionAcademica => 1,
+            self::EnRevisionJuridica => 2,
+            self::EnFirmas => 3,
+            self::Formalizado => 4,
             self::Rechazado => -1,
         };
     }

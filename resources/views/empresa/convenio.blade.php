@@ -11,7 +11,7 @@
     @endphp
 
     <div class="space-y-6">
-        <x-pagina.encabezado titulo="Convenio CUCSH" descripcion="Tu convenio de prácticas profesionales con el CUCSH: vigencia, avance de tu solicitud y renovación." />
+        <x-pagina.encabezado titulo="Mi convenio" descripcion="Tu convenio de prácticas profesionales con el CUCSH: la solicitud, en qué etapa va, su vigencia y la renovación." />
 
         @if (session('status'))
             <x-ui.aviso tipo="exito" descartable>{{ session('status') }}</x-ui.aviso>
@@ -88,7 +88,7 @@
                     </div>
                     <x-ui.estatus :estado="$enTramite->estado" :texto="$enTramite->estado->etiquetaEmpresa()" tamano="normal" />
                 </div>
-                <ol class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <ol class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                     @foreach (\App\Enums\ConvenioEstado::pasosEmpresa() as $i => $nombre)
                         @php $hecho = $i < $paso; $actual = $i === $paso; @endphp
                         <li @class([
@@ -109,7 +109,7 @@
                 </ol>
                 <p class="mt-4 flex items-start gap-2 rounded-xl bg-udg-50/60 px-3.5 py-2.5 text-sm text-udg-900 ring-1 ring-inset ring-udg-100">
                     <x-dashboard.icono nombre="reloj" clase="mt-0.5 size-4 shrink-0" />
-                    <span><span class="font-semibold">Respuesta estimada:</span> {{ $enTramite->estado->estimadoEmpresa() }}</span>
+                    <span><span class="font-semibold">Qué sigue:</span> {{ $enTramite->estado->estimadoEmpresa() }}</span>
                 </p>
                 @if ($enTramite->estado === \App\Enums\ConvenioEstado::Solicitado && !$expedienteCompleto)
                     <x-ui.aviso tipo="advertencia" class="mt-4">Tu expediente tiene documentos sin validar. <a href="{{ route('empresa.documentos') }}" class="font-semibold underline underline-offset-2">Revisar documentos</a></x-ui.aviso>
@@ -128,7 +128,7 @@
                         @foreach ($negativos as $d)<li><span class="font-semibold">{{ $d->carrera->nombre }}:</span> {{ $d->observaciones }}</li>@endforeach
                     </ul>
                 @endif
-                <p class="mt-2">Puedes empezar el trámite de nuevo{{ $mostrarForm ? ' con el formulario de abajo' : '' }}: lo llenamos con tu propuesta anterior para que ajustes las actividades y elijas otra vez las carreras. Tu expediente se conserva; Vinculación lo revisa de nuevo y las carreras vuelven a dictaminar.</p>
+                <p class="mt-2">Puedes empezar el trámite de nuevo{{ $mostrarForm ? ' con la solicitud de abajo' : '' }}: la llenamos con tu propuesta anterior para que ajustes las actividades y elijas otra vez las carreras. Tu expediente se conserva; Vinculación lo revisa de nuevo y las carreras vuelven a dictaminar.</p>
             </x-ui.aviso>
         @endif
 
@@ -141,68 +141,9 @@
             <x-ui.aviso tipo="advertencia" titulo="Tu convenio vence en {{ $diasRestantes }} días">Para no suspender tus programas activos, envía la solicitud de renovación con el formulario de abajo.</x-ui.aviso>
         @endif
 
-        {{-- Solicitud / renovación --}}
+        {{-- Solicitud / renovación por secciones, con borrador --}}
         @if ($mostrarForm)
-            <form method="POST" action="{{ route('empresa.convenio.solicitar') }}" class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xs"
-                x-data="{ elegidas: @js(array_map('intval', (array) old('carreras', []))) }">
-                @csrf
-                <div class="border-b border-gray-100 px-5 py-4 sm:px-6">
-                    <h2 class="font-display text-base font-bold text-gray-900">{{ $puedeRenovar ? 'Solicitar renovación' : ($propuestaAnterior ? 'Enviar una nueva propuesta' : 'Solicitar convenio con el CUCSH') }}</h2>
-                    <p class="mt-0.5 text-xs text-gray-500">Describe la colaboración que propones. Vinculación revisará tu expediente y lo turnará a las carreras que elijas.</p>
-                </div>
-                <div class="space-y-5 p-5 sm:p-6">
-                    <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-                        <div>
-                            <label class="etiqueta" for="c-obj">Objetivos de la colaboración</label>
-                            <textarea id="c-obj" name="objetivos" rows="4" required maxlength="3000" class="campo">{{ old('objetivos', $propuestaAnterior?->objetivos) }}</textarea>
-                        </div>
-                        <div>
-                            <label class="etiqueta" for="c-act">Actividades que realizarían los practicantes</label>
-                            <textarea id="c-act" name="actividades_propuestas" rows="4" required maxlength="3000" class="campo">{{ old('actividades_propuestas', $propuestaAnterior?->actividades_propuestas) }}</textarea>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
-                        <div>
-                            <label class="etiqueta" for="c-plazas">Plazas estimadas por ciclo</label>
-                            <input id="c-plazas" type="number" name="plazas_estimadas" value="{{ old('plazas_estimadas', $propuestaAnterior?->plazas_estimadas) }}" required min="1" max="500" class="campo h-11 tabular-nums">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="etiqueta" for="c-medio">¿Cómo conociste el programa? <span class="font-normal text-gray-400">(opcional)</span></label>
-                            <input id="c-medio" type="text" name="medio_conocimiento" value="{{ old('medio_conocimiento', $propuestaAnterior?->medio_conocimiento) }}" maxlength="255" class="campo h-11">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="etiqueta" for="c-exp">Experiencia previa con practicantes <span class="font-normal text-gray-400">(opcional)</span></label>
-                        <textarea id="c-exp" name="experiencia_previa" rows="2" maxlength="3000" class="campo">{{ old('experiencia_previa', $propuestaAnterior?->experiencia_previa) }}</textarea>
-                    </div>
-
-                    <fieldset>
-                        <legend class="etiqueta">Carreras de interés <span class="font-normal text-gray-500" x-text="elegidas.length ? '· ' + elegidas.length + (elegidas.length === 1 ? ' elegida' : ' elegidas') : ''"></span></legend>
-                        <div class="space-y-4 rounded-xl border border-gray-200 p-4">
-                            @foreach ($carrerasPorDivision as $division => $lista)
-                                <div>
-                                    <p class="mb-2 text-xs font-semibold text-gray-500">{{ $division }}</p>
-                                    <div class="flex flex-wrap gap-2">
-                                        @foreach ($lista as $c)
-                                            <label class="cursor-pointer select-none rounded-lg border px-3 py-1.5 text-sm transition has-[:checked]:border-udg-800 has-[:checked]:bg-udg-800 has-[:checked]:text-white border-gray-200 text-gray-700 hover:border-udg-200 hover:bg-udg-50 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-real-500/25">
-                                                <input type="checkbox" name="carreras[]" value="{{ $c->id }}" class="sr-only" x-model.number="elegidas" @checked(in_array($c->id, (array) old('carreras', [])))>
-                                                {{ $c->nombre }}
-                                            </label>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    </fieldset>
-                </div>
-                <div class="flex justify-end border-t border-gray-100 bg-gray-50/60 px-5 py-4 sm:px-6">
-                    @if ($motivoSolicitud)
-                        <x-ui.accion-bloqueada :motivo="$motivoSolicitud">{{ $puedeRenovar ? 'Enviar renovación' : 'Enviar solicitud' }}</x-ui.accion-bloqueada>
-                    @else
-                        <button class="boton boton-primario"><x-dashboard.icono nombre="enviar" clase="size-4" /> {{ $puedeRenovar ? 'Enviar renovación' : 'Enviar solicitud' }}</button>
-                    @endif
-                </div>
-            </form>
+            @include('empresa.partials.solicitud')
         @endif
 
         {{-- Historial --}}

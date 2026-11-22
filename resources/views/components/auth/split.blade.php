@@ -47,7 +47,8 @@
     </div>
 
     {{-- Panel de identidad (escritorio) --}}
-    <aside class="relative hidden overflow-hidden bg-gradient-to-br from-udg-950 via-udg-900 to-udg-800 lg:flex lg:w-1/2 lg:items-center lg:justify-center" aria-label="Prácticas Profesionales CUCSH">
+    {{-- Fijo al alto de la pantalla: en formularios largos (registro) el logo no se pierde al bajar --}}
+    <aside class="relative hidden overflow-hidden bg-gradient-to-br from-udg-950 via-udg-900 to-udg-800 lg:sticky lg:top-0 lg:flex lg:h-dvh lg:w-1/2 lg:items-center lg:justify-center lg:self-start" aria-label="Prácticas Profesionales CUCSH">
         <x-common.common-grid-shape />
         <div class="pointer-events-none absolute -right-24 top-10 size-80 rounded-full bg-oro-400/10 blur-3xl" aria-hidden="true"></div>
         <div class="pointer-events-none absolute -bottom-24 -left-16 size-96 rounded-full bg-real-500/15 blur-3xl" aria-hidden="true"></div>

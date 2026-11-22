@@ -11,6 +11,14 @@ trait ValidaDocumentos
 {
     public function resolverDocumento(Media $media, ValidacionEstado $estado, ?string $motivo, int $revisorUserId): void
     {
+        // Regla de todos los paneles: lo validado ya no se rechaza ni se «des-valida».
+        // Si cambia algo real (p. ej. un nuevo apoderado), el dueño sube un documento nuevo y ese se revisa.
+        if ($media->getCustomProperty('estado') === ValidacionEstado::Validada->value && $estado !== ValidacionEstado::Validada) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'documento' => '«' . $media->file_name . '» ya está validado: no se puede rechazar. Si cambió algo, pide que se suba un documento nuevo.',
+            ]);
+        }
+
         $media->setCustomProperty('estado', $estado->value);
         $media->setCustomProperty('motivo', $motivo);
         $media->setCustomProperty('revisado_por', $revisorUserId);

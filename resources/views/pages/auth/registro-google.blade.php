@@ -17,7 +17,7 @@
 
                 <div>
                     <label for="name" class="{{ $label }}">Nombre completo<span class="text-error-500">*</span></label>
-                    <input id="name" name="name" type="text" required minlength="5" maxlength="255" data-solo="letras" pattern="{{ \App\Support\Formatos::NOMBRE_PERSONA_HTML }}" data-msg-formato="Escribe tu nombre completo (nombre y apellido), solo con letras." value="{{ old('name', $datos['name']) }}" class="{{ $input }}">
+                    <input id="name" name="name" type="text" required minlength="5" maxlength="80" data-contador="caracteres" data-solo="letras" pattern="{{ \App\Support\Formatos::NOMBRE_PERSONA_HTML }}" data-msg-formato="Escribe tu nombre completo (nombre y apellido), solo con letras." value="{{ old('name', $datos['name']) }}" class="{{ $input }}">
                     @error('name')<p class="text-error-500 mt-1 text-sm">{{ $message }}</p>@enderror
                 </div>
 

@@ -379,12 +379,15 @@ test('la empresa no solicita convenio sin representante legal', function () {
     foreach (Empresa::coleccionesObligatorias() as $col) {
         $e->addMedia(pcPdf())->toMediaCollection($col);
     }
-    $solicitud = ['objetivos' => 'x', 'actividades_propuestas' => 'y', 'plazas_estimadas' => 2, 'carreras' => [$this->abog->id]];
+    solicitudLista($e, [$this->abog->id]);
+    $e->update(['representante_legal' => null]);
 
-    $this->actingAs($u)->post(route('empresa.convenio.solicitar'), $solicitud)->assertSessionHasErrors('convenio');
+    $this->actingAs($u)->post(route('empresa.convenio.solicitar'))->assertSessionHasErrors('convenio');
 
-    $this->actingAs($u)->put(route('empresa.datos-legales'), ['representante_legal' => 'Ing. Pedro Firma', 'representante_cargo' => 'Director', 'domicilio_fiscal' => 'Av. 1 núm. 20, Guadalajara', ...datosNotarialesPrueba(), 'objeto_social' => 'servicios de consultoría legal', 'facultad_firmante' => 'el poder notarial número 2'])->assertSessionHasNoErrors();
-    $this->actingAs($u)->post(route('empresa.convenio.solicitar'), $solicitud)->assertSessionHasNoErrors();
+    // Completa la sección «Declaraciones legales» (la ruta anterior de datos legales también la guarda)
+    $this->actingAs($u)->put(route('empresa.datos-legales'), ['representante_legal' => 'Ing. Pedro Firma', 'representante_cargo' => 'Director',
+        ...datosNotarialesPrueba(), 'objeto_social' => 'servicios de consultoría legal', 'facultad_origen' => 'acta'])->assertSessionHasNoErrors();
+    $this->actingAs($u)->post(route('empresa.convenio.solicitar'))->assertSessionHasNoErrors();
 
     expect($e->refresh()->representante_legal)->toBe('Ing. Pedro Firma')
         ->and($e->convenios()->count())->toBe(1);

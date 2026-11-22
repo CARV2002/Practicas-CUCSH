@@ -23,16 +23,17 @@ class DocumentoController extends Controller
         $empresa = $request->user()->empresa;
         $bloqueado = $empresa->documentosBloqueados();
 
-        $documentos = collect($this->colecciones())->mapWithKeys(function ($col) use ($empresa, $bloqueado) {
+        $documentos = collect($this->colecciones($empresa))->mapWithKeys(function ($col) use ($empresa, $bloqueado) {
             $media = $empresa->documentoVigente($col);
             $estado = $media ? ($media->getCustomProperty('estado') ?? ValidacionEstado::Pendiente->value) : null;
 
             return [
                 $col => [
                     'media' => $media,
-                    'obligatorio' => in_array($col, Empresa::coleccionesObligatorias(), true),
+                    'obligatorio' => in_array($col, $empresa->obligatorias(), true),
+                    // En revisión solo se cambia lo devuelto o se sube lo que falta; lo que Vinculación revisa queda fijo
                     'puedeSubir' => $estado !== ValidacionEstado::Validada->value
-                        && (!$bloqueado || $estado === ValidacionEstado::Rechazada->value),
+                        && (!$bloqueado || $media === null || $estado === ValidacionEstado::Rechazada->value),
                 ]
             ];
         });
@@ -46,55 +47,73 @@ class DocumentoController extends Controller
         ]);
     }
 
+    /**
+     * Un solo envío para todo el expediente: cada archivo se valida por separado (solo PDF, máximo 5 MB).
+     * La antigüedad de la constancia fiscal y del comprobante de domicilio (3 meses) la revisa Vinculación en el PDF.
+     */
     public function subir(Request $request): RedirectResponse
     {
         $empresa = $request->user()->empresa;
+        $aplicables = $this->colecciones($empresa);
 
-        $request->validate(['coleccion' => ['required', Rule::in($this->colecciones())]]);
+        $reglas = ['archivos' => ['required', 'array', 'min:1'], 'archivos.*' => ['file']];
+        $mensajes = ['archivos.required' => 'Elige al menos un documento para enviar.', 'archivos.min' => 'Elige al menos un documento para enviar.'];
+        foreach ($aplicables as $col) {
+            $nombre = Empresa::nombreDocumento($col);
+            $reglas["archivos.{$col}"] = ['nullable', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:' . Empresa::MAX_MB * 1024];
+            $mensajes["archivos.{$col}.mimes"] = "«{$nombre}» debe ser un PDF.";
+            $mensajes["archivos.{$col}.mimetypes"] = "«{$nombre}» debe ser un PDF.";
+            $mensajes["archivos.{$col}.max"] = "«{$nombre}» pesa más de " . Empresa::MAX_MB . ' MB: comprímelo o escanéalo con menor resolución.';
+        }
+        $request->validate($reglas, $mensajes);
 
-        $coleccion = $request->input('coleccion');
-
-        $request->validate([
-            'archivo' => [
-                'required',
-                'file',
-                'max:10240',
-                $coleccion === 'cv_instancia' ? 'mimes:pdf,doc,docx' : 'mimes:pdf',
-            ],
-        ]);
-
-        $vigente = $empresa->documentoVigente($coleccion);
-
-        if (
-            $empresa->documentosBloqueados()
-            && $vigente?->getCustomProperty('estado') !== ValidacionEstado::Rechazada->value
-        ) {
-            throw ValidationException::withMessages([
-                'archivo' => 'Tu convenio está en revisión. Podrás modificar tus documentos si Vinculación rechaza alguno o rechaza la solicitud.',
-            ]);
+        $archivos = collect($request->file('archivos', []));
+        if ($desconocidos = $archivos->keys()->diff($aplicables)->first()) {
+            throw ValidationException::withMessages(['archivos' => 'Ese documento no corresponde a tu tipo de organización.']);
         }
 
-        if ($vigente?->getCustomProperty('estado') === ValidacionEstado::Validada->value) {
-            throw ValidationException::withMessages([
-                'archivo' => 'Este documento ya fue validado. Contacta a Vinculación si necesitas cambiarlo.',
-            ]);
+        // Ninguno se guarda si alguno no se puede cambiar (validado o con la solicitud en revisión)
+        $errores = [];
+        foreach ($archivos->keys() as $col) {
+            $vigente = $empresa->documentoVigente($col);
+            $estado = $vigente?->getCustomProperty('estado');
+            if ($estado === ValidacionEstado::Validada->value) {
+                $errores["archivos.{$col}"] = '«' . Empresa::nombreDocumento($col) . '» ya fue validado: escribe a Vinculación si necesitas cambiarlo.';
+            } elseif ($empresa->documentosBloqueados() && $vigente !== null && $estado !== ValidacionEstado::Rechazada->value) {
+                $errores["archivos.{$col}"] = 'Tu convenio está en revisión: solo puedes subir lo que falta o reemplazar lo que Vinculación te devolvió.';
+            }
+        }
+        if ($errores) {
+            throw ValidationException::withMessages($errores);
         }
 
-        $empresa->addMediaFromRequest('archivo')->toMediaCollection($coleccion);
+        foreach ($archivos as $col => $archivo) {
+            $empresa->addMedia($archivo)->toMediaCollection($col);
+        }
 
+        $nombres = $archivos->keys()->map(fn ($c) => '«' . Empresa::nombreDocumento($c) . '»')->join(', ', ' y ');
         $solicitud = $empresa->convenios()->where('estado', ConvenioEstado::Solicitado->value)->first();
-
-        if ($solicitud) {   // solo avisa si Lorena está esperando documentos
+        if ($solicitud) {   // Lorena está esperando documentos: aviso claro de qué cambió y en qué organización
+            $corregidos = $archivos->keys()->filter(fn ($c) => $empresa->media()->where('collection_name', $c)->count() > 1)->values();
             Avisos::enviar(Avisos::vinculacionDe($solicitud), new AvisoOperativo(
-                mensaje: "{$empresa->razon_social} subió «" . Str::headline($coleccion) . '» a su expediente.',
-                url: route('admin.convenios.show', $solicitud, false),
+                mensaje: $corregidos->isNotEmpty()
+                    ? "{$empresa->razon_social} corrigió " . $corregidos->map(fn ($c) => '«' . Empresa::nombreDocumento($c) . '»')->join(', ', ' y ') . ': ya puedes revisarlo.'
+                    : "{$empresa->razon_social} subió {$nombres} a su expediente: ya puedes revisarlo.",
+                url: route('admin.convenios.show', $solicitud, false) . '#expediente',
                 detalle: $empresa->razon_social,
             ));
         }
 
-        return back()->with('status', 'Documento enviado a revisión.');
-    }
+        $mensaje = $archivos->count() === 1 ? "Enviamos {$nombres} a revisión." : "Enviamos {$archivos->count()} documentos a revisión: {$nombres}.";
 
+        // Si la solicitud aún no se envía, el siguiente paso es enviarla desde «Mi convenio»
+        if (!$empresa->documentosBloqueados() && !$empresa->convenios()->vigentes()->exists()) {
+            return redirect()->route('empresa.convenio', ['seccion' => 'documentos'])
+                ->with('status', $mensaje . ' Revisa que tu solicitud esté completa y envíala.');
+        }
+
+        return back()->with('status', $mensaje . ($solicitud ? ' Avisamos a Vinculación.' : ''));
+    }
     /** Nombre del representante legal (firma el convenio). Se bloquea mientras el convenio está en revisión. */
     public function datosLegales(Request $request): RedirectResponse
     {
@@ -138,9 +157,9 @@ class DocumentoController extends Controller
         return $this->entregar($archivo);
     }
 
-    /** @return string[] */
-    private function colecciones(): array
+    /** @return string[] documentos que le aplican a esta organización (obligatorios y opcionales) */
+    private function colecciones(Empresa $empresa): array
     {
-        return array_values(array_unique([...Empresa::coleccionesObligatorias(), 'poder_notarial']));
+        return $empresa->documentosAplicables();
     }
 }

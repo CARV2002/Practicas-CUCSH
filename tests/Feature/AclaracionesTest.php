@@ -339,8 +339,9 @@ test('el panel, mis documentos y la campana muestran la etapa real del alumno', 
 });
 
 test('la campana avisa al alumno que su coordinación le devolvió un documento aunque no tenga notificaciones', function () {
+    // El alumno envía una constancia nueva (pendiente) y su coordinación se la devuelve
     $alumno = $this->alumno->fresh();
-    $imss = $alumno->documentoVigente('constancia_imss');
+    $imss = $alumno->addMedia(acPdf('imss-nueva.pdf'))->toMediaCollection('constancia_imss');
     $alumno->resolverDocumento($imss, ValidacionEstado::Rechazada, 'Está vencida.', $this->coordUser->id);
 
     $this->actingAs($this->alumnoUser)->getJson(route('notificaciones.resumen'))->assertOk()
@@ -420,7 +421,7 @@ test('tras el rechazo total la empresa ve el motivo por carrera y una nueva prop
     $this->actingAs($this->empresaUser)->get(route('empresa.convenio'))->assertOk()
         ->assertSee('Tu última solicitud fue rechazada')
         ->assertSee('Las actividades no son afines a Derecho.')
-        ->assertSee('Enviar una nueva propuesta')
+        ->assertSee('Nueva propuesta de convenio')
         ->assertSee('Apoyo en litigio');   // actividades de la propuesta anterior, para ajustarlas
 });
 
@@ -480,4 +481,106 @@ test('los reportes se filtran por vacantes internas o de organizaciones externas
         ->assertSee('Proyectos internos')->assertViewHas('reportes', fn ($r) => $r->total() === 0);
     $this->actingAs($this->coordUser)->get(route('coordinacion.lista-reportes', ['origen' => 'externo']))->assertOk()
         ->assertViewHas('reportes', fn ($r) => $r->total() === 1 && $r->first()->practica_id === $externa->id);
+});
+
+test('lo validado no se rechaza en ningún panel', function () {
+    $alumno = $this->alumno->fresh();
+    expect(fn () => $alumno->resolverDocumento($alumno->documentoVigente('kardex'), ValidacionEstado::Rechazada, 'Ya no sirve.', $this->coordUser->id))
+        ->toThrow(\Illuminate\Validation\ValidationException::class);
+    expect($alumno->fresh()->documentoValidado('kardex'))->toBeTrue();
+});
+/* ------------------- Procedimiento de la empresa (documento «PROCESO EMPRESA») ------------------- */
+
+test('Lorena valida varios documentos a la vez y lo validado ya no se rechaza', function () {
+    Notification::fake();
+    $convenio = acSolicitudConExpediente($this);
+    $media = $this->empresa->fresh()->media;
+
+    // Elige dos al azar y los valida juntos
+    $dos = $media->shuffle()->take(2);
+    $this->actingAs($this->lorena)->post(route('admin.convenios.documentos.validar', $convenio), ['documentos' => $dos->pluck('id')->all()])
+        ->assertSessionHas('status', 'Validaste 2 documento(s).');
+    expect($convenio->fresh()->estado)->toBe(ConvenioEstado::Solicitado);
+
+    // Uno ya validado no se puede rechazar
+    $this->actingAs($this->lorena)->post(route('admin.convenios.documentos.resolver', [$convenio, $dos->first()]), ['estado' => 'rechazada', 'motivo' => 'Está borroso, súbelo de nuevo.'])
+        ->assertSessionHasErrors('documento');
+    expect($dos->first()->fresh()->getCustomProperty('estado'))->toBe('validada');
+
+    // El resto: al completar el expediente se envía solo a las carreras
+    $this->actingAs($this->lorena)->post(route('admin.convenios.documentos.validar', $convenio), ['documentos' => $media->pluck('id')->all()])
+        ->assertSessionHas('status', fn ($s) => str_contains($s, 'se envió a las coordinaciones'));
+    expect($convenio->fresh()->estado)->toBe(ConvenioEstado::EnValidacionAcademica);
+});
+
+test('la empresa envía su expediente en un solo paso: solo PDF de hasta 5 MB', function () {
+    $this->convenio->update(['estado' => ConvenioEstado::Rechazado]);   // sin trámite en curso: puede subir
+    $pdf = fn (string $n) => acPdf($n);
+
+    // Una imagen no pasa, ni un PDF de más de 5 MB, ni una constancia vieja
+    $this->actingAs($this->empresaUser)->post(route('empresa.documentos.subir'), [
+        'archivos' => [
+            'acta_constitutiva' => UploadedFile::fake()->image('acta.jpg'),
+            'identificacion_representante' => UploadedFile::fake()->create('ine.pdf', 6000, 'application/pdf'),
+            'constancia_situacion_fiscal' => $pdf('csf.pdf'),
+        ],
+    ])->assertSessionHasErrors(['archivos.acta_constitutiva', 'archivos.identificacion_representante']);
+    expect($this->empresa->fresh()->media)->toHaveCount(0);   // nada se guarda si algo falla
+
+    $this->actingAs($this->empresaUser)->post(route('empresa.documentos.subir'), [
+        'archivos' => ['acta_constitutiva' => $pdf('acta.pdf'), 'constancia_situacion_fiscal' => $pdf('csf.pdf')],
+    ])->assertSessionHasNoErrors()->assertSessionHas('status', fn ($s) => str_contains($s, 'Enviamos 2 documentos'));
+    expect($this->empresa->fresh()->documentoVigente('constancia_situacion_fiscal'))->not->toBeNull();
+});
+
+test('la solicitud se llena por secciones con borrador y no se envía incompleta', function () {
+    $this->convenio->update(['estado' => ConvenioEstado::Rechazado]);
+    $this->empresa->update(['representante_legal' => null, 'giro' => null]);
+
+    // Guardar avance con datos a medias sí se puede; enviar no
+    $this->actingAs($this->empresaUser)->put(route('empresa.convenio.seccion', 'perfiles'), ['carreras' => [$this->abog->id], 'objetivos' => 'Formar practicantes en litigio.'])
+        ->assertSessionHasNoErrors()->assertRedirect(route('empresa.convenio', ['seccion' => 'perfiles']));
+    expect($this->empresa->fresh()->solicitud_borrador['carreras'])->toBe([$this->abog->id]);
+    $this->actingAs($this->empresaUser)->post(route('empresa.convenio.solicitar'))->assertSessionHasErrors('convenio');
+
+    // Formatos: código postal y estado
+    $this->actingAs($this->empresaUser)->put(route('empresa.convenio.seccion', 'generales'), ['razon_social' => 'Aclaraciones S.C.', 'contacto_nombre' => 'Ana Contacto', 'codigo_postal' => '441', 'entidad' => 'Narnia'])
+        ->assertSessionHasErrors(['codigo_postal', 'entidad']);
+
+    $this->actingAs($this->empresaUser)->get(route('empresa.convenio'))->assertOk()
+        ->assertSee('Datos generales y fiscales')->assertSee('Declaraciones legales')->assertSee('Perfiles requeridos')->assertSee('Documentos en PDF');
+});
+
+test('Lorena devuelve con un motivo corto y le avisan cuando la empresa corrige ese documento', function () {
+    Notification::fake();
+    $convenio = acSolicitudConExpediente($this);
+    $acta = $this->empresa->fresh()->documentoVigente('acta_constitutiva');
+
+    // Sin motivo no se devuelve; «borroso» basta
+    $this->actingAs($this->lorena)->post(route('admin.convenios.documentos.resolver', [$convenio, $acta]), ['estado' => 'rechazada', 'motivo' => '   '])
+        ->assertSessionHasErrors(['motivo' => 'Escribe el motivo para que la empresa sepa qué corregir.']);
+    $this->actingAs($this->lorena)->post(route('admin.convenios.documentos.resolver', [$convenio, $acta]), ['estado' => 'rechazada', 'motivo' => 'borroso'])
+        ->assertSessionHasNoErrors();
+
+    // Uno por uno: valida otro documento cualquiera
+    $otro = $this->empresa->fresh()->documentoVigente('comprobante_domicilio');
+    $this->actingAs($this->lorena)->post(route('admin.convenios.documentos.resolver', [$convenio, $otro]), ['estado' => 'validada'])->assertSessionHasNoErrors();
+
+    // La empresa corrige el acta: a Lorena le llega un aviso claro que lleva al expediente
+    $this->actingAs($this->empresaUser)->post(route('empresa.documentos.subir'), ['archivos' => ['acta_constitutiva' => acPdf('acta-legible.pdf')]])->assertSessionHasNoErrors();
+    Notification::assertSentTo($this->lorena, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'Aclaraciones S.C. corrigió «Acta constitutiva»')
+        && str_ends_with($n->url, '/admin/convenios/' . $convenio->id . '#expediente'));
+});
+
+test('con la solicitud en revisión la empresa sube lo que falta, pero no cambia lo que Vinculación revisa', function () {
+    $convenio = app(ConvenioWorkflow::class)->solicitar($this->empresa, [
+        'objetivos' => 'Formar practicantes', 'actividades_propuestas' => 'Apoyo en audiencias', 'plazas_estimadas' => 2,
+    ], [$this->abog->id]);
+    $this->empresa->addMedia(acPdf('acta.pdf'))->toMediaCollection('acta_constitutiva');   // en revisión
+
+    $this->actingAs($this->empresaUser)->post(route('empresa.documentos.subir'), ['archivos' => ['acta_constitutiva' => acPdf('acta2.pdf')]])
+        ->assertSessionHasErrors('archivos.acta_constitutiva');
+    $this->actingAs($this->empresaUser)->post(route('empresa.documentos.subir'), ['archivos' => ['comprobante_domicilio' => acPdf('cd.pdf')]])
+        ->assertSessionHasNoErrors();
+    expect($this->empresa->fresh()->documentoVigente('comprobante_domicilio'))->not->toBeNull();
 });

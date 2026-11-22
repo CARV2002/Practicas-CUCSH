@@ -36,12 +36,12 @@ class Alumno extends Model implements HasMedia
         // Disco "local" = storage/app/private en Laravel 11+/12 (no público)
         $this->addMediaCollection('constancia_imss')
             ->useDisk('local')
-            ->acceptsMimeTypes(['application/pdf', 'image/jpeg', 'image/png']);
+            ->acceptsMimeTypes(['application/pdf']);
 
         // Expediente: el kardex se entrega junto con el IMSS y se valida antes de postularse
         $this->addMediaCollection('kardex')
             ->useDisk('local')
-            ->acceptsMimeTypes(['application/pdf', 'image/jpeg', 'image/png']);
+            ->acceptsMimeTypes(['application/pdf']);
     }
 
     public function user(): BelongsTo

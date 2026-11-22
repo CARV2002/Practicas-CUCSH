@@ -3,6 +3,7 @@ import './tablas';
 import { iniciarVistaPrevia } from './vista-previa';
 import calendarioRegresos from './calendario-regresos';
 import cargaDocumento, { iniciarZonasArchivo } from './carga-documento';
+import codigoPostal from './codigo-postal';
 import Alpine from 'alpinejs';
 
 // Fuentes institucionales (DESIGN_SYSTEM.md §2): se empaquetan con Vite, sin depender de Google Fonts
@@ -18,6 +19,7 @@ window.flatpickr = flatpickr;
 
 Alpine.data('calendarioRegresos', calendarioRegresos);
 Alpine.data('cargaDocumento', cargaDocumento);
+Alpine.data('codigoPostal', codigoPostal);
 Alpine.start();
 iniciarVistaPrevia();
 iniciarZonasArchivo();

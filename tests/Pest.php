@@ -95,3 +95,34 @@ function datosNotarialesPrueba(): array
     return ['escritura_numero' => '1234', 'escritura_fecha' => '2010-01-10', 'notario_nombre' => 'Lic. Juan Notario',
         'notaria_numero' => '5', 'notaria_ciudad' => 'Guadalajara, Jalisco', 'folio_mercantil' => 'N-2010001'];
 }
+
+/**
+ * Deja completas las secciones de la solicitud de convenio de una empresa (generales, legales y perfiles),
+ * como si la hubiera llenado en «Mi convenio». Los documentos se suben aparte.
+ */
+function solicitudLista(\App\Models\Empresa $empresa, array $carreraIds, array $perfiles = []): \App\Models\Empresa
+{
+    $escritura = \App\Support\DatosNotariales::usaEscritura($empresa->tipo_organismo);
+    $empresa->update(array_merge([
+        'giro' => 'Servicios profesionales', 'descripcion' => 'Organización dedicada a la asesoría y atención al público desde hace diez años.',
+        'proyectos_principales' => 'Asesoría a dependencias públicas', 'calle' => 'Av. Juárez', 'numero_exterior' => '976',
+        'colonia' => 'Centro', 'codigo_postal' => '44100', 'municipio' => 'Guadalajara', 'entidad' => 'Jalisco',
+        'domicilio_fiscal' => 'Av. Juárez 976, col. Centro, C.P. 44100, Guadalajara, Jalisco',
+        'contacto_nombre' => $empresa->contacto_nombre && str_contains($empresa->contacto_nombre, ' ') ? $empresa->contacto_nombre : 'Ana Contacto',
+        'contacto_cargo' => 'Recursos Humanos', 'contacto_telefono' => '3312345678',
+        'representante_legal' => $empresa->representante_legal ?: 'Lic. Rosa Firma', 'representante_cargo' => $empresa->representante_cargo ?: 'Directora General',
+        'objeto_social' => 'la prestación de servicios profesionales a la comunidad',
+    ], $escritura
+        ? [...datosNotarialesPrueba(), 'constitucion' => \App\Support\DatosNotariales::redactar(datosNotarialesPrueba()), 'facultad_origen' => 'acta',
+            'facultad_firmante' => 'las facultades que le otorga la escritura constitutiva citada en la declaración I']
+        : ['constitucion' => 'el decreto publicado en el Periódico Oficial el 1 de enero de 2000', 'facultad_origen' => 'nombramiento',
+            'facultad_firmante' => 'nombramiento de fecha 1 de enero de 2025 expedido por el titular del Ejecutivo'],
+    ));
+    $empresa->update(['solicitud_borrador' => array_merge([
+        'carreras' => $carreraIds, 'objetivos' => 'Formar practicantes en proyectos reales de la organización.',
+        'actividades_propuestas' => 'Apoyo en atención al público, archivo y elaboración de documentos.', 'plazas_estimadas' => 3,
+        'medio_conocimiento' => 'Por la página del CUCSH', 'experiencia_previa' => 'Ninguno',
+    ], $perfiles)]);
+
+    return $empresa->refresh();
+}

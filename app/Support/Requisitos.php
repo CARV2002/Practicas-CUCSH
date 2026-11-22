@@ -60,17 +60,17 @@ class Requisitos
         }
 
         if (blank($empresa->representante_legal)) {
-            return 'Captura el nombre del representante legal en la sección Documentos.';
+            return 'Captura el nombre del representante legal en «Mi convenio», sección Declaraciones legales.';
         }
 
         // Las declaraciones van tal cual al Formato de PP: sin ellas Vinculación tendría que pedirlas
         $faltanLegales = collect(['representante_cargo', 'domicilio_fiscal', 'constitucion', 'objeto_social', 'facultad_firmante'])
             ->filter(fn ($campo) => blank($empresa->{$campo}));
         if ($faltanLegales->isNotEmpty()) {
-            return 'Completa tus datos legales para el convenio en la sección Documentos (faltan ' . $faltanLegales->count() . ').';
+            return 'Completa tus declaraciones legales en «Mi convenio» (faltan ' . $faltanLegales->count() . ').';
         }
 
-        $faltantes = collect(Empresa::coleccionesObligatorias())
+        $faltantes = collect($empresa->obligatorias())
             ->filter(fn($col) => $empresa->documentoVigente($col) === null);
 
         if ($faltantes->isNotEmpty()) {
@@ -218,7 +218,7 @@ class Requisitos
     public static function turnarAValidacionAcademica(Convenio $convenio): ?string
     {
         $empresa = $convenio->empresa;
-        $pendientes = collect(Empresa::coleccionesObligatorias())
+        $pendientes = collect($empresa->obligatorias())
             ->reject(fn($col) => $empresa->documentoValidado($col));
 
         return $pendientes->isEmpty()
