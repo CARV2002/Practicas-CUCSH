@@ -107,7 +107,7 @@
                     <span x-text="subiendo ? 'Guardando…' : 'Cambiar foto'">Cambiar foto</span>
                 </button>
                 @if ($user->foto_url)
-                    <form method="POST" action="{{ route('profile.foto.eliminar') }}" x-data @submit="if (!confirm('¿Quitar tu foto de perfil?')) $event.preventDefault()">
+                    <form method="POST" action="{{ route('profile.foto.eliminar') }}" data-confirmar="¿Quitar tu foto de perfil? Se mostrarán tus iniciales en su lugar." data-confirmar-titulo="Quitar foto" data-confirmar-boton="Sí, quitarla">
                         @csrf
                         @method('DELETE')
                         <button class="boton w-full border border-white/25 text-sm text-white hover:bg-white/10">Quitar foto</button>
@@ -160,7 +160,7 @@
                         <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
                             <div>
                                 <label for="name" class="etiqueta">Nombre completo</label>
-                                <input id="name" name="name" type="text" value="{{ old('name', $user->name) }}" required maxlength="255" autocomplete="name" class="campo h-11">
+                                <input id="name" name="name" type="text" data-solo="letras" pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ&#039;.\-]+(\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ&#039;.\-]+)+" data-msg-formato="Escribe nombre y apellido, solo con letras." value="{{ old('name', $user->name) }}" required maxlength="255" autocomplete="name" class="campo h-11">
                                 @error('name')<p class="mt-1.5 text-sm font-medium text-error-600">{{ $message }}</p>@enderror
                             </div>
                             <div>
@@ -267,16 +267,16 @@
                             <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
                                 <div class="md:col-span-1">
                                     <label for="contacto_nombre" class="etiqueta">Persona de contacto</label>
-                                    <input id="contacto_nombre" name="contacto_nombre" value="{{ old('contacto_nombre', $empresa->contacto_nombre) }}" required maxlength="255" class="campo h-11">
+                                    <input id="contacto_nombre" data-solo="letras" pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ&#039;.\-]+(\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ&#039;.\-]+)+" data-msg-formato="Escribe nombre y apellido, solo con letras." name="contacto_nombre" value="{{ old('contacto_nombre', $empresa->contacto_nombre) }}" required maxlength="255" class="campo h-11">
                                     @error('contacto_nombre', 'organizacion')<p class="mt-1.5 text-sm font-medium text-error-600">{{ $message }}</p>@enderror
                                 </div>
                                 <div>
                                     <label for="contacto_cargo" class="etiqueta">Cargo</label>
-                                    <input id="contacto_cargo" name="contacto_cargo" value="{{ old('contacto_cargo', $empresa->contacto_cargo) }}" maxlength="255" class="campo h-11">
+                                    <input id="contacto_cargo" data-solo="letras" name="contacto_cargo" value="{{ old('contacto_cargo', $empresa->contacto_cargo) }}" maxlength="255" class="campo h-11">
                                 </div>
                                 <div>
                                     <label for="contacto_telefono" class="etiqueta">Teléfono</label>
-                                    <input id="contacto_telefono" name="contacto_telefono" type="tel" value="{{ old('contacto_telefono', $empresa->contacto_telefono) }}" maxlength="20" class="campo h-11">
+                                    <input id="contacto_telefono" name="contacto_telefono" type="tel" inputmode="numeric" autocomplete="tel" data-solo="digitos" data-contador="dígitos" minlength="10" maxlength="10" pattern="\d{10}" data-msg-formato="El teléfono son 10 números, sin espacios ni guiones (por ejemplo 3312345678)." value="{{ old('contacto_telefono', $empresa->contacto_telefono) }}" class="campo h-11">
                                     @error('contacto_telefono', 'organizacion')<p class="mt-1.5 text-sm font-medium text-error-600">{{ $message }}</p>@enderror
                                 </div>
                             </div>

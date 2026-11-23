@@ -445,6 +445,10 @@ test('Vinculación descarga el informe de documentos físicos con los filtros de
     foreach ($this->empresa->fresh()->media as $m) {
         $this->actingAs($this->lorena)->post(route('admin.convenios.documentos.resolver', [$c, $m]), ['estado' => 'validada']);
     }
+    // El turno a las carreras es digital: el primer papel aparece cuando el expediente va a la Unidad Jurídica
+    expect($c->documentosFisicos()->count())->toBe(0);
+    $c->update(['estado' => \App\Enums\ConvenioEstado::EnRevisionJuridica]);
+    $c->prepararDocumentosFisicos($this->lorena->personal);
     expect($c->documentosFisicos()->count())->toBeGreaterThan(0);
 
     $this->actingAs($this->lorena)->get(route('admin.documentos-fisicos'))->assertOk()

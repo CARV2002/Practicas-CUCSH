@@ -16,13 +16,13 @@
         'fuera' => ['Ningún papel fuera de la oficina', 'Todo lo que salió ya regresó a Vinculación.'],
         'vencidos' => ['Sin regresos vencidos', 'Ningún papel rebasó su fecha de regreso.'],
         'casa' => ['Nada pendiente en tu oficina', 'No hay papeles esperando a ser enviados o archivados.'],
-        'concluidos' => ['Aún no hay papeles concluidos', 'Los juegos entregados y los oficios archivados aparecerán aquí.'],
+        'concluidos' => ['Aún no hay papeles concluidos', 'Los juegos entregados y los expedientes archivados aparecerán aquí.'],
     ];
     $totalPapeles = $grupos->flatten()->count();
 @endphp
 
 <div class="space-y-6">
-    <x-pagina.encabezado titulo="Documentos físicos" descripcion="Dónde está cada papel del trámite (oficios de turno, dictámenes jurídicos y los 3 juegos del convenio), quién lo tiene y cuándo debe regresar.">
+    <x-pagina.encabezado titulo="Documentos físicos" descripcion="Dónde está cada papel del trámite (el expediente que va a la Unidad Jurídica y los 3 juegos del convenio que firman la empresa y Rectoría), quién lo tiene y cuándo debe regresar.">
         <x-slot:acciones>
                 {{-- Calendario de regresos --}}
                 <div x-data="calendarioRegresos(@js($calendario))">
@@ -198,7 +198,7 @@
                                     </div>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
-                                    @if ($conEmpresa > 0)
+                                    @if ($conEmpresa > 0 && auth()->user()->can('operar-convenios'))
                                         <x-ui.boton-icono :accion="route('admin.convenios.fisicos.recordar', $convenio)" icono="reloj" etiqueta="Recordar a la empresa" tono="neutro" con-texto
                                             confirmar="¿Enviar a la empresa un recordatorio por correo para devolver los juegos firmados?" />
                                     @endif
@@ -247,9 +247,9 @@
                             </td>
                             <td class="acciones px-6 py-3.5 text-right">
                                 <div class="flex items-center justify-end gap-1.5">
-                                    <button type="button" class="boton boton-chico boton-secundario" x-on:click="editar = !editar; historial = false" :aria-expanded="editar.toString()">
+                                    @can('operar-convenios')<button type="button" class="boton boton-chico boton-secundario" x-on:click="editar = !editar; historial = false" :aria-expanded="editar.toString()">
                                         <x-dashboard.icono nombre="editar" clase="size-3.5" /> Mover
-                                    </button>
+                                    </button>@endcan
                                     <button type="button" class="boton boton-chico text-gray-500 hover:bg-gray-100 hover:text-gray-800" x-on:click="historial = !historial; editar = false" :aria-expanded="historial.toString()" title="Historial de movimientos">
                                         <x-dashboard.icono nombre="reloj" clase="size-3.5" /><span class="sr-only">Historial</span>
                                     </button>
@@ -260,16 +260,21 @@
                         {{-- Mover --}}
                         <tr x-show="editar" x-cloak>
                             <td colspan="5" class="border-t border-gray-100 bg-gray-50/70 px-6 py-4">
+                                @can('operar-convenios')
                                 <form method="POST" action="{{ route('admin.documentos-fisicos.mover', $d) }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
                                     @csrf
                                     <input type="hidden" name="doc" value="{{ $d->id }}">
                                     <div>
                                         <label class="etiqueta" for="estado-{{ $d->id }}">¿Dónde está ahora?</label>
                                         <select id="estado-{{ $d->id }}" name="estado" x-model="estado" class="campo h-10">
-                                            @foreach ($d->tipo->estados() as $e)
-                                                <option value="{{ $e->value }}">{{ $e->label() }}</option>
+                                            {{-- Solo los pasos válidos: sin dictamen favorable, el expediente solo regresa a Jurídica y los juegos no salen a firma --}}
+                                            @foreach ($d->estadosDisponibles() as $e)
+                                                <option value="{{ $e->value }}">{{ $e === \App\Enums\EstadoDocumentoFisico::EnJuridica && $d->estado === \App\Enums\EstadoDocumentoFisico::ConObservaciones ? 'En Unidad Jurídica · reenviar corregido (reinicia el conteo)' : $e->label() }}</option>
                                             @endforeach
                                         </select>
+                                        @if ($d->tipo === \App\Enums\TipoDocumentoFisico::DictamenJuridico && $d->estado === \App\Enums\EstadoDocumentoFisico::ConObservaciones)
+                                            <p class="ayuda text-rose-700">Jurídica lo devolvió: corrígelo y regístralo de nuevo en la Unidad Jurídica. Los juegos no saldrán a firma hasta el dictamen favorable.</p>
+                                        @endif
                                     </div>
                                     <div>
                                         <label class="etiqueta" for="fecha-{{ $d->id }}">Fecha del movimiento</label>
@@ -295,6 +300,7 @@
                                         <button class="boton boton-chico boton-primario"><x-dashboard.icono nombre="check" clase="size-3.5" /> Guardar</button>
                                     </div>
                                 </form>
+                                @endcan
                             </td>
                         </tr>
 
@@ -338,7 +344,7 @@
                                 <p class="truncate text-sm font-medium text-gray-900">{{ $c->empresa->razon_social }}</p>
                                 <x-ui.estatus :estado="$c->estado" class="mt-0.5" />
                             </div>
-                            <x-ui.boton-icono :accion="route('admin.convenios.fisicos.preparar', $c)" icono="mas" etiqueta="Abrir control" tono="primario" con-texto />
+                            @can('operar-convenios')<x-ui.boton-icono :accion="route('admin.convenios.fisicos.preparar', $c)" icono="mas" etiqueta="Abrir control" tono="primario" con-texto />@endcan
                         </li>
                     @endforeach
                 </ul>
@@ -351,7 +357,7 @@
                 <svg class="size-4 text-gray-400 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
             </summary>
             <ul class="mt-3 space-y-1.5">
-                <li class="flex gap-2"><x-dashboard.icono nombre="enviar" clase="mt-0.5 size-4 shrink-0 text-gray-400" /> Al enviar la propuesta a las carreras se crea el oficio de turno.</li>
+                <li class="flex gap-2"><x-dashboard.icono nombre="enviar" clase="mt-0.5 size-4 shrink-0 text-gray-400" /> El turno a las carreras es digital: aquí solo se rastrean los papeles con firma autógrafa y sello.</li>
                 <li class="flex gap-2"><x-dashboard.icono nombre="juridico" clase="mt-0.5 size-4 shrink-0 text-gray-400" /> Al turnar a Jurídica, el dictamen queda «En Unidad Jurídica».</li>
                 <li class="flex gap-2"><x-dashboard.icono nombre="firma" clase="mt-0.5 size-4 shrink-0 text-gray-400" /> Con el dictamen aprobado nacen los 3 juegos; las firmas que registres en el trámite los actualizan.</li>
                 <li class="flex gap-2"><x-dashboard.icono nombre="reloj" clase="mt-0.5 size-4 shrink-0 text-gray-400" /> Cada mañana se avisa de los regresos vencidos, y a la empresa si tiene juegos por devolver.</li>

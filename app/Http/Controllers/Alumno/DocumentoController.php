@@ -156,6 +156,39 @@ class DocumentoController extends Controller
         return back()->with('status', 'Carta de aceptación enviada; tu coordinación la registrará.');
     }
 
+    /**
+     * Formato estándar del sistema (PDF) con lo que el alumno redactó: encabezado del CUCSH, datos del alumno y la
+     * organización, tabla de horas, actividades y tres firmas. Se imprime, se firma y se sube escaneado.
+     */
+    public function formatoReporte(Request $request, Reporte $reporte)
+    {
+        $this->authorize('subirArchivo', $reporte);
+
+        abort_if(blank($reporte->actividades), 404, 'Este reporte se registró sin redacción: no tiene formato generado.');
+
+        $practica = $reporte->practica->load(['postulacion.alumno.user', 'postulacion.alumno.carrera', 'postulacion.programa.convenio.empresa', 'supervisor']);
+        $alumno = $practica->postulacion->alumno;
+        $programa = $practica->postulacion->programa;
+        $validadasAntes = (int) $practica->reportes()->where('estado', ReporteEstado::Validado->value)->where('id', '!=', $reporte->id)->sum('horas_reportadas')
+            + (int) ($practica->horas_reconocidas ?? 0);
+        $logo = public_path('images/home/logo-udg.png');
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('alumno.pdf.reporte', [
+            'reporte' => $reporte,
+            'practica' => $practica,
+            'alumno' => $alumno,
+            'programa' => $programa,
+            'empresa' => $programa->convenio?->empresa,
+            'validadasAntes' => $validadasAntes,
+            'logo' => is_file($logo) ? $logo : null,
+        ])->setPaper('letter');
+
+        $nombre = "reporte-{$reporte->numero}-{$alumno->num_control}.pdf";
+
+        // ?ver=1: se muestra en la ventana «Ver documento»; sin él, se descarga
+        return request()->boolean('ver') ? $pdf->stream($nombre) : $pdf->download($nombre);
+    }
+
     public function subirReporte(Request $request, Reporte $reporte): RedirectResponse
     {
         $practica = $reporte->practica;
@@ -245,8 +278,14 @@ class DocumentoController extends Controller
             'periodo_inicio' => ['required', 'date', 'after_or_equal:' . $practica->fecha_inicio->toDateString(), 'before_or_equal:' . $tope],
             'periodo_fin' => ['required', 'date', 'after_or_equal:periodo_inicio', 'before_or_equal:' . $tope],
             'horas_reportadas' => ['required', 'integer', 'min:1', 'max:1000'],
-            'archivo' => ['required', 'file', 'mimes:pdf', 'max:10240'],
+            // Lo que redacta en pantalla: con esto el sistema genera el formato estándar en PDF
+            'actividades' => ['required_without:archivo', 'nullable', 'string', 'min:30', 'max:5000'],
+            'logros' => ['nullable', 'string', 'max:3000'],
+            // Opcional: si su carrera usa un formato propio, sube ese ya firmado (los datos siguen contando las horas)
+            'archivo' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
         ], [
+            'actividades.required_without' => 'Describe las actividades que realizaste en el periodo (o sube el formato propio de tu carrera ya firmado).',
+            'actividades.min' => 'Describe con más detalle tus actividades (al menos 30 caracteres).',
             'periodo_inicio.after_or_equal' => 'El periodo no puede empezar antes de tu práctica.',
             'periodo_fin.before_or_equal' => 'El periodo no puede terminar en el futuro ni después de tu práctica.',
             'tipo.in' => "Tu carrera pide reportes con el esquema «{$esquema->label()}».",
@@ -277,6 +316,9 @@ class DocumentoController extends Controller
             }
 
             $reporte = $practica->reportes()->create([
+                'numero' => (int) $practica->reportes()->max('numero') + 1,
+                'actividades' => $datos['actividades'] ?? null,
+                'logros' => $datos['logros'] ?? null,
                 'tipo' => $datos['tipo'],
                 'periodo_inicio' => $datos['periodo_inicio'],
                 'periodo_fin' => $datos['periodo_fin'],
@@ -284,12 +326,18 @@ class DocumentoController extends Controller
                 'estado' => ReporteEstado::Pendiente,
             ]);
 
-            $reporte->addMediaFromRequest('archivo')->toMediaCollection('reporte_firmado');
+            if ($request->hasFile('archivo')) {
+                $reporte->addMediaFromRequest('archivo')->toMediaCollection('reporte_firmado');
+            }
         });
 
-        $this->avisarCoordinacion($request, "envió un reporte {$datos['tipo']} de {$datos['horas_reportadas']} h por validar.", 'coordinacion.lista-reportes');
+        if ($request->hasFile('archivo')) {
+            $this->avisarCoordinacion($request, "envió un reporte {$datos['tipo']} de {$datos['horas_reportadas']} h por validar.", 'coordinacion.lista-reportes');
 
-        return back()->with('status', 'Reporte enviado. Tu coordinación lo validará para que cuenten tus horas.');
+            return back()->with('status', 'Reporte enviado con tu formato firmado. Tu coordinación lo validará para que cuenten tus horas.');
+        }
+
+        return back()->with('status', 'Reporte registrado. Descarga el formato en PDF, recaba la firma y sello de tu jefe directo, escanéalo y súbelo en ese mismo reporte.');
     }
 
     private function avisarCoordinacion(Request $request, string $mensaje, string $ruta): void

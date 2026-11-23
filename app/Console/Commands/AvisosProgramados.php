@@ -64,7 +64,8 @@ class AvisosProgramados extends Command
                 if (! $this->yaAvisado($admin, $clave)) {
                     Avisos::enviar($admin, new AvisoOperativo(
                         mensaje: $texto,
-                        url: route('admin.convenios.show', $c, false),
+                        // Acceso directo a la empresa (expediente, contacto y su convenio) para dar seguimiento a la renovación
+                        url: route('admin.empresas.show', $c->empresa, false),
                         detalle: $c->empresa->razon_social,
                         correo: true,
                         asunto: "Convenio por vencer: {$c->empresa->razon_social}",

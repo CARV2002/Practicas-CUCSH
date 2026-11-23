@@ -42,6 +42,10 @@ beforeEach(function () {
     $this->adminUser = audUser(Rol::Administrador);
     Personal::create(['user_id' => $this->adminUser->id, 'puesto' => 'Coordinación']);
 
+    // Vinculación opera el trámite; el administrador solo lo consulta
+    $this->lorena = audUser(Rol::Vinculacion);
+    Personal::create(['user_id' => $this->lorena->id, 'puesto' => 'Vinculación']);
+
     $this->coordUser = audUser(Rol::Administrador);
     Personal::create(['user_id' => $this->coordUser->id, 'carrera_id' => $this->abog->id, 'puesto' => 'Coordinador ABOG']);
 
@@ -62,14 +66,19 @@ beforeEach(function () {
 });
 
 test('un cambio de estado queda con actor, antes y después', function () {
+    // El administrador ya no opera convenios (solo lectura)
     $this->actingAs($this->adminUser)
+        ->post(route('admin.convenios.rechazar', $this->convenio), ['motivo' => 'No aplica'])
+        ->assertForbidden();
+
+    $this->actingAs($this->lorena)
         ->post(route('admin.convenios.rechazar', $this->convenio), ['motivo' => 'No aplica'])
         ->assertSessionHasNoErrors();
 
     $log = AuditLog::where('accion', 'convenio.actualizado')->latest('id')->firstOrFail();
 
-    expect((int) $log->user_id)->toBe($this->adminUser->id)
-        ->and($log->actor_rol)->toBe('administrador')
+    expect((int) $log->user_id)->toBe($this->lorena->id)
+        ->and($log->actor_rol)->toBe('vinculacion')
         ->and($log->entidad_tipo)->toBe('Convenio')
         ->and((int) $log->entidad_id)->toBe($this->convenio->id)
         ->and($log->cambios['estado'])->toBe(['antes' => 'solicitado', 'despues' => 'rechazado']);
@@ -80,7 +89,7 @@ test('validar o rechazar un documento deja el motivo y la subida queda registrad
 
     expect(AuditLog::where('accion', 'documento.subido')->exists())->toBeTrue();
 
-    $this->actingAs($this->adminUser)
+    $this->actingAs($this->lorena)
         ->post(route('admin.convenios.documentos.resolver', [$this->convenio, $media]), ['estado' => 'rechazada', 'motivo' => 'Ilegible'])
         ->assertSessionHasNoErrors();
 
@@ -88,7 +97,7 @@ test('validar o rechazar un documento deja el motivo y la subida queda registrad
 
     expect($log->entidad_tipo)->toBe('Empresa')
         ->and($log->cambios['motivo'])->toBe('Ilegible')
-        ->and((int) $log->user_id)->toBe($this->adminUser->id);
+        ->and((int) $log->user_id)->toBe($this->lorena->id);
 });
 
 test('las contraseñas nunca se guardan, ni siquiera cifradas', function () {
@@ -147,7 +156,7 @@ test('se registran las descargas del personal pero no las del alumno con sus pro
 });
 
 test('solo la coordinación con alcance global consulta la auditoría', function () {
-    $this->actingAs($this->adminUser)
+    $this->actingAs($this->lorena)
         ->post(route('admin.convenios.rechazar', $this->convenio), ['motivo' => 'No aplica']);
 
     $this->actingAs($this->adminUser)->get(route('admin.auditoria'))->assertOk()->assertSee('convenio.actualizado');

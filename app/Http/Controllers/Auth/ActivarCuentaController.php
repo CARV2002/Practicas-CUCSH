@@ -21,7 +21,13 @@ class ActivarCuentaController extends Controller
 {
     public function create(Request $request, string $token): View
     {
-        return view('pages.auth.activar-cuenta', ['token' => $token, 'email' => (string) $request->query('email')]);
+        $email = (string) $request->query('email');
+        $usuario = $email !== '' ? User::where('email', $email)->first() : null;
+
+        // Enlace vencido (72 h), ya usado o alterado: se avisa ANTES de que escriba su contraseña
+        $vigente = $usuario !== null && Password::broker('invitaciones')->tokenExists($usuario, $token);
+
+        return view('pages.auth.activar-cuenta', ['token' => $token, 'email' => $email, 'vencido' => !$vigente]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -46,7 +52,7 @@ class ActivarCuentaController extends Controller
 
         if ($estado !== Password::PASSWORD_RESET) {
             return back()->withInput($request->only('email'))->withErrors([
-                'email' => 'El enlace ya venció o ya se usó. Pide a la administración de Prácticas Profesionales que te envíe uno nuevo.',
+                'email' => 'El enlace ya venció o ya se usó. Solicita uno nuevo con «¿Olvidaste tu contraseña?» o pide a la administración que te lo reenvíe.',
             ]);
         }
 

@@ -120,16 +120,16 @@
         @php $ultimoRechazo = $historial->first(fn ($h) => $h->estado === \App\Enums\ConvenioEstado::Rechazado); @endphp
         @php $propuestaAnterior = (!$vigente && !$enTramite && $ultimoRechazo && $historial->first()?->is($ultimoRechazo)) ? $ultimoRechazo : null; @endphp
         @if ($propuestaAnterior)
-            <x-ui.aviso tipo="error" titulo="Tu última solicitud fue rechazada">
-                <p>{{ $propuestaAnterior->seguimientos->where('estado', \App\Enums\SeguimientoEstado::Rechazado)->last()?->comentario ?? 'Consulta el motivo en tu historial.' }}</p>
+            <x-ui.correccion titulo="Tu última solicitud fue rechazada" quien="Vinculación" :motivo="$propuestaAnterior->seguimientos->where('estado', \App\Enums\SeguimientoEstado::Rechazado)->last()?->comentario">
+                Puedes empezar el trámite de nuevo{{ $mostrarForm ? ' en la solicitud de abajo (sección «Perfiles requeridos», marcada en rojo)' : '' }}: la llenamos con tu propuesta anterior para que ajustes las actividades y elijas otra vez las carreras. Tu expediente se conserva; Vinculación lo revisa de nuevo y las carreras vuelven a dictaminar.
                 @php $negativos = $propuestaAnterior->dictamenes->where('dictamen', \App\Enums\Dictamen::Negativo)->filter(fn ($d) => filled($d->observaciones)); @endphp
                 @if ($negativos->isNotEmpty())
-                    <ul class="mt-2 list-disc space-y-1 pl-5">
+                    <p class="mt-2 font-semibold">Lo que dijo cada carrera:</p>
+                    <ul class="mt-1 list-disc space-y-1 pl-5">
                         @foreach ($negativos as $d)<li><span class="font-semibold">{{ $d->carrera->nombre }}:</span> {{ $d->observaciones }}</li>@endforeach
                     </ul>
                 @endif
-                <p class="mt-2">Puedes empezar el trámite de nuevo{{ $mostrarForm ? ' con la solicitud de abajo' : '' }}: la llenamos con tu propuesta anterior para que ajustes las actividades y elijas otra vez las carreras. Tu expediente se conserva; Vinculación lo revisa de nuevo y las carreras vuelven a dictaminar.</p>
-            </x-ui.aviso>
+            </x-ui.correccion>
         @endif
 
         @if (!$vigente && !$enTramite && !$mostrarForm)

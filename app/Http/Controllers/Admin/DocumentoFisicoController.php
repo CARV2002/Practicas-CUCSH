@@ -27,7 +27,9 @@ class DocumentoFisicoController extends Controller
         $vista = $request->string('vista')->toString() ?: 'activos';
         $q = $request->string('q')->toString();
 
+        // El oficio de turno académico ya no se rastrea en papel (el turno a las carreras es digital)
         $base = DocumentoFisico::query()
+            ->where('tipo', '!=', \App\Enums\TipoDocumentoFisico::OficioTurno->value)
             ->whereHas('convenio', fn ($c) => $c->visiblesPara($personal));
 
         $conteos = [
@@ -50,8 +52,7 @@ class DocumentoFisicoController extends Controller
         $sinControl = Convenio::visiblesPara($personal)
             ->with('empresa')
             ->whereIn('estado', [
-                ConvenioEstado::EnValidacionAcademica->value, ConvenioEstado::EnRevisionJuridica->value,
-                ConvenioEstado::EnFirmas->value, ConvenioEstado::Formalizado->value,
+                ConvenioEstado::EnRevisionJuridica->value, ConvenioEstado::EnFirmas->value, ConvenioEstado::Formalizado->value,
             ])
             ->whereDoesntHave('documentosFisicos')
             ->latest('id')
@@ -99,6 +100,10 @@ class DocumentoFisicoController extends Controller
         ]);
 
         $estado = EstadoDocumentoFisico::from($datos['estado']);
+
+        if ($bloqueo = $documento->bloqueoPara($estado)) {
+            return back()->withErrors(['estado' => $bloqueo])->withInput();
+        }
 
         if (in_array($estado, [EstadoDocumentoFisico::ConObservaciones, EstadoDocumentoFisico::Extraviado], true) && blank($datos['nota'] ?? null)) {
             return back()->withErrors(['nota' => 'Explica brevemente qué pasó con el documento.'])->withInput();

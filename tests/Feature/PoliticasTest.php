@@ -134,7 +134,8 @@ test('convenio: lo ven la empresa dueña, Vinculación y la coordinación partic
         ->and($this->coordSinPerfil->can('view', $this->convenio))->toBeFalse()      // sin perfil: se niega, no truena
         ->and($this->userA->can('gestionar', $this->convenio))->toBeFalse()          // la empresa no avanza su propio trámite
         ->and($this->vinculacion->can('gestionar', $this->convenio))->toBeTrue()
-        ->and($this->adminTecnico->can('gestionar', $this->convenio))->toBeTrue()
+        ->and($this->adminTecnico->can('view', $this->convenio))->toBeTrue()               // el administrador supervisa…
+        ->and($this->adminTecnico->can('gestionar', $this->convenio))->toBeFalse()         // …pero no opera el trámite
         ->and($this->coordAbog->can('gestionar', $this->convenio))->toBeFalse();       // la coordinación no avanza el trámite
 });
 

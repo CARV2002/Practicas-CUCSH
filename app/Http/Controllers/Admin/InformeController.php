@@ -182,6 +182,7 @@ class InformeController extends Controller
     private function exportarDocumentosFisicos(Request $request, Personal $personal): array
     {
         $consulta = \App\Models\DocumentoFisico::with('convenio.empresa')
+            ->where('tipo', '!=', \App\Enums\TipoDocumentoFisico::OficioTurno->value)   // el turno es digital: ya no se rastrea
             ->whereHas('convenio', fn ($c) => $c->visiblesPara($personal))
             ->enVista($request->string('vista')->toString() ?: 'activos', $request->string('q')->toString());
 

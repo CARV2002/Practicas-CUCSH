@@ -3,12 +3,15 @@
 namespace App\Enums;
 
 /**
- * Papeles del trámite híbrido que Vinculación controla a mano: el oficio de turno, el
- * Dictamen de Viabilidad Jurídica en original y los 3 juegos del convenio que firman
- * la empresa y Rectoría.
+ * Papeles que siguen viajando con firmas autógrafas y sellos de tinta, y que Vinculación rastrea a mano:
+ *  1. El expediente / borrador que se lleva en carpeta a la Unidad Jurídica (regresa con el dictamen).
+ *  2 y 3. Los 3 juegos originales del convenio: con la empresa (firma al calce y sello) y en Rectoría
+ *     (firma del Rector y reparto final).
+ * OficioTurno queda solo por compatibilidad: el turno a las carreras es digital y ya no se rastrea.
  */
 enum TipoDocumentoFisico: string
 {
+    /** @deprecated El turno a las coordinaciones es digital; ya no se crea ni se muestra. */
     case OficioTurno = 'oficio_turno';
     case DictamenJuridico = 'dictamen_juridico';
     case JuegoConvenio = 'juego_convenio';
@@ -17,7 +20,7 @@ enum TipoDocumentoFisico: string
     {
         return match ($this) {
             self::OficioTurno => 'Oficio de turno académico',
-            self::DictamenJuridico => 'Dictamen de viabilidad jurídica',
+            self::DictamenJuridico => 'Expediente / borrador en Unidad Jurídica',
             self::JuegoConvenio => 'Juego original del convenio',
         };
     }
@@ -27,8 +30,8 @@ enum TipoDocumentoFisico: string
     {
         return match ($this) {
             self::OficioTurno => 'Secretaría Académica → División → acuse de recibo',
-            self::DictamenJuridico => 'Original que devuelve la Unidad Jurídica',
-            self::JuegoConvenio => 'Firma de la empresa → firma de Rectoría → entrega',
+            self::DictamenJuridico => 'Carpeta física a revisión legal → regresa con el dictamen de viabilidad',
+            self::JuegoConvenio => 'Con la empresa (firma al calce y sello) → Rectoría (firma del Rector) → reparto',
         };
     }
 

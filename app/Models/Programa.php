@@ -34,6 +34,7 @@ class Programa extends Model
         'cupos_totales',
         'estado',
         'motivo_rechazo',
+        'observaciones_cierre',   // por qué la Coordinación cerró una vacante externa
         'revisado_por',
         'revisado_at',
     ];

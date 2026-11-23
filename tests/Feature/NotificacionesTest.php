@@ -138,6 +138,11 @@ test('un reporte rechazado avisa por correo y uno validado solo en la plataforma
         'periodo_fin' => today(), 'horas_reportadas' => 40];
     $malo = Reporte::create($base);
     $bueno = Reporte::create($base);
+    // Solo se valida con el escaneo firmado y sellado
+    \Illuminate\Support\Facades\Storage::fake('local');
+    $malo->addMedia(\Illuminate\Http\UploadedFile::fake()->createWithContent('reporte.pdf', "%PDF-1.4
+%%EOF"))->toMediaCollection('reporte_firmado');
+    $bueno->addMedia(\Illuminate\Http\UploadedFile::fake()->createWithContent('reporte.pdf', "%PDF-1.4\n%%EOF"))->toMediaCollection('reporte_firmado');
 
     Notification::fake();
 

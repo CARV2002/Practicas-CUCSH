@@ -127,29 +127,10 @@ class ConvenioWorkflow
                 'fecha_turno_division' => $division?->toDateString(),
             ]);
 
-            // Una sola captura: las fechas de turno también mueven el oficio físico (solo hacia adelante)
-            if ($division) {
-                $this->avanzarFisico($convenio, TipoDocumentoFisico::OficioTurno, EstadoDocumentoFisico::EnDivision, $por, 'Turno registrado en la División.', $division);
-            } elseif ($secretaria) {
-                $this->avanzarFisico($convenio, TipoDocumentoFisico::OficioTurno, EstadoDocumentoFisico::EnSecretaria, $por, 'Turno registrado en Secretaría Académica.', $secretaria);
-            }
+            // El turno es digital: estas fechas solo miden tiempos, ya no hay oficio en papel que mover
 
             return $convenio;
         });
-    }
-
-    /** Mueve el papel solo si el nuevo estado va después del actual en su recorrido. */
-    private function avanzarFisico(Convenio $convenio, TipoDocumentoFisico $tipo, EstadoDocumentoFisico $estado, ?Personal $por, string $nota, CarbonInterface $fecha): void
-    {
-        $doc = $convenio->documentosFisicos()->where('tipo', $tipo->value)->first();
-        if ($doc === null) {
-            return;
-        }
-
-        $camino = $tipo->estados();
-        if (array_search($estado, $camino, true) > array_search($doc->estado, $camino, true)) {
-            $doc->mover($estado, $por, $nota, null, $fecha);
-        }
     }
 
     /** Fase 2.2 — El coordinador emite el Dictamen de Pertinencia de SU carrera. */
@@ -203,7 +184,7 @@ class ConvenioWorkflow
 
             // Fase 3.1 — "Si todas rechazaron, el proceso muere"
             if (!$convenio->tieneAprobatorio()) {
-                $this->rechazar($convenio, $por, 'Todas las carreras emitieron dictamen negativo.');
+                $this->rechazar($convenio, $por, 'Todas las carreras emitieron dictamen negativo.', $this->observacionesNegativas($convenio));
 
                 return $convenio->refresh();
             }
@@ -216,16 +197,25 @@ class ConvenioWorkflow
                 null,
                 'Dictámenes recibidos. Redactar el borrador solo con las carreras aprobatorias.'
             );
-            $this->avisarEmpresa($convenio, 'Las carreras emitieron su dictamen. Estamos redactando tu convenio.');
+            $negativas = $this->observacionesNegativas($convenio);
+            $negativas === ''
+                ? $this->avisarEmpresa($convenio, 'Las carreras emitieron su dictamen. Estamos redactando tu convenio.')
+                : $this->avisarEmpresa(
+                    $convenio,
+                    'Las carreras emitieron su dictamen. Seguimos con tu convenio solo para las carreras que lo aprobaron. Estas no lo aprobaron: ' . $negativas
+                        . ' Si quieres incluirlas más adelante, ajusta tus objetivos y actividades a su perfil y envía una nueva solicitud cuando este convenio quede formalizado.',
+                    correo: true,
+                    asunto: 'Dictamen académico de tu convenio: carreras no aprobadas',
+                );
 
             return $convenio;
         });
     }
 
     /** Fase 3.2 — El borrador (y cada versión corregida) se turna a la Unidad Jurídica. */
-    public function turnarAJuridica(Convenio $convenio, Personal $por): Convenio
+    public function turnarAJuridica(Convenio $convenio, Personal $por, ?string $comentario = null): Convenio
     {
-        return DB::transaction(function () use ($convenio, $por) {
+        return DB::transaction(function () use ($convenio, $por, $comentario) {
             $convenio = $this->bloquear($convenio);
             $this->exigirEstado($convenio, ConvenioEstado::EnValidacionAcademica, ConvenioEstado::EnRevisionJuridica);
 
@@ -243,7 +233,8 @@ class ConvenioWorkflow
 
             $this->cerrarEtapa($convenio, EtapaConvenio::RedaccionBorrador, SeguimientoEstado::Aprobado, $por);
             $convenio->update(['estado' => ConvenioEstado::EnRevisionJuridica]);
-            $this->abrirEtapa($convenio, EtapaConvenio::DictamenJuridico, $por);
+            // Queda en la bitácora qué versión se turnó (y si salió por correo); el borrador ya no se edita hasta el dictamen
+            $this->abrirEtapa($convenio, EtapaConvenio::DictamenJuridico, $por, $comentario);
             $convenio->prepararDocumentosFisicos($por);
             $this->moverFisico($convenio, TipoDocumentoFisico::DictamenJuridico, EstadoDocumentoFisico::EnJuridica, $por, 'Borrador turnado a la Unidad Jurídica.');
             $this->avisarEmpresa($convenio, 'Tu convenio está en revisión de la Unidad Jurídica.');
@@ -361,6 +352,13 @@ class ConvenioWorkflow
             ]);
 
             $this->cerrarEtapa($convenio, EtapaConvenio::ArchivoDistribucion, SeguimientoEstado::Aprobado, $por, $comentario);
+            // El expediente de Jurídica ya cumplió su recorrido: pasa a Concluidos y deja libre la bandeja activa
+            $this->moverFisico($convenio, TipoDocumentoFisico::DictamenJuridico, EstadoDocumentoFisico::Archivado, $por, 'Convenio formalizado: el expediente jurídico concluye.');
+            // El juego 1 se queda en la carpeta de Vinculación: también concluye. Los juegos 2 y 3 siguen hasta entregarse.
+            $juegoPropio = $convenio->documentosFisicos()->where('tipo', TipoDocumentoFisico::JuegoConvenio->value)->where('juego', 1)->first();
+            if ($juegoPropio && !in_array($juegoPropio->estado->value, EstadoDocumentoFisico::concluidos(), true)) {
+                $juegoPropio->mover(EstadoDocumentoFisico::Archivado, $por, 'Convenio formalizado: el juego de Vinculación queda en su archivo.');
+            }
             $this->avisarEmpresa($convenio, "Tu convenio quedó formalizado (folio {$folio}), vigente del {$inicio->format('d/m/Y')} al {$fin->format('d/m/Y')}. Ya puedes proponer vacantes para las carreras aprobadas.");
 
             return $convenio;
@@ -368,9 +366,9 @@ class ConvenioWorkflow
     }
 
     /** Cierra el trámite (Vinculación, Jurídica, o "todas las carreras dijeron no"). */
-    public function rechazar(Convenio $convenio, ?Personal $por, string $motivo): Convenio
+    public function rechazar(Convenio $convenio, ?Personal $por, string $motivo, ?string $observacionesAcademicas = null): Convenio
     {
-        return DB::transaction(function () use ($convenio, $por, $motivo) {
+        return DB::transaction(function () use ($convenio, $por, $motivo, $observacionesAcademicas) {
             $convenio = $this->bloquear($convenio);
 
             if ($convenio->estado->esFinal()) {
@@ -401,7 +399,18 @@ class ConvenioWorkflow
             }
 
             $convenio->update(['estado' => ConvenioEstado::Rechazado]);
-            $this->avisarEmpresa($convenio, "Tu solicitud de convenio fue rechazada: {$motivo} Si deseas el convenio, deberás iniciar de nuevo todo el trámite: envía una nueva solicitud desde «Convenio CUCSH»; tu expediente se conserva, pero las carreras vuelven a dictaminar.");
+            if ($observacionesAcademicas !== null) {
+                // Rechazo del dictamen académico: la empresa puede ajustar sus actividades y volver a solicitar
+                $this->avisarEmpresa($convenio,
+                    'Ninguna de las carreras que elegiste aprobó tu propuesta de convenio. Observaciones de las coordinaciones: ' . $observacionesAcademicas
+                    . ' Ajusta tus objetivos y actividades propuestas al perfil de las carreras en «Mi convenio» y envía una nueva solicitud; tu expediente se conserva.',
+                    correo: true,
+                    asunto: 'Tu propuesta de convenio no fue aprobada: ajusta tus actividades',
+                );
+            } else {
+                $this->avisarEmpresa($convenio, "Tu solicitud de convenio fue rechazada: {$motivo} Si deseas el convenio, deberás iniciar de nuevo todo el trámite: envía una nueva solicitud desde «Mi convenio»; tu expediente se conserva, pero las carreras vuelven a dictaminar.",
+                    correo: true, asunto: 'Tu solicitud de convenio fue rechazada');
+            }
 
             return $convenio;
         });
@@ -433,6 +442,10 @@ class ConvenioWorkflow
     {
         // Jurídica regresa el Word: Lorena corrige y vuelve a turnar. Queda el historial completo.
         $this->cerrarEtapa($convenio, EtapaConvenio::DictamenJuridico, SeguimientoEstado::Observado, $por, $comentario);
+        // Se marca qué versión devolvió Jurídica: así Lorena ve cuál corregir y cuándo ya subió la corregida
+        if ($devuelta = $convenio->versionesBorrador()->last()['archivo'] ?? null) {
+            $devuelta->setCustomProperty('observada_juridica', $comentario ?? '')->save();
+        }
         $this->abrirEtapa($convenio, EtapaConvenio::RedaccionBorrador, null, 'Corregir el borrador según las observaciones de Jurídica.');
         $this->moverFisico($convenio, TipoDocumentoFisico::DictamenJuridico, EstadoDocumentoFisico::ConObservaciones, $por, $comentario);
         $this->avisarEmpresa($convenio, 'La Unidad Jurídica hizo observaciones al borrador. Vinculación lo está corrigiendo.');
@@ -442,12 +455,20 @@ class ConvenioWorkflow
      * Avisa a la empresa (que sí usa el sistema) cuando su convenio cambia de etapa.
      * Va en afterCommit: si el correo falla, el cambio de estado ya quedó guardado.
      */
-    private function avisarEmpresa(Convenio $convenio, string $mensaje): void
+    /** «Carrera: observación» de cada dictamen negativo, para explicarle a la empresa qué ajustar. */
+    private function observacionesNegativas(Convenio $convenio): string
     {
-        DB::afterCommit(function () use ($convenio, $mensaje) {
+        return $convenio->dictamenes()->where('dictamen', Dictamen::Negativo->value)->with('carrera')->get()
+            ->map(fn (ConvenioCarrera $d) => "{$d->carrera->nombre}: " . rtrim(trim((string) $d->observaciones), '.') . '.')
+            ->join(' ');
+    }
+
+    private function avisarEmpresa(Convenio $convenio, string $mensaje, bool $correo = false, ?string $asunto = null): void
+    {
+        DB::afterCommit(function () use ($convenio, $mensaje, $correo, $asunto) {
             $convenio->loadMissing('empresa.user');
 
-            $convenio->empresa?->user?->notify(new ConvenioActualizado($convenio, $mensaje));
+            $convenio->empresa?->user?->notify(new ConvenioActualizado($convenio, $mensaje, $correo, $asunto));
         });
     }
 

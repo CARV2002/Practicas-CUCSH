@@ -95,7 +95,7 @@ class CierreController extends Controller
         Avisos::enviar(Avisos::alumnoDe($practica), new AvisoOperativo(
             mensaje: $valida
             ? 'Tu carta de término fue validada. Solo falta que la Coordinación registre tu acreditación; no tienes que hacer nada más.'
-            : 'Tu carta de término fue rechazada: ' . $datos['motivo'] . ' Sube una corregida.',
+            : 'Tu coordinación te devolvió la carta de término. Motivo: «' . $datos['motivo'] . '». Qué hacer: entra a «Mis documentos › Carta de término», en el recuadro marcado en rojo, y sube la carta corregida.',
             url: route($valida ? 'alumno.mis-practicas' : 'alumno.mis-documentos', absolute: false),
             correo: true,
             asunto: 'Actualización de tu carta de término',

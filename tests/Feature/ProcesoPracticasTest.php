@@ -153,7 +153,8 @@ test('si todas las carreras dictaminan en negativo el convenio se rechaza y se a
 
     expect($c->refresh()->estado)->toBe(ConvenioEstado::Rechazado)
         ->and($c->etapasAbiertas()->count())->toBe(0);
-    Notification::assertSentTo($this->userEmpresa, ConvenioActualizado::class, fn ($n) => str_contains($n->mensaje, 'rechazada'));
+    // La empresa recibe campana y correo con las observaciones para ajustar sus actividades
+    Notification::assertSentTo($this->userEmpresa, ConvenioActualizado::class, fn ($n) => str_contains($n->mensaje, 'Ajusta tus objetivos y actividades') && $n->correo === true);
 });
 
 test('un dictamen negativo exige observaciones', function () {

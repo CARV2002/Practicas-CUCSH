@@ -26,7 +26,8 @@ class GeneradorBorradorConvenio
         $empresa = $convenio->empresa;
         $entidad = mb_strtoupper($empresa->razon_social);
         $rectora = config('practicas.rectora');
-        $fecha = Carbon::parse($d['fecha_firma'])->locale('es');
+        // Sin fecha (borrador para Jurídica): se deja el espacio en blanco; la fecha real se fija al imprimir los juegos finales
+        $fecha = filled($d['fecha_firma'] ?? null) ? Carbon::parse($d['fecha_firma'])->locale('es') : null;
         $anios = (int) ($d['vigencia_anios'] ?? $convenio->duracionAnios());
         $duracion = [1 => 'un año', 2 => 'dos años', 3 => 'tres años', 4 => 'cuatro años', 5 => 'cinco años'][$anios] ?? "{$anios} años";
 
@@ -129,7 +130,9 @@ class GeneradorBorradorConvenio
         $this->clausula('UNDÉCIMA', "El presente convenio entrará en vigor a partir de su fecha de firma y tendrá una vigencia por {$duracion}, pudiendo modificarse adicionarse o darse por terminado anticipadamente por mutuo acuerdo entre las partes. Igualmente podrá darse por terminada anticipadamente por cualquiera de las partes previo aviso por escrito que haga la otra, con treinta días de anticipación, sin perjuicio del cumplimiento de las actividades que se encuentren en desarrollo.");
         $this->clausula('DUODÉCIMA', 'Las partes manifiestan que la firma de este convenio y los compromisos contraídos con el, son producto de su buena fe, por lo que realizarán todas las acciones necesarias para su debido cumplimiento; en caso de presentarse alguna discrepancia sobre su interpretación esta será resuelta por mutuo acuerdo.');
 
-        $this->p("Leído el presente instrumento, enteradas las partes del contenido y alcance de cada una de sus cláusulas e indicando que en su celebración no existe dolo, mala fe, o cualquier otro motivo que vicie su consentimiento, lo firma por triplicado en la ciudad de {$d['lugar_firma']}, Jalisco, el {$fecha->translatedFormat('j \d\e F \d\e Y')}.");
+        $this->p("Leído el presente instrumento, enteradas las partes del contenido y alcance de cada una de sus cláusulas e indicando que en su celebración no existe dolo, mala fe, o cualquier otro motivo que vicie su consentimiento, lo firma por triplicado en la ciudad de {$d['lugar_firma']}, Jalisco, " . ($fecha
+            ? 'el ' . $fecha->translatedFormat('j \d\e F \d\e Y') . '.'
+            : 'a los ______ días del mes de ____________________ de ________.'));
 
         // --- Firmas
         $this->s->addTextBreak(2);

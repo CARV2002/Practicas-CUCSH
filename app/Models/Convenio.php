@@ -210,6 +210,70 @@ class Convenio extends Model implements HasMedia
             && $this->fecha_fin_vigencia->gte(now()->startOfDay()->addDays(self::DIAS_MINIMOS_POSTULACION));
     }
 
+    /**
+     * Versiones del borrador (v1, v2…), de la más antigua a la vigente. Cada una con su archivo editable o
+     * el PDF que se adjuntó, y el PDF limpio para imprimir (generado con LibreOffice, o el mismo si ya era PDF).
+     *
+     * @return \Illuminate\Support\Collection<int, array{version:int, archivo:\Spatie\MediaLibrary\MediaCollections\Models\Media, pdf:?\Spatie\MediaLibrary\MediaCollections\Models\Media, vigente:bool}>
+     */
+    public function versionesBorrador(): \Illuminate\Support\Collection
+    {
+        $pdfs = $this->getMedia('borrador_pdf');
+        $versiones = $this->getMedia('borrador_convenio')->sortBy('id')->values()
+            ->map(function ($archivo, $i) use ($pdfs) {
+                $version = (int) ($archivo->getCustomProperty('version') ?? $i + 1);
+                $pdf = $archivo->mime_type === 'application/pdf'
+                    ? $archivo
+                    : $pdfs->first(fn ($p) => (int) $p->getCustomProperty('version') === $version);
+
+                return ['version' => $version, 'archivo' => $archivo, 'pdf' => $pdf, 'vigente' => false];
+            });
+
+        if ($versiones->isNotEmpty()) {
+            $versiones->put($versiones->count() - 1, ['vigente' => true] + $versiones->last());
+        }
+
+        return $versiones;
+    }
+
+    /**
+     * Fecha de firma impresa en los juegos finales (la que Lorena fija al imprimirlos). El borrador para Jurídica
+     * la deja en blanco; si los juegos ya llevan fecha, la vigencia debe empezar ese mismo día.
+     */
+    public function fechaFirmaImpresa(): ?\Illuminate\Support\Carbon
+    {
+        $final = $this->getMedia('borrador_convenio')->sortByDesc('id')->first(fn ($m) => $m->getCustomProperty('final'));
+        $fecha = $final?->getCustomProperty('fecha_firma');
+
+        return $fecha ? \Illuminate\Support\Carbon::parse($fecha) : null;
+    }
+
+    /** Datos con que se generó el borrador vigente (null si el vigente lo adjuntó Lorena y no se puede regenerar). */
+    public function datosBorradorVigente(): ?array
+    {
+        $vigente = $this->versionesBorrador()->last()['archivo'] ?? null;
+
+        return $vigente?->getCustomProperty('datos');
+    }
+
+    /** Número que tendrá el próximo borrador (generado o adjuntado). */
+    public function siguienteVersionBorrador(): int
+    {
+        return ($this->versionesBorrador()->max('version') ?? 0) + 1;
+    }
+
+    /** ¿Este archivo es el PDF para imprimir de una versión que ya no es la vigente? */
+    public function esImpresionObsoleta(\Spatie\MediaLibrary\MediaCollections\Models\Media $media): bool
+    {
+        if (!in_array($media->collection_name, ['borrador_pdf', 'borrador_convenio'], true) || $media->mime_type !== 'application/pdf') {
+            return false;
+        }
+
+        $vigente = $this->versionesBorrador()->last();
+
+        return $vigente !== null && $vigente['pdf']?->id !== $media->id;
+    }
+
     /** Duración pactada en años (la del borrador, o 3 si no se definió, como el Formato de PP). */
     public function duracionAnios(): int
     {
@@ -280,9 +344,8 @@ class Convenio extends Model implements HasMedia
             $doc->movimientos()->create(['estado' => $estado, 'fecha' => today(), 'registrado_por' => $por?->id, 'nota' => 'Alta en el control de documentos físicos.']);
         };
 
-        if ($nivel >= 1) {
-            $crear(TipoDocumentoFisico::OficioTurno, $nivel > 1 ? EstadoDocumentoFisico::AcuseRecibido : EstadoDocumentoFisico::PorElaborar);
-        }
+        // El turno a las carreras es 100 % digital (cada coordinación dictamina en su panel): no hay oficio en papel que rastrear.
+        // Solo viajan en papel el expediente que va a la Unidad Jurídica y los 3 juegos que firman la empresa y Rectoría.
         if ($nivel >= 2) {
             $crear(TipoDocumentoFisico::DictamenJuridico, $nivel > 2 ? EstadoDocumentoFisico::EnVinculacion : EstadoDocumentoFisico::EnJuridica);
         }

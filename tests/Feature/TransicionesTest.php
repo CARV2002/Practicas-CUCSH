@@ -144,7 +144,7 @@ test('con la práctica en cierre no se tocan reportes ni se crean nuevos', funct
     $validado = ($this->reporte)(ReporteEstado::Validado, 250);
     $this->practica->update(['estado' => PracticaEstado::EnCierre]);
 
-    $this->actingAs($this->coordUser)->post(route('coordinacion.reportes.resolver', $validado), ['estado' => 'rechazado'])
+    $this->actingAs($this->coordUser)->post(route('coordinacion.reportes.resolver', $validado), ['estado' => 'rechazado', 'evaluacion_profesor' => 'Horas mal'])
         ->assertSessionHasErrors('reporte');
     expect($validado->refresh()->estado)->toBe(ReporteEstado::Validado);
 
@@ -166,7 +166,11 @@ test('la carta de término no se valida mientras haya reportes pendientes', func
     $admin->post(route('coordinacion.cierres.carta', $this->practica), ['estado' => 'validada'])->assertSessionHasErrors('carta');
     expect($this->practica->refresh()->estado)->toBe(PracticaEstado::EnCurso);
 
-    $admin->post(route('coordinacion.reportes.resolver', $pendiente), ['estado' => 'rechazado'])->assertSessionHasNoErrors();
+    // Sin escaneo firmado no se resuelve; con escaneo, rechazar exige motivo
+    $admin->post(route('coordinacion.reportes.resolver', $pendiente), ['estado' => 'rechazado', 'evaluacion_profesor' => 'Faltan firmas'])->assertSessionHasErrors('reporte');
+    $pendiente->addMedia(trnPdf())->toMediaCollection('reporte_firmado');
+    $admin->post(route('coordinacion.reportes.resolver', $pendiente), ['estado' => 'rechazado'])->assertSessionHasErrors('evaluacion_profesor');
+    $admin->post(route('coordinacion.reportes.resolver', $pendiente), ['estado' => 'rechazado', 'evaluacion_profesor' => 'Faltan firmas'])->assertSessionHasNoErrors();
     $admin->post(route('coordinacion.cierres.carta', $this->practica), ['estado' => 'validada'])->assertSessionHasNoErrors();
 
     expect($this->practica->refresh()->estado)->toBe(PracticaEstado::EnCierre);
@@ -227,8 +231,11 @@ test('acciones fuera de etapa: supervisor, borrador y documentos de un convenio 
     $this->actingAs($this->coordUser)->post(route('coordinacion.practicas.supervisor', $this->practica), ['profesor_id' => $profesor->id])
         ->assertSessionHasErrors('practica');
 
-    $admin = $this->actingAs($this->adminUser);
-    $admin->post(route('admin.convenios.borrador', $this->convenio), ['borrador' => trnPdf()])
+    // El trámite lo opera Vinculación (el administrador solo lo consulta)
+    $lorena = trnUser(Rol::Vinculacion);
+    Personal::create(['user_id' => $lorena->id, 'puesto' => 'Vinculación']);
+    $admin = $this->actingAs($lorena);
+    $admin->post(route('admin.convenios.borrador', $this->convenio), ['borrador' => trnPdf(), 'vigencia_anios' => 3])
         ->assertSessionHasErrors('convenio');
     expect($this->convenio->getMedia('borrador_convenio'))->toHaveCount(0);
 

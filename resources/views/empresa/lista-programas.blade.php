@@ -52,6 +52,22 @@
             <a href="{{ route('empresa.convenio') }}" class="font-semibold underline underline-offset-2">Ver el estado de mi convenio</a></x-ui.aviso>
     @endif
 
+    {{-- Vacantes que la Coordinación devolvió o cerró: qué, por qué y dónde corregir (filas marcadas en rojo) --}}
+    @php $devueltas = $programas->getCollection()->filter(fn ($p) => $p->estado === PE::Rechazado || ($p->estado === PE::Cerrado && $p->observaciones_cierre)); @endphp
+    @if ($devueltas->isNotEmpty())
+        <x-ui.correccion :titulo="'La Coordinación te devolvió ' . $devueltas->count() . ($devueltas->count() === 1 ? ' vacante' : ' vacantes')">
+            en la tabla, en la fila marcada en rojo, pulsa <strong>Editar</strong> (lápiz), corrige lo que te piden y guarda: se envía sola a revisión.
+            <ul class="mt-2 space-y-1.5">
+                @foreach ($devueltas as $dv)
+                    <li class="rounded-lg bg-white/70 px-3 py-2 ring-1 ring-inset ring-rose-100">
+                        <span class="font-semibold">{{ $dv->titulo }}</span> · {{ $dv->estado === PE::Rechazado ? 'Rechazada' : 'Cerrada por la Coordinación' }}:
+                        <span class="text-rose-800">«{{ $dv->motivo_rechazo ?? $dv->observaciones_cierre }}»</span>
+                    </li>
+                @endforeach
+            </ul>
+        </x-ui.correccion>
+    @endif
+
     <x-tabla.marco titulo="Programas" :total="$programas->total()">
         <x-slot:herramientas>
             <x-tabla.filtros-estado :actual="request('estado', '')" :opciones="collect($estados)->map(fn ($e) => ['valor' => $e->value, 'texto' => $e->label(), 'familia' => $e->familia()])->prepend(['valor' => '', 'texto' => 'Todos'])->all()" />
@@ -93,16 +109,10 @@
                             'sede' => $pr->sede ?? '', 'cupos_totales' => $pr->cupos_totales,
                         ];
                     @endphp
-                    <tr class="tabla-fila">
-                        <td class="px-6 py-4">
-                            <div class="flex items-start gap-3">
-                                <span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-udg-50 text-udg-900 ring-1 ring-inset ring-udg-100"><x-dashboard.icono nombre="vacante" clase="size-[18px]" /></span>
-                                <div class="min-w-0">
-                                    <p class="font-semibold text-gray-900">{{ $pr->titulo }}</p>
-                                    <p class="text-xs {{ $pr->sede ? 'text-gray-500' : 'italic text-gray-400' }}">{{ $pr->sede ?: 'Sede por definir' }}</p>
-                                    <p class="text-xs {{ $pr->horario ? 'text-gray-500' : 'italic text-gray-400' }}">{{ $pr->horario ?: 'Horario por definir' }}</p>
-                                </div>
-                            </div>
+                    <tr @class(['tabla-fila', 'bg-rose-50/60 shadow-[inset_4px_0_0_var(--color-rose-500)]' => $pr->estado === PE::Rechazado || ($pr->estado === PE::Cerrado && $pr->observaciones_cierre)])>
+                        <td class="px-4 py-3">
+                            <x-tabla.ficha :href="route('empresa.programas.postulantes', $pr)" ver="Ver postulantes" :titulo="$pr->titulo" icono="vacante"
+                                :subtitulo="$pr->sede ?: 'Sede por definir'">{{ $pr->horario ?: 'Horario por definir' }}</x-tabla.ficha>
                         </td>
                         <td class="whitespace-nowrap px-4 py-4">
                             <span class="rounded-md bg-udg-50 px-1.5 py-0.5 text-xs font-semibold text-udg-900 ring-1 ring-inset ring-udg-100" title="{{ $pr->carrera->nombre }}">{{ $pr->carrera->carrera_clave }}</span>
@@ -116,6 +126,8 @@
                             <x-ui.estatus :estado="$pr->estado" />
                             @if ($pr->estado === PE::Rechazado && $pr->motivo_rechazo)
                                 <p class="mt-1 text-xs text-rose-600">Motivo: {{ $pr->motivo_rechazo }}</p>
+                            @elseif ($pr->estado === PE::Cerrado && $pr->observaciones_cierre)
+                                <p class="mt-1 max-w-[16rem] text-xs text-rose-600">Cerrada por la Coordinación: {{ $pr->observaciones_cierre }}</p>
                             @elseif ($pr->estado === PE::PendienteAprobacion)
                                 <p class="mt-1 text-xs text-gray-500">La coordinación de la carrera la revisa.</p>
                             @endif
@@ -124,9 +136,12 @@
                             {{-- Siempre el mismo orden y lugar: Postulantes · Editar · Cerrar · Eliminar (el hueco conserva la alineación) --}}
                             <div class="inline-grid grid-cols-[auto_2.25rem_2.25rem_2.25rem] items-center gap-2">
                                 <x-ui.boton-icono :href="route('empresa.programas.postulantes', $pr)" icono="usuarios" etiqueta="Postulantes" tono="primario" con-texto />
-                                <x-ui.boton-icono icono="editar" etiqueta="Editar" x-on:click="editar(@js($datos))" />
+                                <x-ui.boton-icono icono="editar" etiqueta="Editar" x-on:click="editar({{ Js::from($datos) }})" />
                                 @if ($pr->estado === PE::Publicado)
                                     <x-ui.boton-icono :accion="route('empresa.programas.estado', $pr)" icono="candado" etiqueta="Cerrar postulaciones" confirmar="¿Cerrar las postulaciones de esta vacante?"><input type="hidden" name="estado" value="cerrado"></x-ui.boton-icono>
+                                @elseif ($pr->estado === PE::Cerrado)
+                                    <x-ui.boton-icono :accion="route('empresa.programas.estado', $pr)" icono="enviar" etiqueta="Reabrir postulaciones" tono="exito"
+                                        :confirmar="$pr->observaciones_cierre ? 'La Coordinación cerró esta vacante. Al reabrirla volverá a su revisión antes de publicarse. ¿Continuar?' : '¿Reabrir las postulaciones de esta vacante?'"><input type="hidden" name="estado" value="publicado"></x-ui.boton-icono>
                                 @else
                                     <span aria-hidden="true"></span>
                                 @endif
@@ -194,8 +209,8 @@
             </div>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div><label class="{{ $label }}">Horario</label><input type="text" name="horario" x-model="p.horario" maxlength="255" class="{{ $input }}"></div>
-                <div><label class="{{ $label }}">Sede</label><input type="text" name="sede" x-model="p.sede" maxlength="255" class="{{ $input }}"></div>
+                <div><label class="{{ $label }}">Horario y días de asistencia</label><input type="text" name="horario" x-model="p.horario" maxlength="255" placeholder="Lun a vie, 9:00 a 13:00" class="{{ $input }}"></div>
+                <div><label class="{{ $label }}">Ubicación física (sede)</label><input type="text" name="sede" x-model="p.sede" maxlength="255" placeholder="Dirección o área donde se presenta" class="{{ $input }}"></div>
                 <div><label class="{{ $label }}">Cupos totales</label><input type="number" name="cupos_totales" x-model="p.cupos_totales" required min="1" max="500" class="{{ $input }}"></div>
             </div>
 

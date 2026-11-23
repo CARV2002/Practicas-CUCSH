@@ -117,12 +117,19 @@ class MenuHelper
         ];
     }
 
+    /** «Convenios» con acceso directo a los que están por vencer (60 días), debajo de la bandeja. */
+    private static function menuConvenios(): array
+    {
+        // «Por vencer» vive como pestaña dentro de la bandeja, junto a los demás estados
+        return ['name' => 'Convenios', 'icon' => 'pages', 'path' => '/admin/lista-convenios'];
+    }
+
     /** Vinculación (Lorena): solo el trámite de convenios con organizaciones. */
     private static function vinculacionMenu()
     {
         $items = [
             ['name' => 'Panel de convenios', 'icon' => 'dashboard', 'path' => '/admin/dashboard'],
-            ['name' => 'Convenios', 'icon' => 'pages', 'path' => '/admin/lista-convenios'],
+            self::menuConvenios(),
             ['name' => 'Dictámenes', 'icon' => 'task', 'path' => '/admin/lista-dictamenes'],
             ['name' => 'Documentos físicos', 'icon' => 'forms', 'path' => '/admin/documentos-fisicos'],
             ['name' => 'Empresas', 'icon' => 'ui-elements', 'path' => '/admin/lista-empresas'],
@@ -138,8 +145,8 @@ class MenuHelper
     }
 
     /**
-     * Administrador: supervisión global. Ve el panel general (solo lectura) y el módulo de convenios de Vinculación
-     * para auditar su trabajo o cubrir una ausencia; no tiene las bandejas de las coordinaciones de carrera.
+     * Administrador: supervisión global de SOLO LECTURA. Consulta el panel general y el módulo de convenios de
+     * Vinculación (sin operar ninguna acción); no tiene las bandejas de las coordinaciones de carrera.
      */
     private static function supervisionMenu()
     {
@@ -148,7 +155,7 @@ class MenuHelper
                 'title' => 'Supervisión',
                 'items' => [
                     ['name' => 'Panel general', 'icon' => 'dashboard', 'path' => '/admin/dashboard'],
-                    ['name' => 'Convenios', 'icon' => 'pages', 'path' => '/admin/lista-convenios'],
+                    self::menuConvenios(),
                     ['name' => 'Dictámenes', 'icon' => 'task', 'path' => '/admin/lista-dictamenes'],
                     ['name' => 'Documentos físicos', 'icon' => 'forms', 'path' => '/admin/documentos-fisicos'],
                     ['name' => 'Empresas', 'icon' => 'ui-elements', 'path' => '/admin/lista-empresas'],
@@ -186,6 +193,7 @@ class MenuHelper
                     ['name' => 'Practicantes', 'icon' => 'user-profile', 'path' => '/coordinacion/lista-practicantes'],
                     ['name' => 'Reportes', 'icon' => 'charts', 'path' => '/coordinacion/lista-reportes'],
                     ['name' => 'Cierre de prácticas', 'icon' => 'calendar', 'path' => '/coordinacion/lista-cierres'],
+                    ['name' => 'Profesores supervisores', 'icon' => 'user-profile', 'path' => '/coordinacion/profesores'],
                     ['name' => 'Reglas de mi carrera', 'icon' => 'tables', 'path' => '/coordinacion/reglas'],
                 ],
             ],

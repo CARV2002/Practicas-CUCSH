@@ -71,7 +71,8 @@ final class SolicitudEmpresa
 
         return match ($seccion) {
             'generales' => [
-                'razon_social' => ['required', 'string', 'min:3', 'max:' . Formatos::MAX_RAZON_SOCIAL],
+                'razon_social' => ['required', 'string', 'min:3', 'max:' . Formatos::MAX_RAZON_SOCIAL,
+                    new \App\Rules\UnicoNormalizado('empresas', 'razon_social', 'Ya hay otra organización registrada con esa razón social.', $empresa->id)],
                 'giro' => [$req(), 'string', 'min:3', 'max:120'],
                 'descripcion' => [$req(), 'string', 'min:30', 'max:1500'],
                 'proyectos_principales' => [$req(), 'string', 'min:10', 'max:1500'],

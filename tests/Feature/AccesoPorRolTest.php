@@ -281,7 +281,9 @@ test('el personal nuevo configura su propia contraseña con el enlace y su corre
     \Illuminate\Support\Facades\Notification::assertSentTo($nuevo, \App\Notifications\ConfigurarContrasena::class, function ($n) use (&$token) { $token = $n->token; return true; });
     auth()->logout();
 
-    // Un enlace falso no sirve
+    // Un enlace falso no sirve: la pantalla lo dice antes de pedir la contraseña y ofrece pedir otro
+    $this->get(route('cuenta.activar', ['token' => 'falso', 'email' => 'nueva@csh.udg.mx']))->assertOk()
+        ->assertSee('Este enlace ya no es válido')->assertSee('Solicitar un enlace nuevo')->assertDontSee('Guardar y entrar');
     $this->post(route('cuenta.activar.store'), ['token' => 'falso', 'email' => 'nueva@csh.udg.mx', 'password' => 'Clave-Segura-2026', 'password_confirmation' => 'Clave-Segura-2026'])
         ->assertSessionHasErrors('email');
 
@@ -295,6 +297,7 @@ test('el personal nuevo configura su propia contraseña con el enlace y su corre
 
     // El enlace es de un solo uso
     auth()->logout();
+    $this->get(route('cuenta.activar', ['token' => $token, 'email' => 'nueva@csh.udg.mx']))->assertSee('Este enlace ya no es válido');
     $this->post(route('cuenta.activar.store'), ['token' => $token, 'email' => 'nueva@csh.udg.mx', 'password' => 'Otra-Clave-2026', 'password_confirmation' => 'Otra-Clave-2026'])
         ->assertSessionHasErrors('email');
 });

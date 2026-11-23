@@ -60,11 +60,14 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
     // ── 1. Administrador: división y carrera nuevas ─────────────────────────────
     $this->actingAs($this->admin)->post(route('admin.catalogos.divisiones.store'), ['nombre' => 'División de Estudios Antropológicos'])->assertSessionHasNoErrors();
     $division = \App\Models\Division::firstOrFail();
+    // El administrador solo crea la estructura: las reglas académicas que mande se ignoran (nace con las iniciales)
     $this->actingAs($this->admin)->post(route('admin.catalogos.carreras.store'), [
         'division_id' => $division->id, 'carrera_clave' => 'antr', 'nombre' => 'Licenciatura en Antropología',
         'horas_requeridas' => 250, 'porcentaje_creditos_minimo' => 60, 'creditos_otorgados' => 8,
     ])->assertSessionHasNoErrors();
     $carrera = Carrera::where('carrera_clave', 'ANTR')->firstOrFail();
+    expect($carrera->horas_requeridas)->toBe(Carrera::REGLAS_INICIALES['horas_requeridas'])
+        ->and((float) $carrera->porcentaje_creditos_minimo)->toBe((float) Carrera::REGLAS_INICIALES['porcentaje_creditos_minimo']);
 
     // Cuenta de Vinculación
     $this->actingAs($this->admin)->post(route('admin.usuarios.store'), [
@@ -96,6 +99,12 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
     ])->assertSessionHasNoErrors();
     $coord = User::where('email', 'antropologia@academicos.udg.mx')->firstOrFail();
     $coord->markEmailAsVerified();
+
+    // La coordinación fija las reglas de su carrera (autonomía académica)
+    $this->actingAs($coord)->put(route('coordinacion.reglas.update', $carrera), [
+        'horas_requeridas' => 250, 'porcentaje_creditos_minimo' => 60, 'creditos_otorgados' => 8, 'esquema_reportes' => 'mensual',
+    ])->assertSessionHasNoErrors();
+    expect($carrera->refresh()->horas_requeridas)->toBe(250);
 
     // ── 4. Empresa: cuenta corta; luego la solicitud por secciones, el expediente en un envío y la solicitud ──
     auth()->logout();
@@ -159,7 +168,8 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
     $this->actingAs($lorena)->post(route('admin.convenios.turnos', $convenio), [
         'fecha_turno_secretaria' => today()->toDateString(), 'fecha_turno_division' => today()->toDateString(),
     ])->assertSessionHasNoErrors();
-    expect($convenio->documentosFisicos()->where('tipo', TF::OficioTurno->value)->first()->estado)->toBe(EF::EnDivision);
+    // El turno es digital: no hay oficio en papel que rastrear
+    expect($convenio->documentosFisicos()->where('tipo', TF::OficioTurno->value)->exists())->toBeFalse();
 
     // ── 6. Coordinación dictamina ───────────────────────────────────────────────
     $dictamen = ConvenioCarrera::where('convenio_id', $convenio->id)->firstOrFail();
@@ -199,6 +209,10 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
     expect($convenio->estado)->toBe(ConvenioEstado::Formalizado)->and($convenio->estaVigente())->toBeTrue()
         ->and($convenio->fecha_fin_vigencia->toDateString())->toBe(today()->subMonths(3)->addYears(3)->subDay()->toDateString());
     Notification::assertSentTo($empresaUser, ConvenioActualizado::class, fn ($n) => str_contains($n->mensaje, 'formalizado'));
+    // El expediente de Jurídica concluye solo al formalizar (sale de la bandeja activa)
+    expect($convenio->documentosFisicos()->where('tipo', TF::DictamenJuridico->value)->first()->estado)->toBe(EF::Archivado);
+    expect($convenio->documentosFisicos()->where('tipo', TF::JuegoConvenio->value)->where('juego', 1)->first()->estado)->toBe(EF::Archivado)
+        ->and($convenio->documentosFisicos()->where('tipo', TF::JuegoConvenio->value)->where('estado', '!=', EF::Archivado->value)->count())->toBe(2);
 
     // ── 8. Empresa propone vacante; la coordinación la aprueba ──────────────────
     $this->actingAs($empresaUser)->post(route('empresa.programas.store'), [

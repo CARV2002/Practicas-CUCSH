@@ -128,7 +128,7 @@
                                                     @else
                                                         <button name="estado" value="validada" formnovalidate data-sin-bloqueo="1" class="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 active:scale-95"><x-dashboard.icono nombre="check" clase="size-3.5" /> Validar</button>
                                                     @endif
-                                                    <button name="estado" value="rechazada" data-sin-bloqueo="1" class="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-rose-200 bg-white text-xs font-semibold text-rose-600 transition hover:bg-rose-50 active:scale-95"><x-dashboard.icono nombre="equis" clase="size-3.5" /> Rechazar</button>
+                                                    <button name="estado" value="rechazada" data-sin-bloqueo="1" data-confirmar="¿Rechazar la carta de término? El alumno tendrá que subirla de nuevo con la corrección que indicas." data-confirmar-titulo="Rechazar carta" data-confirmar-boton="Sí, rechazar" class="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-rose-200 bg-white text-xs font-semibold text-rose-600 transition hover:bg-rose-50 active:scale-95"><x-dashboard.icono nombre="equis" clase="size-3.5" /> Rechazar</button>
                                                 </div>
                                             </form>
                                         @endif
@@ -141,12 +141,12 @@
                                             </form>
                                         @endif
                                         @if ($oficio && $oficio->enviado_control_escolar_at === null)
-                                            <form method="POST" action="{{ route('coordinacion.cierres.enviar', $pr) }}">
+                                            <form method="POST" action="{{ route('coordinacion.cierres.enviar', $pr) }}" data-confirmar="¿Marcar el oficio como enviado a Control Escolar? Ya no podrás reemplazarlo." data-confirmar-titulo="Enviar a Control Escolar" data-confirmar-boton="Sí, marcar enviado" data-confirmar-tono="normal">
                                                 @csrf
                                                 <button class="boton boton-chico boton-primario w-full"><x-dashboard.icono nombre="enviar" clase="size-3.5" /> Marcar enviado a Control Escolar</button>
                                             </form>
                                         @elseif ($oficio && $oficio->capturado_siiau_at === null)
-                                            <form method="POST" action="{{ route('coordinacion.cierres.siiau', $pr) }}" onsubmit="return confirm('¿Control Escolar confirmó la captura en SIIAU? La práctica quedará acreditada.')">
+                                            <form method="POST" action="{{ route('coordinacion.cierres.siiau', $pr) }}" data-confirmar="¿Control Escolar confirmó la captura en SIIAU? La práctica quedará acreditada y ya no se podrá modificar." data-confirmar-titulo="Acreditar práctica" data-confirmar-boton="Sí, acreditar" data-confirmar-tono="normal">
                                                 @csrf
                                                 <button class="boton boton-chico boton-exito w-full"><x-dashboard.icono nombre="cierre" clase="size-3.5" /> Registrar captura en SIIAU</button>
                                             </form>

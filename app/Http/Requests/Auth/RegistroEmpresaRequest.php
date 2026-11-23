@@ -39,7 +39,8 @@ class RegistroEmpresaRequest extends FormRequest
     {
         return [
             // La organización
-            'razon_social' => ['required', 'string', 'min:3', 'max:' . Formatos::MAX_RAZON_SOCIAL],
+            'razon_social' => ['required', 'string', 'min:3', 'max:' . Formatos::MAX_RAZON_SOCIAL,
+                new \App\Rules\UnicoNormalizado('empresas', 'razon_social', 'Ya hay una organización registrada con esa razón social. Si es la tuya, inicia sesión o escribe a Vinculación.')],
             'rfc' => ['required', 'string', new Rfc(), Rule::unique('empresas', 'rfc')->whereNull('deleted_at')],
             'tipo_organismo' => ['required', Rule::enum(TipoOrganismo::class)],
             'tipo_organismo_otro' => ['required_if:tipo_organismo,otro', 'nullable', 'string', 'min:3', 'max:80'],

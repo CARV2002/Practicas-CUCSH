@@ -99,8 +99,9 @@ test('el dictamen jurídico aprobado crea los 3 juegos y las firmas los actualiz
 });
 
 test('un estado que no aplica al papel o sin nota cuando se extravía se rechaza', function () {
+    $this->convenio->update(['estado' => ConvenioEstado::EnRevisionJuridica]);
     $this->convenio->prepararDocumentosFisicos($this->personal);
-    $oficio = $this->convenio->documentosFisicos()->where('tipo', TF::OficioTurno->value)->first();
+    $oficio = $this->convenio->documentosFisicos()->where('tipo', TF::DictamenJuridico->value)->first();
 
     $this->actingAs($this->lorena)->post(route('admin.documentos-fisicos.mover', $oficio), ['estado' => EF::ConEmpresa->value])
         ->assertSessionHasErrors('estado');
@@ -117,7 +118,7 @@ test('la pestaña muestra los papeles y los vencidos', function () {
         ->update(['fecha_compromiso' => today()->subDays(3)]);
 
     $this->actingAs($this->lorena)->get(route('admin.documentos-fisicos', ['vista' => 'vencidos']))
-        ->assertOk()->assertSee('Papeles S.C.')->assertSee('Dictamen de viabilidad jurídica')->assertSee('Vencido');
+        ->assertOk()->assertSee('Papeles S.C.')->assertSee('Expediente / borrador en Unidad Jurídica')->assertSee('Vencido');
 
     $this->actingAs($this->empresaUser)->get(route('admin.documentos-fisicos'))->assertForbidden();
 });
@@ -155,15 +156,21 @@ test('el estado detallado explica la revisión de documentos', function () {
     expect($d['texto'])->toBe('Expediente incompleto')->and($d['responsable'])->toBe('Empresa');
 });
 
-test('registrar el turno a la División mueve el oficio físico sin capturarlo dos veces', function () {
+test('el turno a las carreras es digital: no crea ni rastrea un oficio en papel', function () {
     $this->convenio->update(['estado' => ConvenioEstado::EnValidacionAcademica, 'fecha_recepcion' => today()->subDays(10)]);
     $this->convenio->prepararDocumentosFisicos($this->personal);
 
     app(ConvenioWorkflow::class)->registrarTurnos($this->convenio, $this->personal, today()->subDays(5), today()->subDays(2));
 
-    $oficio = $this->convenio->documentosFisicos()->where('tipo', TF::OficioTurno->value)->first();
-    expect($oficio->estado)->toBe(EF::EnDivision)
-        ->and($oficio->fecha_estado->toDateString())->toBe(today()->subDays(2)->toDateString());
+    expect($this->convenio->documentosFisicos()->count())->toBe(0)
+        ->and($this->convenio->fresh()->fecha_turno_division->toDateString())->toBe(today()->subDays(2)->toDateString());
+
+    // Al pasar a Jurídica aparece el primer papel: el expediente que se lleva en carpeta
+    $this->convenio->update(['estado' => ConvenioEstado::EnRevisionJuridica]);
+    $this->convenio->prepararDocumentosFisicos($this->personal);
+    expect($this->convenio->documentosFisicos()->pluck('tipo')->map->value->all())->toBe([TF::DictamenJuridico->value]);
+    $this->actingAs($this->lorena)->get(route('admin.documentos-fisicos'))->assertOk()
+        ->assertSee('Expediente / borrador en Unidad Jurídica')->assertDontSee('Oficio de turno académico');
 });
 
 test('un convenio rechazado ya no genera recordatorios de sus papeles', function () {

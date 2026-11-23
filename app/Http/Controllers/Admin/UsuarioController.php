@@ -42,6 +42,10 @@ class UsuarioController extends Controller
             'rolesAlta' => $this->rolesQuePuedeCrear($request->user()),
             'carreras' => Carrera::orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
             'divisiones' => Division::orderBy('nombre')->get(['id', 'nombre']),
+            // Encargados activos por coordinación, para deshabilitar en el alta las que ya tienen 2
+            'activosPorCarrera' => $this->activosPorCoordinacion('carrera_id'),
+            'activosPorDivision' => $this->activosPorCoordinacion('division_id'),
+            'limitePorCoordinacion' => self::LIMITE_POR_COORDINACION,
         ]);
     }
 
@@ -75,6 +79,7 @@ class UsuarioController extends Controller
             'carrera_id' => [Rule::requiredIf($esCoordinador && ! $request->filled('division_id')), 'nullable', 'integer', Rule::exists('carreras', 'id'), 'prohibits:division_id'],
             'division_id' => [Rule::requiredIf($esCoordinador && ! $request->filled('carrera_id')), 'nullable', 'integer', Rule::exists('divisiones', 'id')],
         ], [
+            'email.unique' => 'Este correo ya se encuentra registrado en el sistema.',
             'rol.in' => 'No puedes dar de alta cuentas con ese rol.',
             'carrera_id.required' => 'Elige la carrera (o la división) que coordinará.',
             'division_id.required' => 'Elige la carrera (o la división) que coordinará.',
@@ -83,6 +88,11 @@ class UsuarioController extends Controller
         ]);
 
         $rol = Rol::from($datos['rol']);
+
+        // Máximo 2 encargados activos por coordinación (titular + asistente o secretario administrativo)
+        if ($esCoordinador && $this->coordinacionLlena($datos['carrera_id'] ?? null, $datos['division_id'] ?? null)) {
+            return back()->withInput()->withErrors([(isset($datos['carrera_id']) ? 'carrera_id' : 'division_id') => self::MENSAJE_LIMITE]);
+        }
 
         $user = DB::transaction(function () use ($datos, $rol, $esCoordinador) {
             // Contraseña aleatoria, encriptada e inaccesible: nadie (tampoco el administrador) la conoce.
@@ -127,9 +137,55 @@ class UsuarioController extends Controller
             return back()->withErrors(['usuario' => 'No puedes desactivar tu propia cuenta.']);
         }
 
+        // Reactivar a un coordinador también cuenta contra el límite de 2 encargados activos
+        if (!$usuario->activo && $usuario->hasRole(Rol::Coordinador->value) && $usuario->personal
+            && $this->coordinacionLlena($usuario->personal->carrera_id, $usuario->personal->division_id)) {
+            return back()->withErrors(['usuario' => self::MENSAJE_LIMITE]);
+        }
+
+        // Relevo de personal: la cuenta no se borra (se conserva su bitácora), solo se desactiva y libera el cupo
         $usuario->update(['activo' => !$usuario->activo]);
 
-        return back()->with('status', $usuario->activo ? 'Cuenta activada.' : 'Cuenta desactivada.');
+        \App\Services\Auditoria::registrar(
+            $usuario->activo ? 'usuario.activado' : 'usuario.desactivado',
+            ($usuario->activo ? 'Cuenta activada: ' : 'Cuenta desactivada: ') . $usuario->email,
+            $usuario
+        );
+
+        return back()->with('status', $usuario->activo ? 'Cuenta activada.' : 'Cuenta desactivada: el cupo de su coordinación quedó libre y su historial se conserva.');
+    }
+
+    /** Encargados activos permitidos por coordinación: el titular y su asistente o secretario administrativo. */
+    public const LIMITE_POR_COORDINACION = 2;
+
+    private const MENSAJE_LIMITE = 'Esta coordinación ya alcanzó el límite máximo de 2 encargados activos. Desactiva una cuenta anterior si deseas registrar a alguien nuevo.';
+
+    /** @return \Illuminate\Support\Collection<int, int> id de carrera (o división) => coordinadores activos */
+    private function activosPorCoordinacion(string $columna): \Illuminate\Support\Collection
+    {
+        return Personal::query()
+            ->whereNotNull($columna)
+            ->when($columna === 'division_id', fn ($q) => $q->whereNull('carrera_id'))
+            ->whereHas('user', fn ($u) => $u->where('activo', true)->role(Rol::Coordinador->value))
+            ->selectRaw("{$columna} as id, count(*) as total")
+            ->groupBy($columna)
+            ->pluck('total', 'id')
+            ->map(fn ($n) => (int) $n);
+    }
+
+    /** ¿La coordinación (de carrera o de división) ya tiene el máximo de cuentas activas? */
+    private function coordinacionLlena(?int $carreraId, ?int $divisionId): bool
+    {
+        if ($carreraId === null && $divisionId === null) {
+            return false;
+        }
+
+        return User::role(Rol::Coordinador->value)
+            ->where('activo', true)
+            ->whereHas('personal', fn ($p) => $carreraId !== null
+                ? $p->where('carrera_id', $carreraId)
+                : $p->whereNull('carrera_id')->where('division_id', $divisionId))
+            ->count() >= self::LIMITE_POR_COORDINACION;
     }
 
     /**

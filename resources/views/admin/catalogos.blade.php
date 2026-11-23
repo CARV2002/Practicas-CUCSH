@@ -11,13 +11,13 @@
     modalDivision: false,
     modalCarrera: false,
     division: { id: null, nombre: '' },
-    carrera: { id: null, division_id: '', carrera_clave: '', nombre: '', horas_requeridas: '', porcentaje_creditos_minimo: '', creditos_otorgados: '' },
+    carrera: { id: null, division_id: '', carrera_clave: '', nombre: ''},
     urlDivision: '{{ route('admin.catalogos.divisiones.update', 0) }}',
     urlCarrera: '{{ route('admin.catalogos.carreras.update', 0) }}',
     nuevaDivision() { this.division = { id: null, nombre: '' }; this.modalDivision = true; },
     editarDivision(d) { this.division = { ...d }; this.modalDivision = true; },
     nuevaCarrera(divisionId = '') {
-        this.carrera = { id: null, division_id: divisionId, carrera_clave: '', nombre: '', horas_requeridas: '', porcentaje_creditos_minimo: '', creditos_otorgados: '' };
+        this.carrera = { id: null, division_id: divisionId, carrera_clave: '', nombre: ''};
         this.modalCarrera = true;
     },
     editarCarrera(c) { this.carrera = { ...c }; this.modalCarrera = true; },
@@ -29,7 +29,7 @@
     }
 }" class="space-y-6">
 
-    <x-pagina.encabezado titulo="Divisiones y carreras" descripcion="Estructura académica del CUCSH. Las horas y créditos de cada carrera se congelan en la práctica al activarla, así que un cambio aquí solo afecta a las prácticas nuevas.">
+    <x-pagina.encabezado titulo="Divisiones y carreras" descripcion="Estructura académica del CUCSH: divisiones y carreras. Las horas y los créditos de cada carrera los define su coordinación (consulta de solo lectura aquí).">
         <x-slot:acciones>
             <button type="button" x-on:click="nuevaDivision()" class="boton boton-secundario"><x-dashboard.icono nombre="mas" clase="size-4" /> Nueva división</button>
             <button type="button" x-on:click="nuevaCarrera()" class="boton boton-primario"><x-dashboard.icono nombre="mas" clase="size-4" /> Nueva carrera</button>
@@ -112,7 +112,7 @@
                                 @endif
                             </td>
                             <td class="acciones whitespace-nowrap px-6 py-3.5 text-right">
-                                <button type="button" x-on:click="editarCarrera(@js($carrera->only(['id', 'division_id', 'carrera_clave', 'nombre', 'horas_requeridas', 'porcentaje_creditos_minimo', 'creditos_otorgados'])))"
+                                <button type="button" x-on:click="editarCarrera(@js($carrera->only(['id', 'division_id', 'carrera_clave', 'nombre'])))"
                                     class="group/btn relative inline-flex size-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-theme-xs transition hover:border-udg-200 hover:bg-udg-50 hover:text-udg-900 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25"
                                     aria-label="Editar {{ $carrera->carrera_clave }}">
                                     <x-dashboard.icono nombre="editar" clase="size-4" />
@@ -146,7 +146,7 @@
             </div>
             <div class="px-6 py-5">
                 <label class="etiqueta" for="div-nombre">Nombre</label>
-                <input id="div-nombre" type="text" name="nombre" x-model="division.nombre" required maxlength="255" placeholder="División de Estudios Jurídicos" class="campo h-11">
+                <input id="div-nombre" type="text" data-solo="letras" name="nombre" x-model="division.nombre" required maxlength="255" placeholder="División de Estudios Jurídicos" class="campo h-11">
             </div>
             <div class="flex justify-end gap-2 border-t border-gray-100 bg-gray-50/60 px-6 py-4">
                 <button type="button" x-on:click="modalDivision = false" class="boton boton-secundario">Cancelar</button>
@@ -179,27 +179,16 @@
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div>
                         <label class="etiqueta" for="car-clave">Clave</label>
-                        <input id="car-clave" type="text" name="carrera_clave" x-model="carrera.carrera_clave" required maxlength="10" class="campo h-11 font-mono uppercase">
+                        <input id="car-clave" type="text" name="carrera_clave" x-model="carrera.carrera_clave" required minlength="2" maxlength="10" data-solo="clave" pattern="[A-Z0-9\-]{2,10}" data-msg-formato="La clave solo lleva letras mayúsculas, números y guiones (por ejemplo ABOG)." class="campo h-11 font-mono uppercase">
                     </div>
                     <div class="sm:col-span-2">
                         <label class="etiqueta" for="car-nombre">Nombre</label>
-                        <input id="car-nombre" type="text" name="nombre" x-model="carrera.nombre" required maxlength="255" class="campo h-11">
+                        <input id="car-nombre" type="text" data-solo="letras" name="nombre" x-model="carrera.nombre" required maxlength="255" class="campo h-11">
                     </div>
                 </div>
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <div>
-                        <label class="etiqueta" for="car-horas">Horas requeridas</label>
-                        <input id="car-horas" type="number" name="horas_requeridas" x-model="carrera.horas_requeridas" required min="1" max="2000" class="campo h-11 tabular-nums">
-                    </div>
-                    <div>
-                        <label class="etiqueta" for="car-pct">% de créditos mínimo</label>
-                        <input id="car-pct" type="number" step="0.01" name="porcentaje_creditos_minimo" x-model="carrera.porcentaje_creditos_minimo" required min="0" max="100" class="campo h-11 tabular-nums">
-                    </div>
-                    <div>
-                        <label class="etiqueta" for="car-cred">Créditos que otorga</label>
-                        <input id="car-cred" type="number" name="creditos_otorgados" x-model="carrera.creditos_otorgados" required min="0" max="50" class="campo h-11 tabular-nums">
-                    </div>
-                </div>
+                @php $iniciales = \App\Models\Carrera::REGLAS_INICIALES; @endphp
+                <p class="rounded-xl bg-udg-50/60 px-4 py-3 text-xs leading-relaxed text-udg-900 ring-1 ring-inset ring-udg-100" x-show="!carrera.id">La carrera nace con valores iniciales de {{ $iniciales['horas_requeridas'] }} horas, {{ $iniciales['porcentaje_creditos_minimo'] }}% de créditos mínimo y {{ $iniciales['creditos_otorgados'] }} créditos. Su coordinación los ajusta en «Reglas de mi carrera».</p>
+                <p class="rounded-xl bg-gray-50 px-4 py-3 text-xs leading-relaxed text-gray-600 ring-1 ring-inset ring-gray-100" x-show="carrera.id" x-cloak>Horas, % de créditos y créditos otorgados los define la coordinación de la carrera en «Reglas de mi carrera».</p>
             </div>
             <div class="flex justify-end gap-2 border-t border-gray-100 bg-gray-50/60 px-6 py-4">
                 <button type="button" x-on:click="modalCarrera = false" class="boton boton-secundario">Cancelar</button>

@@ -21,7 +21,7 @@ class Reporte extends Model implements HasMedia
     protected $table = 'reportes';
 
     protected $fillable = [
-        'practica_id', 'tipo', 'periodo_inicio', 'periodo_fin', 'horas_reportadas',
+        'practica_id', 'tipo', 'numero', 'periodo_inicio', 'periodo_fin', 'horas_reportadas', 'actividades', 'logros',
         'retroalimentacion_empresa', 'evaluacion_profesor', 'estado',
     ];
 

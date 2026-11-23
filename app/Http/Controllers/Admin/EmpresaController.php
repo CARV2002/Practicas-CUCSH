@@ -80,19 +80,24 @@ class EmpresaController extends Controller
 
     public function update(Request $request, Empresa $empresa): RedirectResponse
     {
-        $request->merge(['rfc' => \Illuminate\Support\Str::upper(trim((string) $request->input('rfc')))]);
+        $request->merge([
+            'rfc' => \Illuminate\Support\Str::upper(trim((string) $request->input('rfc'))),
+            'contacto_telefono' => \App\Support\Formatos::digitos($request->input('contacto_telefono')) ?: null,
+        ]);
 
         $datos = $request->validate([
             'rfc' => ['required', 'string', 'regex:/^[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}$/u', Rule::unique('empresas', 'rfc')->ignore($empresa->id)],
-            'razon_social' => ['required', 'string', 'max:255'],
+            'razon_social' => ['required', 'string', 'max:255', new \App\Rules\UnicoNormalizado('empresas', 'razon_social', 'Ya hay otra organización registrada con esa razón social.', $empresa->id)],
             'tipo_organismo' => ['required', Rule::enum(TipoOrganismo::class)],
             'domicilio_fiscal' => ['nullable', 'string', 'max:255'],
-            'representante_legal' => ['nullable', 'string', 'max:255'],
-            'contacto_nombre' => ['required', 'string', 'max:255'],
-            'contacto_cargo' => ['nullable', 'string', 'max:255'],
-            'contacto_telefono' => ['nullable', 'string', 'max:20'],
+            'representante_legal' => ['nullable', 'string', 'max:255', 'regex:' . \App\Support\Formatos::NOMBRE_PERSONA],
+            'contacto_nombre' => ['required', 'string', 'max:255', 'regex:' . \App\Support\Formatos::NOMBRE_PERSONA],
+            'contacto_cargo' => ['nullable', 'string', 'max:255', 'regex:' . \App\Support\Formatos::TEXTO_LETRAS],
+            'contacto_telefono' => ['nullable', 'regex:' . \App\Support\Formatos::TELEFONO],
             'descripcion' => ['nullable', 'string', 'max:3000'],
             'proyectos_principales' => ['nullable', 'string', 'max:3000'],
+        ], \App\Support\Formatos::mensajes() + [
+            'contacto_nombre.regex' => 'Escribe el nombre completo del contacto (nombre y apellido), solo con letras.',
         ]);
 
         $empresa->update($datos);

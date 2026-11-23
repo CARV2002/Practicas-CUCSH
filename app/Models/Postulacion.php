@@ -54,6 +54,14 @@ class Postulacion extends Model implements HasMedia
             ->acceptsMimeTypes(['application/pdf']);
     }
 
+    /** Carta de presentación para imprimir: el PDF si existe; si LibreOffice no estaba disponible, el Word. */
+    public function cartaPresentacion(): ?\Spatie\MediaLibrary\MediaCollections\Models\Media
+    {
+        $cartas = $this->getMedia('carta_presentacion')->sortByDesc('id');
+
+        return $cartas->first(fn ($m) => $m->mime_type === 'application/pdf') ?? $cartas->first();
+    }
+
     public function alumno(): BelongsTo
     {
         return $this->belongsTo(Alumno::class);

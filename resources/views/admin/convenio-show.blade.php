@@ -11,6 +11,8 @@
     $maxEtapa = $etapa?->diasHabilesDocumentados()[1] ?? null;
     $diasEtapa = $etapaAbierta?->diasHabiles();
     $estadosDoc = ['validada' => ['menta', 'Validado'], 'rechazada' => ['rosa', 'Rechazado'], 'pendiente' => ['ambar', 'Por revisar']];
+    // El administrador supervisa en solo lectura: no ve los controles del trámite
+    $opera = auth()->user()->can('gestionar', $convenio);
     $bitacora = ['pendiente' => 'bg-amber-400', 'aprobado' => 'bg-emerald-500', 'observado' => 'bg-sky-400', 'rechazado' => 'bg-rose-500'];
 @endphp
 
@@ -21,6 +23,10 @@
             <x-ui.estatus :estado="$estado" tamano="normal" />
         </x-slot:acciones>
     </x-pagina.encabezado>
+
+    @unless ($opera)
+        <x-ui.aviso tipo="info" titulo="Supervisión de solo lectura">Consultas el trámite y su bitácora; la gestión y formalización del convenio corresponde exclusivamente a Vinculación.</x-ui.aviso>
+    @endunless
 
     @if (session('status'))
         <x-ui.aviso tipo="exito" descartable>{{ session('status') }}</x-ui.aviso>
@@ -126,7 +132,7 @@
                 @php
                     $pendientesLote = collect($colecciones)->map(fn ($c) => $empresa->documentoVigente($c))
                         ->filter(fn ($m) => $m && in_array($m->getCustomProperty('estado'), [null, 'pendiente'], true));
-                    $revisable = $estado === E::Solicitado;
+                    $revisable = $estado === E::Solicitado && $opera;
                 @endphp
                 <div x-data="{ elegidos: [], todos: @js($pendientesLote->pluck('id')->values()) }">
                     @if ($revisable && $pendientesLote->isNotEmpty())
@@ -170,7 +176,7 @@
                                         <p class="text-sm font-semibold text-gray-900">{{ \App\Models\Empresa::nombreDocumento($col) }}@unless ($obligatorio)<span class="ml-1 font-normal text-gray-400">(opcional)</span>@endunless</p>
                                         @if ($media)
                                             <a href="{{ route('admin.convenios.archivos.descargar', [$convenio, $media]) }}" class="inline-flex max-w-full items-center gap-1 text-xs font-semibold text-real-600 hover:text-real-700">
-                                                <x-dashboard.icono nombre="documento" clase="size-3.5 shrink-0" /><span class="truncate">Ver documento · {{ $media->file_name }}</span>
+                                                <x-dashboard.icono nombre="documento" clase="size-3.5 shrink-0" /><span class="truncate">{{ $media->file_name }}</span>
                                             </a>
                                             @if ($emision)
                                                 <p @class(['text-xs', 'font-semibold text-rose-600' => $emision->lt(today()->subMonths(3)), 'text-gray-500' => !$emision->lt(today()->subMonths(3))])>
@@ -202,6 +208,7 @@
                                                 </button>
                                             </div>
                                             <form x-show="rechazar" x-cloak x-transition.opacity method="POST" action="{{ route('admin.convenios.documentos.resolver', [$convenio, $media]) }}"
+                                                data-confirmar="¿Devolver este documento a la empresa? Tendrá que subirlo corregido para continuar el trámite." data-confirmar-titulo="Devolver documento" data-confirmar-boton="Sí, devolver"
                                                 class="flex w-full flex-col gap-2 rounded-xl bg-rose-50/70 p-3 ring-1 ring-inset ring-rose-200 lg:w-80">
                                                 @csrf
                                                 <input type="hidden" name="estado" value="rechazada">
@@ -223,7 +230,7 @@
                     </ul>
                 </div>
 
-                @if ($estado === E::Solicitado)
+                @if ($estado === E::Solicitado && $opera)
                     <div class="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-xs leading-relaxed text-gray-500 sm:max-w-md">Revisa que cada archivo sea legible, esté vigente y coincida con los datos capturados. Al aprobar el último documento, la propuesta se envía sola a las coordinaciones de las carreras solicitadas.</p>
                         @if ($faltaTurnar = \App\Support\Requisitos::turnarAValidacionAcademica($convenio))
@@ -251,9 +258,9 @@
                                     @if ($convenio->fecha_turno_division) División: {{ $convenio->fecha_turno_division->format('d/m/Y') }}. @endif
                                 </span>
                             </span>
-                            @if ($estado === E::EnValidacionAcademica)<span class="shrink-0 text-xs font-semibold text-real-600 group-open:hidden">Registrar fechas</span>@endif
+                            @if ($estado === E::EnValidacionAcademica && $opera)<span class="shrink-0 text-xs font-semibold text-real-600 group-open:hidden">Registrar fechas</span>@endif
                         </summary>
-                        @if ($estado === E::EnValidacionAcademica)
+                        @if ($estado === E::EnValidacionAcademica && $opera)
                             <form method="POST" action="{{ route('admin.convenios.turnos', $convenio) }}" class="grid grid-cols-1 gap-3 border-t border-gray-100 p-4 md:grid-cols-3 md:items-end">
                                 @csrf
                                 <div><label for="f-sec" class="etiqueta">Secretaría Académica</label>
@@ -300,21 +307,52 @@
             {{-- Borrador y Jurídica --}}
             @if (in_array($estado, [E::EnValidacionAcademica, E::EnRevisionJuridica], true) || $borradores->isNotEmpty())
                 <x-dashboard.panel titulo="Borrador y Unidad Jurídica" icono="juridico" descripcion="Genera o adjunta el borrador del convenio y registra el dictamen jurídico.">
+                    @php
+                        // ¿Jurídica devolvió el borrador? Se muestra arriba, en rojo, con qué hacer y dónde
+                        $observacionJuridica = $etapa === Et::RedaccionBorrador
+                            ? $convenio->seguimientos->filter(fn ($s) => $s->etapa === Et::DictamenJuridico && $s->estado === \App\Enums\SeguimientoEstado::Observado)->sortByDesc('id')->first()
+                            : null;
+                        $versionDevuelta = $observacionJuridica ? ($convenio->versionesBorrador()->filter(fn ($v) => $v['archivo']->hasCustomProperty('observada_juridica'))->last()['version'] ?? null) : null;
+                        $corregida = $observacionJuridica && $versionDevuelta && ($convenio->versionesBorrador()->last()['version'] ?? 0) > $versionDevuelta;
+                    @endphp
+
+                    @if ($observacionJuridica)
+                        <x-ui.correccion class="mb-4" :titulo="'La Unidad Jurídica devolvió el borrador' . ($versionDevuelta ? ' v' . $versionDevuelta : '') . ' con observaciones'"
+                            :fecha="$observacionJuridica->fecha_resolucion ?? $observacionJuridica->created_at" :motivo="$observacionJuridica->comentario"
+                            :resuelta="$corregida" resuelta-texto="Ya subiste una versión corregida: revísala y vuelve a turnarla a Jurídica.">
+                            Corrige aquí mismo, en la sección marcada en rojo: <strong>«Generar borrador desde el Formato de PP»</strong> (si el cambio es en los datos o cláusulas)
+                            o <strong>«Adjuntar borrador propio»</strong> (si Jurídica te regresó el Word ya corregido). Después pulsa <strong>«Turnar a Jurídica»</strong>.
+                        </x-ui.correccion>
+                    @endif
+
                     @if ($borradores->isNotEmpty())
+                        {{-- Solo la versión vigente se imprime; las anteriores quedan como historial (obsoletas) --}}
                         <ul class="mb-4 space-y-2">
-                            @foreach ($borradores as $i => $b)
-                                <li class="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3.5 py-2.5 ring-1 ring-inset ring-gray-100">
-                                    <span class="flex min-w-0 items-center gap-2 text-sm">
-                                        <span class="rounded-md bg-udg-900 px-1.5 py-0.5 text-[11px] font-bold text-white">v{{ $i + 1 }}</span>
+                            @foreach ($convenio->versionesBorrador()->reverse() as $v)
+                                @php $b = $v['archivo']; $esWord = $b->mime_type !== 'application/pdf'; $final = $b->getCustomProperty('final'); @endphp
+                                <li @class(['grid grid-cols-1 items-center gap-2 rounded-xl px-3.5 py-2.5 ring-1 ring-inset sm:grid-cols-[1fr_auto]',
+                                    'bg-udg-50/60 ring-udg-100' => $v['vigente'], 'bg-gray-50 ring-gray-100 opacity-80' => !$v['vigente']])>
+                                    <span class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+                                        <span @class(['rounded-md px-1.5 py-0.5 text-[11px] font-bold', 'bg-udg-900 text-white' => $v['vigente'], 'bg-gray-300 text-gray-700' => !$v['vigente']])>v{{ $v['version'] }}</span>
                                         <span class="truncate text-gray-800">{{ $b->file_name }}</span>
-                                    </span>
-                                    <span class="flex shrink-0 items-center gap-2">
-                                        <span class="hidden text-xs text-gray-500 sm:inline">{{ $b->created_at->format('d/m/Y H:i') }}</span>
-                                        @php $pdfVersion = $convenio->getMedia('borrador_pdf')->first(fn ($p) => $p->getCustomProperty('version') === $b->getCustomProperty('version') && $b->getCustomProperty('version') !== null); @endphp
-                                        @if ($pdfVersion)
-                                            <x-ui.boton-icono :href="route('admin.convenios.archivos.descargar', [$convenio, $pdfVersion])" icono="documento" etiqueta="PDF para imprimir" tono="primario" con-texto />
+                                        <x-ui.estatus :familia="$v['vigente'] ? 'menta' : 'piedra'" :texto="$v['vigente'] ? 'Vigente' : 'Obsoleta'" />
+                                        @if ($final)
+                                            <x-ui.estatus familia="turquesa" :texto="'Juegos finales · firma ' . \Illuminate\Support\Carbon::parse($b->getCustomProperty('fecha_firma'))->format('d/m/Y')" />
+                                        @elseif (!$b->getCustomProperty('fecha_firma') && $b->getCustomProperty('datos'))
+                                            <span class="text-[11px] text-gray-500">Fecha de firma en blanco</span>
                                         @endif
-                                        <x-ui.boton-icono :href="route('admin.convenios.archivos.descargar', [$convenio, $b])" icono="descargar" etiqueta="Descargar Word" />
+                                        <span class="text-xs text-gray-400">{{ $b->created_at->format('d/m/Y H:i') }}</span>
+                                    </span>
+                                    <span class="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+                                        @if ($v['vigente'] && $v['pdf'])
+                                            <x-ui.boton-icono :href="route('admin.convenios.archivos.descargar', [$convenio, $v['pdf']])" icono="documento" etiqueta="PDF para imprimir" tono="primario" con-texto />
+                                        @elseif ($v['vigente'])
+                                            <span class="text-xs text-amber-700" title="LibreOffice no está disponible para convertir el Word">Sin PDF: imprime desde el Word</span>
+                                        @endif
+                                        @if ($esWord)
+                                            {{-- El Word no se previsualiza: solo se descarga para editarlo --}}
+                                            <x-ui.boton-icono data-sin-boton-ver :href="route('admin.convenios.archivos.descargar', [$convenio, $b])" icono="descargar" :etiqueta="$v['vigente'] ? 'Descargar Word (editable)' : 'Word (historial)'" />
+                                        @endif
                                     </span>
                                 </li>
                             @endforeach
@@ -323,9 +361,12 @@
                         <p class="dato-vacio mb-4">Aún no hay borradores del convenio.</p>
                     @endif
 
-                    @if ($etapa === Et::RedaccionBorrador)
-                        @php $e = $empresa; @endphp
-                        <details class="group mb-4 rounded-xl border border-gray-200" @if ($errors->any()) open @endif>
+                    @if ($etapa === Et::RedaccionBorrador && $opera)
+                        @php
+                            $e = $empresa;
+                            $marcaCorregir = $observacionJuridica && !$corregida ? 'ring-2 ring-rose-300 border-rose-300' : 'border-gray-200';
+                        @endphp
+                        <details class="group mb-4 rounded-xl border {{ $marcaCorregir }}" @if ($errors->any()) open @endif>
                             <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-udg-900 hover:bg-gray-50">
                                 <span class="flex items-center gap-2"><x-dashboard.icono nombre="documento" clase="size-4" /> Generar borrador desde el Formato de PP</span>
                                 <svg class="size-4 text-gray-400 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
@@ -351,6 +392,11 @@
                                         <div class="md:col-span-2"><label class="etiqueta" for="b-atr">II. Atribuciones u objeto social</label><textarea id="b-atr" name="atribuciones" rows="2" required class="campo">{{ old('atribuciones', $e->objeto_social) }}</textarea></div>
                                         <div class="md:col-span-2"><label class="etiqueta" for="b-fac">III. Facultad de quien firma</label><textarea id="b-fac" name="facultad_firmante" rows="2" required class="campo">{{ old('facultad_firmante', $e->facultad_firmante) }}</textarea></div>
                                         <div class="md:col-span-2"><label class="etiqueta" for="b-dom">IV. Domicilio legal</label><input id="b-dom" type="text" name="domicilio_legal" required value="{{ old('domicilio_legal', $e->domicilio_fiscal) }}" class="campo h-11"><p class="ayuda">V. RFC: <span class="font-mono font-semibold text-gray-700">{{ $e->rfc }}</span></p></div>
+                                        {{-- Cancelar: deshace lo que se cambió y cierra --}}
+                                        <div class="flex justify-end md:col-span-2">
+                                            <button type="button" class="boton boton-chico boton-secundario"
+                                                x-on:click="const d = $el.closest('details'); d.querySelectorAll('input, textarea').forEach(i => i.value = i.defaultValue); d.open = false">Cancelar</button>
+                                        </div>
                                     </div>
                                 </details>
 
@@ -363,32 +409,93 @@
                                             @endforeach
                                         </select>
                                     </div>
-                                    <div><label class="etiqueta" for="b-lugar">Ciudad de firma</label><input id="b-lugar" type="text" name="lugar_firma" required value="{{ old('lugar_firma', 'Guadalajara') }}" class="campo h-11"></div>
-                                    <div><label class="etiqueta" for="b-fecha">Fecha de firma</label><input id="b-fecha" type="date" name="fecha_firma" required value="{{ old('fecha_firma', now()->toDateString()) }}" class="campo h-11"></div>
+                                    <div><label class="etiqueta" for="b-lugar">Ciudad de firma</label><input id="b-lugar" type="text" name="lugar_firma" required data-solo="letras" value="{{ old('lugar_firma', 'Guadalajara') }}" class="campo h-11"></div>
+                                    <div>
+                                        <label class="etiqueta" for="b-fecha">Fecha de firma <span class="font-normal text-gray-400">(tentativa, opcional)</span></label>
+                                        <input id="b-fecha" type="date" name="fecha_firma" value="{{ old('fecha_firma') }}" class="campo h-11">
+                                        <p class="ayuda">Déjala vacía: el borrador sale con «a los ___ días del mes de ___» y Jurídica solo revisa cláusulas. La fecha real se fija al imprimir los juegos finales.</p>
+                                    </div>
                                     <div class="md:col-span-3"><label class="etiqueta" for="b-apoyo">Ayuda o estímulo económico (opcional)</label><input id="b-apoyo" type="text" name="apoyo_economico" value="{{ old('apoyo_economico') }}" class="campo h-11"><p class="ayuda">Si lo dejas vacío se usa el texto estándar.</p></div>
                                 </div>
-                                <div class="flex justify-end"><button class="boton boton-primario"><x-dashboard.icono nombre="documento" clase="size-4" /> Generar borrador (Word + PDF)</button></div>
+                                <div class="flex justify-end gap-2">
+                                    <button type="button" class="boton boton-secundario"
+                                        x-on:click="const f = $el.closest('form'); f.reset(); f.closest('details').open = false">Cancelar</button>
+                                    <button class="boton boton-primario"><x-dashboard.icono nombre="documento" clase="size-4" /> Generar borrador (Word + PDF)</button>
+                                </div>
                             </form>
                         </details>
 
-                        <div class="flex flex-col gap-3 rounded-xl border border-dashed border-gray-300 p-4 md:flex-row md:items-end md:justify-between">
-                            <form method="POST" enctype="multipart/form-data" action="{{ route('admin.convenios.borrador', $convenio) }}" class="flex flex-1 flex-col gap-2 sm:flex-row sm:items-end">
-                                @csrf
-                                <div class="flex-1"><x-ui.zona-archivo name="borrador" etiqueta="Adjuntar borrador propio" accept=".pdf,.docx" formatos="PDF o Word (.docx)" ayuda="Úsalo si redactaste el convenio fuera del sistema o Jurídica te devolvió una versión corregida." /></div>
-                                <button class="boton boton-secundario h-11"><x-dashboard.icono nombre="subir" clase="size-4" /> Adjuntar</button>
-                            </form>
-                            @if ($borradores->isEmpty())
-                                <x-ui.accion-bloqueada motivo="Genera o adjunta el borrador del convenio antes de turnarlo a Jurídica.">Turnar a Jurídica</x-ui.accion-bloqueada>
-                            @else
-                                <form method="POST" action="{{ route('admin.convenios.juridica.turnar', $convenio) }}">
-                                    @csrf
-                                    <button class="boton boton-primario h-11"><x-dashboard.icono nombre="enviar" clase="size-4" /> Turnar a Jurídica</button>
-                                </form>
+                        {{-- Adjuntar un Word o PDF propio --}}
+                        <form method="POST" enctype="multipart/form-data" action="{{ route('admin.convenios.borrador', $convenio) }}"
+                            class="mb-4 grid grid-cols-1 gap-4 rounded-xl border border-dashed p-4 md:grid-cols-[1fr_13rem] {{ $observacionJuridica && !$corregida ? 'border-rose-300 bg-rose-50/30' : 'border-gray-300' }}">
+                            @csrf
+                            <div class="md:row-span-2">
+                                <x-ui.zona-archivo name="borrador" etiqueta="Adjuntar borrador propio" accept=".pdf,.docx" formatos="PDF o Word (.docx)" ayuda="Úsalo si redactaste el convenio fuera del sistema o Jurídica te devolvió una versión corregida." />
+                            </div>
+                            <div>
+                                <label class="etiqueta" for="ad-anios">Vigencia del borrador</label>
+                                {{-- Precarga los años de la versión anterior para no cambiarlos por accidente --}}
+                                <select id="ad-anios" name="vigencia_anios" required class="campo h-11">
+                                    @foreach (\App\Models\Convenio::DURACIONES as $a)
+                                        <option value="{{ $a }}" @selected((int) old('vigencia_anios', $convenio->duracionAnios()) === $a)>{{ $a }} {{ $a === 1 ? 'año' : 'años' }}</option>
+                                    @endforeach
+                                </select>
+                                @if ($convenio->vigencia_anios)<p class="ayuda">La versión anterior dice {{ $convenio->vigencia_anios }} {{ $convenio->vigencia_anios === 1 ? 'año' : 'años' }}.</p>@endif
+                            </div>
+                            <button class="boton boton-secundario h-11 w-full self-end"><x-dashboard.icono nombre="subir" clase="size-4" /> Adjuntar borrador</button>
+                        </form>
+
+                        {{-- Turnar a Jurídica, con a quién le llega el correo a la vista --}}
+                        @php $correoJuridica = \App\Models\Configuracion::valor(\App\Models\Configuracion::CORREO_JURIDICA); @endphp
+                        <div class="space-y-3 rounded-xl border border-gray-200 p-4" x-data="{ editarCorreo: {{ $errors->has('correo_juridica') ? 'true' : 'false' }} }">
+                            @if ($borradores->isNotEmpty())
+                                @php $vigente = $convenio->versionesBorrador()->last()['version']; @endphp
+                                @if ($correoJuridica)
+                                    <div class="flex items-start gap-3 rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-900 ring-1 ring-inset ring-sky-200">
+                                        <span class="text-lg leading-none" aria-hidden="true">✉️</span>
+                                        <p class="flex-1"><strong>Notificación activa:</strong> al dar clic en «Turnar v{{ $vigente }} a Jurídica» se enviará copia del expediente y del borrador a
+                                            <strong class="break-all">{{ $correoJuridica }}</strong>.
+                                            <button type="button" class="ml-1 font-semibold text-real-700 underline underline-offset-2 hover:text-real-800" x-on:click="editarCorreo = !editarCorreo">Editar correo</button></p>
+                                    </div>
+                                @else
+                                    <div class="flex items-start gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-inset ring-amber-200">
+                                        <span class="text-lg leading-none" aria-hidden="true">⚠️</span>
+                                        <p class="flex-1"><strong>Sin correo de Jurídica:</strong> al turnar solo quedará en la bitácora; tendrás que llevar el expediente en persona.
+                                            <button type="button" class="ml-1 font-semibold text-real-700 underline underline-offset-2 hover:text-real-800" x-on:click="editarCorreo = true">Configurar correo</button></p>
+                                    </div>
+                                @endif
                             @endif
+
+                            <form x-show="editarCorreo" x-cloak x-transition.opacity method="POST" action="{{ route('admin.configuracion.juridica') }}" class="grid grid-cols-1 gap-2 rounded-xl bg-gray-50 p-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+                                @csrf
+                                @method('PUT')
+                                <div>
+                                    <label class="etiqueta" for="cfg-juridica">Correo institucional de la Unidad Jurídica</label>
+                                    <input id="cfg-juridica" type="email" name="correo_juridica" value="{{ $correoJuridica }}" placeholder="juridico@csh.udg.mx" class="campo h-10">
+                                </div>
+                                <button type="button" class="boton boton-secundario h-10" x-on:click="editarCorreo = false; $el.form.reset()">Cancelar</button>
+                                <button class="boton boton-primario h-10">Guardar correo</button>
+                            </form>
+
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                                @if ($borradores->isEmpty())
+                                    <x-ui.accion-bloqueada motivo="Genera o adjunta el borrador del convenio antes de turnarlo a Jurídica.">Turnar a Jurídica</x-ui.accion-bloqueada>
+                                @else
+                                    <form method="POST" action="{{ route('admin.convenios.juridica.turnar', $convenio) }}" class="flex flex-col gap-2 sm:flex-row sm:items-center"
+                                        data-confirmar="¿Turnar la versión v{{ $vigente }} a la Unidad Jurídica?{{ $correoJuridica ? ' Se enviará copia a ' . $correoJuridica . '.' : '' }} El borrador ya no se podrá cambiar hasta registrar su dictamen." data-confirmar-titulo="Turnar a Jurídica" data-confirmar-boton="Sí, turnar" data-confirmar-tono="normal">
+                                        @csrf
+                                        @if ($correoJuridica)
+                                            <input type="hidden" name="enviar_correo" value="0">
+                                            <label class="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" name="enviar_correo" value="1" checked class="rounded border-gray-300"> Enviar copia por correo</label>
+                                        @endif
+                                        <button class="boton boton-primario h-11"><x-dashboard.icono nombre="enviar" clase="size-4" /> Turnar v{{ $vigente }} a Jurídica</button>
+                                    </form>
+                                @endif
+                            </div>
                         </div>
                     @endif
 
-                    @if ($estado === E::EnRevisionJuridica && $etapa === Et::DictamenJuridico)
+                    @if ($estado === E::EnRevisionJuridica && $etapa === Et::DictamenJuridico && $opera)
                         <form method="POST" enctype="multipart/form-data" action="{{ route('admin.convenios.juridica.dictamen', $convenio) }}"
                             class="grid grid-cols-1 gap-3 rounded-xl border border-dashed border-gray-300 p-4 md:grid-cols-3 md:items-end">
                             @csrf
@@ -410,7 +517,7 @@
             @endif
 
             {{-- Firmas y formalización --}}
-            @if ($estado === E::EnFirmas)
+            @if ($estado === E::EnFirmas && $opera)
                 <x-dashboard.panel titulo="Firmas y formalización" icono="firma" descripcion="Registra cada firma y, al final, formaliza con folio y vigencia.">
                     @if (in_array($etapa, [Et::FirmaEmpresa, Et::FirmaRectoria], true))
                         <p class="mb-4 rounded-xl bg-udg-50/60 px-4 py-3 text-sm leading-relaxed text-udg-900 ring-1 ring-inset ring-udg-100">{{ $etapa === Et::FirmaEmpresa
@@ -429,19 +536,20 @@
                         </form>
                     @elseif ($etapa === Et::ArchivoDistribucion)
                         <form method="POST" enctype="multipart/form-data" action="{{ route('admin.convenios.formalizar', $convenio) }}" class="grid grid-cols-1 gap-4 md:grid-cols-4"
+                            data-confirmar="¿Formalizar el convenio con este folio y fecha de inicio? Quedará vigente y la empresa podrá publicar vacantes. Revisa bien los datos: ya no se pueden cambiar." data-confirmar-titulo="Formalizar convenio" data-confirmar-boton="Sí, formalizar" data-confirmar-tono="normal"
                             x-data="{ inicio: '', anios: {{ $convenio->duracionAnios() }},
                                 get fin() { if (!this.inicio) return ''; const d = new Date(this.inicio + 'T00:00:00'); d.setFullYear(d.getFullYear() + Number(this.anios)); d.setDate(d.getDate() - 1); return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }); } }">
                             @csrf
-                            <div><label class="etiqueta" for="fo-folio">Folio</label><input id="fo-folio" type="text" name="folio" required maxlength="30" class="campo h-11"></div>
+                            <div><label class="etiqueta" for="fo-folio">Folio</label><input id="fo-folio" type="text" name="folio" required minlength="3" maxlength="30" data-solo="folio" placeholder="CV-2026-014" pattern="[A-Z0-9\/\-]{3,30}" data-msg-formato="El folio solo lleva letras mayúsculas, números, guiones o diagonales." class="campo h-11"></div>
                             <div><label class="etiqueta" for="fo-ini">Inicio de vigencia (fecha de firma)</label><input id="fo-ini" type="date" name="fecha_inicio_vigencia" required x-model="inicio" class="campo h-11"></div>
                             <div>
-                                <label class="etiqueta" for="fo-anios">Duración pactada</label>
-                                <select id="fo-anios" name="vigencia_anios" x-model="anios" class="campo h-11">
-                                    @foreach (\App\Models\Convenio::DURACIONES as $a)
-                                        <option value="{{ $a }}">{{ $a }} {{ $a === 1 ? 'año' : 'años' }}</option>
-                                    @endforeach
-                                </select>
-                                <p class="ayuda" x-text="fin ? 'Vence el ' + fin + ' (avisos a 60 y 30 días)' : 'La fecha de fin se calcula sola'"></p>
+                                <span class="etiqueta">Duración pactada (cláusula UNDÉCIMA)</span>
+                                @if ($convenio->vigencia_anios)
+                                    <p class="flex h-11 items-center rounded-xl bg-gray-100 px-4 text-sm font-semibold text-gray-800 ring-1 ring-inset ring-gray-200">{{ $convenio->vigencia_anios }} {{ $convenio->vigencia_anios === 1 ? 'año' : 'años' }} · fijada en el borrador</p>
+                                    <p class="ayuda" x-text="fin ? 'Vence el ' + fin + ' (avisos a 60 y 30 días)' : 'La fecha de fin se calcula sola con los años impresos en el convenio'"></p>
+                                @else
+                                    <p class="text-xs font-medium text-rose-600">El borrador no registró años de vigencia: adjunta de nuevo el borrador firmado indicando la vigencia.</p>
+                                @endif
                             </div>
                             <div class="md:col-span-4">
                                 @if ($firmado)
@@ -467,14 +575,14 @@
             @endif
 
             {{-- Rechazar --}}
-            @unless ($estado->esFinal())
+            @unless ($estado->esFinal() || ! $opera)
                 <details class="group rounded-2xl border border-rose-200 bg-white shadow-theme-xs">
                     <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-sm font-semibold text-rose-700 hover:bg-rose-50/50 sm:px-6">
                         <span class="flex items-center gap-2"><x-dashboard.icono nombre="alerta" clase="size-4" /> Rechazar convenio</span>
                         <svg class="size-4 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
                     </summary>
                     <form method="POST" action="{{ route('admin.convenios.rechazar', $convenio) }}" class="flex flex-col gap-2 border-t border-rose-100 px-5 py-4 sm:flex-row sm:items-end sm:px-6"
-                        onsubmit="return confirm('¿Cerrar el trámite como rechazado? La empresa recibirá el motivo.')">
+                        data-confirmar="¿Cerrar el trámite como rechazado? La empresa recibirá el motivo y el trámite ya no podrá continuar." data-confirmar-titulo="Rechazar convenio" data-confirmar-boton="Sí, rechazar">
                         @csrf
                         <div class="flex-1"><label class="etiqueta" for="r-motivo">Motivo</label><input id="r-motivo" type="text" name="motivo" required maxlength="1000" class="campo h-11"></div>
                         <button class="boton boton-peligro h-11">Rechazar trámite</button>
@@ -516,7 +624,7 @@
                 @empty
                     @if (in_array($estado, [E::EnValidacionAcademica, E::EnRevisionJuridica, E::EnFirmas, E::Formalizado], true))
                         <p class="text-sm text-gray-600">Este trámite aún no tiene control de sus papeles.</p>
-                        <x-ui.boton-icono :accion="route('admin.convenios.fisicos.preparar', $convenio)" icono="mas" etiqueta="Abrir control físico" tono="primario" con-texto class="mt-3" />
+                        @can('operar-convenios')<x-ui.boton-icono :accion="route('admin.convenios.fisicos.preparar', $convenio)" icono="mas" etiqueta="Abrir control físico" tono="primario" con-texto class="mt-3" />@endcan
                     @else
                         <p class="dato-vacio">El oficio de turno se registra al turnar a las carreras</p>
                     @endif

@@ -63,7 +63,7 @@ class PracticanteController extends Controller
             'postulaciones' => $postulaciones,
             'carreras' => Carrera::enAlcance($personal)->orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
             'estados' => PracticaEstado::cases(),
-            'profesores' => Profesor::with('division')
+            'profesores' => Profesor::with('division')->activos()
                 ->whereIn('division_id', Carrera::enAlcance($personal)->select('division_id'))
                 ->orderBy('nombre')->get(),
         ]);
@@ -117,8 +117,8 @@ class PracticanteController extends Controller
             }
 
             Avisos::enviar($alumno->user, new AvisoOperativo(
-                mensaje: 'Tu coordinación revisó tu expediente y te pide corregir ' . implode(' y ', $nombres)
-                    . ". Motivo: {$datos['motivo']} Sube el PDF corregido en «Mis documentos»; en cuanto lo valide podrás postularte.",
+                mensaje: 'Tu coordinación te devolvió ' . implode(' y ', $nombres)
+                    . ". Motivo: «{$datos['motivo']}». Qué hacer: entra a «Mis documentos › Tu expediente», busca la tarjeta marcada en rojo y sube el PDF corregido; en cuanto lo valide podrás postularte.",
                 url: route('alumno.mis-documentos', absolute: false),
                 correo: true,
                 asunto: 'Corrige un documento de tu expediente de prácticas',
@@ -233,6 +233,9 @@ class PracticanteController extends Controller
         ]);
 
         $supervisor = isset($datos['profesor_id']) ? Profesor::find($datos['profesor_id']) : null;
+        if ($supervisor && !$supervisor->activo) {
+            return back()->withErrors(['profesor_id' => 'Ese profesor está desactivado en el catálogo: elige otro o actívalo en «Profesores supervisores».']);
+        }
 
         $activar(
             $postulacion,
@@ -257,6 +260,10 @@ class PracticanteController extends Controller
 
         $profesor = Profesor::findOrFail($datos['profesor_id']);
         $carrera = $practica->postulacion->alumno->carrera;
+
+        if (!$profesor->activo) {
+            return back()->withErrors(['practica' => 'Ese profesor está desactivado en el catálogo: elige otro o actívalo en «Profesores supervisores».']);
+        }
 
         abort_unless($request->user()->personal->puedeVerCarrera((int) $carrera->id), 403);
 

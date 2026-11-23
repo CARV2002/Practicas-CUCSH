@@ -93,12 +93,19 @@
                                 </div>
                             </td>
                             <td class="whitespace-nowrap px-4 py-4">
-                                <p class="text-sm font-medium text-gray-900">{{ $r->tipo->label() }}</p>
+                                <p class="text-sm font-medium text-gray-900">{{ $r->numero ? 'Reporte ' . $r->numero . ' · ' : '' }}{{ $r->tipo->label() }}</p>
                                 <p class="text-xs text-gray-500">{{ $r->periodo_inicio->format('d/m/Y') }} – {{ $r->periodo_fin->format('d/m/Y') }}</p>
                                 @if ($pdf)
                                     <a href="{{ route('coordinacion.reportes.archivos', [$r, $pdf]) }}" class="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-real-600 hover:text-real-700"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Reporte firmado</a>
                                 @else
-                                    <p class="dato-vacio mt-1">El alumno aún no sube el PDF firmado</p>
+                                    <p class="mt-1 text-xs font-medium text-amber-700">Esperando el escaneo firmado y sellado</p>
+                                @endif
+                                @if ($r->actividades)
+                                    <details class="mt-1 max-w-xs text-xs text-gray-600">
+                                        <summary class="cursor-pointer font-semibold text-real-600">Lo que redactó el alumno</summary>
+                                        <p class="mt-1 whitespace-pre-line rounded-lg bg-gray-50 p-2 leading-relaxed">{{ $r->actividades }}</p>
+                                        @if ($r->logros)<p class="mt-1 whitespace-pre-line rounded-lg bg-gray-50 p-2 leading-relaxed"><span class="font-semibold">Logros:</span> {{ $r->logros }}</p>@endif
+                                    </details>
                                 @endif
                             </td>
                             <td class="whitespace-nowrap px-4 py-4 text-right">
@@ -116,14 +123,34 @@
                                 </div>
                             </td>
                             <td class="acciones px-6 py-4">
-                                @if ($r->estado === RE::Pendiente)
-                                    <form method="POST" action="{{ route('coordinacion.reportes.resolver', $r) }}" class="flex min-w-56 flex-col gap-2">
+                                @if ($r->estado === RE::Pendiente && !$pdf)
+                                    {{-- Sin el PDF escaneado no hay nada que auditar: no se muestran Validar ni Rechazar --}}
+                                    <div class="flex min-w-56 items-start gap-2.5 rounded-xl border border-dashed border-amber-300 bg-amber-50/60 px-3 py-2.5">
+                                        <span class="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                                            <x-dashboard.icono nombre="reloj" clase="size-4" />
+                                        </span>
+                                        <div class="text-xs leading-snug">
+                                            <p class="font-semibold text-amber-800">Esperando documento del alumno</p>
+                                            <p class="mt-0.5 text-amber-700/90">Podrás validar o rechazar cuando suba el reporte firmado y sellado.</p>
+                                        </div>
+                                    </div>
+                                @elseif ($r->estado === RE::Pendiente)
+                                    {{-- Ya hay escaneo: la coordinación lo descarga, lo audita y decide --}}
+                                    <form method="POST" action="{{ route('coordinacion.reportes.resolver', $r) }}" class="flex min-w-56 flex-col gap-2" x-data="{ nota: '' }">
                                         @csrf
-                                        <label class="sr-only" for="eval-{{ $r->id }}">Evaluación o motivo</label>
-                                        <input id="eval-{{ $r->id }}" type="text" name="evaluacion_profesor" placeholder="Evaluación (o motivo si rechazas)" maxlength="2000" class="campo h-9 text-xs">
+                                        <label class="sr-only" for="eval-{{ $r->id }}">Evaluación o motivo del rechazo</label>
+                                        <textarea id="eval-{{ $r->id }}" name="evaluacion_profesor" x-model="nota" rows="2" maxlength="2000"
+                                            placeholder="Evaluación (obligatoria si rechazas)" class="campo h-auto py-2 text-xs"></textarea>
                                         <div class="grid grid-cols-2 gap-2">
-                                            <button name="estado" value="validado" data-sin-bloqueo="1" class="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 active:scale-95"><x-dashboard.icono nombre="check" clase="size-3.5" /> Validar</button>
-                                            <button name="estado" value="rechazado" data-sin-bloqueo="1" class="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-rose-200 bg-white text-xs font-semibold text-rose-600 transition hover:bg-rose-50 active:scale-95"><x-dashboard.icono nombre="equis" clase="size-3.5" /> Rechazar</button>
+                                            <button name="estado" value="validado" data-sin-bloqueo="1"
+                                                data-confirmar="¿Validar el reporte {{ $r->numero ? $r->numero . ' ' : '' }}de {{ $al->user->name }}? Se sumarán {{ $r->horas_reportadas }} h a su práctica y ya no se podrá rechazar."
+                                                data-confirmar-titulo="Validar reporte" data-confirmar-boton="Sí, validar" data-confirmar-tono="normal"
+                                                class="inline-flex h-9 items-center justify-center gap-1 rounded-lg bg-emerald-600 text-xs font-semibold text-white shadow-theme-xs transition hover:-translate-y-px hover:bg-emerald-500 active:scale-95 motion-reduce:transform-none"><x-dashboard.icono nombre="check" clase="size-3.5" /> Validar</button>
+                                            <button name="estado" value="rechazado" data-sin-bloqueo="1" :disabled="nota.trim() === ''"
+                                                :title="nota.trim() === '' ? 'Escribe el motivo para poder rechazar' : ''"
+                                                data-confirmar="¿Rechazar el reporte de {{ $al->user->name }}? Recibirá tu motivo por correo y tendrá que subirlo corregido."
+                                                data-confirmar-titulo="Rechazar reporte" data-confirmar-boton="Sí, rechazar"
+                                                class="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-rose-200 bg-white text-xs font-semibold text-rose-600 transition hover:bg-rose-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"><x-dashboard.icono nombre="equis" clase="size-3.5" /> Rechazar</button>
                                         </div>
                                     </form>
                                 @else

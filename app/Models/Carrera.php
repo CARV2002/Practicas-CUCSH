@@ -15,6 +15,12 @@ class Carrera extends Model
 
     protected $attributes = ['esquema_reportes' => 'mensual'];
 
+    /**
+     * Reglas con que nace una carrera que da de alta el administrador. Desde ahí, solo su coordinación
+     * las ajusta en «Reglas de mi carrera» (autonomía académica de cada licenciatura).
+     */
+    public const REGLAS_INICIALES = ['horas_requeridas' => 300, 'porcentaje_creditos_minimo' => 50, 'creditos_otorgados' => 8];
+
     protected $fillable = [
         'division_id',
         'carrera_clave',

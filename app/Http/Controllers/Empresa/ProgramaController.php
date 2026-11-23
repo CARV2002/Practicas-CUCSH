@@ -58,7 +58,7 @@ class ProgramaController extends Controller
 
         $datos = $this->validar($request);
 
-        $this->convenioPropio($request, (int) $datos['convenio_id']);
+        $this->convenioPropio($request, (int) $datos['convenio_id'], (int) $datos['carrera_id']);
 
         // Nace pendiente: no es visible para los alumnos hasta que la Coordinación de la carrera la apruebe
         $programa = Programa::create($datos + [
@@ -81,7 +81,7 @@ class ProgramaController extends Controller
 
         $datos = $this->validar($request);
 
-        $this->convenioPropio($request, (int) $datos['convenio_id']);
+        $this->convenioPropio($request, (int) $datos['convenio_id'], (int) $datos['carrera_id']);
 
         // Cualquier cambio de la empresa vuelve a revisión (horarios y actividades)
         $programa->update($datos + [
@@ -96,14 +96,36 @@ class ProgramaController extends Controller
         return back()->with('status', 'Vacante actualizada y enviada de nuevo a aprobación.');
     }
 
-    /** La empresa solo cierra una vacante publicada: publicar es decisión de la Coordinación. */
+    /** La empresa cierra su vacante publicada o la reabre; publicarla por primera vez es decisión de la Coordinación. */
     public function cambiarEstado(Request $request, Programa $programa): RedirectResponse
     {
         $this->autorizar($request, $programa);
 
-        $request->validate(['estado' => ['required', Rule::in([ProgramaEstado::Cerrado->value])]], [
-            'estado.in' => 'La vacante la publica la Coordinación de la carrera; tú solo puedes cerrarla.',
+        $request->validate(['estado' => ['required', Rule::in([ProgramaEstado::Cerrado->value, ProgramaEstado::Publicado->value])]], [
+            'estado.in' => 'Solo puedes cerrar o reabrir tu vacante.',
         ]);
+
+        // Reabrir: decisión de la empresa. Si la cerró la Coordinación por una irregularidad, vuelve a revisión.
+        if ($request->input('estado') === ProgramaEstado::Publicado->value) {
+            if ($programa->estado !== ProgramaEstado::Cerrado) {
+                return back()->withErrors(['estado' => 'Solo se puede reabrir una vacante cerrada; publicarla por primera vez le corresponde a la Coordinación.']);
+            }
+
+            if ($programa->observaciones_cierre) {
+                $programa->update(['estado' => ProgramaEstado::PendienteAprobacion, 'revisado_por' => null, 'revisado_at' => null]);
+                $this->avisarCoordinacion($request, $programa, 'pidió reabrir la vacante que cerraste');
+
+                return back()->with('status', 'La Coordinación había cerrado esta vacante: se envió de nuevo a su revisión antes de reabrirla.');
+            }
+
+            if (!$programa->convenio?->estaVigente()) {
+                return back()->withErrors(['programa' => 'Tu convenio ya no está vigente: no puedes reabrir la vacante.']);
+            }
+
+            $programa->update(['estado' => ProgramaEstado::Publicado]);
+
+            return back()->with('status', 'Vacante reabierta: los alumnos ya pueden postularse de nuevo.');
+        }
 
         if ($programa->estado !== ProgramaEstado::Publicado) {
             return back()->withErrors(['programa' => 'Solo se puede cerrar una vacante publicada.']);
@@ -151,12 +173,24 @@ class ProgramaController extends Controller
         $this->authorize('gestionar', $programa);
     }
 
-    private function convenioPropio(Request $request, int $convenioId): void
+    /**
+     * El convenio elegido debe ser de la empresa, estar vigente y tener dictamen aprobatorio de la carrera:
+     * el formulario ya solo ofrece esas combinaciones, pero no se confía solo en la vista.
+     */
+    private function convenioPropio(Request $request, int $convenioId, int $carreraId): void
     {
-        $propio = $request->user()->empresa->convenios()->whereKey($convenioId)->exists();
+        $convenio = $request->user()->empresa->convenios()->whereKey($convenioId)->first();
 
-        if (!$propio) {
+        if ($convenio === null) {
             throw ValidationException::withMessages(['convenio_id' => 'El convenio no pertenece a tu empresa.']);
+        }
+
+        if (!$convenio->estaVigente()) {
+            throw ValidationException::withMessages(['convenio_id' => 'Ese convenio no está vigente: elige un convenio formalizado y vigente.']);
+        }
+
+        if (!$convenio->autorizaCarrera($carreraId)) {
+            throw ValidationException::withMessages(['carrera_id' => 'Esa carrera no aprobó tu convenio: solo puedes ofertar vacantes a las carreras con dictamen aprobatorio.']);
         }
     }
 

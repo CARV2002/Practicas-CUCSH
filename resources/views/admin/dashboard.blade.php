@@ -184,24 +184,24 @@
         </x-dashboard.panel>
 
         {{-- Por vencer --}}
-        <x-dashboard.panel titulo="Convenios por vencer" icono="calendario" descripcion="Vigencias que terminan en los próximos 60 días."
-            :enlace="route('admin.lista-convenios')" enlace-texto="Ver todos">
+        <x-dashboard.panel titulo="Convenios por vencer" icono="calendario" descripcion="Vigencias que terminan en los próximos 60 días. Entra directo a la empresa para dar seguimiento a su renovación."
+            :enlace="route('admin.lista-convenios', ['estado' => 'por_vencer'])" enlace-texto="Ver todos">
             @forelse ($convenios_por_vencer as $c)
                 @php $dias = (int) now()->startOfDay()->diffInDays($c->fecha_fin_vigencia, false); @endphp
-                <a href="{{ route('admin.convenios.show', $c) }}" class="-mx-2 flex items-center justify-between gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-gray-50">
+                <div class="-mx-2 flex items-center justify-between gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-gray-50">
                     <div class="min-w-0">
-                        <p class="truncate text-sm font-semibold text-gray-900">{{ $c->empresa->razon_social }}</p>
-                        <p class="text-xs text-gray-500">{{ $c->folio ?? 'Sin folio' }} · vence {{ $c->fecha_fin_vigencia->format('d/m/Y') }}</p>
+                        <a href="{{ route('admin.empresas.show', $c->empresa) }}" class="block truncate text-sm font-semibold text-gray-900 hover:text-real-600 hover:underline" title="Ir al expediente de la empresa">{{ $c->empresa->razon_social }}</a>
+                        <p class="text-xs text-gray-500">{{ $c->folio ?? 'Sin folio' }} · vence {{ $c->fecha_fin_vigencia->format('d/m/Y') }} · <a href="{{ route('admin.convenios.show', $c) }}" class="font-semibold text-real-600 hover:underline">Ver trámite</a></p>
                     </div>
-                    <span @class([
+                    <a href="{{ route('admin.empresas.show', $c->empresa) }}" aria-label="Ir a {{ $c->empresa->razon_social }}" @class([
                         'flex shrink-0 flex-col items-center rounded-xl px-2.5 py-1 text-center ring-1 ring-inset',
                         'bg-rose-50 text-rose-700 ring-rose-200' => $dias <= 30,
                         'bg-amber-50 text-amber-800 ring-amber-200' => $dias > 30,
                     ])>
                         <span class="font-display text-lg font-bold leading-none tabular-nums">{{ $dias }}</span>
                         <span class="text-[10px] font-semibold uppercase">días</span>
-                    </span>
-                </a>
+                    </a>
+                </div>
             @empty
                 <x-dashboard.vacio titulo="Sin vencimientos próximos" texto="Ningún convenio vence en los próximos 60 días." />
             @endforelse

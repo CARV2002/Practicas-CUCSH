@@ -81,17 +81,10 @@
                         $activo = $empresa->user?->activo ?? false;
                     @endphp
                     <tr class="tabla-fila">
-                        <td class="px-6 py-4">
-                            <div class="flex items-start gap-3">
-                                <span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-udg-50 font-display text-sm font-bold text-udg-900 ring-1 ring-inset ring-udg-100" aria-hidden="true">{{ mb_strtoupper(mb_substr($empresa->razon_social, 0, 1)) }}</span>
-                                <div class="min-w-0">
-                                    <a href="{{ route('admin.empresas.show', $empresa) }}" class="block font-semibold text-gray-900 hover:text-udg-900 hover:underline underline-offset-2">{{ $empresa->razon_social }}</a>
-                                    <div class="mt-1 flex flex-wrap items-center gap-2">
-                                        <span class="font-mono text-xs text-gray-500">{{ $empresa->rfc }}</span>
-                                        <x-ui.estatus :familia="$familiaTipo($empresa->tipo_organismo)" :texto="$empresa->tipo_organismo?->label() ?? 'Tipo sin definir'" />
-                                    </div>
-                                </div>
-                            </div>
+                        <td class="px-4 py-3">
+                            <x-tabla.ficha :href="route('admin.empresas.show', $empresa)" ver="Ver expediente" :titulo="$empresa->razon_social"
+                                :inicial="mb_strtoupper(mb_substr($empresa->razon_social, 0, 1))" :subtitulo="$empresa->rfc" />
+                            <div class="mt-1 pl-12"><x-ui.estatus :familia="$familiaTipo($empresa->tipo_organismo)" :texto="$empresa->tipo_organismo?->label() ?? 'Tipo sin definir'" /></div>
                         </td>
                         <td class="px-4 py-4">
                             <p class="text-sm font-medium text-gray-800">{{ $empresa->contacto_nombre ?: 'Contacto sin registrar' }}</p>
@@ -118,7 +111,7 @@
                         </td>
                         <td class="acciones whitespace-nowrap px-6 py-4 text-right">
                             <div class="flex items-center justify-end gap-2">
-                                @if ($empresa->user)
+                                @if ($empresa->user && auth()->user()->can('operar-convenios'))
                                     <x-ui.boton-icono :accion="route('admin.empresas.activo', $empresa)"
                                         :icono="$activo ? 'apagar' : 'encender'" :etiqueta="$activo ? 'Desactivar cuenta' : 'Activar cuenta'"
                                         :tono="$activo ? 'peligro' : 'exito'"

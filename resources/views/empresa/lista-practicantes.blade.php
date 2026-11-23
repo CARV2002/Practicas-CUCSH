@@ -58,15 +58,9 @@
                             $pct = $pr->horas_requeridas > 0 ? min(100, round($horas / $pr->horas_requeridas * 100)) : 0;
                         @endphp
                         <tr class="tabla-fila">
-                            <td class="px-6 py-4">
-                                <div class="flex items-start gap-3">
-                                    <x-ui.user-avatar :user="$al->user" size="mt-0.5 size-9 shrink-0 text-xs ring-2 ring-white" />
-                                    <div class="min-w-0">
-                                        <a href="{{ route('empresa.practicantes.show', $pr) }}" class="font-semibold text-gray-900 hover:text-udg-900 hover:underline underline-offset-2">{{ $al->user->name }}</a>
-                                        <p class="text-xs text-gray-500">{{ $al->num_control }} · {{ $al->carrera->nombre }}</p>
-                                        <p class="text-xs text-gray-500">{{ $pr->postulacion->programa->titulo }}</p>
-                                    </div>
-                                </div>
+                            <td class="px-4 py-3">
+                                <x-tabla.ficha :href="route('empresa.practicantes.show', $pr)" ver="Ver practicante" :titulo="$al->user->name" :avatar="$al->user"
+                                    :subtitulo="$al->num_control . ' · ' . $al->carrera->nombre">{{ $pr->postulacion->programa->titulo }}</x-tabla.ficha>
                             </td>
                             <td class="px-4 py-4">
                                 <div class="w-40">

@@ -77,5 +77,8 @@ class AppServiceProvider extends ServiceProvider
         // Auditoría: solo el administrador del sistema
         Gate::define('ver-auditoria', fn(User $u) => $u->hasRole(Rol::Administrador->value)
             && $u->personal?->tieneAlcanceGlobal() === true);
+
+        // Operar convenios, empresas y documentos físicos: solo Vinculación (el administrador supervisa en solo lectura)
+        Gate::define('operar-convenios', fn(User $u) => $u->hasRole(Rol::Vinculacion->value) && $u->personal !== null);
     }
 }

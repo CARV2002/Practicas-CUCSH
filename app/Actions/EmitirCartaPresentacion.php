@@ -99,9 +99,21 @@ class EmitirCartaPresentacion
 
             // Carta de Presentación (.docx) con carrera, grado y turno del alumno
             $ruta = $this->generador->generar($postulacion->setRelation('alumno', $alumno)->setRelation('programa', $programa), $por);
+
+            // PDF listo para imprimir (LibreOffice); el Word queda por si la coordinación necesita ajustarlo
+            $pdf = app(\App\Services\ConvertidorPdf::class)->convertir($ruta);
+
             $postulacion->addMedia($ruta)
                 ->usingFileName("carta-presentacion-{$alumno->num_control}.docx")
                 ->toMediaCollection('carta_presentacion');
+
+            if ($pdf) {
+                $postulacion->addMedia($pdf)
+                    ->usingFileName("carta-presentacion-{$alumno->num_control}.pdf")
+                    ->withCustomProperties(['generada' => true])
+                    ->toMediaCollection('carta_presentacion');
+                \Illuminate\Support\Facades\File::deleteDirectory(dirname($pdf));
+            }
 
             $empresa = $programa->convenio?->empresa;
 

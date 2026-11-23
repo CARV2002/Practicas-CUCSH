@@ -1,3 +1,4 @@
+import './confirmacion';
 import './validacion';
 import './tablas';
 import { iniciarVistaPrevia } from './vista-previa';

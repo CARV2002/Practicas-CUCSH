@@ -30,7 +30,7 @@
         @if ($conTexto)<span>{{ $etiqueta }}</span>@else<span class="{{ $tooltip }}" aria-hidden="true">{{ $etiqueta }}</span>@endif
     </a>
 @elseif ($accion)
-    <form method="POST" action="{{ $accion }}" class="inline-flex" @if ($confirmar) x-data @submit="if (!confirm(@js($confirmar))) $event.preventDefault()" @endif>
+    <form method="POST" action="{{ $accion }}" class="inline-flex" @if ($confirmar) data-confirmar="{{ $confirmar }}" data-confirmar-boton="Sí, {{ mb_strtolower($etiqueta) }}" @endif>
         @csrf
         @if (strtoupper($metodo) !== 'POST') @method($metodo) @endif
         {{ $slot }}

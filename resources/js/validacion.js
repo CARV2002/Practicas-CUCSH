@@ -222,6 +222,7 @@ const FILTROS = {
     letras: (v) => v.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ' .,-]+/g, '').replace(/\s{2,}/g, ' '),
     rfc: (v) => v.toUpperCase().replace(/[^A-ZÑ&0-9]+/g, ''),
     clave: (v) => v.toUpperCase().replace(/[^A-Z0-9-]+/g, ''),
+    folio: (v) => v.toUpperCase().replace(/[^A-Z0-9/-]+/g, ''),
 };
 
 function filtrar(campo) {

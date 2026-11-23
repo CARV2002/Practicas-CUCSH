@@ -52,7 +52,7 @@ class ExpedienteController extends Controller
 
         Avisos::enviar($alumno->user, new AvisoOperativo(
             mensaje: $rechazado
-                ? "Tu coordinación te pide corregir tu {$nombre}: {$datos['motivo']} Sube el archivo corregido en «Mis documentos»."
+                ? "Tu coordinación te devolvió tu {$nombre}. Motivo: «{$datos['motivo']}». Qué hacer: entra a «Mis documentos › Tu expediente», busca la tarjeta marcada en rojo y sube el archivo corregido."
                 : ($completo
                     ? 'Tu coordinación validó tu kardex y tu constancia IMSS. ¡Ya puedes postularte a una vacante de tu carrera!'
                     : "Tu coordinación validó tu {$nombre}."),

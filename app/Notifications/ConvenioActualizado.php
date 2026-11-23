@@ -7,14 +7,17 @@ use App\Models\Convenio;
 /** A la empresa: su convenio avanzó de etapa (elimina la "espera pasiva"). */
 class ConvenioActualizado extends AvisoPracticas
 {
-    public function __construct(public Convenio $convenio, public string $mensaje)
+    public function __construct(public Convenio $convenio, public string $mensaje, public bool $correo = false, public ?string $asuntoCorreo = null)
     {
     }
 
-    /** La empresa sigue cada etapa de su convenio en la campana de la plataforma (sin correo por etapa). */
+    /**
+     * La empresa sigue cada etapa en la campana; solo lo que le pide actuar (p. ej. un rechazo del dictamen
+     * académico para que ajuste sus actividades) le llega además por correo.
+     */
     protected function porCorreo(): bool
     {
-        return false;
+        return $this->correo;
     }
 
     protected function texto(): string
@@ -34,7 +37,7 @@ class ConvenioActualizado extends AvisoPracticas
 
     protected function asunto(): string
     {
-        return 'Actualización de tu convenio con el CUCSH';
+        return $this->asuntoCorreo ?? 'Actualización de tu convenio con el CUCSH';
     }
 
     public function toArray(object $notifiable): array

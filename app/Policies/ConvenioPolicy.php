@@ -28,10 +28,15 @@ class ConvenioPolicy
         return $empresaId !== null && (int) $convenio->empresa_id === $empresaId;
     }
 
-    /** Avanzar el trámite (documentos, dictámenes, borrador, firmas...): solo Vinculación. */
+    /**
+     * Avanzar el trámite (documentos, dictámenes, borrador, firmas...): solo Vinculación.
+     * El administrador lo consulta (view) pero no lo opera: un único responsable de cada versión del contrato.
+     */
     public function gestionar(User $user, Convenio $convenio): bool
     {
-        return $this->esVinculacion($user) && $this->view($user, $convenio);
+        return $user->hasRole(\App\Enums\Rol::Vinculacion->value)
+            && $this->esVinculacion($user)
+            && $this->view($user, $convenio);
     }
 
     /** La empresa y la coordinación solo descargan el firmado de un convenio ya formalizado. */

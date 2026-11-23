@@ -23,8 +23,80 @@
             <x-ui.aviso tipo="error" titulo="Revisa lo siguiente"><ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></x-ui.aviso>
         @endif
 
+        {{--
+            Una sección a la vez: las pestañas siguen el orden del proceso (expediente → postulación → práctica)
+            y muestran cuántos casos esperan en cada una. La pestaña elegida queda en la URL (?seccion=…)
+            para que, al guardar un formulario, regreses al mismo lugar.
+        --}}
+        @php
+            $hayFiltrosPracticas = request()->hasAny(['q', 'carrera_id', 'estado', 'practicas']);
+            $secciones = collect([
+                'expedientes' => ['Expedientes', 'Kardex e IMSS por validar', $expedientesPorRevisar->count(), 'documento', $expedientesPorRevisar->isNotEmpty()],
+                'postulaciones' => ['Postulaciones', 'Cartas y aceptación', $postulaciones->total(), 'vacante', $postulaciones->total() > 0],
+                'practicas' => ['En práctica', 'Horas y supervisor', $practicas->total(), 'reloj', false],
+            ]);
+            if ($bloqueados->isNotEmpty()) {
+                $secciones->put('bloqueados', ['Bloqueados', 'Desbloqueo excepcional', $bloqueados->count(), 'candado', true]);
+            }
+            $seccion = match (true) {
+                $secciones->has((string) request('seccion')) => request('seccion'),
+                old('alumno') !== null => 'expedientes',
+                old('postulacion') !== null || request()->has('postulaciones') => 'postulaciones',
+                $hayFiltrosPracticas => 'practicas',
+                $expedientesPorRevisar->isNotEmpty() => 'expedientes',
+                $postulaciones->total() > 0 => 'postulaciones',
+                default => 'practicas',
+            };
+        @endphp
+
+        <div class="space-y-5" x-data="{
+            tab: @js($seccion),
+            ir(t) {
+                this.tab = t;
+                const url = new URL(window.location.href);
+                url.searchParams.set('seccion', t);
+                window.history.replaceState({}, '', url);
+            }
+        }">
+            <nav aria-label="Secciones de practicantes" class="-mx-4 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:px-0">
+                <ol class="grid min-w-max grid-flow-col auto-cols-[minmax(12rem,1fr)] gap-3 sm:min-w-0" role="tablist">
+                    @foreach ($secciones as $clave => [$titulo, $sub, $total, $icono, $espera])
+                        @php $alerta = $clave === 'bloqueados'; @endphp
+                        <li>
+                            <button type="button" role="tab" id="tab-{{ $clave }}" aria-controls="panel-{{ $clave }}"
+                                :aria-selected="(tab === '{{ $clave }}').toString()" x-on:click="ir('{{ $clave }}')"
+                                class="group relative flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition duration-200 ease-out focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25 motion-reduce:transition-none"
+                                :class="tab === '{{ $clave }}'
+                                    ? 'border-udg-200 bg-white shadow-theme-md -translate-y-0.5'
+                                    : 'border-transparent bg-gray-100/80 hover:bg-white hover:shadow-theme-xs'">
+                                <span class="flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors duration-200"
+                                    :class="tab === '{{ $clave }}' ? '{{ $alerta ? 'bg-rose-600 text-white' : 'bg-udg-800 text-white' }}' : '{{ $alerta ? 'bg-rose-50 text-rose-600' : 'bg-white text-gray-500' }}'">
+                                    <x-dashboard.icono :nombre="$icono" clase="size-5" />
+                                </span>
+                                <span class="min-w-0 flex-1">
+                                    <span class="flex items-center gap-2">
+                                        <span class="text-sm font-semibold text-gray-900">{{ $titulo }}</span>
+                                        @if ($espera)
+                                            <span class="size-1.5 rounded-full {{ $alerta ? 'bg-rose-500' : 'bg-amber-500' }}" title="Hay casos esperando" aria-hidden="true"></span>
+                                        @endif
+                                    </span>
+                                    <span class="block truncate text-xs text-gray-500">{{ $sub }}</span>
+                                </span>
+                                <span class="font-display text-2xl font-bold tabular-nums leading-none"
+                                    :class="tab === '{{ $clave }}' ? '{{ $alerta ? 'text-rose-600' : 'text-udg-900' }}' : 'text-gray-400'">{{ $total }}</span>
+                                {{-- Indicador inferior de la pestaña activa --}}
+                                <span class="absolute inset-x-6 -bottom-px h-0.5 origin-center rounded-full transition-transform duration-200 {{ $alerta ? 'bg-rose-500' : 'bg-oro-400' }}"
+                                    :class="tab === '{{ $clave }}' ? 'scale-x-100' : 'scale-x-0'" aria-hidden="true"></span>
+                            </button>
+                        </li>
+                    @endforeach
+                </ol>
+            </nav>
+
         {{-- Expedientes por revisar: kardex + IMSS juntos, ANTES de que el alumno pueda postularse --}}
-        <x-tabla.marco titulo="Expedientes por revisar" descripcion="Kardex y constancia IMSS que los alumnos te entregan juntos. Al validarlos, el alumno ya puede postularse a una vacante." :total="$expedientesPorRevisar->count()">
+            <section id="panel-expedientes" role="tabpanel" aria-labelledby="tab-expedientes" x-show="tab === 'expedientes'" @if ($seccion !== 'expedientes') x-cloak @endif
+                x-transition:enter="transition duration-200 ease-out motion-reduce:transition-none" x-transition:enter-start="opacity-0 translate-y-1">
+        <x-tabla.marco titulo="Expedientes por revisar" descripcion="Al validar kardex e IMSS, el alumno ya puede postularse a una vacante." :total="$expedientesPorRevisar->count()">
             @if ($expedientesPorRevisar->isEmpty())
                 <div class="px-6 py-4"><x-dashboard.vacio icono="check" titulo="No hay expedientes pendientes" texto="Cuando un alumno envíe su kardex y su constancia IMSS, aparecerá aquí." /></div>
             @else
@@ -100,7 +172,8 @@
                                 </button>
                             </div>
 
-                            <form x-show="devolver" x-cloak x-transition.opacity method="POST" action="{{ route('coordinacion.alumnos.expediente', $al) }}" class="mt-2 space-y-2 rounded-lg bg-rose-50/60 p-2.5">
+                            <form x-show="devolver" x-cloak x-transition.opacity method="POST" action="{{ route('coordinacion.alumnos.expediente', $al) }}"
+                                data-confirmar="¿Devolver el expediente a {{ $al->user->name }}? No podrá postularse hasta que suba los documentos corregidos." data-confirmar-titulo="Devolver expediente" data-confirmar-boton="Sí, devolver" class="mt-2 space-y-2 rounded-lg bg-rose-50/60 p-2.5">
                                 @csrf
                                 <input type="hidden" name="decision" value="devolver">
                                 <input type="hidden" name="alumno" value="{{ $al->id }}">
@@ -131,9 +204,12 @@
                 </ul>
             @endif
         </x-tabla.marco>
+            </section>
 
         {{-- Alumnos bloqueados: baja por sanción o límite de bajas. Solo la coordinación los libera, con justificación. --}}
         @if ($bloqueados->isNotEmpty())
+            <section id="panel-bloqueados" role="tabpanel" aria-labelledby="tab-bloqueados" x-show="tab === 'bloqueados'" @if ($seccion !== 'bloqueados') x-cloak @endif
+                x-transition:enter="transition duration-200 ease-out motion-reduce:transition-none" x-transition:enter-start="opacity-0 translate-y-1">
             <x-tabla.marco titulo="Alumnos bloqueados" descripcion="No pueden postularse por su cuenta: tuvieron una baja por sanción o llegaron al límite de {{ \App\Models\Alumno::LIMITE_BAJAS }} bajas. Si el alumno acude con una causa de fuerza mayor, puedes hacer un desbloqueo excepcional." :total="$bloqueados->count()">
                 <ul class="divide-y divide-gray-100">
                     @foreach ($bloqueados as $al)
@@ -156,7 +232,8 @@
                             </div>
                             <div>
                                 <button type="button" x-show="!abierto" x-on:click="abierto = true" class="boton boton-secundario w-full">Desbloqueo excepcional</button>
-                                <form x-show="abierto" x-cloak method="POST" action="{{ route('coordinacion.alumnos.desbloquear', $al) }}" class="space-y-2">
+                                <form x-show="abierto" x-cloak method="POST" action="{{ route('coordinacion.alumnos.desbloquear', $al) }}" class="space-y-2"
+                                    data-confirmar="¿Desbloquear a {{ $al->user->name }}? Podrá volver a postularse. Este desbloqueo excepcional queda registrado con tu justificación." data-confirmar-titulo="Desbloqueo excepcional" data-confirmar-boton="Sí, desbloquear" data-confirmar-tono="aviso">
                                     @csrf
                                     <label class="etiqueta" for="just-{{ $al->id }}">Justificación (causa de fuerza mayor)</label>
                                     <textarea id="just-{{ $al->id }}" name="justificacion" rows="3" required minlength="10" maxlength="1000" class="campo"
@@ -171,12 +248,15 @@
                     @endforeach
                 </ul>
             </x-tabla.marco>
+            </section>
         @endif
 
         {{-- Postulaciones en trámite --}}
-        <x-tabla.marco titulo="Postulaciones en trámite" descripcion="Cada fila te dice cuál es el siguiente paso; el formulario se abre debajo de la fila." :total="$postulaciones->total()">
+            <section id="panel-postulaciones" role="tabpanel" aria-labelledby="tab-postulaciones" x-show="tab === 'postulaciones'" @if ($seccion !== 'postulaciones') x-cloak @endif
+                x-transition:enter="transition duration-200 ease-out motion-reduce:transition-none" x-transition:enter-start="opacity-0 translate-y-1">
+        <x-tabla.marco titulo="Postulaciones en trámite" descripcion="Cada fila te dice el siguiente paso; el formulario se abre debajo." :total="$postulaciones->total()">
             <table class="tabla table-fixed">
-                <colgroup><col class="w-[25%]"><col class="w-[21%]"><col class="w-28"><col><col class="w-48"></colgroup>
+                <colgroup><col class="w-[23%]"><col class="w-[20%]"><col class="w-28"><col><col class="w-56"></colgroup>
                 <thead>
                     <tr>
                         <th class="tabla-th px-6">Alumno</th>
@@ -190,7 +270,7 @@
                     @php
                         $kardex = $po->alumno->documentoVigente('kardex');   // expediente del alumno, validado antes de postularse
                         $aceptacion = $po->getFirstMedia('carta_aceptacion');
-                        $presentacion = $po->documentoVigente('carta_presentacion');
+                        $presentacion = $po->cartaPresentacion();
                         $oficioInterno = $po->documentoVigente('oficio_aceptacion_interno');
                         $imss = $po->alumno->documentoVigente('constancia_imss');
                         $interno = $po->programa->esInterno();
@@ -234,37 +314,31 @@
                                 @if ($faltaOficio)<p class="mt-1 text-xs font-semibold text-rose-600">Falta el oficio de aceptación interno</p>@endif
                             </td>
                             <td class="acciones px-6 py-4 text-right">
-                                <div class="flex flex-col items-end gap-1.5">
+                                <div class="ml-auto flex w-48 flex-col items-stretch gap-1.5">
                                     @if ($po->estado === PE::Pendiente)
                                         {{-- El expediente (kardex + IMSS) ya se validó antes de postularse: aquí solo se emite la carta --}}
                                         @if ($faltaCarta = \App\Support\Requisitos::emitirCarta($po))
                                             <x-ui.accion-bloqueada :motivo="$faltaCarta" tamano="chico">Emitir carta</x-ui.accion-bloqueada>
                                         @else
-                                            <form method="POST" action="{{ route('coordinacion.postulaciones.carta', $po) }}">
-                                                @csrf
-                                                <button class="boton boton-chico boton-primario"><x-dashboard.icono nombre="documento" clase="size-3.5" /> Emitir carta de presentación</button>
-                                            </form>
+                                            <x-ui.accion-principal tono="primario" icono="documento" etiqueta="Emitir carta" :accion="route('coordinacion.postulaciones.carta', $po)" title="Emitir carta de presentación"
+                                                confirmar="¿Emitir la carta de presentación de {{ $po->alumno->user->name }}? Se le reserva un cupo en «{{ $po->programa->titulo }}» y se avisa a la organización." />
                                         @endif
                                     @elseif ($po->estado === PE::CartaPresentacionEmitida)
-                                        <button type="button" class="boton boton-chico boton-primario" x-on:click="abierto = !abierto" :aria-expanded="abierto.toString()">
-                                            <x-dashboard.icono nombre="subir" clase="size-3.5" /> {{ $aceptacion ? 'Revisar carta de aceptación' : 'Registrar aceptación' }}
-                                        </button>
+                                        <x-ui.accion-principal tono="primario" icono="subir" :etiqueta="$aceptacion ? 'Revisar aceptación' : 'Registrar aceptación'" x-on:click="abierto = !abierto" ::aria-expanded="abierto.toString()" />
                                     @elseif ($faltaActivar)
                                         <x-ui.accion-bloqueada :motivo="$faltaActivar" tamano="chico">Activar práctica</x-ui.accion-bloqueada>
                                     @elseif ($po->estado === PE::CartaAceptacionRecibida)
-                                        <button type="button" class="boton boton-chico boton-exito" x-on:click="abierto = !abierto" :aria-expanded="abierto.toString()">
-                                            <x-dashboard.icono nombre="check" clase="size-3.5" /> Activar práctica
-                                        </button>
+                                        <x-ui.accion-principal tono="exito" icono="check" etiqueta="Activar práctica" x-on:click="abierto = !abierto" ::aria-expanded="abierto.toString()" />
                                     @endif
 
                                     @if ($faltaOficio && !($po->estado === PE::CartaAceptacionRecibida && !$faltaActivar))
-                                        <button type="button" class="boton boton-chico boton-secundario" x-on:click="abierto = !abierto"><x-dashboard.icono nombre="subir" clase="size-3.5" /> Subir oficio interno</button>
+                                        <x-ui.accion-principal icono="subir" etiqueta="Subir oficio interno" x-on:click="abierto = !abierto" />
                                     @endif
 
                                     @if (in_array($po->estado, [PE::Pendiente, PE::CartaPresentacionEmitida], true))
-                                        <form method="POST" action="{{ route('coordinacion.postulaciones.rechazar', $po) }}" onsubmit="return confirm('¿Rechazar esta postulación? El alumno recibirá un aviso.')">
+                                        <form method="POST" action="{{ route('coordinacion.postulaciones.rechazar', $po) }}" data-confirmar="¿Rechazar esta postulación? El alumno recibirá un aviso y podrá postularse a otra vacante." data-confirmar-titulo="Rechazar postulación" data-confirmar-boton="Sí, rechazar">
                                             @csrf
-                                            <button class="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700"><x-dashboard.icono nombre="equis" clase="size-3.5" /> Rechazar postulación</button>
+                                            <button class="inline-flex w-full items-center justify-center gap-1 rounded-md py-1 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700"><x-dashboard.icono nombre="equis" clase="size-3.5" /> Rechazar postulación</button>
                                         </form>
                                     @endif
                                 </div>
@@ -291,7 +365,8 @@
                                                 </div>
                                             </form>
                                         @elseif ($po->estado === PE::CartaAceptacionRecibida && !$faltaActivar)
-                                            <form method="POST" action="{{ route('coordinacion.postulaciones.activar', $po) }}" class="grid grid-cols-2 gap-3 rounded-xl bg-white p-4 ring-1 ring-inset ring-gray-200">
+                                            <form method="POST" action="{{ route('coordinacion.postulaciones.activar', $po) }}" class="grid grid-cols-2 gap-3 rounded-xl bg-white p-4 ring-1 ring-inset ring-gray-200"
+                                                data-confirmar="¿Activar la práctica de {{ $po->alumno->user->name }} con este periodo? Desde ese momento empezará a registrar horas." data-confirmar-titulo="Activar práctica" data-confirmar-boton="Sí, activar" data-confirmar-tono="normal">
                                                 @csrf
                                                 <input type="hidden" name="postulacion" value="{{ $po->id }}">
                                                 <p class="col-span-2 text-sm font-semibold text-gray-900">Periodo de la práctica</p>
@@ -332,12 +407,16 @@
             </table>
             <x-slot:pie>{{ $postulaciones->links() }}</x-slot:pie>
         </x-tabla.marco>
+            </section>
 
         {{-- Prácticas --}}
+            <section id="panel-practicas" role="tabpanel" aria-labelledby="tab-practicas" x-show="tab === 'practicas'" @if ($seccion !== 'practicas') x-cloak @endif
+                x-transition:enter="transition duration-200 ease-out motion-reduce:transition-none" x-transition:enter-start="opacity-0 translate-y-1">
         <x-tabla.marco titulo="Seguimiento de prácticas" descripcion="Horas validadas, periodo y supervisor de cada practicante." :total="$practicas->total()">
             <x-slot:herramientas>
                 <x-tabla.filtros-estado :actual="request('estado', '')" :opciones="collect($estados)->map(fn ($e) => ['valor' => $e->value, 'texto' => $e->label(), 'familia' => $e->familia()])->prepend(['valor' => '', 'texto' => 'Todas'])->all()" />
                 <form method="GET" class="flex flex-col gap-2 sm:flex-row" role="search">
+                    <input type="hidden" name="seccion" value="practicas">
                     @if (request('estado'))<input type="hidden" name="estado" value="{{ request('estado') }}">@endif
                     <div class="relative flex-1 sm:max-w-xs">
                         <x-dashboard.icono nombre="buscar" clase="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
@@ -354,13 +433,13 @@
                     @endif
                     <button class="boton boton-secundario">Buscar</button>
                     @if (request()->hasAny(['q', 'carrera_id', 'estado']))
-                        <a href="{{ route('coordinacion.lista-practicantes') }}" class="boton text-gray-500 hover:bg-gray-100 hover:text-gray-800">Limpiar</a>
+                        <a href="{{ route('coordinacion.lista-practicantes', ['seccion' => 'practicas']) }}" class="boton text-gray-500 hover:bg-gray-100 hover:text-gray-800">Limpiar</a>
                     @endif
                 </form>
             </x-slot:herramientas>
 
             <table class="tabla table-fixed">
-                <colgroup><col class="w-[27%]"><col class="w-48"><col class="w-28"><col><col class="w-28"><col class="w-40"></colgroup>
+                <colgroup><col class="w-[25%]"><col class="w-48"><col class="w-28"><col><col class="w-32"><col class="w-40"></colgroup>
                 <thead>
                     <tr>
                         <th class="tabla-th px-6">Practicante</th>
@@ -458,6 +537,8 @@
             </table>
             <x-slot:pie>{{ $practicas->links() }}</x-slot:pie>
         </x-tabla.marco>
+            </section>
+        </div>
 
         {{-- Baja de práctica: la resolución sale del motivo y de los reportes validados (criterios de la Coordinación de Carrera) --}}
         @php
@@ -482,7 +563,8 @@
         <div x-show="abierto" x-cloak x-transition.opacity.duration.200ms x-on:keydown.escape.window="abierto = false"
             class="fixed inset-0 z-[100050] flex items-start justify-center overflow-y-auto p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="titulo-baja">
             <div class="fixed inset-0 bg-udg-950/50 backdrop-blur-sm" x-on:click="abierto = false"></div>
-            <form method="POST" :action="url.replace(/0$/, p.id)" x-on:click.stop class="relative w-full max-w-lg animate-entrada overflow-hidden rounded-2xl bg-white shadow-theme-xl motion-reduce:animate-none">
+            <form method="POST" :action="url.replace(/0$/, p.id)" x-on:click.stop
+                :data-confirmar="'¿Registrar la baja de ' + p.nombre + '? ' + (bloquea ? 'El alumno quedará bloqueado para postularse. ' : '') + 'La práctica se cancela y no se puede deshacer.'" data-confirmar-titulo="Baja de práctica" data-confirmar-boton="Sí, registrar baja" class="relative w-full max-w-lg animate-entrada overflow-hidden rounded-2xl bg-white shadow-theme-xl motion-reduce:animate-none">
                 @csrf
                 <div class="border-b border-gray-100 px-6 py-4">
                     <h3 id="titulo-baja" class="font-display text-lg font-bold text-gray-900">Baja de práctica</h3>

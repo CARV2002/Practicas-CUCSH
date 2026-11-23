@@ -86,12 +86,20 @@ class ReporteController extends Controller
 
         $datos = $request->validate([
             'estado' => ['required', Rule::in([ReporteEstado::Validado->value, ReporteEstado::Rechazado->value])],
-            'evaluacion_profesor' => ['nullable', 'string', 'max:2000'],
+            // Al rechazar, el alumno necesita saber qué corregir
+            'evaluacion_profesor' => ['nullable', 'required_if:estado,' . ReporteEstado::Rechazado->value, 'string', 'max:2000'],
             'retroalimentacion_empresa' => ['nullable', 'string', 'max:2000'],
+        ], [
+            'evaluacion_profesor.required_if' => 'Escribe el motivo del rechazo para que el alumno sepa qué corregir.',
         ]);
 
         if ($reporte->practica->estado !== PracticaEstado::EnCurso) {
             return back()->withErrors(['reporte' => 'Los reportes solo se revisan mientras la práctica está en curso.']);
+        }
+
+        // Sin el escaneo firmado y sellado por la organización no hay nada que auditar: ni se valida ni se rechaza
+        if ($reporte->estado === ReporteEstado::Pendiente && !$reporte->media()->where('collection_name', 'reporte_firmado')->exists()) {
+            return back()->withErrors(['reporte' => 'El alumno aún no sube el reporte firmado y sellado: se podrá validar o rechazar cuando lo suba.']);
         }
 
         // Lo validado ya no se rechaza: sus horas ya cuentan para el alumno
@@ -107,7 +115,7 @@ class ReporteController extends Controller
         Avisos::enviar(Avisos::alumnoDe($reporte->practica), new AvisoOperativo(
             mensaje: $ok
             ? "Tu reporte del {$periodo} fue validado: se sumaron {$reporte->horas_reportadas} horas."
-            : "Tu reporte del {$periodo} fue rechazado" . (filled($datos['evaluacion_profesor'] ?? null) ? ': ' . $datos['evaluacion_profesor'] : '.') . ' Corrígelo y vuelve a subirlo.',
+            : "Tu coordinación te devolvió el reporte del {$periodo}. Motivo: «{$datos['evaluacion_profesor']}». Qué hacer: entra a «Mis documentos › Reportes de horas», busca el reporte marcado en rojo, corrígelo y súbelo firmado de nuevo.",
             url: route($ok ? 'alumno.mis-practicas' : 'alumno.mis-documentos', absolute: false),
             correo: !$ok,
             asunto: 'Tu reporte fue rechazado',

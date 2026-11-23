@@ -153,6 +153,27 @@ test('la vacante de la empresa nace pendiente y solo la coordinación de su carr
     Notification::assertNotSentTo($ajeno->user, AvisoOperativo::class);
 });
 
+test('la empresa no puede ofertar por URL directa a una carrera sin dictamen aprobatorio ni con un convenio no vigente', function () {
+    Notification::fake();
+
+    // CRIM no aprobó el convenio: el formulario no la ofrece y el servidor tampoco la acepta
+    $this->actingAs($this->empresaUser)->post(route('empresa.programas.store'), ['carrera_id' => $this->crim->id] + $this->vacante)
+        ->assertSessionHasErrors('carrera_id');
+
+    // Un convenio propio pero vencido no sirve aunque tenga otro vigente
+    $vencido = Convenio::create([
+        'empresa_id' => $this->empresa->id, 'estado' => ConvenioEstado::Formalizado, 'folio' => 'CV-PC-000',
+        'fecha_recepcion' => now()->subYears(4), 'fecha_inicio_vigencia' => now()->subYears(4),
+        'fecha_fin_vigencia' => now()->subMonth(), 'objetivos' => 'x', 'actividades_propuestas' => 'y', 'plazas_estimadas' => 5,
+    ]);
+    $vencido->dictamenes()->create(['carrera_id' => $this->abog->id, 'dictamen' => Dictamen::Aprobatorio]);
+    $this->actingAs($this->empresaUser)->post(route('empresa.programas.store'), ['convenio_id' => $vencido->id] + $this->vacante)
+        ->assertSessionHasErrors('convenio_id');
+
+    expect(Programa::count())->toBe(0);
+    Notification::assertNotSentTo($this->coordCrim, AvisoOperativo::class);
+});
+
 test('rechazar una vacante exige motivo y la edición de la empresa la regresa a revisión', function () {
     Notification::fake();
     $this->actingAs($this->empresaUser)->post(route('empresa.programas.store'), $this->vacante);
@@ -435,6 +456,27 @@ test('la coordinación solo registra proyectos internos; las vacantes externas s
     $externa = ($this->programa)();
     $this->actingAs($this->coordAbog)->put(route('coordinacion.programas.update', $externa), $datos)->assertSessionHasErrors('programa');
     $this->actingAs($this->coordAbog)->delete(route('coordinacion.programas.destroy', $externa))->assertSessionHasErrors('programa');
-    $this->actingAs($this->coordAbog)->post(route('coordinacion.programas.estado', $externa), ['estado' => 'cerrado'])->assertSessionHasNoErrors();
-    expect($externa->refresh()->estado)->toBe(ProgramaEstado::Cerrado);
+    // Cerrarla exige observaciones para la empresa
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.programas.estado', $externa), ['estado' => 'cerrado'])->assertSessionHasErrors('observaciones');
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.programas.estado', $externa), ['estado' => 'cerrado', 'observaciones' => 'El horario no coincide con lo reportado.'])
+        ->assertSessionHasNoErrors();
+    expect($externa->refresh()->estado)->toBe(ProgramaEstado::Cerrado)
+        ->and($externa->observaciones_cierre)->toBe('El horario no coincide con lo reportado.');
+
+    // La coordinación no reabre ni despublica una externa: eso es de la empresa
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.programas.estado', $externa), ['estado' => 'publicado'])->assertSessionHasErrors('programa');
+    $this->actingAs($this->coordAbog)->get(route('coordinacion.lista-programas'))->assertOk()
+        ->assertSee('Cerrada por la coordinación');
+
+    // La empresa la reabre; como la cerró la coordinación, vuelve a revisión
+    $this->actingAs($this->empresaUser)->post(route('empresa.programas.estado', $externa), ['estado' => 'publicado'])->assertSessionHasNoErrors();
+    expect($externa->refresh()->estado)->toBe(ProgramaEstado::PendienteAprobacion);
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.programas.aprobar', $externa))->assertSessionHasNoErrors();
+    expect($externa->refresh()->estado)->toBe(ProgramaEstado::Publicado)
+        ->and($externa->observaciones_cierre)->toBeNull();
+
+    // Si la cerró la propia empresa, la reabre directo
+    $this->actingAs($this->empresaUser)->post(route('empresa.programas.estado', $externa), ['estado' => 'cerrado'])->assertSessionHasNoErrors();
+    $this->actingAs($this->empresaUser)->post(route('empresa.programas.estado', $externa), ['estado' => 'publicado'])->assertSessionHasNoErrors();
+    expect($externa->refresh()->estado)->toBe(ProgramaEstado::Publicado);
 });

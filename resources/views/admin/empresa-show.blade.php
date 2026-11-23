@@ -16,7 +16,7 @@
             <x-ui.estatus :familia="$activo ? 'menta' : 'rosa'" :texto="$activo ? 'Cuenta activa' : 'Cuenta inactiva'" />
         </div>
         <x-slot:acciones>
-            @if ($empresa->user)
+            @if ($empresa->user && auth()->user()->can('operar-convenios'))
                 <x-ui.boton-icono :accion="route('admin.empresas.activo', $empresa)" :icono="$activo ? 'apagar' : 'encender'"
                     :etiqueta="$activo ? 'Desactivar cuenta' : 'Activar cuenta'" :tono="$activo ? 'peligro' : 'exito'" con-texto
                     :confirmar="($activo ? '¿Desactivar' : '¿Activar') . ' la cuenta de esta empresa?'" />
@@ -66,13 +66,15 @@
 
             {{-- Datos editables --}}
             <x-dashboard.panel titulo="Datos de la empresa" icono="editar" descripcion="Vinculación corrige aquí los datos legales y de contacto.">
+                @cannot('operar-convenios')<p class="mb-4 rounded-xl bg-gray-50 px-4 py-3 text-xs text-gray-600 ring-1 ring-inset ring-gray-100">Consulta de solo lectura: los datos los corrige Vinculación.</p>@endcannot
+                <fieldset @cannot('operar-convenios') disabled @endcannot class="contents">
                 <form method="POST" action="{{ route('admin.empresas.update', $empresa) }}" class="space-y-5">
                     @csrf
                     @method('PUT')
                     <fieldset class="grid grid-cols-1 gap-4 md:grid-cols-3">
                         <legend class="mb-3 text-sm font-semibold text-gray-900">Datos legales</legend>
                         <div class="md:col-span-2"><label class="etiqueta" for="e-razon">Razón social</label><input id="e-razon" type="text" name="razon_social" value="{{ old('razon_social', $empresa->razon_social) }}" required maxlength="255" class="campo h-11"></div>
-                        <div><label class="etiqueta" for="e-rfc">RFC</label><input id="e-rfc" type="text" name="rfc" value="{{ old('rfc', $empresa->rfc) }}" required maxlength="13" class="campo h-11 font-mono uppercase"></div>
+                        <div><label class="etiqueta" for="e-rfc">RFC</label><input id="e-rfc" type="text" name="rfc" value="{{ old('rfc', $empresa->rfc) }}" required minlength="12" maxlength="13" data-solo="rfc" pattern="[A-ZÑ&amp;]{3,4}[0-9]{6}[A-Z0-9]{3}" data-msg-formato="El RFC son 12 o 13 caracteres: letras, 6 números de la fecha y la homoclave." class="campo h-11 font-mono uppercase"></div>
                         <div><label class="etiqueta" for="e-tipo">Tipo de organismo</label>
                             <select id="e-tipo" name="tipo_organismo" required class="campo h-11">
                                 @foreach (\App\Enums\TipoOrganismo::cases() as $t)
@@ -80,20 +82,21 @@
                                 @endforeach
                             </select></div>
                         <div class="md:col-span-2"><label class="etiqueta" for="e-dom">Domicilio fiscal</label><input id="e-dom" type="text" name="domicilio_fiscal" value="{{ old('domicilio_fiscal', $empresa->domicilio_fiscal) }}" maxlength="255" placeholder="Sin registrar" class="campo h-11"></div>
-                        <div class="md:col-span-3"><label class="etiqueta" for="e-rep">Representante legal</label><input id="e-rep" type="text" name="representante_legal" value="{{ old('representante_legal', $empresa->representante_legal) }}" maxlength="255" placeholder="Sin registrar" class="campo h-11"></div>
+                        <div class="md:col-span-3"><label class="etiqueta" for="e-rep">Representante legal</label><input id="e-rep" type="text" data-solo="letras" pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ&#039;.\-]+(\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ&#039;.\-]+)+" data-msg-formato="Escribe nombre y apellido, solo con letras." name="representante_legal" value="{{ old('representante_legal', $empresa->representante_legal) }}" maxlength="255" placeholder="Sin registrar" class="campo h-11"></div>
                     </fieldset>
                     <fieldset class="grid grid-cols-1 gap-4 border-t border-gray-100 pt-5 md:grid-cols-3">
                         <legend class="mb-3 text-sm font-semibold text-gray-900">Contacto</legend>
-                        <div><label class="etiqueta" for="e-con">Persona de contacto</label><input id="e-con" type="text" name="contacto_nombre" value="{{ old('contacto_nombre', $empresa->contacto_nombre) }}" required maxlength="255" class="campo h-11"></div>
-                        <div><label class="etiqueta" for="e-cargo">Cargo</label><input id="e-cargo" type="text" name="contacto_cargo" value="{{ old('contacto_cargo', $empresa->contacto_cargo) }}" maxlength="255" placeholder="Sin registrar" class="campo h-11"></div>
-                        <div><label class="etiqueta" for="e-tel">Teléfono</label><input id="e-tel" type="text" name="contacto_telefono" value="{{ old('contacto_telefono', $empresa->contacto_telefono) }}" maxlength="20" placeholder="Sin registrar" class="campo h-11"></div>
+                        <div><label class="etiqueta" for="e-con">Persona de contacto</label><input id="e-con" type="text" data-solo="letras" pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ&#039;.\-]+(\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ&#039;.\-]+)+" data-msg-formato="Escribe nombre y apellido, solo con letras." name="contacto_nombre" value="{{ old('contacto_nombre', $empresa->contacto_nombre) }}" required maxlength="255" class="campo h-11"></div>
+                        <div><label class="etiqueta" for="e-cargo">Cargo</label><input id="e-cargo" type="text" data-solo="letras" name="contacto_cargo" value="{{ old('contacto_cargo', $empresa->contacto_cargo) }}" maxlength="255" placeholder="Sin registrar" class="campo h-11"></div>
+                        <div><label class="etiqueta" for="e-tel">Teléfono</label><input id="e-tel" type="tel" inputmode="numeric" autocomplete="tel" data-solo="digitos" data-contador="dígitos" minlength="10" maxlength="10" pattern="\d{10}" data-msg-formato="El teléfono son 10 números, sin espacios ni guiones (por ejemplo 3312345678)." name="contacto_telefono" value="{{ old('contacto_telefono', $empresa->contacto_telefono) }}" placeholder="Sin registrar" class="campo h-11"></div>
                         <div class="md:col-span-3 grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div><label class="etiqueta" for="e-desc">Descripción</label><textarea id="e-desc" name="descripcion" rows="3" maxlength="3000" placeholder="La organización aún no describe a qué se dedica" class="campo">{{ old('descripcion', $empresa->descripcion) }}</textarea></div>
                             <div><label class="etiqueta" for="e-proy">Proyectos principales</label><textarea id="e-proy" name="proyectos_principales" rows="3" maxlength="3000" placeholder="Sin proyectos registrados" class="campo">{{ old('proyectos_principales', $empresa->proyectos_principales) }}</textarea></div>
                         </div>
                     </fieldset>
-                    <div class="flex justify-end"><button class="boton boton-primario w-full sm:w-auto">Guardar cambios</button></div>
+                    @can('operar-convenios')<div class="flex justify-end"><button class="boton boton-primario w-full sm:w-auto">Guardar cambios</button></div>@endcan
                 </form>
+                </fieldset>
             </x-dashboard.panel>
         </div>
 

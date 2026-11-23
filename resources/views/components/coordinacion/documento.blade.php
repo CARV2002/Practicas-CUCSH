@@ -38,7 +38,8 @@
                 <x-dashboard.icono nombre="equis" clase="size-3" /> Rechazar
             </button>
         </div>
-        <form x-show="rechazar" x-cloak x-transition.opacity.duration.150ms method="POST" action="{{ route('coordinacion.documentos.resolver', $media) }}" class="mt-1.5 flex items-center gap-1.5">
+        <form x-show="rechazar" x-cloak x-transition.opacity.duration.150ms method="POST" action="{{ route('coordinacion.documentos.resolver', $media) }}" class="mt-1.5 flex items-center gap-1.5"
+            data-confirmar="¿Rechazar este documento? El alumno tendrá que subirlo de nuevo con la corrección que indicas." data-confirmar-titulo="Rechazar documento" data-confirmar-boton="Sí, rechazar">
             @csrf
             <input type="hidden" name="estado" value="rechazada">
             <label class="sr-only" for="motivo-doc-{{ $media->id }}">Motivo del rechazo de {{ $etiqueta }}</label>

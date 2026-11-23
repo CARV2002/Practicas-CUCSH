@@ -17,6 +17,7 @@ use App\Http\Controllers\Alumno\DatosEscolaresController;
 use App\Http\Controllers\Coordinacion\PracticanteController;
 use App\Http\Controllers\Coordinacion\ProgramaController;
 use App\Http\Controllers\Coordinacion\ReglaController;
+use App\Http\Controllers\Coordinacion\ProfesorController;
 use App\Http\Controllers\Coordinacion\ReporteController;
 use App\Http\Controllers\Coordinacion\DashboardController as CoordinacionDashboardController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
@@ -86,6 +87,7 @@ Route::prefix('alumno')
         Route::post('/documentos/kardex', [AlumnoDocumentoController::class, 'subirKardex'])->name('documentos.kardex');
         Route::post('/postulaciones/{postulacion}/carta-aceptacion', [AlumnoDocumentoController::class, 'subirCartaAceptacion'])->name('documentos.aceptacion');
         Route::post('/reportes/{reporte}/archivo', [AlumnoDocumentoController::class, 'subirReporte'])->name('documentos.reporte');
+        Route::get('/reportes/{reporte}/formato', [AlumnoDocumentoController::class, 'formatoReporte'])->name('documentos.reporte.formato');
         Route::post('/practicas/{practica}/carta-termino', [AlumnoDocumentoController::class, 'subirCartaTermino'])->name('documentos.termino');
         Route::post('/practicas/{practica}/reportes', [AlumnoDocumentoController::class, 'crearReporte'])->name('documentos.reporte.crear');
         Route::get('/archivos/{media}', [AlumnoDocumentoController::class, 'descargar'])->name('documentos.descargar');
@@ -146,32 +148,18 @@ Route::prefix('admin')
     ->name('admin.')
     ->middleware(['auth', 'verified', 'role:' . implode(',', Rol::deVinculacion())])
     ->group(function () {
+        /*
+         * Consulta: Vinculación y el administrador (supervisión de solo lectura).
+         */
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
         Route::get('/lista-convenios', [ConvenioController::class, 'index'])->name('lista-convenios');
-        Route::prefix('convenios/{convenio}')->name('convenios.')->group(function () {
-            Route::get('/', [ConvenioController::class, 'show'])->name('show');
-            Route::post('/documentos/validar', [ConvenioController::class, 'validarDocumentos'])->name('documentos.validar');
-            Route::post('/documentos/{media}', [ConvenioController::class, 'resolverDocumento'])->name('documentos.resolver');
-            Route::get('/archivos/{media}', [ConvenioController::class, 'descargar'])->name('archivos.descargar');
-            Route::post('/validacion-academica', [ConvenioController::class, 'enviarAValidacionAcademica'])->name('validacion-academica');
-            Route::post('/borrador', [ConvenioController::class, 'subirBorrador'])->name('borrador');
-            Route::post('/juridica/turnar', [ConvenioController::class, 'turnarAJuridica'])->name('juridica.turnar');
-            Route::post('/juridica/dictamen', [ConvenioController::class, 'registrarDictamenJuridico'])->name('juridica.dictamen');
-            Route::post('/firmas', [ConvenioController::class, 'registrarFirma'])->name('firmas');
-            Route::post('/formalizar', [ConvenioController::class, 'formalizar'])->name('formalizar');
-            Route::post('/rechazar', [ConvenioController::class, 'rechazar'])->name('rechazar');
-            Route::post('/borrador/generar', [ConvenioController::class, 'generarBorrador'])->name('borrador.generar');
-        });
-
-        // Fechas de paso del oficio por Secretaría Académica y la División
-        Route::post('/convenios/{convenio}/turnos', [ConvenioController::class, 'registrarTurnos'])->name('convenios.turnos');
+        Route::get('/convenios-por-vencer', [ConvenioController::class, 'porVencer'])->name('convenios.por-vencer');
+        Route::get('/convenios/{convenio}', [ConvenioController::class, 'show'])->name('convenios.show');
+        Route::get('/convenios/{convenio}/archivos/{media}', [ConvenioController::class, 'descargar'])->name('convenios.archivos.descargar');
 
         // Documentos físicos del trámite híbrido (oficios, dictamen jurídico y juegos firmados)
         Route::get('/documentos-fisicos', [\App\Http\Controllers\Admin\DocumentoFisicoController::class, 'index'])->name('documentos-fisicos');
-        Route::post('/documentos-fisicos/{documento}', [\App\Http\Controllers\Admin\DocumentoFisicoController::class, 'mover'])->name('documentos-fisicos.mover');
-        Route::post('/convenios/{convenio}/documentos-fisicos', [\App\Http\Controllers\Admin\DocumentoFisicoController::class, 'preparar'])->name('convenios.fisicos.preparar');
-        Route::post('/convenios/{convenio}/recordar-juegos', [\App\Http\Controllers\Admin\DocumentoFisicoController::class, 'recordarEmpresa'])->name('convenios.fisicos.recordar');
 
         // Dictámenes por carrera: los emite cada Coordinación; Vinculación da seguimiento
         Route::get('/lista-dictamenes', [DictamenController::class, 'index'])->name('lista-dictamenes');
@@ -181,14 +169,47 @@ Route::prefix('admin')
         Route::get('/lista-empresas', [EmpresaController::class, 'index'])->name('lista-empresas');
         Route::get('/empresas-pdf', [EmpresaController::class, 'pdf'])->name('empresas.pdf');
         Route::get('/empresas/{empresa}', [EmpresaController::class, 'show'])->name('empresas.show');
-        Route::put('/empresas/{empresa}', [EmpresaController::class, 'update'])->name('empresas.update');
-        Route::post('/empresas/{empresa}/activo', [EmpresaController::class, 'toggleActivo'])->name('empresas.activo');
 
         // Informes de consulta: Vinculación ve convenios; el administrador, todo
         Route::get('/informes', [InformeController::class, 'index'])->name('informes');
         Route::get('/informes/{tipo}/exportar', [InformeController::class, 'exportar'])
             ->whereIn('tipo', ['practicas', 'postulaciones', 'convenios', 'programas', 'empresas', 'documentos-fisicos'])
             ->name('informes.exportar');
+
+        /*
+         * Operación del trámite de convenios: SOLO Vinculación.
+         * El administrador supervisa en solo lectura para que haya un único responsable de cada versión del contrato.
+         */
+        Route::middleware('role:' . Rol::Vinculacion->value)->group(function () {
+            Route::prefix('convenios/{convenio}')->name('convenios.')->group(function () {
+                Route::post('/documentos/validar', [ConvenioController::class, 'validarDocumentos'])->name('documentos.validar');
+                Route::post('/documentos/{media}', [ConvenioController::class, 'resolverDocumento'])->name('documentos.resolver');
+                Route::post('/validacion-academica', [ConvenioController::class, 'enviarAValidacionAcademica'])->name('validacion-academica');
+                Route::post('/borrador', [ConvenioController::class, 'subirBorrador'])->name('borrador');
+                Route::post('/juridica/turnar', [ConvenioController::class, 'turnarAJuridica'])->name('juridica.turnar');
+                Route::post('/juridica/dictamen', [ConvenioController::class, 'registrarDictamenJuridico'])->name('juridica.dictamen');
+                Route::post('/firmas', [ConvenioController::class, 'registrarFirma'])->name('firmas');
+                Route::post('/formalizar', [ConvenioController::class, 'formalizar'])->name('formalizar');
+                Route::post('/rechazar', [ConvenioController::class, 'rechazar'])->name('rechazar');
+                Route::post('/borrador/generar', [ConvenioController::class, 'generarBorrador'])->name('borrador.generar');
+                // Juegos finales: el borrador aprobado por Jurídica con la fecha real de firma
+                Route::post('/juegos-finales', [ConvenioController::class, 'juegosFinales'])->name('juegos-finales');
+
+                // Fechas de paso del oficio por Secretaría Académica y la División
+                Route::post('/turnos', [ConvenioController::class, 'registrarTurnos'])->name('turnos');
+
+                Route::post('/documentos-fisicos', [\App\Http\Controllers\Admin\DocumentoFisicoController::class, 'preparar'])->name('fisicos.preparar');
+                Route::post('/recordar-juegos', [\App\Http\Controllers\Admin\DocumentoFisicoController::class, 'recordarEmpresa'])->name('fisicos.recordar');
+            });
+
+            // Correo de la Unidad Jurídica que recibe los borradores turnados (opcional)
+            Route::put('/configuracion/juridica', [ConvenioController::class, 'configurarJuridica'])->name('configuracion.juridica');
+
+            Route::post('/documentos-fisicos/{documento}',[\App\Http\Controllers\Admin\DocumentoFisicoController::class, 'mover'])->name('documentos-fisicos.mover');
+
+            Route::put('/empresas/{empresa}', [EmpresaController::class, 'update'])->name('empresas.update');
+            Route::post('/empresas/{empresa}/activo', [EmpresaController::class, 'toggleActivo'])->name('empresas.activo');
+        });
 
         // Administración del sistema: solo el administrador
         // (cuentas de personal y alta de coordinadores, auditoría y estructura del catálogo)
@@ -268,6 +289,12 @@ Route::prefix('coordinacion')
             Route::post('/siiau', [CierreController::class, 'capturarSiiau'])->name('siiau');
             Route::get('/archivos/{media}', [CierreController::class, 'descargar'])->name('archivos');
         });
+
+        // Catálogo de profesores supervisores (sin acceso al sistema)
+        Route::get('/profesores', [ProfesorController::class, 'index'])->name('profesores');
+        Route::post('/profesores', [ProfesorController::class, 'store'])->name('profesores.store');
+        Route::put('/profesores/{profesor}', [ProfesorController::class, 'update'])->name('profesores.update');
+        Route::post('/profesores/{profesor}/activo', [ProfesorController::class, 'toggleActivo'])->name('profesores.activo');
 
         // Reglas académicas de su carrera (horas y créditos)
         Route::get('/reglas', [ReglaController::class, 'index'])->name('reglas');

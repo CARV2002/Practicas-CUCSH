@@ -13,9 +13,19 @@
 @endphp
 
 <div x-data="{
-        modalAlta: {{ $errors->has('name') || $errors->has('email') || $errors->has('rol') ? 'true' : 'false' }},
+        modalAlta: {{ $errors->hasAny(['name', 'email', 'rol', 'carrera_id', 'division_id']) ? 'true' : 'false' }},
         rolAlta: @js(old('rol', $rolesAlta[0]->value)),
         alcance: @js(old('division_id') ? 'division' : 'carrera'),
+        {{-- Cancelar o cerrar el alta borra lo capturado y los avisos de validación, para empezar limpio --}}
+        cerrarAlta() {
+            const f = this.$refs.formAlta;
+            f.querySelectorAll('input[type=text], input[type=email]').forEach(i => { i.value = ''; i.removeAttribute('aria-invalid'); });
+            f.querySelectorAll('select').forEach(s => { s.value = ''; });
+            f.querySelectorAll('.js-mensaje-campo, .js-aviso-formulario').forEach(p => p.remove());
+            this.rolAlta = @js($rolesAlta[0]->value);
+            this.alcance = 'carrera';
+            this.modalAlta = false;
+        },
         modalPass: false,
         pass: { id: null, nombre: '' },
         urlPass: '{{ route('admin.usuarios.password', 0) }}',
@@ -160,10 +170,10 @@
     </x-tabla.marco>
 
     {{-- Modal: nueva cuenta de personal --}}
-    <div x-show="modalAlta" x-cloak x-transition.opacity.duration.200ms x-on:keydown.escape.window="modalAlta = false"
+    <div x-show="modalAlta" x-cloak x-transition.opacity.duration.200ms x-on:keydown.escape.window="cerrarAlta()"
         class="fixed inset-0 z-[100050] flex items-start justify-center overflow-y-auto p-4 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="titulo-alta">
-        <div class="fixed inset-0 bg-udg-950/50 backdrop-blur-sm" x-on:click="modalAlta = false"></div>
-        <form method="POST" action="{{ route('admin.usuarios.store') }}" x-on:click.stop
+        <div class="fixed inset-0 bg-udg-950/50 backdrop-blur-sm" x-on:click="cerrarAlta()"></div>
+        <form method="POST" action="{{ route('admin.usuarios.store') }}" x-ref="formAlta" x-on:click.stop
             class="relative w-full max-w-lg animate-entrada overflow-hidden rounded-2xl bg-white shadow-theme-xl motion-reduce:animate-none">
             @csrf
             <div class="flex items-start justify-between gap-3 border-b border-gray-100 px-6 py-4">
@@ -171,7 +181,7 @@
                     <h3 id="titulo-alta" class="font-display text-lg font-bold text-gray-900">Nueva cuenta de personal</h3>
                     <p class="text-xs text-gray-500">La persona entra con este correo y la contraseña que ella misma configure.</p>
                 </div>
-                <button type="button" x-on:click="modalAlta = false" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="Cerrar"><x-dashboard.icono nombre="equis" clase="size-4" /></button>
+                <button type="button" x-on:click="cerrarAlta()" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="Cerrar"><x-dashboard.icono nombre="equis" clase="size-4" /></button>
             </div>
             <div class="space-y-4 px-6 py-5">
                 <fieldset>
@@ -187,7 +197,7 @@
                     </div>
                 </fieldset>
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div><label class="etiqueta" for="alta-nombre">Nombre completo <span class="text-rose-500">*</span></label><input id="alta-nombre" type="text" name="name" value="{{ old('name') }}" required minlength="5" maxlength="80" data-solo="letras" pattern="{{ \App\Support\Formatos::NOMBRE_PERSONA_HTML }}" data-msg-formato="Escribe nombre y apellido, solo con letras." placeholder="Ej. Mtra. Laura Gómez Ruiz" class="campo h-11"></div>
+                    <div><label class="etiqueta" for="alta-nombre">Nombre completo <span class="text-rose-500">*</span></label><input id="alta-nombre" type="text" data-solo="letras" pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ&#039;.\-]+(\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ&#039;.\-]+)+" data-msg-formato="Escribe nombre y apellido, solo con letras." name="name" value="{{ old('name') }}" required minlength="5" maxlength="80" data-solo="letras" pattern="{{ \App\Support\Formatos::NOMBRE_PERSONA_HTML }}" data-msg-formato="Escribe nombre y apellido, solo con letras." placeholder="Ej. Mtra. Laura Gómez Ruiz" class="campo h-11"></div>
                     <div><label class="etiqueta" for="alta-correo">Correo institucional <span class="text-rose-500">*</span></label><input id="alta-correo" type="email" name="email" value="{{ old('email') }}" required maxlength="255" placeholder="Ej. laura.gomez@academicos.udg.mx" pattern=".+@({{ collect(config('practicas.google.dominios_personal'))->map(fn ($x) => preg_quote($x))->join('|') }})" data-msg-formato="Usa su correo institucional de la UdG." class="campo h-11"></div>
                 </div>
                 <template x-if="rolAlta === 'coordinador'">
@@ -201,19 +211,24 @@
                             <select id="alta-carrera" name="carrera_id" :disabled="alcance !== 'carrera'" :required="alcance === 'carrera'" class="campo h-11">
                                 <option value="">Selecciona…</option>
                                 @foreach ($carreras as $c)
-                                    <option value="{{ $c->id }}" @selected(old('carrera_id') == $c->id)>{{ $c->carrera_clave }} · {{ $c->nombre }}</option>
+                                    @php $n = $activosPorCarrera[$c->id] ?? 0; @endphp
+                                    <option value="{{ $c->id }}" @selected(old('carrera_id') == $c->id) @disabled($n >= $limitePorCoordinacion)>{{ $c->carrera_clave }} · {{ $c->nombre }} ({{ $n }}/{{ $limitePorCoordinacion }} activos{{ $n >= $limitePorCoordinacion ? ' · completa' : '' }})</option>
                                 @endforeach
                             </select>
+                            @error('carrera_id')<p class="mt-1.5 text-sm font-medium text-error-600">{{ $message }}</p>@enderror
                         </div>
                         <div x-show="alcance === 'division'">
                             <label class="etiqueta" for="alta-division">División</label>
                             <select id="alta-division" name="division_id" :disabled="alcance !== 'division'" :required="alcance === 'division'" class="campo h-11">
                                 <option value="">Selecciona…</option>
                                 @foreach ($divisiones as $d)
-                                    <option value="{{ $d->id }}" @selected(old('division_id') == $d->id)>{{ $d->nombre }}</option>
+                                    @php $n = $activosPorDivision[$d->id] ?? 0; @endphp
+                                    <option value="{{ $d->id }}" @selected(old('division_id') == $d->id) @disabled($n >= $limitePorCoordinacion)>{{ $d->nombre }} ({{ $n }}/{{ $limitePorCoordinacion }} activos{{ $n >= $limitePorCoordinacion ? ' · completa' : '' }})</option>
                                 @endforeach
                             </select>
+                            @error('division_id')<p class="mt-1.5 text-sm font-medium text-error-600">{{ $message }}</p>@enderror
                         </div>
+                        <p class="text-xs text-gray-500">Hasta {{ $limitePorCoordinacion }} encargados activos por coordinación (titular y asistente o secretario administrativo). Para relevar a alguien, desactiva su cuenta: se conserva su historial y se libera el cupo.</p>
                     </div>
                 </template>
                 <div><label class="etiqueta" for="alta-puesto">Puesto <span class="font-normal text-gray-400">(opcional)</span></label><input id="alta-puesto" type="text" name="puesto" value="{{ old('puesto') }}" maxlength="255" placeholder="Coordinación de la Licenciatura en…" class="campo h-11"></div>
@@ -223,7 +238,7 @@
                 </p>
             </div>
             <div class="flex justify-end gap-2 border-t border-gray-100 bg-gray-50/60 px-6 py-4">
-                <button type="button" x-on:click="modalAlta = false" class="boton boton-secundario">Cancelar</button>
+                <button type="button" x-on:click="cerrarAlta()" class="boton boton-secundario">Cancelar</button>
                 <button type="submit" class="boton boton-primario"><x-dashboard.icono nombre="check" clase="size-4" /> Crear cuenta</button>
             </div>
         </form>

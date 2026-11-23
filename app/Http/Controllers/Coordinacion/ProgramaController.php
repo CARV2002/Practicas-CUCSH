@@ -33,6 +33,7 @@ class ProgramaController extends Controller
             ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->string('estado')))
             ->when($request->filled('modalidad'), fn ($q) => $q->where('modalidad', $request->string('modalidad')))
             ->when($request->filled('ciclo'), fn ($q) => $q->where('ciclo', $request->string('ciclo')))
+            ->orderByRaw("estado = ? desc", [ProgramaEstado::PendienteAprobacion->value])   // lo que espera revisión, primero
             ->latest('id')
             ->paginate(15)
             ->withQueryString();
@@ -96,6 +97,12 @@ class ProgramaController extends Controller
 
         $nuevo = ProgramaEstado::from($datos['estado']);
 
+        // Vacante externa: la coordinación solo puede cerrarla (por alguna irregularidad) y explica por qué.
+        // Despublicarla o reabrirla le corresponde a la empresa desde su panel.
+        if (!$programa->esInterno()) {
+            return $this->cerrarExterna($request, $programa, $nuevo);
+        }
+
         // Despublicar solo sirve para corregir antes de que alguien se postule: con alumnos en trámite, se cierra
         if ($nuevo === ProgramaEstado::Borrador && $programa->postulaciones()->exists()) {
             return back()->withErrors(['programa' => 'Este programa ya tiene postulaciones: no puede regresar a borrador. Usa «Cerrar postulaciones» para que no lleguen más.']);
@@ -128,6 +135,7 @@ class ProgramaController extends Controller
         $programa->update([
             'estado' => ProgramaEstado::Publicado,
             'motivo_rechazo' => null,
+            'observaciones_cierre' => null,
             'revisado_por' => $request->user()->personal->id,
             'revisado_at' => now(),
         ]);
@@ -165,7 +173,7 @@ class ProgramaController extends Controller
         ]);
 
         Avisos::enviar($programa->convenio?->empresa?->user, new AvisoOperativo(
-            mensaje: "La Coordinación rechazó tu vacante «{$programa->titulo}»: {$datos['motivo']}. Corrígela y envíala de nuevo.",
+            mensaje: "La Coordinación te devolvió la vacante «{$programa->titulo}». Motivo: «{$datos['motivo']}». Qué hacer: en «Mis vacantes», en la fila marcada en rojo, pulsa Editar, corrígela y guarda: se envía sola a revisión.",
             url: route('empresa.lista-programas', absolute: false),
             detalle: $programa->titulo,
             correo: true,
@@ -173,6 +181,35 @@ class ProgramaController extends Controller
         ));
 
         return back()->with('status', 'Vacante rechazada; se avisó a la empresa.');
+    }
+
+    private function cerrarExterna(Request $request, Programa $programa, ProgramaEstado $nuevo): RedirectResponse
+    {
+        if ($nuevo !== ProgramaEstado::Cerrado || $programa->estado !== ProgramaEstado::Publicado) {
+            return back()->withErrors(['programa' => 'Las vacantes de una empresa solo las puedes cerrar; reabrirlas o corregirlas le corresponde a la empresa.']);
+        }
+
+        $datos = $request->validate(['observaciones' => ['required', 'string', 'min:10', 'max:1000']], [
+            'observaciones.required' => 'Escribe las observaciones: la empresa necesita saber por qué se cerró su vacante.',
+            'observaciones.min' => 'Explica con un poco más de detalle por qué cierras la vacante.',
+        ]);
+
+        $programa->update([
+            'estado' => ProgramaEstado::Cerrado,
+            'observaciones_cierre' => $datos['observaciones'],
+            'revisado_por' => $request->user()->personal->id,
+            'revisado_at' => now(),
+        ]);
+
+        Avisos::enviar($programa->convenio?->empresa?->user, new AvisoOperativo(
+            mensaje: "La Coordinación cerró las postulaciones de tu vacante «{$programa->titulo}»: {$datos['observaciones']}. Si la corriges y la reabres, volverá a revisión.",
+            url: route('empresa.lista-programas', absolute: false),
+            detalle: $programa->titulo,
+            correo: true,
+            asunto: 'La Coordinación cerró tu vacante',
+        ));
+
+        return back()->with('status', 'Postulaciones cerradas; se avisó a la empresa con tus observaciones.');
     }
 
     /** Avisa en plataforma a los alumnos de la carrera que hay una vacante nueva. */

@@ -7,7 +7,11 @@
     $opciones = collect($estados)->map(fn ($e) => [
         'valor' => $e->value, 'texto' => $e === \App\Enums\ConvenioEstado::Solicitado ? 'Por revisar' : $e->label(),
         'conteo' => (int) ($conteos[$e->value] ?? 0), 'familia' => $e->familia(),
-    ])->prepend(['valor' => '', 'texto' => 'Todos', 'conteo' => (int) $conteos->sum()])->all();
+    ])->prepend(['valor' => '', 'texto' => 'Todos', 'conteo' => (int) $conteos->sum()])
+      // Pestaña extra: formalizados que vencen en 60 días (para pedir la renovación a tiempo)
+      ->push(['valor' => \App\Http\Controllers\Admin\ConvenioController::FILTRO_POR_VENCER, 'texto' => 'Por vencer', 'conteo' => $porVencer, 'familia' => 'ambar'])
+      ->all();
+    $enPorVencer = request('estado') === \App\Http\Controllers\Admin\ConvenioController::FILTRO_POR_VENCER;
 @endphp
 
 <div class="space-y-6">
@@ -20,9 +24,10 @@
     @if (session('status'))
         <x-ui.aviso tipo="exito" descartable>{{ session('status') }}</x-ui.aviso>
     @endif
-    @if ($porVencer > 0)
+    @if ($porVencer > 0 && !$enPorVencer)
         <x-ui.aviso tipo="advertencia" titulo="{{ $porVencer }} {{ $porVencer === 1 ? 'convenio vence' : 'convenios vencen' }} en los próximos 60 días">
             Avisa a las organizaciones para que soliciten su renovación a tiempo.
+            <a href="{{ route('admin.lista-convenios', ['estado' => 'por_vencer']) }}" class="ml-1 font-semibold underline">Ver cuáles son</a>
         </x-ui.aviso>
     @endif
 
@@ -70,15 +75,11 @@
                         $leToca = $det['responsable'] === 'Vinculación';
                     @endphp
                     <tr class="tabla-fila align-top">
-                        <td class="px-6 py-4">
-                            <div class="flex items-start gap-3">
-                                <span class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-udg-50 font-display text-sm font-bold text-udg-900 ring-1 ring-inset ring-udg-100" aria-hidden="true">{{ mb_strtoupper(mb_substr($convenio->empresa->razon_social, 0, 1)) }}</span>
-                                <div class="min-w-0">
-                                    <a href="{{ route('admin.convenios.show', $convenio) }}" class="block break-words font-semibold text-gray-900 hover:text-udg-900 hover:underline underline-offset-2">{{ $convenio->empresa->razon_social }}</a>
-                                    <p class="mt-0.5 text-xs text-gray-500"><span class="font-mono">{{ $convenio->empresa->rfc }}</span></p>
-                                    <p class="text-xs text-gray-500">{{ $convenio->folio ? 'Folio ' . $convenio->folio : 'Recibido el ' . $convenio->fecha_recepcion->format('d/m/Y') }}</p>
-                                </div>
-                            </div>
+                        <td class="px-4 py-3">
+                            <x-tabla.ficha :href="route('admin.convenios.show', $convenio)" ver="Ver trámite" :titulo="$convenio->empresa->razon_social"
+                                :inicial="mb_strtoupper(mb_substr($convenio->empresa->razon_social, 0, 1))" :subtitulo="$convenio->empresa->rfc">
+                                {{ $convenio->folio ? 'Folio ' . $convenio->folio : 'Recibido el ' . $convenio->fecha_recepcion->format('d/m/Y') }}
+                            </x-tabla.ficha>
                         </td>
                         <td class="px-4 py-4">
                             <div class="flex flex-wrap items-center gap-2">
@@ -102,6 +103,11 @@
                                 @else
                                     <p class="mt-1 text-[11px] text-gray-400">Sin plazo fijo</p>
                                 @endif
+                            @elseif ($convenio->fecha_fin_vigencia && $porVencerIds->has($convenio->id))
+                                @php $restan = (int) today()->diffInDays($convenio->fecha_fin_vigencia, false); @endphp
+                                <p @class(['font-display text-lg font-bold leading-none', 'text-rose-600' => $restan <= 30, 'text-amber-600' => $restan > 30])>{{ $restan }}<span class="ml-1 font-sans text-xs font-medium text-gray-500">{{ $restan === 1 ? 'día' : 'días' }} para vencer</span></p>
+                                <p class="mt-1 text-[11px] text-gray-500">Vence el {{ $convenio->fecha_fin_vigencia->format('d/m/Y') }}</p>
+                                <p @class(['mt-1 text-[11px] font-semibold', 'text-emerald-700' => $enRenovacion->has($convenio->empresa_id), 'text-amber-700' => !$enRenovacion->has($convenio->empresa_id)])>{{ $enRenovacion->has($convenio->empresa_id) ? 'Renovación en trámite' : 'Sin solicitud de renovación' }}</p>
                             @elseif ($convenio->fecha_fin_vigencia)
                                 <p class="text-xs text-gray-500">Vigente hasta</p>
                                 <p class="text-sm font-semibold text-gray-900">{{ $convenio->fecha_fin_vigencia->format('d/m/Y') }}</p>
@@ -116,6 +122,10 @@
                                 {{ $leToca ? 'Atender' : ($convenio->estado->esFinal() ? 'Ver' : 'Seguimiento') }}
                                 <x-dashboard.icono nombre="flecha" clase="size-4" />
                             </a>
+                            @if ($porVencerIds->has($convenio->id))
+                                {{-- Acceso directo al expediente para avisarle de la renovación --}}
+                                <a href="{{ route('admin.empresas.show', $convenio->empresa) }}" class="mt-2 block text-xs font-semibold text-udg-800 hover:underline">Ir a la empresa</a>
+                            @endif
                         </td>
                     </tr>
                 @empty

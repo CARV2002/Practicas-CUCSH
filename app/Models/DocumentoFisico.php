@@ -57,6 +57,46 @@ class DocumentoFisico extends Model
             : $this->tipo->label();
     }
 
+    // ---- Reglas del recorrido ----------------------------------------------------------
+
+    /** ¿La Unidad Jurídica ya dio el dictamen favorable? (el convenio está en firmas o formalizado) */
+    private function juridicaAprobo(): bool
+    {
+        return in_array($this->convenio?->estado, [\App\Enums\ConvenioEstado::EnFirmas, \App\Enums\ConvenioEstado::Formalizado], true);
+    }
+
+    /**
+     * Por qué este papel no puede pasar a ese estado (null si sí puede).
+     *  - Expediente devuelto por Jurídica: solo puede volver a la Unidad Jurídica hasta que haya dictamen favorable.
+     *  - Los 3 juegos no salen a firma de la empresa ni a Rectoría sin el dictamen favorable.
+     */
+    public function bloqueoPara(EstadoDocumentoFisico $estado): ?string
+    {
+        if ($this->juridicaAprobo() || $estado === $this->estado || $estado === EstadoDocumentoFisico::Extraviado) {
+            return null;
+        }
+
+        if ($this->tipo === TipoDocumentoFisico::DictamenJuridico
+            && !in_array($estado, [EstadoDocumentoFisico::EnJuridica, EstadoDocumentoFisico::ConObservaciones], true)) {
+            return 'Jurídica aún no emite el dictamen favorable: el expediente solo puede volver a la Unidad Jurídica.';
+        }
+
+        if ($this->tipo === TipoDocumentoFisico::JuegoConvenio && in_array($estado, [
+            EstadoDocumentoFisico::ConEmpresa, EstadoDocumentoFisico::FirmadoEmpresa, EstadoDocumentoFisico::EnRectoria,
+            EstadoDocumentoFisico::Firmado, EstadoDocumentoFisico::Entregado,
+        ], true)) {
+            return 'Los 3 juegos no pueden salir a firma hasta que Jurídica emita el dictamen favorable.';
+        }
+
+        return null;
+    }
+
+    /** @return EstadoDocumentoFisico[] estados a los que sí puede pasar ahora */
+    public function estadosDisponibles(): array
+    {
+        return array_values(array_filter($this->tipo->estados(), fn ($e) => $this->bloqueoPara($e) === null));
+    }
+
     // ---- Plazos ------------------------------------------------------------------------
 
     public function diasEnEstado(): int

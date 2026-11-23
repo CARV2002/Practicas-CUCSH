@@ -243,6 +243,10 @@
         x-data="{ elegidas: @js($elegidas) }">
         @csrf @method('PUT')
         <input type="hidden" name="_seccion" value="perfiles">
+        @if (!empty($propuestaAnterior))
+            {{-- Viene de un rechazo: aquí es donde se corrige --}}
+            <p class="rounded-xl border-l-4 border-rose-500 bg-rose-50 px-4 py-3 text-sm text-rose-900 ring-1 ring-inset ring-rose-200"><span class="font-semibold">Corrige aquí:</span> ajusta los objetivos y actividades según lo que dijo cada carrera (arriba) y vuelve a elegir las carreras.</p>
+        @endif
         <fieldset>
             <legend class="etiqueta">¿Qué carreras solicitan para prácticas profesionales?{!! $ast !!} <span class="font-normal text-gray-500" x-text="elegidas.length ? '· ' + elegidas.length + (elegidas.length === 1 ? ' elegida' : ' elegidas') : ''"></span></legend>
             <div class="space-y-4 rounded-xl border border-gray-200 p-4">

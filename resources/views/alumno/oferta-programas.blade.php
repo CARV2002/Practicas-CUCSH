@@ -616,6 +616,7 @@
 
                         @if ($puede)
                             <form method="POST" action="{{ route('alumno.oferta-programas.postular', $s) }}" x-show="abierto" x-cloak
+                                data-confirmar="¿Enviar tu postulación a «{{ $s->titulo }}»? Solo puedes tener una postulación en trámite a la vez." data-confirmar-titulo="Confirmar postulación" data-confirmar-boton="Sí, postularme" data-confirmar-tono="normal"
                                 x-data="{ enviando: false }" x-on:submit="if (!$el.checkValidity()) { $event.preventDefault(); $el.reportValidity(); } else { enviando = true }"
                                 class="mt-4 space-y-3 rounded-2xl border border-udg-100 bg-udg-50/40 p-4 text-left sm:p-5">
                                 @csrf

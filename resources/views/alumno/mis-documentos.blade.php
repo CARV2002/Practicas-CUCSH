@@ -37,6 +37,35 @@
             <x-ui.aviso tipo="error" titulo="No se pudo enviar">{{ $errors->first('expediente') ?: 'Revisa el mensaje en rojo junto al documento y vuelve a intentarlo.' }}</x-ui.aviso>
         @endif
 
+        {{-- Todo lo que te devolvieron, en un solo lugar: qué, por qué y dónde corregirlo (marcado en rojo abajo) --}}
+        @php
+            $devueltos = collect();
+            if ($kardexSt === 'rechazada') { $devueltos->push(['Kardex', $kardex?->getCustomProperty('motivo'), '#expediente', 'Tu expediente']); }
+            if ($imssSt === 'rechazada') { $devueltos->push(['Constancia IMSS', $imss?->getCustomProperty('motivo'), '#expediente', 'Tu expediente']); }
+            foreach ($practicas as $prDev) {
+                foreach ($prDev->reportes->where('estado', RE::Rechazado) as $rDev) {
+                    $devueltos->push([($rDev->numero ? 'Reporte ' . $rDev->numero : 'Reporte') . ' (' . $rDev->periodo_inicio->format('d/m') . ' al ' . $rDev->periodo_fin->format('d/m/Y') . ')', $rDev->evaluacion_profesor, '#reporte-' . $rDev->id, 'Reportes']);
+                }
+                if ($prDev->cartaTermino?->estado_validacion?->value === 'rechazada') {
+                    $devueltos->push(['Carta de término', $prDev->cartaTermino->getFirstMedia('carta_termino')?->getCustomProperty('motivo'), '#carta-' . $prDev->id, 'Carta de término']);
+                }
+            }
+        @endphp
+        @if ($devueltos->isNotEmpty())
+            <x-ui.correccion :titulo="'Tu coordinación te devolvió ' . $devueltos->count() . ($devueltos->count() === 1 ? ' documento para corregir' : ' documentos para corregir')">
+                corrige cada uno en su apartado, marcado en rojo más abajo:
+                <ul class="mt-2 space-y-1.5">
+                    @foreach ($devueltos as [$doc, $motivoDev, $ancla, $apartado])
+                        <li class="flex flex-wrap items-baseline gap-x-2 rounded-lg bg-white/70 px-3 py-2 ring-1 ring-inset ring-rose-100">
+                            <span class="font-semibold">{{ $doc }}</span>
+                            <span class="text-rose-800">{{ $motivoDev ? '«' . $motivoDev . '»' : 'Sin motivo escrito: pregunta a tu coordinación.' }}</span>
+                            <a href="{{ $ancla }}" class="ml-auto font-semibold text-real-700 underline underline-offset-2 hover:text-real-800">Ir a «{{ $apartado }}» →</a>
+                        </li>
+                    @endforeach
+                </ul>
+            </x-ui.correccion>
+        @endif
+
         {{-- Guía: en qué paso vas --}}
         <nav aria-label="Avance de tu trámite" class="overflow-x-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs no-scrollbar sm:p-5">
             <ol class="flex min-w-max items-center gap-2 sm:min-w-0 sm:gap-0">
@@ -64,7 +93,7 @@
         @endif
 
         {{-- Expediente: kardex + IMSS --}}
-        <section aria-labelledby="titulo-expediente" class="space-y-3">
+        <section id="expediente" aria-labelledby="titulo-expediente" class="scroll-mt-24 space-y-3">
             <div>
                 <h2 id="titulo-expediente" class="font-display text-lg font-bold text-gray-900">Tu expediente para prácticas</h2>
                 <p class="text-sm text-gray-600">Entrega tu <strong>kardex</strong> y tu <strong>constancia IMSS</strong> a tu coordinación. Los revisa juntos y, cuando los valide, <strong>podrás postularte a una vacante</strong>.</p>
@@ -184,7 +213,7 @@
         {{-- Cartas de cada postulación --}}
         @foreach ($postulaciones as $po)
             @php
-                $presentacion = $po->getFirstMedia('carta_presentacion');
+                $presentacion = $po->cartaPresentacion();
                 $aceptacion = $po->getFirstMedia('carta_aceptacion');
                 $aceptacionRegistrada = in_array($po->estado, [PE::CartaAceptacionRecibida, PE::Aceptada], true);
             @endphp
@@ -265,9 +294,15 @@
                                 $pdf = $r->media->firstWhere('collection_name', 'reporte_firmado');
                                 $rSt = match ($r->estado) { RE::Validado => 'validada', RE::Rechazado => 'rechazada', RE::Pendiente => $pdf ? 'pendiente' : null, default => null };
                             @endphp
-                            <x-ui.carga-documento compacto
+                            @if ($r->actividades && $r->estado !== RE::Anulado)
+                                <div class="-mb-1 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-udg-50/60 px-3 py-2 text-xs text-udg-900 ring-1 ring-inset ring-udg-100">
+                                    <span>{{ $pdf ? 'Formato generado del reporte ' . $r->numero : 'Paso 1: descarga el formato, imprímelo y recaba firma y sello de tu jefe directo. Paso 2: súbelo escaneado aquí abajo.' }}</span>
+                                    <a href="{{ route('alumno.documentos.reporte.formato', $r) }}" class="boton boton-chico boton-secundario" data-sin-vista><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Formato PDF</a>
+                                </div>
+                            @endif
+                            <x-ui.carga-documento compacto id="reporte-{{ $r->id }}" class="scroll-mt-24"
                                 :action="$activa && in_array($r->estado, [RE::Pendiente, RE::Rechazado], true) ? route('alumno.documentos.reporte', $r) : null"
-                                :titulo="'Reporte ' . mb_strtolower($r->tipo->label()) . ' · ' . $r->horas_reportadas . ' h'"
+                                :titulo="($r->numero ? 'Reporte ' . $r->numero . ' · ' : 'Reporte ') . mb_strtolower($r->tipo->label()) . ' · ' . $r->horas_reportadas . ' h'"
                                 :instrucciones="$r->periodo_inicio->format('d/m/Y') . ' al ' . $r->periodo_fin->format('d/m/Y') . ' · firmado y sellado por tu jefe directo.'"
                                 :estado="$rSt" :motivo="$r->evaluacion_profesor"
                                 :archivo="$pdf?->file_name" :url-archivo="$pdf ? route('alumno.documentos.descargar', $pdf) : null"
@@ -305,32 +340,53 @@
                             </div>
                         @endif
                         @if ($activa && !$pr->horasCompletas())
-                            <x-ui.carga-documento :action="route('alumno.documentos.reporte.crear', $pr)" titulo="Registrar un reporte nuevo"
-                                instrucciones="Captura el periodo y las horas, y sube el formato firmado y sellado por tu jefe directo."
-                                :paso-archivo="4" boton="Enviar reporte" compacto>
-                                <x-slot:campos>
-                                    <div>
-                                        <label class="etiqueta" for="tipo-{{ $pr->id }}"><span class="mr-1.5 inline-flex size-5 items-center justify-center rounded-full bg-udg-800 text-[11px] font-bold text-white">1</span>Tipo de reporte</label>
-                                        <select id="tipo-{{ $pr->id }}" name="tipo" required class="campo h-11">
-                                            @foreach ($alumno->carrera->esquema_reportes->tipos() as $t)
-                                                <option value="{{ $t->value }}" @selected(old('tipo') === $t->value)>{{ $t->label() }}</option>
-                                            @endforeach
-                                        </select>
-                                        <p class="ayuda">Tu carrera entrega reportes con esquema {{ mb_strtolower($alumno->carrera->esquema_reportes->label()) }}.</p>
-                                        @error('tipo')<p class="mt-1 text-sm font-medium text-rose-600">{{ $message }}</p>@enderror
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <x-ui.campo-paso paso="2" etiqueta="Del" name="periodo_inicio" type="date" min="{{ $pr->fecha_inicio->toDateString() }}" max="{{ today()->min($pr->fecha_fin)->toDateString() }}" />
-                                        <x-ui.campo-paso etiqueta="Al" name="periodo_fin" type="date" min="{{ $pr->fecha_inicio->toDateString() }}" max="{{ today()->min($pr->fecha_fin)->toDateString() }}" />
-                                    </div>
-                                    <x-ui.campo-paso paso="3" etiqueta="Horas trabajadas en el periodo" name="horas_reportadas" type="number" min="1" max="{{ max(1, $pr->horas_requeridas - $horas) }}"
-                                        ayuda="Te faltan {{ max(0, $pr->horas_requeridas - $horas) }} horas validadas." />
-                                </x-slot:campos>
-                            </x-ui.carga-documento>
+                            {{-- Reporte híbrido: redacta aquí → el sistema genera el PDF → firma y sello → sube el escaneo --}}
+                            <form method="POST" action="{{ route('alumno.documentos.reporte.crear', $pr) }}" enctype="multipart/form-data"
+                                class="space-y-4 rounded-2xl border border-gray-200 p-4" x-data="{ propio: {{ old('archivo') ? 'true' : 'false' }} }">
+                                @csrf
+                                <div>
+                                    <h4 class="text-sm font-semibold text-gray-900">Registrar el reporte {{ (int) $pr->reportes->max('numero') + 1 }}</h4>
+                                    <p class="mt-0.5 text-xs leading-relaxed text-gray-500">Redáctalo aquí: el sistema genera el formato en PDF para que lo firme y selle tu jefe directo. Después lo escaneas y lo subes en este mismo reporte.</p>
+                                </div>
+                                <div>
+                                    <label class="etiqueta" for="tipo-{{ $pr->id }}">Tipo de reporte</label>
+                                    <select id="tipo-{{ $pr->id }}" name="tipo" required class="campo h-11">
+                                        @foreach ($alumno->carrera->esquema_reportes->tipos() as $t)
+                                            <option value="{{ $t->value }}" @selected(old('tipo') === $t->value)>{{ $t->label() }}</option>
+                                        @endforeach
+                                    </select>
+                                    <p class="ayuda">Tu carrera entrega reportes con esquema {{ mb_strtolower($alumno->carrera->esquema_reportes->label()) }}.</p>
+                                    @error('tipo')<p class="mt-1 text-sm font-medium text-rose-600">{{ $message }}</p>@enderror
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <x-ui.campo-paso etiqueta="Del" name="periodo_inicio" type="date" min="{{ $pr->fecha_inicio->toDateString() }}" max="{{ today()->min($pr->fecha_fin)->toDateString() }}" />
+                                    <x-ui.campo-paso etiqueta="Al" name="periodo_fin" type="date" min="{{ $pr->fecha_inicio->toDateString() }}" max="{{ today()->min($pr->fecha_fin)->toDateString() }}" />
+                                </div>
+                                <x-ui.campo-paso etiqueta="Horas realizadas en el periodo" name="horas_reportadas" type="number" min="1" max="{{ max(1, $pr->horas_requeridas - $horas) }}"
+                                    ayuda="Te faltan {{ max(0, $pr->horas_requeridas - $horas) }} horas validadas." />
+                                <div>
+                                    <label class="etiqueta" for="act-{{ $pr->id }}">Actividades realizadas <span class="text-rose-500">*</span></label>
+                                    <textarea id="act-{{ $pr->id }}" name="actividades" rows="5" required minlength="30" maxlength="5000" class="campo"
+                                        placeholder="Describe qué hiciste en el periodo: tareas, proyectos, documentos elaborados…">{{ old('actividades') }}</textarea>
+                                    @error('actividades')<p class="mt-1 text-sm font-medium text-rose-600">{{ $message }}</p>@enderror
+                                </div>
+                                <div>
+                                    <label class="etiqueta" for="log-{{ $pr->id }}">Logros y aprendizajes <span class="font-normal text-gray-400">(opcional)</span></label>
+                                    <textarea id="log-{{ $pr->id }}" name="logros" rows="3" maxlength="3000" class="campo">{{ old('logros') }}</textarea>
+                                </div>
+                                <label class="flex items-start gap-2 text-xs text-gray-700">
+                                    <input type="checkbox" x-model="propio" class="mt-0.5 rounded border-gray-300">
+                                    Mi coordinación me pide su propio formato: ya lo tengo firmado y sellado y lo subo ahora.
+                                </label>
+                                <div x-show="propio" x-cloak>
+                                    <x-ui.zona-archivo name="archivo" etiqueta="Formato de tu carrera, firmado y sellado (PDF)" :requerido="false" />
+                                </div>
+                                <button class="boton boton-primario w-full"><x-dashboard.icono nombre="documento" clase="size-4" /> <span x-text="propio ? 'Registrar y enviar' : 'Registrar y generar formato'">Registrar y generar formato</span></button>
+                            </form>
                         @endif
 
                         @unless ($pr->estado === PrE::Cancelada)
-                        <x-ui.carga-documento
+                        <x-ui.carga-documento id="carta-{{ $pr->id }}" class="scroll-mt-24"
                             :action="$motivoCarta === null ? route('alumno.documentos.termino', $pr) : null"
                             titulo="Carta de término"
                             instrucciones="La emite la organización al completar tus horas: hoja membretada, firmada y sellada."

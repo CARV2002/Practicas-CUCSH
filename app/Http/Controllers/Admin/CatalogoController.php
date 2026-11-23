@@ -24,8 +24,9 @@ class CatalogoController extends Controller
 
     public function storeDivision(Request $request): RedirectResponse
     {
+        $request->merge(['nombre' => preg_replace('/\s+/u', ' ', trim((string) $request->input('nombre')))]);
         $datos = $request->validate([
-            'nombre' => ['required', 'string', 'max:255', Rule::unique('divisiones', 'nombre')],
+            'nombre' => ['required', 'string', 'max:255', new \App\Rules\UnicoNormalizado('divisiones', 'nombre', 'Ya existe una división con ese nombre.')],
         ]);
 
         Division::create($datos);
@@ -35,8 +36,9 @@ class CatalogoController extends Controller
 
     public function updateDivision(Request $request, Division $division): RedirectResponse
     {
+        $request->merge(['nombre' => preg_replace('/\s+/u', ' ', trim((string) $request->input('nombre')))]);
         $datos = $request->validate([
-            'nombre' => ['required', 'string', 'max:255', Rule::unique('divisiones', 'nombre')->ignore($division->id)],
+            'nombre' => ['required', 'string', 'max:255', new \App\Rules\UnicoNormalizado('divisiones', 'nombre', 'Ya existe una división con ese nombre.', $division->id)],
         ]);
 
         $division->update($datos);
@@ -48,9 +50,11 @@ class CatalogoController extends Controller
     {
         $request->merge(['carrera_clave' => Str::upper(trim((string) $request->input('carrera_clave')))]);
 
-        Carrera::create($request->validate($this->reglasCarrera()));
+        // Nace con reglas iniciales; desde ahí solo su coordinación las ajusta
+        Carrera::create($request->validate($this->reglasCarrera()) + Carrera::REGLAS_INICIALES);
 
-        return back()->with('status', 'Carrera creada.');
+        return back()->with('status', 'Carrera creada con reglas iniciales (' . Carrera::REGLAS_INICIALES['horas_requeridas'] . ' h, '
+            . Carrera::REGLAS_INICIALES['porcentaje_creditos_minimo'] . '% de créditos). Su coordinación las ajusta en «Reglas de mi carrera».');
     }
 
     public function updateCarrera(Request $request, Carrera $carrera): RedirectResponse
@@ -62,16 +66,18 @@ class CatalogoController extends Controller
         return back()->with('status', 'Carrera actualizada.');
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * El administrador solo maneja la estructura (división, clave y nombre). Horas, % de créditos y créditos
+     * otorgados son de la coordinación: si llegan en la petición se ignoran (validate solo regresa estas llaves).
+     *
+     * @return array<string, mixed>
+     */
     private function reglasCarrera(?Carrera $carrera = null): array
     {
         return [
             'division_id' => ['required', 'integer', Rule::exists('divisiones', 'id')],
-            'carrera_clave' => ['required', 'string', 'max:10', Rule::unique('carreras', 'carrera_clave')->ignore($carrera?->id)],
-            'nombre' => ['required', 'string', 'max:255'],
-            'horas_requeridas' => ['required', 'integer', 'min:1', 'max:2000'],
-            'porcentaje_creditos_minimo' => ['required', 'numeric', 'min:0', 'max:100'],
-            'creditos_otorgados' => ['required', 'integer', 'min:0', 'max:50'],
+            'carrera_clave' => ['required', 'string', 'max:10', 'regex:/^[A-Z0-9-]{2,10}$/', Rule::unique('carreras', 'carrera_clave')->ignore($carrera?->id)],
+            'nombre' => ['required', 'string', 'max:255', new \App\Rules\UnicoNormalizado('carreras', 'nombre', 'Ya existe una carrera con ese nombre.', $carrera?->id)],
         ];
     }
 }

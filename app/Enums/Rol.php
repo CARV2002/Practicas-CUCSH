@@ -5,8 +5,9 @@ namespace App\Enums;
 /**
  * Roles del sistema (spatie/laravel-permission).
  *
- *  - Administrador: superusuario técnico. Entra a todo (Vinculación y Coordinación) y es el único que administra
- *                   cuentas de personal (alta de Vinculación y de cada coordinación), catálogo y auditoría.
+ *  - Administrador: Coordinación de Servicios Académicos. Consulta convenios en SOLO LECTURA (no los opera) y es el
+ *                   único que administra cuentas de personal (máx. 2 activas por coordinación), la estructura del
+ *                   catálogo (divisiones y carreras, sin reglas académicas) y la auditoría.
  *  - Vinculacion:   Vinculación / Prácticas Profesionales (Lorena). Solo el trámite de convenios: empresas y
  *                   expedientes, turno a Secretaría/División, seguimiento de dictámenes, Jurídica, firmas y formalización.
  *  - Coordinador:   Coordinación de carrera (o de división). Dictamina la pertinencia de los convenios de su carrera

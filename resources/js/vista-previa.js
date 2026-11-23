@@ -4,7 +4,37 @@
  * abre una ventana con el documento antes de descargarlo. El servidor responde a ?ver=1 con el PDF o la
  * imagen en línea, o con una ficha de descarga para Word. Ctrl/Cmd+clic o el atributo data-sin-vista descargan directo.
  */
-const PATRON = /\/(archivos|documentos)\/\d+$|\/convenio\/\d+\/archivo$/;
+const PATRON = /\/(archivos|documentos)\/\d+$|\/convenio\/\d+\/archivo$|\/reportes\/\d+\/formato$/;
+
+const OJO = '<svg class="size-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
+
+function esDocumento(enlace) {
+    if (!(enlace instanceof HTMLAnchorElement) || !enlace.href) return false;
+    let url;
+    try { url = new URL(enlace.href, window.location.origin); } catch { return false; }
+    return url.origin === window.location.origin && PATRON.test(url.pathname);
+}
+
+/**
+ * Junto a cada enlace a un documento se agrega «Ver documento» (abre la vista previa) y el enlace original
+ * queda como descarga directa: así se distingue ver de descargar en todo el sistema.
+ */
+function agregarBotonesVer(raiz = document) {
+    raiz.querySelectorAll?.('a[href]:not([data-con-ver]):not([data-sin-boton-ver])').forEach((enlace) => {
+        if (!esDocumento(enlace) || enlace.closest('[role="dialog"][aria-labelledby="vista-previa-titulo"]')) return;
+        enlace.dataset.conVer = '1';
+        enlace.dataset.sinVista = '';
+        if (!enlace.title) enlace.title = 'Descargar';
+
+        const ver = document.createElement('button');
+        ver.type = 'button';
+        ver.className = 'js-ver-documento ml-1.5 inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-udg-50 px-2 py-0.5 align-middle text-xs font-semibold text-udg-800 ring-1 ring-inset ring-udg-100 transition duration-150 hover:-translate-y-px hover:bg-udg-800 hover:text-white hover:ring-udg-800 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-real-500/40 motion-reduce:transform-none';
+        ver.innerHTML = `${OJO}<span>Ver documento</span>`;
+        ver.setAttribute('aria-label', `Ver documento: ${enlace.textContent.trim().replace(/\s+/g, ' ') || 'archivo'}`);
+        ver.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); abrir(enlace); });
+        enlace.insertAdjacentElement('afterend', ver);
+    });
+}
 
 let modal = null;
 let ultimoFoco = null;
@@ -87,4 +117,13 @@ export function iniciarVistaPrevia() {
         e.preventDefault();
         abrir(enlace);
     });
+
+    // Botones «Ver documento»: al cargar y cuando aparecen enlaces nuevos (pestañas, ventanas, x-if)
+    agregarBotonesVer();
+    let pendiente = false;
+    new MutationObserver(() => {
+        if (pendiente) return;
+        pendiente = true;
+        requestAnimationFrame(() => { pendiente = false; agregarBotonesVer(); });
+    }).observe(document.body, { childList: true, subtree: true });
 }

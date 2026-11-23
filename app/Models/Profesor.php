@@ -13,7 +13,15 @@ class Profesor extends Model
     use Auditable;
     protected $table = 'profesores';
 
-    protected $fillable = ['division_id', 'nombre', 'email'];
+    protected $fillable = ['division_id', 'nombre', 'email', 'telefono', 'activo'];
+
+    protected $casts = ['activo' => 'boolean'];
+
+    /** Solo los activos se pueden asignar a una práctica nueva. */
+    public function scopeActivos(\Illuminate\Database\Eloquent\Builder $q): \Illuminate\Database\Eloquent\Builder
+    {
+        return $q->where('activo', true);
+    }
 
     public function division(): BelongsTo
     {

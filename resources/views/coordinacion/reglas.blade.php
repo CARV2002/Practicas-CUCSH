@@ -20,7 +20,8 @@
     @forelse ($carreras as $carrera)
         <form method="POST" action="{{ route('coordinacion.reglas.update', $carrera) }}"
             class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xs"
-            x-data="{ correo: @js($carrera->coordinacion_correo ?? ''), tel: @js($carrera->coordinacion_telefono ?? '') }">
+            x-data="{ correo: @js($carrera->coordinacion_correo ?? ''), tel: @js(\App\Support\Formatos::separarTelefono($carrera->coordinacion_telefono)[0]), ext: @js(\App\Support\Formatos::separarTelefono($carrera->coordinacion_telefono)[1]),
+                get telefono() { return [this.tel, this.ext ? 'ext. ' + this.ext : ''].filter(Boolean).join(' '); } }">
             @csrf
             @method('PUT')
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 sm:px-6">
@@ -73,15 +74,23 @@
                         <input id="correo-{{ $carrera->id }}" type="email" name="coordinacion_correo" maxlength="255" x-model="correo" placeholder="coordinacion@csh.udg.mx" class="campo h-11">
                     </div>
                     <div>
-                        <label for="tel-{{ $carrera->id }}" class="etiqueta">Teléfono o extensión</label>
-                        <input id="tel-{{ $carrera->id }}" type="text" name="coordinacion_telefono" maxlength="40" x-model="tel" placeholder="(33) 3819-3300 ext. 00000" class="campo h-11">
+                        <div class="grid grid-cols-[1fr_7rem] gap-2">
+                            <div>
+                                <label for="tel-{{ $carrera->id }}" class="etiqueta">Teléfono</label>
+                                <input id="tel-{{ $carrera->id }}" type="tel" inputmode="numeric" data-solo="digitos" data-contador="dígitos" minlength="10" maxlength="10" pattern="\d{10}" data-msg-formato="El teléfono son 10 números, sin espacios ni guiones." name="coordinacion_telefono" x-model="tel" placeholder="3338193300" class="campo h-11">
+                            </div>
+                            <div>
+                                <label for="ext-{{ $carrera->id }}" class="etiqueta">Extensión</label>
+                                <input id="ext-{{ $carrera->id }}" type="text" inputmode="numeric" data-solo="digitos" maxlength="6" pattern="\d{1,6}" data-msg-formato="La extensión solo lleva números (hasta 6)." name="coordinacion_extension" x-model="ext" placeholder="23549" class="campo h-11">
+                            </div>
+                        </div>
                     </div>
                     {{-- Vista previa de «Tu coordinación» --}}
                     <div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4" aria-live="polite">
                         <p class="text-xs font-medium text-gray-500">Así lo verán en «Tu coordinación»</p>
                         <p class="mt-1.5 text-sm font-semibold text-gray-900">Coordinación de {{ $carrera->nombre }}</p>
                         <p class="mt-1 break-all text-sm" :class="correo ? 'text-gray-700' : 'italic text-amber-700'" x-text="correo || 'Sin correo: tus alumnos no sabrán a quién escribir'">{{ $carrera->coordinacion_correo ?: 'Sin correo: tus alumnos no sabrán a quién escribir' }}</p>
-                        <p class="text-sm" :class="tel ? 'text-gray-700' : 'italic text-gray-400'" x-text="tel || 'Sin teléfono'">{{ $carrera->coordinacion_telefono ?: 'Sin teléfono' }}</p>
+                        <p class="text-sm" :class="tel ? 'text-gray-700' : 'italic text-gray-400'" x-text="telefono || 'Sin teléfono'">{{ $carrera->coordinacion_telefono ?: 'Sin teléfono' }}</p>
                     </div>
                 </fieldset>
             </div>
