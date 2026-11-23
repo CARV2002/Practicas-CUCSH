@@ -81,6 +81,8 @@ class ConvenioController extends Controller
         if ($seccion === 'perfiles') {
             $empresa->update(['solicitud_borrador' => array_merge($empresa->solicitud_borrador ?? [], $datos, [
                 'carreras' => array_map('intval', $datos['carreras'] ?? []),
+                // Cuándo se corrigió: si fue después de un rechazo, el aviso rojo ya no se muestra
+                'perfiles_guardado_at' => now()->toIso8601String(),
             ])]);
         } else {
             $empresa->update(\Illuminate\Support\Arr::only(

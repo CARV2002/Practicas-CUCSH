@@ -12,9 +12,11 @@
       1. Qué se devolvió y quién (título).
       2. La observación textual, citada.
       3. Qué hacer y en qué apartado (slot), con la sección a corregir marcada en rojo en la misma pantalla.
-    Cuando ya se corrigió, cambia a ámbar para no alarmar.
+    Cuando ya se corrigió (resuelta), el aviso desaparece: ya no hay nada que hacer.
 --}}
 @php $fecha = $fecha ? \Illuminate\Support\Carbon::parse($fecha) : null; @endphp
+
+@unless ($resuelta)
 
 <div role="alert" {{ $attributes->class([
     'rounded-xl border-l-4 px-4 py-3.5 ring-1 ring-inset',
@@ -43,3 +45,4 @@
         </div>
     </div>
 </div>
+@endunless

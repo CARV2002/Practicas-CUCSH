@@ -481,7 +481,7 @@ test('si Jurídica devuelve el borrador, Lorena ve en rojo qué corregir y el ex
 
     // Ya corregido (v2): el aviso cambia a «en revisión»
     $this->actingAs($this->lorena)->post(route('admin.convenios.borrador.generar', $c), $datos)->assertSessionHasNoErrors();
-    $this->actingAs($this->lorena)->get(route('admin.convenios.show', $c))->assertSee('Ya subiste una versión corregida');
+    $this->actingAs($this->lorena)->get(route('admin.convenios.show', $c))->assertDontSee('devolvió el borrador');   // ya corregido: el aviso rojo desaparece
 
     // Dictamen favorable → firmas: los juegos finales llevan la fecha real y la vigencia debe empezar ese día
     $this->actingAs($this->lorena)->post(route('admin.convenios.juridica.turnar', $c))->assertSessionHasNoErrors();
@@ -492,4 +492,77 @@ test('si Jurídica devuelve el borrador, Lorena ve en rojo qué corregir y el ex
 
     $this->actingAs($this->lorena)->post(route('admin.convenios.formalizar', $c), ['folio' => 'CV-AJ-77', 'fecha_inicio_vigencia' => today()->toDateString()])
         ->assertSessionHasErrors('fecha_inicio_vigencia');
+});
+
+/* ------------------------------- Renovación con perfiles precargados ------------------------------- */
+
+test('al renovar, «Perfiles requeridos» viene precargado con el convenio vigente y basta guardarlo', function () {
+    $vigente = Convenio::create(['empresa_id' => $this->empresa->id, 'estado' => ConvenioEstado::Formalizado, 'folio' => 'CV-2023-014',
+        'fecha_recepcion' => now()->subYears(3), 'fecha_inicio_vigencia' => now()->subYears(3), 'fecha_fin_vigencia' => now()->addDays(24),
+        'objetivos' => 'Que el practicante aplique la investigación histórica en archivos.', 'actividades_propuestas' => 'Catalogación de fondos, digitalización y atención a investigadores.',
+        'plazas_estimadas' => 3, 'medio_conocimiento' => 'Por un egresado', 'experiencia_previa' => 'Ninguno']);
+    $vigente->dictamenes()->create(['carrera_id' => $this->abog->id, 'dictamen' => Dictamen::Aprobatorio]);
+    $vigente->dictamenes()->create(['carrera_id' => $this->crim->id, 'dictamen' => Dictamen::Negativo]);
+
+    $pagina = $this->actingAs($this->empresaUser)->get(route('empresa.convenio', ['seccion' => 'perfiles']))->assertOk()
+        ->assertSee('Precargamos los perfiles de tu convenio CV-2023-014')->assertSee('Precargada · revisa y guarda')
+        ->assertSee('Catalogación de fondos, digitalización y atención a investigadores.')
+        ->assertSee('Por un egresado')
+        ->assertDontSee('Para enviar la solicitud te falta:</p>' . "\n" . '                <p class="mt-0.5">carreras', false);
+    // Solo las carreras que ya tenía autorizadas
+    expect(preg_match('/elegidas: JSON\.parse\(\'\[(\d+)\]\'\)/', $pagina->getContent(), $m))->toBe(1)->and((int) $m[1])->toBe($this->abog->id);
+
+    // Si renueva igual, guarda lo precargado y la sección queda completa
+    $this->actingAs($this->empresaUser)->put(route('empresa.convenio.seccion', 'perfiles'), [
+        '_seccion' => 'perfiles', 'carreras' => [$this->abog->id], 'objetivos' => $vigente->objetivos, 'actividades_propuestas' => $vigente->actividades_propuestas,
+        'plazas_estimadas' => 3, 'medio_conocimiento' => 'Por un egresado', 'experiencia_previa' => 'Ninguno',
+    ])->assertSessionHasNoErrors();
+    expect(\App\Support\SolicitudEmpresa::faltantes($this->empresa->fresh())['perfiles'])->toBe([]);
+});
+
+/* ------------------------------- Los avisos de corrección se van al corregir ------------------------------- */
+
+test('la empresa rechazada recibe aviso y el recuadro rojo desaparece en cuanto corrige su propuesta', function () {
+    $rechazado = Convenio::create(['empresa_id' => $this->empresa->id, 'estado' => ConvenioEstado::EnValidacionAcademica, 'fecha_recepcion' => today()->subWeek(),
+        'objetivos' => 'Objetivos originales de la propuesta.', 'actividades_propuestas' => 'Actividades originales que no fueron afines al perfil.', 'plazas_estimadas' => 2,
+        'medio_conocimiento' => 'Página del CUCSH', 'experiencia_previa' => 'Ninguno']);
+    $d = $rechazado->dictamenes()->create(['carrera_id' => $this->abog->id, 'dictamen' => Dictamen::Pendiente]);
+    $rechazado->seguimientos()->create(['etapa' => 'turno_academico', 'estado' => 'pendiente', 'fecha_registro' => today()]);
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.dictamenes.registrar', $d), ['dictamen' => 'negativo', 'observaciones' => 'Sin actividades afines al perfil.', 'documento' => ajPdf('dictamen.pdf')])
+        ->assertSessionHasNoErrors();
+
+    // Aviso (campana + correo) con qué y dónde corregir
+    Notification::assertSentTo($this->empresaUser, ConvenioActualizado::class, fn ($n) => $n->correo && str_contains($n->mensaje, 'Perfiles requeridos'));
+    $this->actingAs($this->empresaUser)->get(route('empresa.convenio'))->assertOk()
+        ->assertSee('Tu última solicitud fue rechazada')->assertSee('Sin actividades afines al perfil.')->assertSee('Corrige aquí:');
+
+    // Corrige y guarda «Perfiles requeridos»: el recuadro rojo se va
+    $this->travel(1)->minutes();
+    $this->actingAs($this->empresaUser)->put(route('empresa.convenio.seccion', 'perfiles'), [
+        '_seccion' => 'perfiles', 'carreras' => [$this->abog->id], 'objetivos' => 'Objetivos ajustados al plan de estudios de Abogado.',
+        'actividades_propuestas' => 'Redacción de demandas, investigación jurídica y audiencias acompañadas.', 'plazas_estimadas' => 2,
+        'medio_conocimiento' => 'Página del CUCSH', 'experiencia_previa' => 'Ninguno',
+    ])->assertSessionHasNoErrors();
+    $this->actingAs($this->empresaUser)->get(route('empresa.convenio'))->assertOk()
+        ->assertDontSee('Tu última solicitud fue rechazada')->assertDontSee('Corrige aquí:')->assertSee('Corregiste tu propuesta');
+});
+
+/* ------------------------------- Notificaciones: título, detalle y archivo ------------------------------- */
+
+test('las notificaciones largas se muestran con título y detalle, y las leídas antiguas solo en «Archivadas»', function () {
+    $largo = 'Tu coordinación te devolvió el reporte del 01/11 al 30/11/2026. Motivo: «Las horas no coinciden». Qué hacer: entra a «Mis documentos › Reportes de horas» y súbelo de nuevo.';
+    expect(\App\Support\TextoAviso::partes($largo))->toBe([
+        'titulo' => 'Tu coordinación te devolvió el reporte del 01/11 al 30/11/2026',
+        'detalle' => 'Motivo: «Las horas no coinciden». Qué hacer: entra a «Mis documentos › Reportes de horas» y súbelo de nuevo.',
+    ]);
+
+    $u = $this->empresaUser;
+    $u->notifications()->create(['id' => (string) \Illuminate\Support\Str::uuid(), 'type' => 'x', 'data' => ['mensaje' => $largo, 'url' => '/x']]);
+    $u->notifications()->create(['id' => (string) \Illuminate\Support\Str::uuid(), 'type' => 'x', 'data' => ['mensaje' => 'Aviso viejo ya leído.', 'url' => '/x'], 'read_at' => now()->subDays(20), 'created_at' => now()->subDays(25)]);
+
+    $this->actingAs($u)->getJson(route('notificaciones.resumen'))->assertOk()
+        ->assertJsonCount(1, 'items')->assertJsonPath('items.0.titulo', 'Tu coordinación te devolvió el reporte del 01/11 al 30/11/2026')
+        ->assertJsonMissingPath('pendientes');
+    $this->actingAs($u)->get(route('notificaciones.index'))->assertOk()->assertSee('Tu coordinación te devolvió el reporte')->assertDontSee('Aviso viejo ya leído');
+    $this->actingAs($u)->get(route('notificaciones.index', ['ver' => 'archivadas']))->assertOk()->assertSee('Aviso viejo ya leído');
 });

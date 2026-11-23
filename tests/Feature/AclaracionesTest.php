@@ -218,7 +218,7 @@ test('el rechazo pide reiniciar el trámite y el vencimiento avisa por correo a 
         'fecha_recepcion' => today(), 'objetivos' => 'x', 'actividades_propuestas' => 'y', 'plazas_estimadas' => 1]);
 
     app(ConvenioWorkflow::class)->rechazar($c, $this->vinc, 'Documentación incompleta.');
-    Notification::assertSentTo($this->empresaUser, ConvenioActualizado::class, fn ($n) => str_contains($n->mensaje, 'iniciar de nuevo todo el trámite'));
+    Notification::assertSentTo($this->empresaUser, ConvenioActualizado::class, fn ($n) => str_contains($n->mensaje, 'inicia de nuevo el trámite'));
 
     $this->convenio->update(['fecha_fin_vigencia' => now()->addDays(45)]);
     $this->artisan('practicas:avisos-programados')->assertSuccessful();
@@ -334,8 +334,9 @@ test('el panel, mis documentos y la campana muestran la etapa real del alumno', 
         ->assertSee('Cartas de presentación y aceptación');
     $this->actingAs($this->alumnoUser)->get(route('alumno.mis-documentos'))->assertOk()->assertSee('Cartas de presentación y aceptación');
 
-    $this->actingAs($this->alumnoUser)->getJson(route('notificaciones.resumen'))->assertOk()
-        ->assertJsonPath('pendientes.0.mensaje', fn ($m) => str_contains($m, 'Tu carta de aceptación quedó registrada'));
+    // «Por atender» vive en el panel, no en la campana
+    expect(\App\Support\Pendientes::de($this->alumnoUser)[0]['mensaje'])->toContain('Tu carta de aceptación quedó registrada');
+    $this->actingAs($this->alumnoUser)->getJson(route('notificaciones.resumen'))->assertOk()->assertJsonMissingPath('pendientes');
 });
 
 test('la campana avisa al alumno que su coordinación le devolvió un documento aunque no tenga notificaciones', function () {
@@ -344,9 +345,9 @@ test('la campana avisa al alumno que su coordinación le devolvió un documento 
     $imss = $alumno->addMedia(acPdf('imss-nueva.pdf'))->toMediaCollection('constancia_imss');
     $alumno->resolverDocumento($imss, ValidacionEstado::Rechazada, 'Está vencida.', $this->coordUser->id);
 
-    $this->actingAs($this->alumnoUser)->getJson(route('notificaciones.resumen'))->assertOk()
-        ->assertJsonPath('pendientes.0.tipo', 'error')
-        ->assertJsonPath('pendientes.0.mensaje', fn ($m) => str_contains($m, 'te devolvió tu constancia IMSS') && str_contains($m, 'Está vencida'));
+    expect(\App\Support\Pendientes::de($this->alumnoUser)[0]['tipo'])->toBe('error');
+    $this->actingAs($this->alumnoUser)->get(route('alumno.dashboard'))->assertOk()
+        ->assertSee('Por atender')->assertSee('te devolvió tu constancia IMSS')->assertSee('Está vencida');
 });
 
 /* ------------------- Proceso de Vinculación (documento «PROCESO VINCU») ------------------- */
@@ -433,7 +434,7 @@ test('el saludo del panel de coordinación suma lo mismo que la campana', functi
         'porcentaje_creditos_declarado' => 70, 'fecha_postulacion' => today()]);
 
     $total = \App\Support\Pendientes::total($this->coordUser);
-    $items = $this->actingAs($this->coordUser)->getJson(route('notificaciones.resumen'))->assertOk()->json('pendientes');
+    $items = \App\Support\Pendientes::de($this->coordUser);
 
     expect($total)->toBe(1)->and(array_sum(array_column($items, 'n')))->toBe($total);
     $this->actingAs($this->coordUser)->get(route('coordinacion.dashboard'))->assertOk()

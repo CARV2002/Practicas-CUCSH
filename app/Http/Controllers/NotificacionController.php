@@ -9,32 +9,51 @@ use Illuminate\View\View;
 
 class NotificacionController extends Controller
 {
-    /** Listado completo de notificaciones del usuario. */
+    /** Días tras los que una notificación ya leída se archiva (sale de la campana y de «Recientes»). */
+    public const DIAS_ARCHIVO = 7;
+
+    /**
+     * Listado completo. «Recientes»: sin leer y leídas en la última semana. «Archivadas»: las leídas hace más tiempo,
+     * que se conservan pero solo se ven aquí.
+     */
     public function index(Request $request): View
     {
+        $archivadas = $request->string('ver')->toString() === 'archivadas';
+        $limite = now()->subDays(self::DIAS_ARCHIVO);
+        $base = $request->user()->notifications();
+
         return view('notificaciones.index', [
-            'pendientes' => \App\Support\Pendientes::de($request->user()),
-            'notificaciones' => $request->user()->notifications()->paginate(20),
+            'archivadas' => $archivadas,
+            'totalArchivadas' => (clone $base)->whereNotNull('read_at')->where('read_at', '<', $limite)->count(),
+            'notificaciones' => ($archivadas
+                ? $base->whereNotNull('read_at')->where('read_at', '<', $limite)
+                : $base->where(fn ($q) => $q->whereNull('read_at')->orWhere('read_at', '>=', $limite)))
+                ->paginate(20)->withQueryString(),
         ]);
     }
 
-    /** Datos del dropdown de la campana: no leídas + últimas 8. */
+    /** Datos del dropdown de la campana: sin leer y leídas recientes (las archivadas solo en «Todas»). */
     public function resumen(Request $request): JsonResponse
     {
         $user = $request->user();
 
         return response()->json([
-            // Lo que el usuario tiene por atender según su situación actual (no depende de avisos previos)
-            'pendientes' => \App\Support\Pendientes::de($user),
             'no_leidas' => $user->unreadNotifications()->count(),
-            'items' => $user->notifications()->limit(8)->get()->map(fn($n) => [
-                'id' => $n->id,
-                'mensaje' => $n->data['mensaje'] ?? 'Notificación',
-                'detalle' => $n->data['detalle'] ?? $n->data['empresa'] ?? null,
-                'leida' => $n->read_at !== null,
-                'hace' => $n->created_at->diffForHumans(),
-                'url' => route('notificaciones.abrir', $n->id),
-            ]),
+            'items' => $user->notifications()
+                ->where(fn ($q) => $q->whereNull('read_at')->orWhere('read_at', '>=', now()->subDays(self::DIAS_ARCHIVO)))
+                ->limit(8)->get()->map(function ($n) {
+                    $partes = \App\Support\TextoAviso::partes($n->data['mensaje'] ?? null, $n->data['titulo'] ?? null);
+
+                    return [
+                        'id' => $n->id,
+                        'titulo' => $partes['titulo'],
+                        'cuerpo' => $partes['detalle'],
+                        'detalle' => $n->data['detalle'] ?? $n->data['empresa'] ?? null,
+                        'leida' => $n->read_at !== null,
+                        'hace' => $n->created_at->diffForHumans(),
+                        'url' => route('notificaciones.abrir', $n->id),
+                    ];
+                }),
         ]);
     }
 

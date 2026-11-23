@@ -60,7 +60,7 @@
                 Elige los archivos que tengas listos y envíalos juntos. Al enviarlos regresarás a «Mi convenio» para enviar tu solicitud.
             </x-ui.aviso>
         @elseif ($enSolicitud)
-            <x-ui.aviso tipo="exito" titulo="Ya subiste todos los documentos obligatorios">
+            <x-ui.aviso tipo="exito" :autocerrar="false" titulo="Ya subiste todos los documentos obligatorios">
                 <a href="{{ route('empresa.convenio', ['seccion' => 'documentos']) }}" class="font-semibold underline underline-offset-2">Regresa a Mi convenio</a> para enviar tu solicitud a Vinculación.
             </x-ui.aviso>
         @endif
@@ -128,7 +128,7 @@
                                                 <p class="truncate text-sm font-medium text-gray-800">{{ $media->file_name }}</p>
                                                 <p class="text-xs text-gray-500">{{ $st === 'rechazada' ? 'Archivo devuelto' : 'Archivo actual' }} · subido el {{ $media->created_at->format('d/m/Y') }}</p>
                                             </div>
-                                            <a href="{{ route('empresa.documentos.descargar', $media->id) }}" class="boton boton-secundario h-10 shrink-0"><x-dashboard.icono nombre="buscar" clase="size-4" /> Ver documento</a>
+                                            <a href="{{ route('empresa.documentos.descargar', $media->id) }}" class="boton boton-secundario h-10 shrink-0"><x-dashboard.icono nombre="descargar" clase="size-4" /> Descargar</a>
                                         </div>
                                     @endif
                                 </div>
@@ -174,7 +174,7 @@
                                     <p class="truncate text-sm font-medium text-gray-900">{{ \App\Models\Empresa::nombreDocumento($col) }}</p>
                                     <p class="text-xs text-gray-500">Subido el {{ $d['media']->created_at->format('d/m/Y') }}</p>
                                 </div>
-                                <a href="{{ route('empresa.documentos.descargar', $d['media']->id) }}" class="boton boton-chico boton-secundario shrink-0"><x-dashboard.icono nombre="buscar" clase="size-3.5" /> Ver</a>
+                                <a href="{{ route('empresa.documentos.descargar', $d['media']->id) }}" class="boton boton-chico boton-secundario shrink-0"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Descargar</a>
                             </li>
                         @endforeach
                     </ul>

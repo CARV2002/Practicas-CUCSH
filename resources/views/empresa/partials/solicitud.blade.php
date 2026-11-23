@@ -13,16 +13,41 @@
     $completas = collect($faltantes)->filter(fn ($f) => empty($f))->keys();
     $primeraPendiente = collect($faltantes)->filter()->keys()->first() ?? 'perfiles';
     $actual = in_array($seccion, array_keys(S::SECCIONES), true) ? $seccion : (old('_seccion') ?: $primeraPendiente);
-    // Valor de un campo: lo recién enviado, lo guardado en la empresa o el borrador, o la propuesta anterior
-    $v = fn (string $c, $defecto = null) => old($c, $empresa->{$c} ?? ($borrador[$c] ?? ($propuestaAnterior?->{$c} ?? $defecto)));
+    // Convenio del que se precargan los perfiles: la propuesta rechazada (para ajustarla) o, en una renovación, el vigente
+    $propuestaAnterior ??= null;
+    $base = $propuestaAnterior ?? (($puedeRenovar ?? false) ? ($vigente ?? null) : null);
+    $camposPerfil = S::CAMPOS['perfiles'];
+    // Precargado = la empresa aún no guarda esta sección: los datos vienen del convenio anterior y solo falta revisarlos
+    // (también si la guardó vacía: campos en blanco cuentan como «sin capturar»)
+    $precargado = $base !== null && collect($camposPerfil)->every(fn ($c) => blank($borrador[$c] ?? null)) && !old('_seccion');
+    $prefill = [];
+    if ($base) {
+        $prefill = $base->only(['objetivos', 'actividades_propuestas', 'plazas_estimadas', 'medio_conocimiento', 'experiencia_previa']);
+        if ($propuestaAnterior === null) {
+            // Renovación: cómo nos conoce y cuántos practicantes ha recibido ya con el convenio que vence
+            $recibidos = \App\Models\Practica::whereHas('postulacion.programa', fn ($q) => $q->where('convenio_id', $base->id))->count();
+            $prefill['medio_conocimiento'] = filled($prefill['medio_conocimiento'] ?? null) ? $prefill['medio_conocimiento'] : 'Renovación del convenio ' . ($base->folio ?? 'vigente');
+            $prefill['experiencia_previa'] = ($prefill['experiencia_previa'] ?? '') !== '' && $recibidos === 0
+                ? $prefill['experiencia_previa']
+                : $recibidos . ' ' . ($recibidos === 1 ? 'practicante' : 'practicantes') . ' desde ' . ($base->fecha_inicio_vigencia?->format('Y') ?? 'el convenio anterior') . ' con el convenio ' . ($base->folio ?? 'vigente') . '.';
+        }
+    }
+    // Valor de un campo: lo recién enviado, lo guardado en la empresa o el borrador, o lo del convenio anterior
+    $v = fn (string $c, $defecto = null) => old($c, $empresa->{$c} ?? (filled($borrador[$c] ?? null) ? $borrador[$c] : ($prefill[$c] ?? $defecto)));
     $fecha = fn (string $c) => old($c, $empresa->{$c}?->toDateString());
-    $elegidas = array_map('intval', (array) old('carreras', $borrador['carreras'] ?? ($propuestaAnterior ? $propuestaAnterior->dictamenes->pluck('carrera_id')->all() : [])));
+    // Carreras: en una renovación, las que ya tenía autorizadas; tras un rechazo, las que había pedido
+    $carrerasBase = match (true) {
+        $propuestaAnterior !== null => $propuestaAnterior->dictamenes->pluck('carrera_id')->all(),
+        $base !== null => $base->dictamenes->where('dictamen', \App\Enums\Dictamen::Aprobatorio)->pluck('carrera_id')->all(),
+        default => [],
+    };
+    $elegidas = array_map('intval', (array) old('carreras', filled($borrador['carreras'] ?? null) ? $borrador['carreras'] : $carrerasBase));
     $carrerasPorDivision = $carreras->groupBy(fn ($c) => $c->division->nombre);
     $faltanTotal = collect($faltantes)->flatten()->count();
     $nombres = S::atributos();
     $ast = '<span class="ml-0.5 text-rose-500" aria-hidden="true">*</span>';
     // Campo que falta para enviar: se resalta en ámbar
-    $falta = fn (string $seccionCampo, string $c) => in_array($c, $faltantes[$seccionCampo] ?? [], true) ? '!border-amber-300 bg-amber-50/40' : '';
+    $falta = fn (string $seccionCampo, string $c) => !($precargado && $seccionCampo === 'perfiles') && in_array($c, $faltantes[$seccionCampo] ?? [], true) ? '!border-amber-300 bg-amber-50/40' : '';
 @endphp
 
 <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xs" x-data="{ seccion: @js($actual) }" aria-labelledby="titulo-solicitud">
@@ -42,13 +67,14 @@
                     <button type="button" role="tab" x-on:click="seccion = '{{ $clave }}'" :aria-selected="(seccion === '{{ $clave }}').toString()"
                         class="flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25"
                         :class="seccion === '{{ $clave }}' ? 'border-udg-800 bg-udg-50/70 ring-1 ring-udg-800' : 'border-gray-200 hover:border-udg-200 hover:bg-gray-50'">
+                        @php $porRevisar = !$lista && $clave === 'perfiles' && $precargado; @endphp
                         <span @class(['flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
-                            'bg-emerald-600 text-white' => $lista, 'bg-gray-100 text-gray-500' => !$lista])>
+                            'bg-emerald-600 text-white' => $lista, 'bg-sky-100 text-sky-700' => $porRevisar, 'bg-gray-100 text-gray-500' => !$lista && !$porRevisar])>
                             @if ($lista)<x-dashboard.icono nombre="check" clase="size-4" />@else{{ $loop->iteration }}@endif
                         </span>
                         <span class="min-w-0">
                             <span class="block text-sm font-semibold leading-tight text-gray-900">{{ $nombre }}</span>
-                            <span @class(['block text-[11px]', 'text-emerald-700' => $lista, 'text-amber-700' => !$lista])>{{ $lista ? 'Completa' : 'Faltan ' . count($faltantes[$clave]) }}</span>
+                            <span @class(['block text-[11px]', 'text-emerald-700' => $lista, 'text-sky-700' => $porRevisar, 'text-amber-700' => !$lista && !$porRevisar])>{{ $lista ? 'Completa' : ($porRevisar ? 'Precargada · revisa y guarda' : 'Faltan ' . count($faltantes[$clave])) }}</span>
                         </span>
                     </button>
                 </li>
@@ -57,8 +83,17 @@
     </div>
 
     {{-- Qué le falta a la sección abierta --}}
+    @if ($precargado && !empty($faltantes['perfiles']))
+        <div x-show="seccion === 'perfiles'" x-cloak class="mx-5 mt-5 flex items-start gap-3 rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-900 ring-1 ring-inset ring-sky-200 sm:mx-6">
+            <x-dashboard.icono nombre="check" clase="mt-0.5 size-4 shrink-0" />
+            <div>
+                <p class="font-semibold">{{ $propuestaAnterior ? 'Precargamos tu propuesta anterior' : 'Precargamos los perfiles de tu convenio ' . ($base->folio ?? 'vigente') }}</p>
+                <p class="mt-0.5">{{ $propuestaAnterior ? 'Ajusta los objetivos y actividades según lo que dijo cada carrera y pulsa «Guardar y continuar».' : 'Carreras autorizadas, objetivos, actividades y plazas ya están llenos. Si renuevas igual, solo revísalos y pulsa «Guardar y continuar»; si quieres agregar una carrera o cambiar actividades, edítalo antes de guardar.' }}</p>
+            </div>
+        </div>
+    @endif
     @foreach (['generales', 'legales', 'perfiles'] as $clave)
-        @if (!empty($faltantes[$clave]))
+        @if (!empty($faltantes[$clave]) && !($clave === 'perfiles' && $precargado))
             <div x-show="seccion === '{{ $clave }}'" x-cloak class="mx-5 mt-5 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-inset ring-amber-200 sm:mx-6">
                 <p class="font-semibold">Para enviar la solicitud te falta:</p>
                 <p class="mt-0.5">{{ collect($faltantes[$clave])->map(fn ($c) => $nombres[preg_replace('/\.\d+$/', '', $c)] ?? $c)->unique()->join(', ', ' y ') }}.</p>
@@ -243,7 +278,7 @@
         x-data="{ elegidas: @js($elegidas) }">
         @csrf @method('PUT')
         <input type="hidden" name="_seccion" value="perfiles">
-        @if (!empty($propuestaAnterior))
+        @if (!empty($propuestaAnterior) && empty($propuestaCorregida))
             {{-- Viene de un rechazo: aquí es donde se corrige --}}
             <p class="rounded-xl border-l-4 border-rose-500 bg-rose-50 px-4 py-3 text-sm text-rose-900 ring-1 ring-inset ring-rose-200"><span class="font-semibold">Corrige aquí:</span> ajusta los objetivos y actividades según lo que dijo cada carrera (arriba) y vuelve a elegir las carreras.</p>
         @endif

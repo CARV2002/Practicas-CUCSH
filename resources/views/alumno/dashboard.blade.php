@@ -40,6 +40,9 @@
         </x-slot:acciones>
     </x-dashboard.encabezado>
 
+    {{-- Lo pendiente vive aquí, no en la campana --}}
+    <x-dashboard.por-atender />
+
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div class="space-y-6 xl:col-span-2">
 

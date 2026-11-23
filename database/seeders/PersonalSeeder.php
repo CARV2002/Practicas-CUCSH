@@ -6,26 +6,42 @@ use App\Enums\Rol;
 use App\Models\Carrera;
 use App\Models\Personal;
 use App\Models\User;
+use App\Support\Formatos;
 use Illuminate\Database\Seeder;
 
 /**
  * Cuentas de personal institucional para pruebas locales (contraseña: password123).
  *
- *   admin@test.com        Administrador (superusuario, alcance global)
- *   vinculacion@test.com  Vinculación / Lorena (solo convenios, alcance global)
- *   coord.abog@test.com   Coordinación de ABOG
- *   coord.crim@test.com   Coordinación de CRIM
- *   coord.demo@test.com   Coordinación de DEMO
+ *   admin@test.com          Administrador (superusuario, alcance global)
+ *   vinculacion@test.com    Vinculación / Lorena (solo convenios, alcance global)
+ *   coord.<clave>@test.com  Una coordinación por cada carrera del catálogo (15, de las 5 divisiones)
  *
  * Idempotente. Si una carrera aún no existe, su coordinador se crea en la siguiente corrida.
  */
 class PersonalSeeder extends Seeder
 {
-    /** Carreras con coordinador demo => [correo, nombre]. */
+    /** Coordinación de cada carrera real => [correo, titular]. */
     public const COORDINADORES = [
-        'ABOG' => ['coord.abog@test.com', 'Coordinación de Abogado'],
-        'CRIM' => ['coord.crim@test.com', 'Coordinación de Criminología'],
-        'DEMO' => ['coord.demo@test.com', 'Coordinación Demo'],
+        // División de Estudios Jurídicos
+        'ABOG' => ['coord.abog@test.com', 'Dra. Laura Méndez Ochoa'],
+        'ABOS' => ['coord.abos@test.com', 'Mtro. Ricardo Pulido Arana'],
+        'CRIM' => ['coord.crim@test.com', 'Dr. Javier Cervantes Lugo'],
+        // División de Estudios Políticos y Sociales
+        'LREI' => ['coord.lrei@test.com', 'Dra. Mónica Valadez Ríos'],
+        'EPYG' => ['coord.epyg@test.com', 'Mtro. Andrés Becerra Solís'],
+        'SOCI' => ['coord.soci@test.com', 'Dra. Gabriela Torres Anaya'],
+        // División de Estudios Históricos y Humanos
+        'HIST' => ['coord.hist@test.com', 'Dr. Fernando Quiroz Medina'],
+        'LETR' => ['coord.letr@test.com', 'Mtra. Elena Garibay Luna'],
+        'FILO' => ['coord.filo@test.com', 'Dr. Tomás Rentería Silva'],
+        'ANTR' => ['coord.antr@test.com', 'Dra. Rocío Navarro Peña'],
+        // División de Estudios de Estado y Sociedad
+        'GEOG' => ['coord.geog@test.com', 'Mtro. Luis Arellano Cortés'],
+        'COMP' => ['coord.comp@test.com', 'Mtra. Diana Sepúlveda Ruiz'],
+        // División de Cultura Internacional
+        'DIFL' => ['coord.difl@test.com', 'Mtra. Claire Dubois Martínez'],
+        'DILE' => ['coord.dile@test.com', 'Mtro. Kevin Herrera Walsh'],
+        'ESCR' => ['coord.escr@test.com', 'Mtra. Paulina Ibarra Esparza'],
     ];
 
     public function run(): void
@@ -76,7 +92,7 @@ class PersonalSeeder extends Seeder
         if (blank($carrera->coordinacion_correo)) {
             $carrera->update([
                 'coordinacion_correo' => $email,
-                'coordinacion_telefono' => '(33) 3819-3300 ext. 2' . str_pad((string) $carrera->id, 4, '0', STR_PAD_LEFT),
+                'coordinacion_telefono' => Formatos::telefonoConExtension('3338193300', '2' . str_pad((string) $carrera->id, 4, '0', STR_PAD_LEFT)),
             ]);
         }
 

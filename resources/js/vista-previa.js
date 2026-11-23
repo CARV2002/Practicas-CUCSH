@@ -8,6 +8,8 @@ const PATRON = /\/(archivos|documentos)\/\d+$|\/convenio\/\d+\/archivo$|\/report
 
 const OJO = '<svg class="size-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
 
+const DESCARGA = '<svg class="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg>';
+
 function esDocumento(enlace) {
     if (!(enlace instanceof HTMLAnchorElement) || !enlace.href) return false;
     let url;
@@ -26,9 +28,21 @@ function agregarBotonesVer(raiz = document) {
         enlace.dataset.sinVista = '';
         if (!enlace.title) enlace.title = 'Descargar';
 
+        // Si el enlace decía «Ver…», ahora es la descarga directa: que lo diga, para no tener dos «Ver documento»
+        const texto = enlace.textContent.trim().replace(/\s+/g, ' ');
+        const nombreArchivo = enlace.dataset.nombre || texto;
+        if (/^ver(\s|$)/i.test(texto)) {
+            enlace.dataset.nombre = nombreArchivo.replace(/^ver( documento)?\s*[·:-]?\s*/i, '') || 'Documento';
+            enlace.innerHTML = `${DESCARGA}<span>Descargar</span>`;
+            enlace.classList.add('inline-flex', 'items-center', 'gap-1.5');
+        }
+
         const ver = document.createElement('button');
         ver.type = 'button';
-        ver.className = 'js-ver-documento ml-1.5 inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-udg-50 px-2 py-0.5 align-middle text-xs font-semibold text-udg-800 ring-1 ring-inset ring-udg-100 transition duration-150 hover:-translate-y-px hover:bg-udg-800 hover:text-white hover:ring-udg-800 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-real-500/40 motion-reduce:transform-none';
+        // Junto a un botón, «Ver documento» es otro botón del mismo tamaño; junto a un enlace de texto, una etiqueta
+        ver.className = enlace.classList.contains('boton')
+            ? `${enlace.className} js-ver-documento ml-2 boton-secundario`
+            : 'js-ver-documento ml-1.5 inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-udg-50 px-2 py-0.5 align-middle text-xs font-semibold text-udg-800 ring-1 ring-inset ring-udg-100 transition duration-150 hover:-translate-y-px hover:bg-udg-800 hover:text-white hover:ring-udg-800 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-real-500/40 motion-reduce:transform-none';
         ver.innerHTML = `${OJO}<span>Ver documento</span>`;
         ver.setAttribute('aria-label', `Ver documento: ${enlace.textContent.trim().replace(/\s+/g, ' ') || 'archivo'}`);
         ver.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); abrir(enlace); });

@@ -225,7 +225,7 @@
                         </ul>
                         <div class="mt-4">
                             @if ($motivoPostular === null)
-                                <x-ui.aviso tipo="exito" titulo="¡Todo listo!">Ya puedes postularte. <a href="{{ route('alumno.oferta-programas') }}" class="font-semibold underline underline-offset-2">Ver programas de tu carrera</a></x-ui.aviso>
+                                <x-ui.aviso tipo="exito" :autocerrar="false" titulo="¡Todo listo!">Ya puedes postularte. <a href="{{ route('alumno.oferta-programas') }}" class="font-semibold underline underline-offset-2">Ver programas de tu carrera</a></x-ui.aviso>
                             @else
                                 <x-ui.aviso tipo="advertencia" titulo="Aún no puedes postularte">{{ $motivoPostular }}</x-ui.aviso>
                             @endif

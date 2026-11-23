@@ -129,11 +129,11 @@ test('la campana muestra a cada usuario solo sus propios avisos', function () {
     $this->lorena->notify(new AvisoOperativo('Nueva solicitud de convenio.', '/admin/lista-convenios'));
 
     $this->actingAs($this->empresaUser)->getJson(route('notificaciones.resumen'))
-        ->assertOk()->assertJsonPath('no_leidas', 1)->assertJsonPath('items.0.mensaje', 'Tu vacante fue aprobada.')
+        ->assertOk()->assertJsonPath('no_leidas', 1)->assertJsonPath('items.0.titulo', 'Tu vacante fue aprobada')
         ->assertJsonCount(1, 'items');
 
     $this->actingAs($this->lorena)->getJson(route('notificaciones.resumen'))
-        ->assertOk()->assertJsonPath('items.0.mensaje', 'Nueva solicitud de convenio.')->assertJsonCount(1, 'items');
+        ->assertOk()->assertJsonPath('items.0.titulo', 'Nueva solicitud de convenio')->assertJsonCount(1, 'items');
 
     $this->actingAs($this->coord)->getJson(route('notificaciones.resumen'))->assertOk()->assertJsonPath('no_leidas', 0);
 });

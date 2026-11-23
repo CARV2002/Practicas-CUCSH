@@ -403,12 +403,12 @@ class ConvenioWorkflow
                 // Rechazo del dictamen académico: la empresa puede ajustar sus actividades y volver a solicitar
                 $this->avisarEmpresa($convenio,
                     'Ninguna de las carreras que elegiste aprobó tu propuesta de convenio. Observaciones de las coordinaciones: ' . $observacionesAcademicas
-                    . ' Ajusta tus objetivos y actividades propuestas al perfil de las carreras en «Mi convenio» y envía una nueva solicitud; tu expediente se conserva.',
+                    . ' Qué hacer: Ajusta tus objetivos y actividades propuestas en «Mi convenio», sección «Perfiles requeridos» (marcada en rojo), y envía una nueva solicitud; tu expediente se conserva.',
                     correo: true,
                     asunto: 'Tu propuesta de convenio no fue aprobada: ajusta tus actividades',
                 );
             } else {
-                $this->avisarEmpresa($convenio, "Tu solicitud de convenio fue rechazada: {$motivo} Si deseas el convenio, deberás iniciar de nuevo todo el trámite: envía una nueva solicitud desde «Mi convenio»; tu expediente se conserva, pero las carreras vuelven a dictaminar.",
+                $this->avisarEmpresa($convenio, "Tu solicitud de convenio fue rechazada. Motivo: «{$motivo}». Qué hacer: si deseas el convenio, inicia de nuevo el trámite en «Mi convenio» (la solicitud viene precargada con tu propuesta anterior); tu expediente se conserva, pero las carreras vuelven a dictaminar.",
                     correo: true, asunto: 'Tu solicitud de convenio fue rechazada');
             }
 

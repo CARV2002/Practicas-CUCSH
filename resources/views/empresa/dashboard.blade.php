@@ -8,7 +8,7 @@
         (bool) $enTramite => 'Tu solicitud de convenio está en proceso: ' . mb_strtolower($enTramite->estado->etiquetaEmpresa()) . '.',
         default => 'Solicita tu convenio con el CUCSH para empezar a recibir practicantes.',
     };
-    // Mismo total que «Por atender» de la campana
+    // Mismo total que «Por atender» del panel
     $totalPendientes = \App\Support\Pendientes::total(auth()->user());
     $subtitulo .= $totalPendientes
         ? ' Tienes ' . $totalPendientes . ' ' . ($totalPendientes === 1 ? 'pendiente' : 'pendientes') . ' por atender.'
@@ -31,6 +31,9 @@
             <a href="{{ route('empresa.documentos') }}" class="boton border border-white/25 text-white hover:bg-white/10">Documentos</a>
         </x-slot:acciones>
     </x-dashboard.encabezado>
+
+    {{-- Lo pendiente vive aquí, no en la campana --}}
+    <x-dashboard.por-atender />
 
     {{-- Avisos --}}
     @if ($vigente && $diasRestantes <= 60)

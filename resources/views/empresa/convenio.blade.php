@@ -119,7 +119,17 @@
 
         @php $ultimoRechazo = $historial->first(fn ($h) => $h->estado === \App\Enums\ConvenioEstado::Rechazado); @endphp
         @php $propuestaAnterior = (!$vigente && !$enTramite && $ultimoRechazo && $historial->first()?->is($ultimoRechazo)) ? $ultimoRechazo : null; @endphp
-        @if ($propuestaAnterior)
+        @php
+            // ¿Ya corrigió? Guardó «Perfiles requeridos» completo después del rechazo: el aviso rojo desaparece
+            $guardadoPerfiles = ($empresa->solicitud_borrador['perfiles_guardado_at'] ?? null)
+                ? \Illuminate\Support\Carbon::parse($empresa->solicitud_borrador['perfiles_guardado_at'])
+                // Guardado antes de registrar la fecha: se toma la última actualización de la empresa
+                : (filled($empresa->solicitud_borrador['objetivos'] ?? null) ? $empresa->updated_at : null);
+            $propuestaCorregida = $propuestaAnterior && $guardadoPerfiles && $guardadoPerfiles->gte($propuestaAnterior->updated_at) && empty($faltantes['perfiles']);
+        @endphp
+        @if ($propuestaAnterior && $propuestaCorregida)
+            <x-ui.aviso tipo="exito" autocerrar="6000">Corregiste tu propuesta. {{ collect($faltantes)->flatten()->isEmpty() ? 'Ya puedes enviarla a Vinculación con el botón de abajo.' : 'Completa las secciones que faltan y envíala a Vinculación.' }}</x-ui.aviso>
+        @elseif ($propuestaAnterior)
             <x-ui.correccion titulo="Tu última solicitud fue rechazada" quien="Vinculación" :motivo="$propuestaAnterior->seguimientos->where('estado', \App\Enums\SeguimientoEstado::Rechazado)->last()?->comentario">
                 Puedes empezar el trámite de nuevo{{ $mostrarForm ? ' en la solicitud de abajo (sección «Perfiles requeridos», marcada en rojo)' : '' }}: la llenamos con tu propuesta anterior para que ajustes las actividades y elijas otra vez las carreras. Tu expediente se conserva; Vinculación lo revisa de nuevo y las carreras vuelven a dictaminar.
                 @php $negativos = $propuestaAnterior->dictamenes->where('dictamen', \App\Enums\Dictamen::Negativo)->filter(fn ($d) => filled($d->observaciones)); @endphp
