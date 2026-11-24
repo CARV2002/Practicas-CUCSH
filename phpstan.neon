@@ -1,0 +1,14 @@
+# Análisis estático (Larastan). Correr con:  vendor/bin/phpstan analyse
+# Nivel 5: revisa tipos de parámetros y retornos, propiedades y llamadas a métodos que no existen.
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - app
+        - routes
+        - database
+    tmpDir: storage/framework/cache/phpstan
+    # Los modelos declaran sus casts en el método casts() (estilo Laravel 11+): que Larastan los lea
+    parseModelCastsMethod: true

@@ -2,22 +2,23 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
     /**
-     * The current password being used by the factory.
+     * Contraseña compartida por los usuarios de prueba (se encripta una sola vez).
      */
     protected static ?string $password;
 
     /**
-     * Define the model's default state.
+     * Usuario de prueba con correo verificado.
      *
      * @return array<string, mixed>
      */
@@ -35,7 +36,7 @@ class UserFactory extends Factory
     }
 
     /**
-     * Indicate that the model's email address should be unverified.
+     * Variante con el correo sin verificar.
      */
     public function unverified(): static
     {

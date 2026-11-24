@@ -17,6 +17,7 @@ use App\Enums\PracticaEstado;
 use App\Enums\ProgramaEstado;
 use App\Enums\Rol;
 use App\Enums\TipoOrganismo;
+use App\Enums\Turno;
 use App\Enums\ValidacionEstado;
 use App\Models\Alumno;
 use App\Models\Carrera;
@@ -32,6 +33,7 @@ use App\Notifications\AvisoOperativo;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
 function pcPdf(string $nombre = 'doc.pdf'): UploadedFile
@@ -75,7 +77,7 @@ function pcAlumno(Carrera $carrera, string $codigo, bool $imssValidado = true): 
 /** Texto plano de un .docx (para revisar el contenido de la carta). */
 function pcTextoDocx(string $ruta): string
 {
-    $zip = new ZipArchive();
+    $zip = new ZipArchive;
     $zip->open($ruta);
     $xml = $zip->getFromName('word/document.xml');
     $zip->close();
@@ -205,7 +207,7 @@ test('el alumno captura grado y turno desde su perfil', function () {
         ->assertSessionHasNoErrors();
 
     expect($alumno->refresh()->grado)->toBe(8)
-        ->and($alumno->turno)->toBe(\App\Enums\Turno::Mixto);
+        ->and($alumno->turno)->toBe(Turno::Mixto);
     $this->actingAs($alumno->user)->get(route('profile.edit'))->assertOk()->assertSee('Datos escolares');
 });
 
@@ -255,7 +257,7 @@ test('si el IMSS vence antes de emitir la carta, la carta se bloquea hasta renov
 });
 
 test('la coordinación revisa kardex e IMSS juntos: devuelve con motivo y el alumno reemplaza solo el que falló', function () {
-    \Illuminate\Support\Facades\Notification::fake();
+    Notification::fake();
     [$u] = [pcUsuario(Rol::Alumno)];
     $alumno = Alumno::create(['user_id' => $u->id, 'carrera_id' => $this->abog->id, 'num_control' => '215100009', 'grado' => 7, 'turno' => 'vespertino']);
 
@@ -264,7 +266,7 @@ test('la coordinación revisa kardex e IMSS juntos: devuelve con motivo y el alu
         'porcentaje_creditos' => 70, 'kardex' => pcPdf('kardex-2025B.pdf'),
         'imss' => pcPdf('imss.pdf'), 'vigencia_imss' => now()->addYear()->toDateString(),
     ])->assertSessionHasNoErrors();
-    \Illuminate\Support\Facades\Notification::assertSentTo($this->coordAbog, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'envió su kardex y su constancia IMSS'));
+    Notification::assertSentTo($this->coordAbog, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'envió su kardex y su constancia IMSS'));
     $this->actingAs($this->coordAbog)->get(route('coordinacion.lista-practicantes'))->assertSee('Expedientes por revisar')->assertSee('Ambos correctos: autorizar al alumno');
 
     // Devolver exige qué documento y por qué
@@ -277,7 +279,7 @@ test('la coordinación revisa kardex e IMSS juntos: devuelve con motivo y el alu
     $alumno->refresh();
     expect($alumno->estadoExpediente())->toBe('devuelto')
         ->and($alumno->documentoVigente('constancia_imss')->getCustomProperty('estado'))->toBeNull();   // el IMSS no se tocó
-    \Illuminate\Support\Facades\Notification::assertSentTo($u, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'ciclo anterior'));
+    Notification::assertSentTo($u, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'ciclo anterior'));
 
     // Devuelto: no puede postularse ni se puede autorizar
     $this->actingAs($u->fresh())->post(route('alumno.oferta-programas.postular', ($this->programa)()), ['siiau' => '1'])->assertSessionHasErrors('postulacion');
@@ -285,11 +287,11 @@ test('la coordinación revisa kardex e IMSS juntos: devuelve con motivo y el alu
 
     // Reemplaza solo el kardex; la coordinación recibe aviso y autoriza
     $this->actingAs($u->fresh())->post(route('alumno.documentos.kardex'), ['archivo' => pcPdf('kardex-2026A.pdf')])->assertSessionHasNoErrors();
-    \Illuminate\Support\Facades\Notification::assertSentTo($this->coordAbog, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'reemplazó el kardex'));
+    Notification::assertSentTo($this->coordAbog, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'reemplazó el kardex'));
     $this->actingAs($this->coordAbog)->post(route('coordinacion.alumnos.expediente', $alumno), ['decision' => 'autorizar'])->assertSessionHasNoErrors();
 
     expect($alumno->fresh()->expedienteValidado())->toBeTrue();
-    \Illuminate\Support\Facades\Notification::assertSentTo($u, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'Ya puedes postularte'));
+    Notification::assertSentTo($u, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'Ya puedes postularte'));
 
     // Ya validados: no tiene caso reemplazarlos
     $this->actingAs($u->fresh())->post(route('alumno.documentos.kardex'), ['archivo' => pcPdf('otro.pdf')])->assertSessionHasErrors('archivo');
@@ -374,11 +376,11 @@ test('cada coordinación emite su dictamen; Vinculación registra los turnos y y
 
     // La coordinación ve la propuesta y dictamina solo su carrera
     $this->actingAs($this->coordAbog)->get(route('coordinacion.lista-dictamenes'))->assertOk()->assertSee('Análisis de casos');
-    $this->actingAs($this->coordAbog)->post(route('coordinacion.dictamenes.registrar', $dCrim), ['dictamen' => 'aprobatorio', 'documento' => \Illuminate\Http\UploadedFile::fake()->create('dictamen.pdf', 40, 'application/pdf')])->assertForbidden();
-    $this->actingAs($this->vinculacion)->post(route('coordinacion.dictamenes.registrar', $dAbog), ['dictamen' => 'aprobatorio', 'documento' => \Illuminate\Http\UploadedFile::fake()->create('dictamen.pdf', 40, 'application/pdf')])->assertForbidden();
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.dictamenes.registrar', $dCrim), ['dictamen' => 'aprobatorio', 'documento' => UploadedFile::fake()->create('dictamen.pdf', 40, 'application/pdf')])->assertForbidden();
+    $this->actingAs($this->vinculacion)->post(route('coordinacion.dictamenes.registrar', $dAbog), ['dictamen' => 'aprobatorio', 'documento' => UploadedFile::fake()->create('dictamen.pdf', 40, 'application/pdf')])->assertForbidden();
 
-    $this->actingAs($this->coordAbog)->post(route('coordinacion.dictamenes.registrar', $dAbog), ['dictamen' => 'aprobatorio', 'documento' => \Illuminate\Http\UploadedFile::fake()->create('dictamen.pdf', 40, 'application/pdf')])->assertSessionHasNoErrors();
-    $this->actingAs($this->coordCrim)->post(route('coordinacion.dictamenes.registrar', $dCrim), ['dictamen' => 'negativo', 'documento' => \Illuminate\Http\UploadedFile::fake()->create('dictamen.pdf', 40, 'application/pdf'), 'observaciones' => 'No afín'])
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.dictamenes.registrar', $dAbog), ['dictamen' => 'aprobatorio', 'documento' => UploadedFile::fake()->create('dictamen.pdf', 40, 'application/pdf')])->assertSessionHasNoErrors();
+    $this->actingAs($this->coordCrim)->post(route('coordinacion.dictamenes.registrar', $dCrim), ['dictamen' => 'negativo', 'documento' => UploadedFile::fake()->create('dictamen.pdf', 40, 'application/pdf'), 'observaciones' => 'No afín'])
         ->assertSessionHasNoErrors();
 
     expect($dAbog->refresh()->dictamen)->toBe(Dictamen::Aprobatorio)
@@ -387,7 +389,7 @@ test('cada coordinación emite su dictamen; Vinculación registra los turnos y y
     Notification::assertSentTo($this->vinculacion, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'Ya están todos los dictámenes'));
 
     // Vinculación solo da seguimiento: ya no hay ruta para capturar
-    expect(\Illuminate\Support\Facades\Route::has('admin.dictamenes.registrar'))->toBeFalse();
+    expect(Route::has('admin.dictamenes.registrar'))->toBeFalse();
     $this->actingAs($this->vinculacion)->get(route('admin.lista-dictamenes', ['dictamen' => 'todos']))->assertOk()->assertDontSee('Emitir dictamen');
 });
 
@@ -426,16 +428,16 @@ test('los convenios vigentes son públicos y el alumno ve a su coordinación', f
     $cv->dictamenes()->create(['carrera_id' => $this->crim->id, 'dictamen' => Dictamen::Aprobatorio]);
 
     // El panel del alumno ya no lleva lista de convenios: la oferta de programas muestra las empresas de su carrera
-    expect(\Illuminate\Support\Facades\Route::has('alumno.convenios-vigentes'))->toBeFalse();
+    expect(Route::has('alumno.convenios-vigentes'))->toBeFalse();
 
     $this->actingAs($alumno->user)->get(route('alumno.dashboard'))
         ->assertOk()->assertSee('Tu coordinación')->assertSee('coordinacion.abogado@csh.udg.mx')
-        ->assertSee('to=' . rawurlencode('coordinacion.abogado@csh.udg.mx'), false)
+        ->assertSee('to='.rawurlencode('coordinacion.abogado@csh.udg.mx'), false)
         ->assertSee('Copiar correo');
 
     // El sitio público: Estudiantes enlaza a la lista de convenios vigentes y al directorio (en Contacto)
     $this->get(route('estudiantes'))->assertOk()
-        ->assertSee(route('convenios-vigentes'))->assertSee(route('contacto') . '#directorio', false);
+        ->assertSee(route('convenios-vigentes'))->assertSee(route('contacto').'#directorio', false);
     $this->get(route('convenios-vigentes'))->assertOk()
         ->assertSee('Despacho Ejemplo S.C.')->assertSee('Solo Criminologia A.C.');
     $this->get(route('contacto'))->assertOk()->assertSee('Escribe a tu coordinación')->assertSee('coordinacion.abogado@csh.udg.mx');

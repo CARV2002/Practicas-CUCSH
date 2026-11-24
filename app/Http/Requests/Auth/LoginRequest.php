@@ -1,21 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
+use App\Services\Auditoria;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 
+/**
+ * Inicio de sesión: valida correo y contraseña y limita los intentos fallidos.
+ */
 class LoginRequest extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
+     * Cualquiera puede intentar iniciar sesión.
      */
     public function authorize(): bool
     {
@@ -23,7 +29,7 @@ class LoginRequest extends FormRequest
     }
 
     /**
-     * Get the validation rules that apply to the request.
+     * Reglas de validación.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
@@ -36,7 +42,7 @@ class LoginRequest extends FormRequest
     }
 
     /**
-     * Attempt to authenticate the request's credentials.
+     * Revisa correo y contraseña; si fallan, suma un intento al límite.
      *
      * @throws ValidationException
      */
@@ -47,8 +53,8 @@ class LoginRequest extends FormRequest
         // Solo se revela después de acertar la contraseña, así no se filtra qué correos existen.
         $user = User::where('email', $this->string('email')->lower()->toString())->first();
 
-        if ($user && !$user->activo && Hash::check($this->string('password')->toString(), $user->password)) {
-            \App\Services\Auditoria::registrar('acceso.cuenta_inactiva', "Intento de acceso a la cuenta desactivada {$user->email}", $user, actor: $user);
+        if ($user && ! $user->activo && Hash::check($this->string('password')->toString(), $user->password)) {
+            Auditoria::registrar('acceso.cuenta_inactiva', "Intento de acceso a la cuenta desactivada {$user->email}", $user, actor: $user);
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
@@ -57,7 +63,7 @@ class LoginRequest extends FormRequest
         }
 
         // Cuenta sin perfil (su alumno, empresa o personal se eliminó): se trata como si no existiera
-        if ($user && !$user->tienePerfil()) {
+        if ($user && ! $user->tienePerfil()) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
@@ -66,7 +72,7 @@ class LoginRequest extends FormRequest
         }
 
         if (
-            !Auth::attempt(
+            ! Auth::attempt(
                 [...$this->only('email', 'password'), 'activo' => true],
                 $this->boolean('remember')
             )
@@ -82,13 +88,13 @@ class LoginRequest extends FormRequest
     }
 
     /**
-     * Ensure the login request is not rate limited.
+     * Tras 5 intentos fallidos se bloquea el acceso un rato (protege contra adivinar contraseñas).
      *
      * @throws ValidationException
      */
     public function ensureIsNotRateLimited(): void
     {
-        if (!RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
             return;
         }
 
@@ -105,10 +111,10 @@ class LoginRequest extends FormRequest
     }
 
     /**
-     * Get the rate limiting throttle key for the request.
+     * Los intentos se cuentan por correo + IP.
      */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email')) . '|' . $this->ip());
+        return Str::transliterate(Str::lower($this->string('email')->toString()).'|'.$this->ip());
     }
 }

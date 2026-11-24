@@ -1,6 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Enums;
+
+use App\Support\Estatus;
 
 /**
  * Ciclo de una vacante:
@@ -30,7 +34,7 @@ enum ProgramaEstado: string
     public function color(): string
     {
         // Compatibilidad: mismas clases pastel que <x-ui.estatus>
-        return \App\Support\Estatus::chip($this->familia()).' ring-1 ring-inset';
+        return Estatus::chip($this->familia()).' ring-1 ring-inset';
     }
 
     /** Familia de color pastel para la insignia de estatus (DESIGN_SYSTEM.md §1.4). */

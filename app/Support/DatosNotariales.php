@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 use App\Enums\TipoOrganismo;
@@ -31,13 +33,13 @@ class DatosNotariales
         $escritura = [TipoOrganismo::Privado->value, TipoOrganismo::SociedadCivil->value];
 
         return [
-            'escritura_numero' => [Rule::requiredIf(fn () => in_array(request($campoTipo), $escritura, true)), 'nullable', 'regex:' . Formatos::NUMERO],
+            'escritura_numero' => [Rule::requiredIf(fn () => in_array(request($campoTipo), $escritura, true)), 'nullable', 'regex:'.Formatos::NUMERO],
             'escritura_fecha' => [Rule::requiredIf(fn () => in_array(request($campoTipo), $escritura, true)), 'nullable', 'date', 'before_or_equal:today'],
-            'notario_nombre' => [Rule::requiredIf(fn () => in_array(request($campoTipo), $escritura, true)), 'nullable', 'string', 'min:5', 'max:' . Formatos::MAX_NOMBRE_PERSONA, 'regex:' . Formatos::NOMBRE_PERSONA],
-            'notaria_numero' => [Rule::requiredIf(fn () => in_array(request($campoTipo), $escritura, true)), 'nullable', 'regex:' . Formatos::NUMERO],
-            'notaria_ciudad' => [Rule::requiredIf(fn () => in_array(request($campoTipo), $escritura, true)), 'nullable', 'string', 'max:120', 'regex:' . Formatos::TEXTO_LETRAS],
-            'folio_mercantil' => ['nullable', 'regex:' . Formatos::FOLIO],
-            'constitucion' => [Rule::requiredIf(fn () => !in_array(request($campoTipo), $escritura, true)), 'nullable', 'string', 'min:15', 'max:1500'],
+            'notario_nombre' => [Rule::requiredIf(fn () => in_array(request($campoTipo), $escritura, true)), 'nullable', 'string', 'min:5', 'max:'.Formatos::MAX_NOMBRE_PERSONA, 'regex:'.Formatos::NOMBRE_PERSONA],
+            'notaria_numero' => [Rule::requiredIf(fn () => in_array(request($campoTipo), $escritura, true)), 'nullable', 'regex:'.Formatos::NUMERO],
+            'notaria_ciudad' => [Rule::requiredIf(fn () => in_array(request($campoTipo), $escritura, true)), 'nullable', 'string', 'max:120', 'regex:'.Formatos::TEXTO_LETRAS],
+            'folio_mercantil' => ['nullable', 'regex:'.Formatos::FOLIO],
+            'constitucion' => [Rule::requiredIf(fn () => ! in_array(request($campoTipo), $escritura, true)), 'nullable', 'string', 'min:15', 'max:1500'],
         ];
     }
 
@@ -63,7 +65,7 @@ class DatosNotariales
      */
     public static function preparar(array $datos, TipoOrganismo|string|null $tipo): array
     {
-        if (!self::usaEscritura($tipo)) {
+        if (! self::usaEscritura($tipo)) {
             return array_merge($datos, array_fill_keys(self::CAMPOS, null));
         }
 
@@ -80,9 +82,9 @@ class DatosNotariales
         $d['notario_nombre'] = preg_replace('/^\s*lic(enciad[oa])?\.?\s+/iu', '', (string) $d['notario_nombre']);
         $fecha = Carbon::parse($d['escritura_fecha'])->locale('es')->translatedFormat('j \d\e F \d\e Y');
         $texto = "la escritura pública número {$d['escritura_numero']} de fecha {$fecha}, otorgada ante la fe del Lic. {$d['notario_nombre']}, "
-            . "Notario Público número {$d['notaria_numero']} de {$d['notaria_ciudad']}";
+            ."Notario Público número {$d['notaria_numero']} de {$d['notaria_ciudad']}";
 
-        return $texto . (filled($d['folio_mercantil'] ?? null)
+        return $texto.(filled($d['folio_mercantil'] ?? null)
             ? ", inscrita en el Registro Público de Comercio bajo el folio mercantil {$d['folio_mercantil']}"
             : '');
     }

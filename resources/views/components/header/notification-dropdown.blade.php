@@ -3,33 +3,7 @@
     panel y en cada sección, no aquí, para no duplicarlo. Las leídas de hace más de una semana se archivan
     y solo se ven en «Ver todas las notificaciones».
 --}}
-<div class="relative" x-data="{
-    abierto: false,
-    cargando: false,
-    noLeidas: 0,
-    items: [],
-    async cargar() {
-        this.cargando = true;
-        try {
-            const r = await fetch('{{ route('notificaciones.resumen') }}', { headers: { 'Accept': 'application/json' } });
-            const d = await r.json();
-            this.noLeidas = d.no_leidas;
-            this.items = d.items;
-        } finally { this.cargando = false; }
-    },
-    async toggle() {
-        this.abierto = !this.abierto;
-        if (this.abierto) await this.cargar();
-    },
-    async leerTodas() {
-        await fetch('{{ route('notificaciones.leer-todas') }}', {
-            method: 'POST',
-            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content }
-        });
-        await this.cargar();
-    },
-    init() { this.cargar(); setInterval(() => this.cargar(), 60000); }
-}" @click.away="abierto = false">
+<div class="relative" x-data="notificaciones(@js(['resumen' => route('notificaciones.resumen'), 'leerTodas' => route('notificaciones.leer-todas')]))" @click.away="abierto = false">
 
     <button type="button" @click="toggle()"
         :aria-expanded="abierto.toString()"

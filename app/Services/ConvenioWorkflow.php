@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Enums\ConvenioEstado;
@@ -64,7 +66,7 @@ class ConvenioWorkflow
 
             // Un dictamen "pendiente" por cada carrera solicitada
             $convenio->dictamenes()->createMany(array_map(
-                fn(int $id) => ['carrera_id' => $id, 'dictamen' => Dictamen::Pendiente],
+                fn (int $id) => ['carrera_id' => $id, 'dictamen' => Dictamen::Pendiente],
                 $carreraIds
             ));
 
@@ -83,7 +85,7 @@ class ConvenioWorkflow
             $convenio = $this->bloquear($convenio);
             $this->exigirEstado($convenio, ConvenioEstado::Solicitado);
 
-            if (!$convenio->empresa->expedienteCompleto()) {
+            if (! $convenio->empresa->expedienteCompleto()) {
                 $this->fallar('El expediente de la empresa está incompleto o tiene documentos sin validar.');
             }
 
@@ -118,7 +120,7 @@ class ConvenioWorkflow
      */
     public function registrarTurnos(Convenio $convenio, Personal $por, ?CarbonInterface $secretaria, ?CarbonInterface $division): Convenio
     {
-        return DB::transaction(function () use ($convenio, $por, $secretaria, $division) {
+        return DB::transaction(function () use ($convenio, $secretaria, $division) {
             $convenio = $this->bloquear($convenio);
             $this->exigirEstado($convenio, ConvenioEstado::EnValidacionAcademica);
 
@@ -151,7 +153,7 @@ class ConvenioWorkflow
                 $this->fallar('Este dictamen ya fue emitido y no se puede modificar.');
             }
 
-            if (!$por->puedeVerCarrera((int) $dictamen->carrera_id)) {
+            if (! $por->puedeVerCarrera((int) $dictamen->carrera_id)) {
                 $this->fallar('No tienes alcance para dictaminar esta carrera.');
             }
 
@@ -173,7 +175,7 @@ class ConvenioWorkflow
             $pendientes = $convenio->dictamenesPendientes();
             Avisos::enviar(Avisos::vinculacionDe($convenio), new AvisoOperativo(
                 mensaje: "La Coordinación de {$dictamen->carrera->carrera_clave} emitió dictamen {$resultado->value} para {$convenio->empresa->razon_social}."
-                    . ($pendientes > 0 ? " Faltan {$pendientes} carrera(s)." : ' Ya están todos los dictámenes.'),
+                    .($pendientes > 0 ? " Faltan {$pendientes} carrera(s)." : ' Ya están todos los dictámenes.'),
                 url: route('admin.convenios.show', $convenio, false),
                 detalle: $convenio->empresa->razon_social,
             ));
@@ -183,7 +185,7 @@ class ConvenioWorkflow
             }
 
             // Fase 3.1 — "Si todas rechazaron, el proceso muere"
-            if (!$convenio->tieneAprobatorio()) {
+            if (! $convenio->tieneAprobatorio()) {
                 $this->rechazar($convenio, $por, 'Todas las carreras emitieron dictamen negativo.', $this->observacionesNegativas($convenio));
 
                 return $convenio->refresh();
@@ -202,8 +204,8 @@ class ConvenioWorkflow
                 ? $this->avisarEmpresa($convenio, 'Las carreras emitieron su dictamen. Estamos redactando tu convenio.')
                 : $this->avisarEmpresa(
                     $convenio,
-                    'Las carreras emitieron su dictamen. Seguimos con tu convenio solo para las carreras que lo aprobaron. Estas no lo aprobaron: ' . $negativas
-                        . ' Si quieres incluirlas más adelante, ajusta tus objetivos y actividades a su perfil y envía una nueva solicitud cuando este convenio quede formalizado.',
+                    'Las carreras emitieron su dictamen. Seguimos con tu convenio solo para las carreras que lo aprobaron. Estas no lo aprobaron: '.$negativas
+                        .' Si quieres incluirlas más adelante, ajusta tus objetivos y actividades a su perfil y envía una nueva solicitud cuando este convenio quede formalizado.',
                     correo: true,
                     asunto: 'Dictamen académico de tu convenio: carreras no aprobadas',
                 );
@@ -223,11 +225,11 @@ class ConvenioWorkflow
                 $this->fallar('No hay un borrador pendiente de turnar.');
             }
 
-            if (!$convenio->puedePasarAJuridica()) {
+            if (! $convenio->puedePasarAJuridica()) {
                 $this->fallar('Faltan dictámenes por carrera o ninguna resultó aprobatoria.');
             }
 
-            if (!$convenio->media()->where('collection_name', 'borrador_convenio')->exists()) {
+            if (! $convenio->media()->where('collection_name', 'borrador_convenio')->exists()) {
                 $this->fallar('Adjunta el borrador del convenio antes de turnarlo.');
             }
 
@@ -282,7 +284,7 @@ class ConvenioWorkflow
     /** Fase 4.1 / 4.2 — Firma de la empresa (3 juegos) y firma de Rectoría. */
     public function registrarFirma(Convenio $convenio, EtapaConvenio $etapa, Personal $por, ?string $comentario = null): Convenio
     {
-        if (!in_array($etapa, [EtapaConvenio::FirmaEmpresa, EtapaConvenio::FirmaRectoria], true)) {
+        if (! in_array($etapa, [EtapaConvenio::FirmaEmpresa, EtapaConvenio::FirmaRectoria], true)) {
             $this->fallar('Solo se registran firmas de la empresa o de Rectoría.');
         }
 
@@ -332,7 +334,7 @@ class ConvenioWorkflow
                 $this->fallar('Aún faltan firmas por registrar.');
             }
 
-            if (!$convenio->media()->where('collection_name', 'convenio_firmado')->exists()) {
+            if (! $convenio->media()->where('collection_name', 'convenio_firmado')->exists()) {
                 $this->fallar('Adjunta el escaneo del convenio firmado.');
             }
 
@@ -356,7 +358,7 @@ class ConvenioWorkflow
             $this->moverFisico($convenio, TipoDocumentoFisico::DictamenJuridico, EstadoDocumentoFisico::Archivado, $por, 'Convenio formalizado: el expediente jurídico concluye.');
             // El juego 1 se queda en la carpeta de Vinculación: también concluye. Los juegos 2 y 3 siguen hasta entregarse.
             $juegoPropio = $convenio->documentosFisicos()->where('tipo', TipoDocumentoFisico::JuegoConvenio->value)->where('juego', 1)->first();
-            if ($juegoPropio && !in_array($juegoPropio->estado->value, EstadoDocumentoFisico::concluidos(), true)) {
+            if ($juegoPropio && ! in_array($juegoPropio->estado->value, EstadoDocumentoFisico::concluidos(), true)) {
                 $juegoPropio->mover(EstadoDocumentoFisico::Archivado, $por, 'Convenio formalizado: el juego de Vinculación queda en su archivo.');
             }
             $this->avisarEmpresa($convenio, "Tu convenio quedó formalizado (folio {$folio}), vigente del {$inicio->format('d/m/Y')} al {$fin->format('d/m/Y')}. Ya puedes proponer vacantes para las carreras aprobadas.");
@@ -402,8 +404,8 @@ class ConvenioWorkflow
             if ($observacionesAcademicas !== null) {
                 // Rechazo del dictamen académico: la empresa puede ajustar sus actividades y volver a solicitar
                 $this->avisarEmpresa($convenio,
-                    'Ninguna de las carreras que elegiste aprobó tu propuesta de convenio. Observaciones de las coordinaciones: ' . $observacionesAcademicas
-                    . ' Qué hacer: Ajusta tus objetivos y actividades propuestas en «Mi convenio», sección «Perfiles requeridos» (marcada en rojo), y envía una nueva solicitud; tu expediente se conserva.',
+                    'Ninguna de las carreras que elegiste aprobó tu propuesta de convenio. Observaciones de las coordinaciones: '.$observacionesAcademicas
+                    .' Qué hacer: Ajusta tus objetivos y actividades propuestas en «Mi convenio», sección «Perfiles requeridos» (marcada en rojo), y envía una nueva solicitud; tu expediente se conserva.',
                     correo: true,
                     asunto: 'Tu propuesta de convenio no fue aprobada: ajusta tus actividades',
                 );
@@ -459,7 +461,7 @@ class ConvenioWorkflow
     private function observacionesNegativas(Convenio $convenio): string
     {
         return $convenio->dictamenes()->where('dictamen', Dictamen::Negativo->value)->with('carrera')->get()
-            ->map(fn (ConvenioCarrera $d) => "{$d->carrera->nombre}: " . rtrim(trim((string) $d->observaciones), '.') . '.')
+            ->map(fn (ConvenioCarrera $d) => "{$d->carrera->nombre}: ".rtrim(trim((string) $d->observaciones), '.').'.')
             ->join(' ');
     }
 
@@ -482,7 +484,7 @@ class ConvenioWorkflow
         Avisos::enviar($vinculacion, new NuevaSolicitudConvenio($convenio));
 
         $buzon = config('practicas.contacto.correo');
-        if ($buzon && !$vinculacion->contains(fn($u) => strcasecmp($u->email, $buzon) === 0)) {
+        if ($buzon && ! $vinculacion->contains(fn ($u) => strcasecmp($u->email, $buzon) === 0)) {
             Avisos::enviarCorreo($buzon, new NuevaSolicitudConvenio($convenio));
         }
     }
@@ -523,7 +525,7 @@ class ConvenioWorkflow
         $abierta->update([
             'estado' => $resultado,
             'fecha_resolucion' => today(),
-            'registrado_por' => $por?->id ?? $abierta->registrado_por,
+            'registrado_por' => $por->id ?? $abierta->registrado_por,
             'comentario' => $comentario ?? $abierta->comentario,
         ]);
 
@@ -566,8 +568,8 @@ class ConvenioWorkflow
 
     private function exigirEstado(Convenio $convenio, ConvenioEstado ...$permitidos): void
     {
-        if (!in_array($convenio->estado, $permitidos, true)) {
-            $esperado = implode(' o ', array_map(fn(ConvenioEstado $e) => $e->label(), $permitidos));
+        if (! in_array($convenio->estado, $permitidos, true)) {
+            $esperado = implode(' o ', array_map(fn (ConvenioEstado $e) => $e->label(), $permitidos));
             $this->fallar("El convenio está «{$convenio->estado->label()}»; este paso requiere: {$esperado}.");
         }
     }

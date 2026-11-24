@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Alumno;
 
 use App\Enums\PostulacionEstado;
@@ -8,10 +10,15 @@ use App\Enums\ReporteEstado;
 use App\Enums\ValidacionEstado;
 use App\Http\Controllers\Controller;
 use App\Models\Practica;
+use App\Support\Pendientes;
+use App\Support\Requisitos;
 use App\Support\TramiteAlumno;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
+/**
+ * Panel del alumno: en qué paso de su trámite va, avance de horas y lo que tiene por atender.
+ */
 class DashboardController extends Controller
 {
     public function index(Request $request): View
@@ -45,6 +52,9 @@ class DashboardController extends Controller
             'practica' => $practica,
             'enTramite' => $enTramite,
             'saludo' => explode(' ', trim($user->name))[0],
+            'pendientes' => Pendientes::de($user),
+            // Por qué la oferta todavía no se abre (null = ya puede postularse)
+            'bloqueoOferta' => Requisitos::alumnoVerOferta($alumno),
             'imssOk' => $imssEstado === ValidacionEstado::Validada->value
                 && $alumno->tieneImssVigenteHasta(now()),
         ];

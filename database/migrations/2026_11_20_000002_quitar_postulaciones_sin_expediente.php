@@ -22,7 +22,7 @@ return new class extends Migration
             ->filter(fn (Postulacion $po) => $po->practica === null
                 && $po->getMedia('carta_presentacion')->isEmpty()
                 && $po->alumno instanceof Alumno
-                && !$po->alumno->expedienteValidado())
+                && ! $po->alumno->expedienteValidado())
             ->each(fn (Postulacion $po) => $po->delete());
     }
 

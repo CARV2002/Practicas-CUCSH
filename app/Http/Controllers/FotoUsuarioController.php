@@ -1,15 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Enums\Rol;
 use App\Models\Postulacion;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Foto de perfil (disco privado): la ve el dueño, el administrador y quien trata con esa persona en el proceso
+ * (su coordinación, Vinculación con el personal y las organizaciones, la empresa con sus postulantes).
+ */
 class FotoUsuarioController extends Controller
 {
-    public function __invoke(Request $request, User $user)
+    public function __invoke(Request $request, User $user): Response
     {
         abort_unless($this->puedeVer($request->user(), $user), 403);
 

@@ -1,19 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Coordinacion;
 
-use App\Enums\PostulacionEstado;
 use App\Enums\PracticaEstado;
 use App\Enums\ProgramaEstado;
-use App\Enums\ReporteEstado;
-use App\Enums\ValidacionEstado;
 use App\Http\Controllers\Controller;
 use App\Models\Alumno;
 use App\Models\Carrera;
-use App\Models\Postulacion;
 use App\Models\Practica;
 use App\Models\Programa;
-use App\Models\Reporte;
+use App\Support\Pendientes;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -24,7 +22,7 @@ class DashboardController extends Controller
     {
         $personal = $request->user()->personal;
         $ids = $personal->carreraIdsEnAlcance();
-        $enAlcance = fn($q) => $ids === null ? $q : $q->whereIn('carrera_id', $ids);
+        $enAlcance = fn ($q) => $ids === null ? $q : $q->whereIn('carrera_id', $ids);
 
         $publicados = $enAlcance(Programa::conCuposOcupados())
             ->where('estado', ProgramaEstado::Publicado->value)
@@ -46,13 +44,13 @@ class DashboardController extends Controller
                 'cupos_totales' => $totalCupos,
             ],
             // Misma fuente que la campana: el saludo y las tarjetas siempre coinciden
-            'pendientes' => $pendientes = \App\Support\Pendientes::conteosCoordinacion($personal),
-            'totalPendientes' => \App\Support\Pendientes::totalCoordinacion($pendientes),
+            'pendientes' => $pendientes = Pendientes::conteosCoordinacion($personal),
+            'totalPendientes' => Pendientes::totalCoordinacion($pendientes),
             'programas_recientes' => $enAlcance(Programa::with(['convenio.empresa', 'carrera'])->conCuposOcupados())
                 ->latest('id')
                 ->limit(5)
                 ->get(),
-            'practicas_por_estado' => collect(PracticaEstado::cases())->mapWithKeys(fn($e) => [
+            'practicas_por_estado' => collect(PracticaEstado::cases())->mapWithKeys(fn ($e) => [
                 $e->label() => Practica::visiblesPara($personal)->where('estado', $e->value)->count(),
             ]),
         ]);

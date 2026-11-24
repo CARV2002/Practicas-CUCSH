@@ -176,7 +176,7 @@
                                         <p class="text-sm font-semibold text-gray-900">{{ \App\Models\Empresa::nombreDocumento($col) }}@unless ($obligatorio)<span class="ml-1 font-normal text-gray-400">(opcional)</span>@endunless</p>
                                         @if ($media)
                                             <a href="{{ route('admin.convenios.archivos.descargar', [$convenio, $media]) }}" class="inline-flex max-w-full items-center gap-1 text-xs font-semibold text-real-600 hover:text-real-700">
-                                                <x-dashboard.icono nombre="documento" clase="size-3.5 shrink-0" /><span class="truncate">{{ $media->file_name }}</span>
+                                                <x-dashboard.icono nombre="documento" clase="size-3.5 shrink-0" /><span class="truncate" title="{{ $media->file_name }}">{{ $media->file_name }}</span>
                                             </a>
                                             @if ($emision)
                                                 <p @class(['text-xs', 'font-semibold text-rose-600' => $emision->lt(today()->subMonths(3)), 'text-gray-500' => !$emision->lt(today()->subMonths(3))])>
@@ -233,7 +233,7 @@
                 @if ($estado === E::Solicitado && $opera)
                     <div class="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-xs leading-relaxed text-gray-500 sm:max-w-md">Revisa que cada archivo sea legible, esté vigente y coincida con los datos capturados. Al aprobar el último documento, la propuesta se envía sola a las coordinaciones de las carreras solicitadas.</p>
-                        @if ($faltaTurnar = \App\Support\Requisitos::turnarAValidacionAcademica($convenio))
+                        @if ($faltaTurnar)
                             <x-ui.accion-bloqueada :motivo="$faltaTurnar">Enviar a dictamen académico</x-ui.accion-bloqueada>
                         @else
                             <form method="POST" action="{{ route('admin.convenios.validacion-academica', $convenio) }}" class="shrink-0">
@@ -334,7 +334,7 @@
                                     'bg-udg-50/60 ring-udg-100' => $v['vigente'], 'bg-gray-50 ring-gray-100 opacity-80' => !$v['vigente']])>
                                     <span class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
                                         <span @class(['rounded-md px-1.5 py-0.5 text-[11px] font-bold', 'bg-udg-900 text-white' => $v['vigente'], 'bg-gray-300 text-gray-700' => !$v['vigente']])>v{{ $v['version'] }}</span>
-                                        <span class="truncate text-gray-800">{{ $b->file_name }}</span>
+                                        <span class="truncate text-gray-800" title="{{ $b->file_name }}">{{ $b->file_name }}</span>
                                         <x-ui.estatus :familia="$v['vigente'] ? 'menta' : 'piedra'" :texto="$v['vigente'] ? 'Vigente' : 'Obsoleta'" />
                                         @if ($final)
                                             <x-ui.estatus familia="turquesa" :texto="'Juegos finales · firma ' . \Illuminate\Support\Carbon::parse($b->getCustomProperty('fecha_firma'))->format('d/m/Y')" />
@@ -446,7 +446,6 @@
                         </form>
 
                         {{-- Turnar a Jurídica, con a quién le llega el correo a la vista --}}
-                        @php $correoJuridica = \App\Models\Configuracion::valor(\App\Models\Configuracion::CORREO_JURIDICA); @endphp
                         <div class="space-y-3 rounded-xl border border-gray-200 p-4" x-data="{ editarCorreo: {{ $errors->has('correo_juridica') ? 'true' : 'false' }} }">
                             @if ($borradores->isNotEmpty())
                                 @php $vigente = $convenio->versionesBorrador()->last()['version']; @endphp
@@ -614,7 +613,7 @@
                 @forelse ($convenio->documentosFisicos as $d)
                     <div class="flex items-center justify-between gap-3 py-1.5">
                         <div class="min-w-0">
-                            <p class="truncate text-sm font-medium text-gray-900">{{ $d->nombre() }}</p>
+                            <p class="break-words text-sm font-medium text-gray-900">{{ $d->nombre() }}</p>
                             <p @class(['text-xs', 'font-semibold text-rose-600' => $d->vencido(), 'text-gray-500' => !$d->vencido()])>
                                 {{ $d->estado->fueraDeOficina() && $d->fecha_compromiso ? ($d->vencido() ? 'Debía regresar el ' : 'Regresa el ') . $d->fecha_compromiso->format('d/m/Y') : 'Lo tiene ' . $d->estado->custodio() }}
                             </p>

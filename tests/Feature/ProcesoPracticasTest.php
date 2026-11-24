@@ -235,7 +235,7 @@ function alumnoDe(Carrera $carrera, string $codigo, ?string $imss = null): Alumn
 
     // Constancia IMSS validada por la coordinación (requisito para emitir la carta de presentación)
     $media = $alumno->addMedia(pdfFalso('imss.pdf'))->toMediaCollection('constancia_imss');
-    $alumno->resolverDocumento($media, \App\Enums\ValidacionEstado::Validada, null, $user->id);
+    $alumno->resolverDocumento($media, ValidacionEstado::Validada, null, $user->id);
 
     return $alumno;
 }
@@ -248,7 +248,7 @@ function postular(Alumno $alumno, Programa $programa, float $creditos = 60): Pos
     ]);
 
     // Expediente (kardex + IMSS) validado antes de postularse; respeta la vigencia de IMSS que traiga el alumno
-    if (!$alumno->expedienteValidado()) {
+    if (! $alumno->expedienteValidado()) {
         expedienteDe($alumno, max($creditos, (float) $alumno->porcentaje_creditos), 'validada', $alumno->vigencia_imss ?? now()->addYear());
     }
 

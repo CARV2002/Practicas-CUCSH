@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 use Illuminate\Support\Str;
@@ -31,7 +33,7 @@ final class TextoAviso
         }
 
         // 2. Primera oración (o lo que va antes de «:») como título, si es corta
-        if (preg_match('/^(.{10,' . self::MAX_TITULO . '}?)(?:[.!?]|:)\s+(\S.*)$/su', $mensaje, $m)) {
+        if (preg_match('/^(.{10,'.self::MAX_TITULO.'}?)(?:[.!?]|:)\s+(\S.*)$/su', $mensaje, $m)) {
             return ['titulo' => $m[1], 'detalle' => trim($m[2])];
         }
 

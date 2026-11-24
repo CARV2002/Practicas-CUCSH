@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Models\AuditLog;
@@ -8,6 +10,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Throwable;
 
+/**
+ * Bitácora de auditoría: registra acciones con su usuario, IP y cambios; sinRegistro() la pausa (seeders).
+ */
 class Auditoria
 {
     private static bool $pausada = false;
@@ -65,7 +70,9 @@ class Auditoria
     /** Evento de un modelo (lo usa el trait Auditable). */
     public static function modelo(Model $m, string $evento): void
     {
-        if (self::$pausada || ! config('practicas.auditoria', true)) {
+        // Solo los modelos con el trait Auditable traen su etiqueta y sus campos a omitir
+        if (self::$pausada || ! config('practicas.auditoria', true) || ! method_exists($m, 'auditoriaEtiqueta')
+            || ! method_exists($m, 'auditoriaOmitir') || ! method_exists($m, 'auditoriaNombre')) {
             return;
         }
 

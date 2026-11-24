@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
@@ -9,10 +11,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
+/**
+ * Inicio y cierre de sesión con correo y contraseña.
+ */
 class AuthenticatedSessionController extends Controller
 {
     /**
-     * Display the login view.
+     * Pantalla de inicio de sesión.
      */
     public function create(): View
     {
@@ -20,7 +25,7 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
-     * Handle an incoming authentication request.
+     * Inicia sesión y lleva a cada rol a su panel.
      */
     public function store(LoginRequest $request): RedirectResponse
     {
@@ -32,11 +37,10 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
-     * Destroy an authenticated session.
+     * Cierra la sesión e invalida el token (evita reusar la cookie robada).
      */
     public function destroy(Request $request): RedirectResponse
     {
-
 
         Auth::guard('web')->logout();
 

@@ -1,11 +1,19 @@
 <?php
 
 use App\Enums\Rol;
-use App\Models\User;
-use Database\Seeders\RolesSeeder;
-use Illuminate\Support\Str;
-use App\Models\{Alumno, Carrera, Division, Empresa, Personal};
 use App\Enums\TipoOrganismo;
+use App\Models\Alumno;
+use App\Models\Carrera;
+use App\Models\Division;
+use App\Models\Empresa;
+use App\Models\Personal;
+use App\Models\User;
+use App\Notifications\ConfigurarContrasena;
+use Database\Seeders\RolesSeeder;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 
 /** Carrera de prueba (la usan el alumno y el coordinador). */
 function carreraDePrueba(): Carrera
@@ -69,8 +77,8 @@ function usuarioConRol(string $rol): User
         Rol::Coordinador->value => Personal::create(['user_id' => $user->id, 'carrera_id' => carreraDePrueba()->id, 'puesto' => 'Coordinación TEST']),
         Rol::Empresa->value => Empresa::create([
             'user_id' => $user->id,
-            'rfc' => 'T' . Str::upper(Str::random(11)),
-            'razon_social' => 'Empresa ' . Str::random(4),
+            'rfc' => 'T'.Str::upper(Str::random(11)),
+            'razon_social' => 'Empresa '.Str::random(4),
             'tipo_organismo' => TipoOrganismo::Privado,
             'contacto_nombre' => 'Contacto',
         ]),
@@ -84,7 +92,7 @@ function usuarioConRol(string $rol): User
     return $user;
 }
 
-beforeEach(fn() => $this->seed(RolesSeeder::class));
+beforeEach(fn () => $this->seed(RolesSeeder::class));
 
 test('cada rol entra a todas sus pantallas y se renderizan', function () {
     foreach (pantallasPorRol() as $rol => $rutas) {
@@ -231,7 +239,7 @@ test('un coordinador solo ve en sus pantallas las carreras de su alcance', funct
 });
 
 test('el administrador da de alta coordinadores con alcance obligatorio y a Vinculación', function () {
-    \Illuminate\Support\Facades\Notification::fake();
+    Notification::fake();
     $admin = usuarioConRol(Rol::Administrador->value);
     $datos = ['name' => 'Coordinación Nueva', 'email' => 'coord.nueva@academicos.udg.mx'];
 
@@ -262,7 +270,7 @@ test('el administrador da de alta coordinadores con alcance obligatorio y a Vinc
 
     // Nadie conoce su contraseña: les llega un enlace y hasta usarlo su correo no está verificado
     expect($nuevo->hasVerifiedEmail())->toBeFalse();
-    \Illuminate\Support\Facades\Notification::assertSentTo($nuevo, \App\Notifications\ConfigurarContrasena::class);
+    Notification::assertSentTo($nuevo, ConfigurarContrasena::class);
     $lorena->markEmailAsVerified();
     $nuevo->markEmailAsVerified();
 
@@ -271,14 +279,18 @@ test('el administrador da de alta coordinadores con alcance obligatorio y a Vinc
 });
 
 test('el personal nuevo configura su propia contraseña con el enlace y su correo queda verificado', function () {
-    \Illuminate\Support\Facades\Notification::fake();
+    Notification::fake();
     $admin = usuarioConRol(Rol::Administrador->value);
     $this->actingAs($admin)->post(route('admin.usuarios.store'), ['name' => 'Coordinación Nueva', 'email' => 'nueva@csh.udg.mx', 'rol' => 'coordinador', 'carrera_id' => carreraDePrueba()->id])
         ->assertSessionHas('status', fn ($s) => str_contains($s, 'enlace'));
     $nuevo = User::where('email', 'nueva@csh.udg.mx')->firstOrFail();
 
     $token = null;
-    \Illuminate\Support\Facades\Notification::assertSentTo($nuevo, \App\Notifications\ConfigurarContrasena::class, function ($n) use (&$token) { $token = $n->token; return true; });
+    Notification::assertSentTo($nuevo, ConfigurarContrasena::class, function ($n) use (&$token) {
+        $token = $n->token;
+
+        return true;
+    });
     auth()->logout();
 
     // Un enlace falso no sirve: la pantalla lo dice antes de pedir la contraseña y ofrece pedir otro
@@ -292,7 +304,7 @@ test('el personal nuevo configura su propia contraseña con el enlace y su corre
         ->assertRedirect(route('dashboard'));
 
     expect($nuevo->fresh()->hasVerifiedEmail())->toBeTrue()
-        ->and(\Illuminate\Support\Facades\Hash::check('Clave-Segura-2026', $nuevo->fresh()->password))->toBeTrue();
+        ->and(Hash::check('Clave-Segura-2026', $nuevo->fresh()->password))->toBeTrue();
     $this->assertAuthenticatedAs($nuevo->fresh());
 
     // El enlace es de un solo uso
@@ -307,7 +319,7 @@ test('ninguna ruta de otro rol se abre por URL directa (403)', function () {
         ->mapWithKeys(fn (Rol $r) => [$r->value => usuarioConRol($r->value)]);
     $revisadas = 0;
 
-    foreach (\Illuminate\Support\Facades\Route::getRoutes() as $ruta) {
+    foreach (Route::getRoutes() as $ruta) {
         // Roles permitidos según su middleware «role:…» (si hay varios, deben cumplirse todos)
         $permitidos = null;
         foreach ($ruta->gatherMiddleware() as $m) {
@@ -320,7 +332,7 @@ test('ninguna ruta de otro rol se abre por URL directa (403)', function () {
             continue;
         }
 
-        $url = '/' . preg_replace('/\{[^}]+\}/', '1', $ruta->uri());
+        $url = '/'.preg_replace('/\{[^}]+\}/', '1', $ruta->uri());
         $metodo = collect($ruta->methods())->first(fn ($x) => $x !== 'HEAD');
 
         foreach ($usuarios as $rol => $usuario) {

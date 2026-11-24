@@ -1,21 +1,28 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Enums\ConvenioEstado;
 use App\Enums\TipoOrganismo;
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\ValidaDocumentos;
+use App\Support\DatosNotariales;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use App\Models\Concerns\Auditable;
-use App\Enums\ConvenioEstado;
 
+/**
+ * Organización (empresa, dependencia o asociación) con su cuenta, expediente, declaraciones legales y convenios.
+ */
 class Empresa extends Model implements HasMedia
 {
-    use InteractsWithMedia, SoftDeletes, ValidaDocumentos, Auditable;
+    use Auditable, InteractsWithMedia, SoftDeletes, ValidaDocumentos;
 
     protected $table = 'empresas';
 
@@ -56,11 +63,13 @@ class Empresa extends Model implements HasMedia
         }
     }
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return HasMany<Convenio, $this> */
     public function convenios(): HasMany
     {
         return $this->hasMany(Convenio::class);
@@ -94,7 +103,7 @@ class Empresa extends Model implements HasMedia
             'constancia_situacion_fiscal' => 'Constancia de situación fiscal',
             'comprobante_domicilio' => 'Comprobante de domicilio',
             'poder_notarial' => 'Poder notarial del representante',
-        ][$coleccion] ?? \Illuminate\Support\Str::headline($coleccion);
+        ][$coleccion] ?? Str::headline($coleccion);
     }
 
     /** Peso máximo de cada PDF del expediente (MB): suficiente para un escaneo legible. */
@@ -112,7 +121,7 @@ class Empresa extends Model implements HasMedia
     public static function coleccionesObligatorias(TipoOrganismo|string|null $tipo = null, ?string $facultadOrigen = null): array
     {
         $tipo = $tipo instanceof TipoOrganismo ? $tipo : (TipoOrganismo::tryFrom((string) $tipo) ?? TipoOrganismo::Privado);
-        $escritura = \App\Support\DatosNotariales::usaEscritura($tipo);
+        $escritura = DatosNotariales::usaEscritura($tipo);
 
         return array_values(array_filter([
             $escritura ? 'acta_constitutiva' : 'documento_creacion',
@@ -134,7 +143,7 @@ class Empresa extends Model implements HasMedia
     /** Documentos que la organización puede subir (obligatorios + opcionales que le aplican). */
     public function documentosAplicables(): array
     {
-        $escritura = \App\Support\DatosNotariales::usaEscritura($this->tipo_organismo);
+        $escritura = DatosNotariales::usaEscritura($this->tipo_organismo);
 
         return array_values(array_unique([...$this->obligatorias(), ...($escritura ? ['poder_notarial'] : [])]));
     }
@@ -146,15 +155,15 @@ class Empresa extends Model implements HasMedia
             return $this->domicilio_fiscal;
         }
 
-        return trim($this->calle . ' ' . $this->numero_exterior . ($this->numero_interior ? ' int. ' . $this->numero_interior : '')
-            . ', col. ' . $this->colonia . ', C.P. ' . $this->codigo_postal . ', ' . $this->municipio . ', ' . $this->entidad);
+        return trim($this->calle.' '.$this->numero_exterior.($this->numero_interior ? ' int. '.$this->numero_interior : '')
+            .', col. '.$this->colonia.', C.P. '.$this->codigo_postal.', '.$this->municipio.', '.$this->entidad);
     }
 
     /** Lo que Lorena hoy revisa "a ojo" en el paso 1.1. */
     public function expedienteCompleto(): bool
     {
         foreach ($this->obligatorias() as $coleccion) {
-            if (!$this->documentoValidado($coleccion)) {
+            if (! $this->documentoValidado($coleccion)) {
                 return false;
             }
         }
@@ -182,11 +191,11 @@ class Empresa extends Model implements HasMedia
 
         [$clave, $detalle] = match (true) {
             $this->user && $this->user->activo === false => ['inactiva', null],
-            $vigente !== null && $vigente->fecha_fin_vigencia->lte(now()->addDays(60)) => ['por_vencer', 'Vence el ' . $vigente->fecha_fin_vigencia->format('d/m/Y')],
-            $vigente !== null => ['vigente', 'Hasta el ' . $vigente->fecha_fin_vigencia->format('d/m/Y')],
-            $convenios->contains(fn (Convenio $c) => !$c->estado->esFinal()) => ['en_tramite', $convenios->first(fn ($c) => !$c->estado->esFinal())->estado->label()],
-            $ultimo?->estado === ConvenioEstado::Rechazado => ['rechazado', 'Desde el ' . $ultimo->updated_at->format('d/m/Y')],
-            $convenios->contains(fn (Convenio $c) => $c->estado === ConvenioEstado::Formalizado) => ['vencido', 'Venció el ' . $convenios->where('estado', ConvenioEstado::Formalizado)->max('fecha_fin_vigencia')?->format('d/m/Y')],
+            $vigente !== null && $vigente->fecha_fin_vigencia->lte(now()->addDays(60)) => ['por_vencer', 'Vence el '.$vigente->fecha_fin_vigencia->format('d/m/Y')],
+            $vigente !== null => ['vigente', 'Hasta el '.$vigente->fecha_fin_vigencia->format('d/m/Y')],
+            $convenios->contains(fn (Convenio $c) => ! $c->estado->esFinal()) => ['en_tramite', $convenios->first(fn ($c) => ! $c->estado->esFinal())->estado->label()],
+            $ultimo?->estado === ConvenioEstado::Rechazado => ['rechazado', 'Desde el '.$ultimo->updated_at->format('d/m/Y')],
+            $convenios->contains(fn (Convenio $c) => $c->estado === ConvenioEstado::Formalizado) => ['vencido', 'Venció el '.$convenios->where('estado', ConvenioEstado::Formalizado)->max('fecha_fin_vigencia')?->format('d/m/Y')],
             default => ['sin_solicitud', null],
         };
 
@@ -211,5 +220,4 @@ class Empresa extends Model implements HasMedia
             ->whereNotIn('estado', [ConvenioEstado::Formalizado->value, ConvenioEstado::Rechazado->value])
             ->exists();
     }
-
 }

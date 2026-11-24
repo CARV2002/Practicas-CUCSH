@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Auth;
 
 use App\Enums\TipoOrganismo;
 use App\Models\User;
 use App\Rules\Rfc;
+use App\Rules\UnicoNormalizado;
 use App\Support\Formatos;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -39,16 +42,16 @@ class RegistroEmpresaRequest extends FormRequest
     {
         return [
             // La organización
-            'razon_social' => ['required', 'string', 'min:3', 'max:' . Formatos::MAX_RAZON_SOCIAL,
-                new \App\Rules\UnicoNormalizado('empresas', 'razon_social', 'Ya hay una organización registrada con esa razón social. Si es la tuya, inicia sesión o escribe a Vinculación.')],
-            'rfc' => ['required', 'string', new Rfc(), Rule::unique('empresas', 'rfc')->whereNull('deleted_at')],
+            'razon_social' => ['required', 'string', 'min:3', 'max:'.Formatos::MAX_RAZON_SOCIAL,
+                new UnicoNormalizado('empresas', 'razon_social', 'Ya hay una organización registrada con esa razón social. Si es la tuya, inicia sesión o escribe a Vinculación.')],
+            'rfc' => ['required', 'string', new Rfc, Rule::unique('empresas', 'rfc')->whereNull('deleted_at')],
             'tipo_organismo' => ['required', Rule::enum(TipoOrganismo::class)],
             'tipo_organismo_otro' => ['required_if:tipo_organismo,otro', 'nullable', 'string', 'min:3', 'max:80'],
 
             // Enlace de la organización con el CUCSH (quien administra la cuenta)
-            'name' => ['required', 'string', 'min:5', 'max:' . Formatos::MAX_NOMBRE_PERSONA, 'regex:' . Formatos::NOMBRE_PERSONA],
-            'contacto_cargo' => ['required', 'string', 'min:3', 'max:120', 'regex:' . Formatos::TEXTO_LETRAS],
-            'contacto_telefono' => ['required', 'regex:' . Formatos::TELEFONO],
+            'name' => ['required', 'string', 'min:5', 'max:'.Formatos::MAX_NOMBRE_PERSONA, 'regex:'.Formatos::NOMBRE_PERSONA],
+            'contacto_cargo' => ['required', 'string', 'min:3', 'max:120', 'regex:'.Formatos::TEXTO_LETRAS],
+            'contacto_telefono' => ['required', 'regex:'.Formatos::TELEFONO],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)],
             'password' => ['required', 'confirmed', Password::defaults()],
 

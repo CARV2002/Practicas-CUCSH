@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Coordinacion;
 
 use App\Enums\EsquemaReportes;
 use App\Http\Controllers\Controller;
 use App\Models\Carrera;
+use App\Support\Formatos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -34,8 +37,8 @@ class ReglaController extends Controller
 
         // Teléfono (10 números) y extensión (solo números) se capturan aparte y se guardan juntos
         $request->merge([
-            'coordinacion_telefono' => \App\Support\Formatos::digitos($request->input('coordinacion_telefono')) ?: null,
-            'coordinacion_extension' => \App\Support\Formatos::digitos($request->input('coordinacion_extension')) ?: null,
+            'coordinacion_telefono' => Formatos::digitos($request->input('coordinacion_telefono')) ?: null,
+            'coordinacion_extension' => Formatos::digitos($request->input('coordinacion_extension')) ?: null,
         ]);
 
         $datos = $request->validate([
@@ -44,11 +47,11 @@ class ReglaController extends Controller
             'creditos_otorgados' => ['required', 'integer', 'min:0', 'max:50'],
             'esquema_reportes' => ['sometimes', 'required', Rule::enum(EsquemaReportes::class)],
             'coordinacion_correo' => ['nullable', 'email', 'max:255'],
-            'coordinacion_telefono' => ['nullable', 'regex:' . \App\Support\Formatos::TELEFONO],
-            'coordinacion_extension' => ['nullable', 'regex:' . \App\Support\Formatos::EXTENSION],
-        ], \App\Support\Formatos::mensajes());
+            'coordinacion_telefono' => ['nullable', 'regex:'.Formatos::TELEFONO],
+            'coordinacion_extension' => ['nullable', 'regex:'.Formatos::EXTENSION],
+        ], Formatos::mensajes());
 
-        $datos['coordinacion_telefono'] = \App\Support\Formatos::telefonoConExtension($datos['coordinacion_telefono'] ?? null, $datos['coordinacion_extension'] ?? null);
+        $datos['coordinacion_telefono'] = Formatos::telefonoConExtension($datos['coordinacion_telefono'] ?? null, $datos['coordinacion_extension'] ?? null);
         unset($datos['coordinacion_extension']);
 
         $carrera->update($datos);

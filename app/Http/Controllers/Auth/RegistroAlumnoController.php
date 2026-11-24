@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Auth;
 
 use App\Enums\Rol;
@@ -12,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 /** Registro público de alumnos: crea usuario + rol "alumno" + perfil, todo en una transacción. */
 class RegistroAlumnoController extends Controller
@@ -52,7 +55,7 @@ class RegistroAlumnoController extends Controller
         // Si Gmail no acepta el envío, la cuenta ya existe: se avisa y puede reenviar el correo de confirmación
         try {
             event(new Registered($user));
-        } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
+        } catch (TransportExceptionInterface $e) {
             report($e);
 
             return redirect()->route('verification.notice')->with('status', 'verification-failed');

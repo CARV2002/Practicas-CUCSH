@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 use App\Enums\PostulacionEstado;
@@ -27,9 +29,13 @@ final class TramiteAlumno
     ];
 
     public readonly ?Practica $practica;        // activa, en cierre o acreditada
+
     public readonly ?Practica $ultimaBaja;      // baja más reciente sin un trámite nuevo después
+
     public readonly ?Postulacion $postulacion;  // pendiente o en trámite (una organización a la vez)
+
     public readonly string $expediente;
+
     public readonly ?string $bloqueo;
 
     private function __construct(public readonly Alumno $alumno)
@@ -48,7 +54,7 @@ final class TramiteAlumno
             ->first();
 
         $baja = $practicas->first(fn (Practica $p) => $p->estado === PracticaEstado::Cancelada);
-        $this->ultimaBaja = $baja && !$this->practica && !$this->postulacion ? $baja : null;
+        $this->ultimaBaja = $baja && ! $this->practica && ! $this->postulacion ? $baja : null;
 
         $this->expediente = $alumno->estadoExpediente();
         $this->bloqueo = $alumno->motivoBloqueo();
@@ -119,7 +125,7 @@ final class TramiteAlumno
      */
     public function situacion(): array
     {
-        $organizacion = fn (?Postulacion $po) => $po?->programa?->convenio?->empresa?->razon_social ?? 'el área receptora';
+        $organizacion = fn (?Postulacion $po) => $po?->programa?->convenio?->empresa->razon_social ?? 'el área receptora';
         $docs = route('alumno.mis-documentos', absolute: false);
 
         if ($this->practica) {
@@ -183,7 +189,7 @@ final class TramiteAlumno
             'devuelto' => $this->aviso('error', 'Corrige tu expediente',
                 $this->textoDevuelto(), ['Corregir en mis documentos', $docs]),
             'imss_vencido' => $this->aviso('error', 'Tu constancia IMSS venció',
-                'Sube una constancia vigente' . ($this->alumno->documentoVigente('kardex') ? '' : ' junto con tu kardex') . ' en Mis documentos; cuando tu coordinación la valide, podrás postularte.',
+                'Sube una constancia vigente'.($this->alumno->documentoVigente('kardex') ? '' : ' junto con tu kardex').' en Mis documentos; cuando tu coordinación la valide, podrás postularte.',
                 ['Subir mi constancia', $docs]),
             default => $this->aviso('advertencia', 'Entrega tu kardex y tu constancia IMSS',
                 'Entrégalos a tu coordinación en Mis documentos. Cuando los valide, podrás postularte a una vacante.',
@@ -200,9 +206,9 @@ final class TramiteAlumno
 
         $motivos = $devueltos->map(fn ($d) => $d[1]->getCustomProperty('motivo'))->filter()->map(fn ($m) => rtrim($m, '.'));
 
-        return 'Tu coordinación te devolvió ' . $devueltos->map(fn ($d) => $d[0])->implode(' y ') . '.'
-            . ($motivos->isNotEmpty() ? ' Motivo: ' . $motivos->implode('; ') . '.' : '')
-            . ' Sube el documento corregido en Mis documentos para que lo revise de nuevo y puedas postularte.';
+        return 'Tu coordinación te devolvió '.$devueltos->map(fn ($d) => $d[0])->implode(' y ').'.'
+            .($motivos->isNotEmpty() ? ' Motivo: '.$motivos->implode('; ').'.' : '')
+            .' Sube el documento corregido en Mis documentos para que lo revise de nuevo y puedas postularte.';
     }
 
     private function aviso(string $tipo, string $titulo, string $texto, ?array $accion): array

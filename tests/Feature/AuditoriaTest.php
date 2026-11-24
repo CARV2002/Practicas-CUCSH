@@ -15,6 +15,7 @@ use App\Services\Auditoria;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Storage;
 
 function audPdf(): UploadedFile
@@ -104,9 +105,9 @@ test('las contraseñas nunca se guardan, ni siquiera cifradas', function () {
     $otro = audUser(Rol::Alumno);
 
     // El administrador solo envía el enlace; la persona escribe su contraseña
-    \Illuminate\Support\Facades\Notification::fake();
+    Notification::fake();
     $this->actingAs($this->adminUser)->post(route('admin.usuarios.password', $otro))->assertSessionHasNoErrors();
-    $token = \Illuminate\Support\Facades\Password::broker('invitaciones')->createToken($otro);
+    $token = Password::broker('invitaciones')->createToken($otro);
     auth()->logout();
     $this->post(route('cuenta.activar.store'), ['token' => $token, 'email' => $otro->email,
         'password' => 'clave-nueva-segura-1', 'password_confirmation' => 'clave-nueva-segura-1'])->assertSessionHasNoErrors();

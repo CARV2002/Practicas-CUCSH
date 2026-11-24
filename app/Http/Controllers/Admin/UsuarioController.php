@@ -1,33 +1,52 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\ConvenioEstado;
+use App\Enums\PostulacionEstado;
+use App\Enums\ProgramaEstado;
 use App\Enums\Rol;
 use App\Http\Controllers\Controller;
+use App\Models\Alumno;
 use App\Models\Carrera;
+use App\Models\ConvenioCarrera;
 use App\Models\Division;
 use App\Models\Personal;
+use App\Models\Postulacion;
+use App\Models\Programa;
 use App\Models\User;
+use App\Notifications\AvisoOperativo;
+use App\Notifications\ConfigurarContrasena;
+use App\Services\Auditoria;
+use App\Services\Avisos;
+use App\Support\Formatos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
+/**
+ * Cuentas del personal (administrador): alta de Vinculación y coordinaciones, alcance, activación y contraseña.
+ */
 class UsuarioController extends Controller
 {
     /** Cuentas del sistema con su rol y, para el personal, su alcance. */
     public function index(Request $request): View
     {
         $usuarios = User::with(['roles', 'personal.carrera', 'personal.division'])
-            ->when($request->filled('q'), fn($q) => $q->where(fn($w) => $w
-                ->where('name', 'like', '%' . $request->string('q') . '%')
-                ->orWhere('email', 'like', '%' . $request->string('q') . '%')))
-            ->when($request->filled('rol'), fn($q) => $q->role($request->string('rol')->toString()))
-            ->when($request->string('estado')->toString() === 'activo', fn($q) => $q->where('activo', true))
-            ->when($request->string('estado')->toString() === 'inactivo', fn($q) => $q->where('activo', false))
+            ->when($request->filled('q'), fn ($q) => $q->where(fn ($w) => $w
+                ->where('name', 'like', '%'.$request->string('q').'%')
+                ->orWhere('email', 'like', '%'.$request->string('q').'%')))
+            ->when($request->filled('rol'), fn ($q) => $q->role($request->string('rol')->toString()))
+            ->when($request->string('estado')->toString() === 'activo', fn ($q) => $q->where('activo', true))
+            ->when($request->string('estado')->toString() === 'inactivo', fn ($q) => $q->where('activo', false))
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();
@@ -60,17 +79,17 @@ class UsuarioController extends Controller
             'rol' => $request->input('rol', Rol::Coordinador->value),
         ]);
 
-        $permitidos = array_map(fn(Rol $r) => $r->value, $this->rolesQuePuedeCrear($request->user()));
+        $permitidos = array_map(fn (Rol $r) => $r->value, $this->rolesQuePuedeCrear($request->user()));
         $esCoordinador = $request->input('rol') === Rol::Coordinador->value;
 
         // Solo correos institucionales de la UdG (p. ej. @academicos.udg.mx o @csh.udg.mx)
         $dominios = config('practicas.google.dominios_personal');
         $datos = $request->validate([
-            'name' => ['required', 'string', 'min:5', 'max:' . \App\Support\Formatos::MAX_NOMBRE_PERSONA, 'regex:' . \App\Support\Formatos::NOMBRE_PERSONA],
+            'name' => ['required', 'string', 'min:5', 'max:'.Formatos::MAX_NOMBRE_PERSONA, 'regex:'.Formatos::NOMBRE_PERSONA],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class),
                 function ($atributo, $valor, $falla) use ($dominios) {
-                    if (!in_array(Str::after((string) $valor, '@'), $dominios, true)) {
-                        $falla('Usa su correo institucional: ' . collect($dominios)->map(fn ($d) => '@' . $d)->join(', ', ' o ') . '.');
+                    if (! in_array(Str::after((string) $valor, '@'), $dominios, true)) {
+                        $falla('Usa su correo institucional: '.collect($dominios)->map(fn ($d) => '@'.$d)->join(', ', ' o ').'.');
                     }
                 }],
             'puesto' => ['nullable', 'string', 'max:255'],
@@ -105,7 +124,7 @@ class UsuarioController extends Controller
 
             $user->assignRole($rol->value);
 
-            \App\Services\Auditoria::registrar('usuario.rol_asignado', "Rol «{$rol->value}» asignado a {$user->email}", $user);
+            Auditoria::registrar('usuario.rol_asignado', "Rol «{$rol->value}» asignado a {$user->email}", $user);
 
             $personal = Personal::create([
                 'user_id' => $user->id,
@@ -138,17 +157,17 @@ class UsuarioController extends Controller
         }
 
         // Reactivar a un coordinador también cuenta contra el límite de 2 encargados activos
-        if (!$usuario->activo && $usuario->hasRole(Rol::Coordinador->value) && $usuario->personal
+        if (! $usuario->activo && $usuario->hasRole(Rol::Coordinador->value) && $usuario->personal
             && $this->coordinacionLlena($usuario->personal->carrera_id, $usuario->personal->division_id)) {
             return back()->withErrors(['usuario' => self::MENSAJE_LIMITE]);
         }
 
         // Relevo de personal: la cuenta no se borra (se conserva su bitácora), solo se desactiva y libera el cupo
-        $usuario->update(['activo' => !$usuario->activo]);
+        $usuario->update(['activo' => ! $usuario->activo]);
 
-        \App\Services\Auditoria::registrar(
+        Auditoria::registrar(
             $usuario->activo ? 'usuario.activado' : 'usuario.desactivado',
-            ($usuario->activo ? 'Cuenta activada: ' : 'Cuenta desactivada: ') . $usuario->email,
+            ($usuario->activo ? 'Cuenta activada: ' : 'Cuenta desactivada: ').$usuario->email,
             $usuario
         );
 
@@ -160,8 +179,8 @@ class UsuarioController extends Controller
 
     private const MENSAJE_LIMITE = 'Esta coordinación ya alcanzó el límite máximo de 2 encargados activos. Desactiva una cuenta anterior si deseas registrar a alguien nuevo.';
 
-    /** @return \Illuminate\Support\Collection<int, int> id de carrera (o división) => coordinadores activos */
-    private function activosPorCoordinacion(string $columna): \Illuminate\Support\Collection
+    /** @return Collection<int, int> id de carrera (o división) => coordinadores activos */
+    private function activosPorCoordinacion(string $columna): Collection
     {
         return Personal::query()
             ->whereNotNull($columna)
@@ -206,14 +225,14 @@ class UsuarioController extends Controller
     /** Enlace único y temporal para que la persona ponga su propia contraseña. */
     private function enviarEnlace(User $usuario, string $motivo): bool
     {
-        $token = \Illuminate\Support\Facades\Password::broker('invitaciones')->createToken($usuario);
+        $token = Password::broker('invitaciones')->createToken($usuario);
 
         try {
-            $usuario->notify(new \App\Notifications\ConfigurarContrasena($token, $motivo));
-            \App\Services\Auditoria::registrar('usuario.enlace_contrasena', "Enlace para configurar contraseña enviado a {$usuario->email}", $usuario);
+            $usuario->notify(new ConfigurarContrasena($token, $motivo));
+            Auditoria::registrar('usuario.enlace_contrasena', "Enlace para configurar contraseña enviado a {$usuario->email}", $usuario);
 
             return true;
-        } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
+        } catch (TransportExceptionInterface $e) {
             report($e);
 
             return false;
@@ -222,7 +241,7 @@ class UsuarioController extends Controller
 
     public function verificarCorreo(User $usuario): RedirectResponse
     {
-        if (!$usuario->hasVerifiedEmail()) {
+        if (! $usuario->hasVerifiedEmail()) {
             $usuario->markEmailAsVerified();
         }
 
@@ -233,20 +252,20 @@ class UsuarioController extends Controller
     private function avisarPendientes(User $user, Personal $personal): void
     {
         $partes = array_filter([
-            ($n = \App\Models\Alumno::conExpedientePorRevisar($personal)->count()) ? "{$n} expediente(s) de alumnos (kardex e IMSS) por revisar" : null,
-            ($n = \App\Models\Postulacion::visiblesPara($personal)->where('estado', \App\Enums\PostulacionEstado::Pendiente->value)->count()) ? "{$n} postulación(es) por validar" : null,
-            ($n = \App\Models\Programa::whereIn('carrera_id', \App\Models\Carrera::enAlcance($personal)->select('id'))
-                ->where('estado', \App\Enums\ProgramaEstado::PendienteAprobacion->value)->count()) ? "{$n} vacante(s) por aprobar" : null,
-            ($n = \App\Models\ConvenioCarrera::visiblesPara($personal)->pendientes()
-                ->whereHas('convenio', fn ($c) => $c->where('estado', \App\Enums\ConvenioEstado::EnValidacionAcademica->value))->count()) ? "{$n} dictamen(es) de convenio" : null,
+            ($n = Alumno::conExpedientePorRevisar($personal)->count()) ? "{$n} expediente(s) de alumnos (kardex e IMSS) por revisar" : null,
+            ($n = Postulacion::visiblesPara($personal)->where('estado', PostulacionEstado::Pendiente->value)->count()) ? "{$n} postulación(es) por validar" : null,
+            ($n = Programa::whereIn('carrera_id', Carrera::enAlcance($personal)->select('id'))
+                ->where('estado', ProgramaEstado::PendienteAprobacion->value)->count()) ? "{$n} vacante(s) por aprobar" : null,
+            ($n = ConvenioCarrera::visiblesPara($personal)->pendientes()
+                ->whereHas('convenio', fn ($c) => $c->where('estado', ConvenioEstado::EnValidacionAcademica->value))->count()) ? "{$n} dictamen(es) de convenio" : null,
         ]);
 
         if ($partes === []) {
             return;
         }
 
-        \App\Services\Avisos::enviar($user, new \App\Notifications\AvisoOperativo(
-            mensaje: 'Bienvenida a la plataforma. Tu carrera ya tenía pendientes: ' . implode(', ', $partes) . '.',
+        Avisos::enviar($user, new AvisoOperativo(
+            mensaje: 'Bienvenida a la plataforma. Tu carrera ya tenía pendientes: '.implode(', ', $partes).'.',
             url: route('coordinacion.dashboard', absolute: false),
         ));
     }

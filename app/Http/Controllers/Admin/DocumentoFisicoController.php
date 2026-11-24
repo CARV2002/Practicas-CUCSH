@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\ConvenioEstado;
 use App\Enums\EstadoDocumentoFisico;
+use App\Enums\TipoDocumentoFisico;
 use App\Http\Controllers\Controller;
 use App\Models\Convenio;
 use App\Models\DocumentoFisico;
@@ -29,7 +32,7 @@ class DocumentoFisicoController extends Controller
 
         // El oficio de turno académico ya no se rastrea en papel (el turno a las carreras es digital)
         $base = DocumentoFisico::query()
-            ->where('tipo', '!=', \App\Enums\TipoDocumentoFisico::OficioTurno->value)
+            ->where('tipo', '!=', TipoDocumentoFisico::OficioTurno->value)
             ->whereHas('convenio', fn ($c) => $c->visiblesPara($personal));
 
         $conteos = [

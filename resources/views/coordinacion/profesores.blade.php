@@ -8,17 +8,13 @@
     $variasDivisiones = $divisiones->count() > 1;
 @endphp
 
-<div class="space-y-6" x-data="{
-    modal: @js($abrir),
-    p: @js($abrir ? ['id' => old('profesor_id'), 'nombre' => old('nombre', ''), 'email' => old('email', ''), 'telefono' => old('telefono', ''), 'extension' => old('extension', ''), 'division_id' => old('division_id', $vacio['division_id'])] : $vacio),
-    vacio: @js($vacio),
-    urlUpdate: '{{ route('coordinacion.profesores.update', 0) }}',
-    nuevo() { this.p = { ...this.vacio }; this.modal = true; },
-    editar(datos) { this.p = { ...datos }; this.modal = true; },
-    {{-- Cancelar limpia lo capturado --}}
-    cerrar() { this.p = { ...this.vacio }; this.modal = false; },
-    get accion() { return this.p.id ? this.urlUpdate.replace(/0$/, this.p.id) : '{{ route('coordinacion.profesores.store') }}'; }
-}">
+<div class="space-y-6" x-data="profesores(@js([
+    'abierto' => $abrir,
+    'inicial' => $abrir ? ['id' => old('profesor_id'), 'nombre' => old('nombre', ''), 'email' => old('email', ''), 'telefono' => old('telefono', ''), 'extension' => old('extension', ''), 'division_id' => old('division_id', $vacio['division_id'])] : $vacio,
+    'vacio' => $vacio,
+    'urlStore' => route('coordinacion.profesores.store'),
+    'urlUpdate' => route('coordinacion.profesores.update', 0),
+]))">
     <x-pagina.encabezado titulo="Profesores supervisores"
         descripcion="Catálogo de tu coordinación. Los profesores no entran al sistema: aquí los registras para asignarlos a cada práctica (quedan en la división de tu coordinación).">
         <x-slot:acciones>

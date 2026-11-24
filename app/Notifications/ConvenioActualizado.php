@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Notifications;
 
 use App\Models\Convenio;
@@ -7,9 +9,7 @@ use App\Models\Convenio;
 /** A la empresa: su convenio avanzó de etapa (elimina la "espera pasiva"). */
 class ConvenioActualizado extends AvisoPracticas
 {
-    public function __construct(public Convenio $convenio, public string $mensaje, public bool $correo = false, public ?string $asuntoCorreo = null)
-    {
-    }
+    public function __construct(public Convenio $convenio, public string $mensaje, public bool $correo = false, public ?string $asuntoCorreo = null) {}
 
     /**
      * La empresa sigue cada etapa en la campana; solo lo que le pide actuar (p. ej. un rechazo del dictamen

@@ -26,7 +26,8 @@
 
     {{-- Panorama del CUCSH: solo para el administrador (supervisión, solo lectura) --}}
     @if ($panorama)
-        @php $maxActivas = max(1, $panorama['divisiones']->max('activas')); @endphp
+        {{-- La barra mide los alumnos de cada división frente a la más grande; el tramo dorado, cuántos están en práctica --}}
+        @php $maxAlumnos = max(1, $panorama['divisiones']->max('alumnos')); @endphp
         <section class="grid grid-cols-1 gap-6 xl:grid-cols-3" aria-label="Panorama del CUCSH">
             <x-dashboard.panel titulo="Prácticas en todo el CUCSH" icono="informe" descripcion="Solo lectura: lo académico lo opera cada coordinación de carrera." class="xl:col-span-2">
                 <dl class="grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -44,16 +45,24 @@
                     @endforeach
                 </dl>
 
-                <h3 class="mt-6 text-sm font-semibold text-gray-900">Prácticas en curso por división</h3>
-                <ul class="mt-3 space-y-3">
+                <div class="mt-6 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                    <h3 class="text-sm font-semibold text-gray-900">Alumnos en práctica por división</h3>
+                    <p class="flex items-center gap-3 text-xs text-gray-500" aria-hidden="true">
+                        <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-oro-400"></span> En práctica</span>
+                        <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-udg-200"></span> Registrados</span>
+                    </p>
+                </div>
+                <ul class="mt-3 space-y-3.5">
                     @forelse ($panorama['divisiones'] as $d)
                         <li>
                             <div class="flex items-baseline justify-between gap-3 text-sm">
-                                <span class="min-w-0 truncate font-medium text-gray-800">{{ $d->nombre }}</span>
-                                <span class="shrink-0 text-xs text-gray-500"><span class="font-display text-base font-bold tabular-nums text-gray-900">{{ $d->activas }}</span> en curso · {{ $d->alumnos }} alumnos · {{ $d->carreras }} {{ $d->carreras === 1 ? 'carrera' : 'carreras' }}</span>
+                                <span class="min-w-0 break-words font-medium text-gray-800">{{ $d->nombre }}</span>
+                                <span class="shrink-0 text-xs text-gray-500"><span class="font-display text-base font-bold tabular-nums text-gray-900">{{ $d->activas }}</span> de {{ $d->alumnos }} {{ $d->alumnos === 1 ? 'alumno' : 'alumnos' }} · {{ $d->carreras }} {{ $d->carreras === 1 ? 'carrera' : 'carreras' }}</span>
                             </div>
-                            <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100" role="img" aria-label="{{ $d->activas }} prácticas en curso">
-                                <div class="h-full rounded-full bg-udg-800" style="width: {{ round($d->activas / $maxActivas * 100) }}%"></div>
+                            <div class="mt-1.5 h-2.5 rounded-full bg-gray-50 ring-1 ring-inset ring-gray-100" role="img" aria-label="{{ $d->activas }} de {{ $d->alumnos }} alumnos en práctica">
+                                <div class="flex h-full overflow-hidden rounded-full bg-udg-200" style="width: {{ $d->alumnos ? max(3, round($d->alumnos / $maxAlumnos * 100)) : 0 }}%">
+                                    <div class="h-full bg-oro-400" style="width: {{ $d->alumnos ? round($d->activas / $d->alumnos * 100) : 0 }}%"></div>
+                                </div>
                             </div>
                         </li>
                     @empty
@@ -70,7 +79,7 @@
                     <ul class="mt-3 max-h-56 space-y-1.5 overflow-y-auto pr-1">
                         @foreach ($panorama['sin_coordinacion'] as $c)
                             <li class="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm ring-1 ring-inset ring-gray-100">
-                                <span class="min-w-0 truncate text-gray-800">{{ $c->nombre }}</span>
+                                <span class="min-w-0 break-words text-gray-800">{{ $c->nombre }}</span>
                                 <span class="shrink-0 text-xs text-gray-500">{{ $c->carrera_clave }}</span>
                             </li>
                         @endforeach
@@ -160,7 +169,7 @@
                                         {{ mb_strtoupper(mb_substr($s->convenio->empresa->razon_social, 0, 1)) }}
                                     </span>
                                     <div class="min-w-0">
-                                        <p class="truncate text-sm font-semibold text-gray-900 group-hover:text-udg-900">{{ $s->convenio->empresa->razon_social }}</p>
+                                        <p class="break-words text-sm font-semibold text-gray-900 group-hover:text-udg-900">{{ $s->convenio->empresa->razon_social }}</p>
                                         <p class="mt-0.5 text-xs text-gray-500">{{ $s->etapa->label() }} · {{ $s->etapa->responsable() }}</p>
                                     </div>
                                 </div>
@@ -241,7 +250,7 @@
             @forelse ($convenios_recientes as $c)
                 <a href="{{ route('admin.convenios.show', $c) }}" class="-mx-2 flex items-center justify-between gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-gray-50">
                     <div class="min-w-0">
-                        <p class="truncate text-sm font-semibold text-gray-900">{{ $c->empresa->razon_social }}</p>
+                        <p class="break-words text-sm font-semibold text-gray-900">{{ $c->empresa->razon_social }}</p>
                         <p class="text-xs text-gray-500">Recibido {{ $c->fecha_recepcion->format('d/m/Y') }}</p>
                     </div>
                     <x-ui.estatus :estado="$c->estado" class="shrink-0" />

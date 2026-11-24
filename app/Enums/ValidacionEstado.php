@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Enums;
 
 /** Para cartas, oficios y para el estado de cada archivo en custom_properties de medialibrary. */

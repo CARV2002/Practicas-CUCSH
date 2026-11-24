@@ -88,7 +88,7 @@
                                         <template x-for="ev in eventosDe(seleccion)">
                                             <li>
                                                 <a :href="ev.url" class="block rounded-lg border border-gray-200 bg-white p-2.5 transition hover:border-udg-200">
-                                                    <span class="block truncate text-sm font-medium text-gray-900" x-text="ev.empresa"></span>
+                                                    <span class="block break-words text-sm font-medium text-gray-900" x-text="ev.empresa"></span>
                                                     <span class="block text-xs text-gray-600" x-text="ev.papel + ' · ' + ev.estado"></span>
                                                     <span class="block text-[11px] font-medium" :class="{ 'text-rose-600': ev.tono === 'vencido', 'text-amber-700': ev.tono === 'pronto', 'text-gray-500': ev.tono === 'normal' }"
                                                         x-text="'Lo tiene: ' + ev.custodio + (ev.tono === 'vencido' ? ' · vencido' : '')"></span>
@@ -139,8 +139,8 @@
                                 <span class="text-[10px] font-medium uppercase">{{ $p->fecha_compromiso->translatedFormat('M') }}</span>
                             </span>
                             <span class="min-w-0">
-                                <span class="block truncate text-sm font-medium text-gray-900">{{ $p->convenio->empresa->razon_social }}</span>
-                                <span class="block truncate text-xs text-gray-500">{{ $p->nombre() }} · lo tiene {{ $p->estado->custodio() }}</span>
+                                <span class="block break-words text-sm font-medium text-gray-900">{{ $p->convenio->empresa->razon_social }}</span>
+                                <span class="block break-words text-xs text-gray-500">{{ $p->nombre() }} · lo tiene {{ $p->estado->custodio() }}</span>
                             </span>
                         </a>
                     </li>
@@ -261,7 +261,7 @@
                         <tr x-show="editar" x-cloak>
                             <td colspan="5" class="border-t border-gray-100 bg-gray-50/70 px-6 py-4">
                                 @can('operar-convenios')
-                                <form method="POST" action="{{ route('admin.documentos-fisicos.mover', $d) }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
+                                <form method="POST" action="{{ route('admin.documentos-fisicos.mover', $d) }}" class="grid grid-cols-1 items-start gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
                                     @csrf
                                     <input type="hidden" name="doc" value="{{ $d->id }}">
                                     <div>
@@ -291,13 +291,15 @@
                                             <input id="dest-{{ $d->id }}" type="text" name="destino" value="{{ $d->destino }}" maxlength="255" class="campo h-10">
                                         </div>
                                     @endif
-                                    <div class="sm:col-span-2 lg:col-span-3">
-                                        <label class="etiqueta" for="nota-{{ $d->id }}">Nota <span class="font-normal text-gray-400">(obligatoria si regresa con observaciones o se extravía)</span></label>
-                                        <input id="nota-{{ $d->id }}" type="text" name="nota" maxlength="1000" placeholder="Ej. Lo recogió el representante legal; acuse con sello de Secretaría" class="campo h-10">
-                                    </div>
-                                    <div class="flex justify-end gap-2">
-                                        <button type="button" class="boton boton-chico text-gray-500 hover:bg-gray-100" x-on:click="editar = false">Cancelar</button>
-                                        <button class="boton boton-chico boton-primario"><x-dashboard.icono nombre="check" clase="size-3.5" /> Guardar</button>
+                                    <div class="flex flex-col gap-3 border-t border-gray-200/70 pt-3 sm:col-span-full sm:flex-row sm:items-end">
+                                        <div class="min-w-0 flex-1">
+                                            <label class="etiqueta" for="nota-{{ $d->id }}">Nota <span class="font-normal text-gray-400">(obligatoria si regresa con observaciones o se extravía)</span></label>
+                                            <input id="nota-{{ $d->id }}" type="text" name="nota" maxlength="1000" placeholder="Ej. Lo recogió el representante legal; acuse con sello de Secretaría" class="campo h-10">
+                                        </div>
+                                        <div class="flex shrink-0 justify-end gap-2">
+                                            <button type="button" class="boton boton-chico h-10 text-gray-500 hover:bg-gray-100" x-on:click="editar = false">Cancelar</button>
+                                            <button class="boton boton-chico boton-primario h-10"><x-dashboard.icono nombre="check" clase="size-3.5" /> Guardar</button>
+                                        </div>
                                     </div>
                                 </form>
                                 @endcan
@@ -341,7 +343,7 @@
                     @foreach ($sinControl as $c)
                         <li class="flex items-center justify-between gap-3 py-2.5">
                             <div class="min-w-0">
-                                <p class="truncate text-sm font-medium text-gray-900">{{ $c->empresa->razon_social }}</p>
+                                <p class="break-words text-sm font-medium text-gray-900">{{ $c->empresa->razon_social }}</p>
                                 <x-ui.estatus :estado="$c->estado" class="mt-0.5" />
                             </div>
                             @can('operar-convenios')<x-ui.boton-icono :accion="route('admin.convenios.fisicos.preparar', $c)" icono="mas" etiqueta="Abrir control" tono="primario" con-texto />@endcan

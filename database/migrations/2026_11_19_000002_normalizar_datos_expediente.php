@@ -21,7 +21,7 @@ return new class extends Migration
 
         foreach ($pendientes as $p) {
             $alumno = Alumno::find($p->alumno_id);
-            if ($alumno && !$alumno->expedienteValidado()) {
+            if ($alumno && ! $alumno->expedienteValidado()) {
                 DB::table('postulaciones')->where('id', $p->id)->update([
                     'estado' => PostulacionEstado::Cancelada->value,
                     'updated_at' => now(),

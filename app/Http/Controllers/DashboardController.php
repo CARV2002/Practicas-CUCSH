@@ -1,10 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Enums\Rol;
 use Illuminate\Http\RedirectResponse;
 
+/**
+ * Ruta /dashboard: manda a cada usuario al panel de su rol.
+ */
 class DashboardController extends Controller
 {
     /** Cada usuario entra al panel de su rol; sin rol no hay acceso. */

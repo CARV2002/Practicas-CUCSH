@@ -1,10 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies\Concerns;
 
 use App\Enums\Rol;
 use App\Models\User;
 
+/**
+ * Quién es quién en las policies: Vinculación, coordinación con alcance, coordinación de esa carrera,
+ * dueño alumno u organización.
+ */
 trait ResuelveActores
 {
     /**

@@ -1,33 +1,39 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\ConvenioEstado;
-use App\Enums\Dictamen;
 use App\Enums\EtapaConvenio;
 use App\Enums\PostulacionEstado;
 use App\Enums\PracticaEstado;
 use App\Enums\ProgramaEstado;
+use App\Enums\Rol;
 use App\Enums\SeguimientoEstado;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\FiltrosInformeRequest;
+use App\Informes\Informe;
+use App\Informes\InformePracticas;
 use App\Models\Carrera;
 use App\Models\Convenio;
 use App\Models\ConvenioSeguimiento;
-use App\Models\Personal;
-use App\Models\Postulacion;
 use App\Models\Practica;
 use App\Models\Programa;
 use App\Services\Auditoria;
-use Illuminate\Database\Eloquent\Builder;
+use App\Services\ExportadorCsv;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * Informes: resumen en pantalla y exportación a CSV de cada informe (App\Informes).
+ */
 class InformeController extends Controller
 {
-    public function index(Request $request): View
+    /** Resumen de prácticas por carrera, estado de los convenios y tiempos reales de cada etapa. */
+    public function index(FiltrosInformeRequest $request): View
     {
-        $this->validar($request);
 
         $personal = $request->user()->personal;
         $ids = $personal->carreraIdsEnAlcance();
@@ -35,7 +41,7 @@ class InformeController extends Controller
 
         // --- Resumen de prácticas: es información académica, solo la ve el administrador
         // (Vinculación no opera el proceso del alumno; cada coordinación lo ve en su panel)
-        $practicas = $completo ? $this->practicas($request, $personal)->get() : collect();
+        $practicas = $completo ? (new InformePracticas($request, $personal))->consulta()->get() : collect();
 
         $porCarrera = $practicas
             ->groupBy(fn (Practica $p) => $p->postulacion->alumno->carrera_id)
@@ -113,245 +119,25 @@ class InformeController extends Controller
         ]);
     }
 
-    public function exportar(Request $request, string $tipo): StreamedResponse
+    /** CSV de un informe (App\Informes\*), filtrado igual que la pantalla y limitado al alcance de quien lo pide. */
+    public function exportar(FiltrosInformeRequest $request, string $tipo, ExportadorCsv $exportador): StreamedResponse
     {
-        // Vinculación solo exporta convenios; prácticas, postulaciones y programas son del ámbito académico
-        abort_unless(in_array($tipo, ['convenios', 'empresas', 'documentos-fisicos'], true) || $this->esAdministrador($request), 403);
+        abort_unless(in_array($tipo, Informe::DE_VINCULACION, true) || $this->esAdministrador($request), 403);
 
-        $this->validar($request);
-
-        $personal = $request->user()->personal;
-
-        [$encabezados, $consulta, $fila] = match ($tipo) {
-            'practicas' => $this->exportarPracticas($request, $personal),
-            'postulaciones' => $this->exportarPostulaciones($request, $personal),
-            'convenios' => $this->exportarConvenios($request, $personal),
-            'programas' => $this->exportarProgramas($request, $personal),
-            'empresas' => $this->exportarEmpresas($request),
-            'documentos-fisicos' => $this->exportarDocumentosFisicos($request, $personal),
-        };
+        $informe = Informe::para($tipo, $request, $request->user()->personal);
 
         Auditoria::registrar(
             'informe.exportado',
-            "Exportó el informe de {$tipo} (".(clone $consulta)->count().' filas)',
+            "Exportó el informe de {$tipo} (".$informe->consulta()->count().' filas)',
             cambios: ['filtros' => $request->only(['carrera_id', 'estado', 'ciclo', 'desde', 'hasta', 'vista', 'q'])],
             tipo: 'Informe',
         );
 
-        return response()->streamDownload(function () use ($encabezados, $consulta, $fila) {
-            $salida = fopen('php://output', 'w');
-            fwrite($salida, "\xEF\xBB\xBF");   // BOM: Excel respeta los acentos
-            fputcsv($salida, $encabezados, ',', '"', '');
-
-            foreach ($consulta->lazyById(200) as $modelo) {
-                $valores = $fila($modelo);
-                if ($valores === null) {
-                    continue;   // filtro calculado (p. ej. situación de la empresa)
-                }
-                fputcsv($salida, array_map([$this, 'limpiar'], $valores), ',', '"', '');
-            }
-
-            fclose($salida);
-        }, $tipo.'-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+        return $exportador->descargar($informe, $tipo);
     }
-
-    /* ----------------------------- Consultas ----------------------------- */
-
-    private function practicas(Request $request, Personal $personal): Builder
-    {
-        return Practica::with(['postulacion.alumno.user', 'postulacion.alumno.carrera', 'postulacion.programa.convenio.empresa', 'supervisor'])
-            ->conHorasAcumuladas()
-            ->visiblesPara($personal)
-            ->when($request->filled('carrera_id'), fn ($q) => $q->whereHas('postulacion.alumno', fn ($a) => $a->where('carrera_id', $request->integer('carrera_id'))))
-            ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->string('estado')->toString()))
-            ->when($request->filled('desde'), fn ($q) => $q->whereDate('fecha_inicio', '>=', $request->date('desde')))
-            ->when($request->filled('hasta'), fn ($q) => $q->whereDate('fecha_inicio', '<=', $request->date('hasta')));
-    }
-
-    /**
-     * Empresas con su situación frente al CUCSH (la misma que usa el PDF de la bandeja).
-     * El filtro «estado» acepta una clave de Empresa::SITUACIONES.
-     *
-     * @return array{0:string[],1:Builder,2:callable}
-     */
-    /**
-     * Dónde está cada papel del trámite (los mismos filtros de la pantalla «Documentos físicos»).
-     *
-     * @return array{0:string[],1:Builder,2:callable}
-     */
-    private function exportarDocumentosFisicos(Request $request, Personal $personal): array
-    {
-        $consulta = \App\Models\DocumentoFisico::with('convenio.empresa')
-            ->where('tipo', '!=', \App\Enums\TipoDocumentoFisico::OficioTurno->value)   // el turno es digital: ya no se rastrea
-            ->whereHas('convenio', fn ($c) => $c->visiblesPara($personal))
-            ->enVista($request->string('vista')->toString() ?: 'activos', $request->string('q')->toString());
-
-        return [
-            ['Organización', 'Folio del convenio', 'Papel', 'Estado', 'Lo tiene', 'Desde', 'Días hábiles en ese estado', 'Debe regresar', 'Situación', 'Destino del juego', 'Notas'],
-            $consulta,
-            fn (\App\Models\DocumentoFisico $d) => [
-                $d->convenio->empresa->razon_social,
-                $d->convenio->folio ?? 'Sin folio',
-                $d->nombre(),
-                $d->estado->label(),
-                $d->estado->custodio(),
-                $d->fecha_estado?->format('d/m/Y'),
-                $d->diasEnEstado(),
-                $d->estado->fueraDeOficina() ? $d->fecha_compromiso?->format('d/m/Y') : '',
-                match (true) {
-                    $d->estado->concluido() => 'Concluido',
-                    !$d->estado->fueraDeOficina() => 'En la oficina de Vínculos',
-                    $d->vencido() => 'Regreso vencido',
-                    $d->porVencer() => 'Regresa muy pronto',
-                    default => 'A tiempo',
-                },
-                $d->destino,
-                $d->notas,
-            ],
-        ];
-    }
-    private function exportarEmpresas(Request $request): array
-    {
-        $situacion = $request->string('estado')->toString();
-        $filtrar = isset(\App\Models\Empresa::SITUACIONES[$situacion]);
-
-        return [
-            ['Razón social', 'RFC', 'Tipo de organismo', 'Situación', 'Detalle', 'Representante legal', 'Cargo',
-                'Contacto', 'Correo', 'Teléfono', 'Domicilio legal', 'Solicitudes', 'Registrada'],
-            \App\Models\Empresa::with(['user', 'convenios'])->withCount('convenios')->orderBy('razon_social'),
-            function (\App\Models\Empresa $e) use ($filtrar, $situacion) {
-                $s = $e->situacion();
-                if ($filtrar && $s['clave'] !== $situacion) {
-                    return null;
-                }
-
-                return [
-                    $e->razon_social, $e->rfc, $e->tipo_organismo?->label(), $s['texto'], $s['detalle'],
-                    $e->representante_legal, $e->representante_cargo, $e->contacto_nombre, $e->user?->email,
-                    $e->contacto_telefono, $e->domicilio_fiscal, $e->convenios_count, $e->created_at?->format('Y-m-d'),
-                ];
-            },
-        ];
-    }
-
-    /** @return array{0:string[],1:Builder,2:callable} */
-    private function exportarPracticas(Request $request, Personal $personal): array
-    {
-        return [
-            ['Código de alumno', 'Alumno', 'Carrera', 'Empresa o proyecto', 'Programa', 'Ciclo', 'Inicio', 'Fin',
-                'Horas validadas', 'Horas requeridas', 'Avance %', 'Estado', 'Supervisor'],
-            $this->practicas($request, $personal),
-            function (Practica $p) {
-                $al = $p->postulacion->alumno;
-                $pr = $p->postulacion->programa;
-                $validadas = (int) $p->horas_acumuladas;
-
-                return [
-                    $al->num_control, $al->user->name, $al->carrera->carrera_clave,
-                    $pr->convenio?->empresa->razon_social ?? 'Proyecto interno', $pr->titulo, $pr->ciclo,
-                    $p->fecha_inicio->format('Y-m-d'), $p->fecha_fin->format('Y-m-d'),
-                    $validadas, $p->horas_requeridas,
-                    $p->horas_requeridas > 0 ? (int) round($validadas / $p->horas_requeridas * 100) : 0,
-                    $p->estado->label(), $p->supervisor?->nombre,
-                ];
-            },
-        ];
-    }
-
-    /** @return array{0:string[],1:Builder,2:callable} */
-    private function exportarPostulaciones(Request $request, Personal $personal): array
-    {
-        $consulta = Postulacion::with(['alumno.user', 'alumno.carrera', 'programa.convenio.empresa'])
-            ->visiblesPara($personal)
-            ->when($request->filled('carrera_id'), fn ($q) => $q->whereHas('alumno', fn ($a) => $a->where('carrera_id', $request->integer('carrera_id'))))
-            ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->string('estado')->toString()))
-            ->when($request->filled('desde'), fn ($q) => $q->whereDate('fecha_postulacion', '>=', $request->date('desde')))
-            ->when($request->filled('hasta'), fn ($q) => $q->whereDate('fecha_postulacion', '<=', $request->date('hasta')));
-
-        return [
-            ['Fecha', 'Código de alumno', 'Alumno', 'Carrera', 'Programa', 'Empresa o proyecto', '% créditos declarado', 'Estado'],
-            $consulta,
-            fn (Postulacion $po) => [
-                $po->fecha_postulacion->format('Y-m-d'), $po->alumno->num_control, $po->alumno->user->name,
-                $po->alumno->carrera->carrera_clave, $po->programa->titulo,
-                $po->programa->convenio?->empresa->razon_social ?? 'Proyecto interno',
-                (float) $po->porcentaje_creditos_declarado, $po->estado->label(),
-            ],
-        ];
-    }
-
-    /** @return array{0:string[],1:Builder,2:callable} */
-    private function exportarConvenios(Request $request, Personal $personal): array
-    {
-        $consulta = Convenio::with(['empresa', 'dictamenes.carrera'])
-            ->visiblesPara($personal)
-            ->when($request->filled('carrera_id'), fn ($q) => $q->whereHas('dictamenes', fn ($d) => $d->where('carrera_id', $request->integer('carrera_id'))))
-            ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->string('estado')->toString()))
-            ->when($request->filled('desde'), fn ($q) => $q->whereDate('fecha_recepcion', '>=', $request->date('desde')))
-            ->when($request->filled('hasta'), fn ($q) => $q->whereDate('fecha_recepcion', '<=', $request->date('hasta')));
-
-        return [
-            ['Folio', 'Empresa', 'RFC', 'Tipo de organismo', 'Estado', 'Recibido', 'Inicio de vigencia', 'Fin de vigencia',
-                'Días para vencer', 'Carreras aprobadas', 'Plazas estimadas'],
-            $consulta,
-            fn (Convenio $c) => [
-                $c->folio, $c->empresa->razon_social, $c->empresa->rfc, $c->empresa->tipo_organismo->label(), $c->estado->label(),
-                $c->fecha_recepcion->format('Y-m-d'), $c->fecha_inicio_vigencia?->format('Y-m-d'), $c->fecha_fin_vigencia?->format('Y-m-d'),
-                $c->estaVigente() ? (int) now()->startOfDay()->diffInDays($c->fecha_fin_vigencia, false) : null,
-                $c->dictamenes->filter(fn ($d) => $d->dictamen === Dictamen::Aprobatorio)->map(fn ($d) => $d->carrera->carrera_clave)->join(' '),
-                $c->plazas_estimadas,
-            ],
-        ];
-    }
-
-    /** @return array{0:string[],1:Builder,2:callable} */
-    private function exportarProgramas(Request $request, Personal $personal): array
-    {
-        $ids = $personal->carreraIdsEnAlcance();
-
-        $consulta = Programa::with(['convenio.empresa', 'carrera'])
-            ->conCuposOcupados()
-            ->when($ids !== null, fn ($q) => $q->whereIn('carrera_id', $ids))
-            ->when($request->filled('carrera_id'), fn ($q) => $q->where('carrera_id', $request->integer('carrera_id')))
-            ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->string('estado')->toString()))
-            ->when($request->filled('ciclo'), fn ($q) => $q->where('ciclo', $request->string('ciclo')->toString()));
-
-        return [
-            ['Programa', 'Empresa o proyecto', 'Carrera', 'Ciclo', 'Modalidad', 'Estado', 'Cupos totales', 'Cupos ocupados', 'Cupos disponibles', 'Sede', 'Horario'],
-            $consulta,
-            fn (Programa $pr) => [
-                $pr->titulo, $pr->convenio?->empresa->razon_social ?? 'Proyecto interno', $pr->carrera->carrera_clave, $pr->ciclo,
-                ucfirst($pr->modalidad->value), ucfirst($pr->estado->value),
-                $pr->cupos_totales, (int) $pr->cupos_ocupados, $pr->cupos_disponibles, $pr->sede, $pr->horario,
-            ],
-        ];
-    }
-
-    /* ------------------------------- Helpers ------------------------------- */
 
     private function esAdministrador(Request $request): bool
     {
-        return $request->user()->hasRole(\App\Enums\Rol::Administrador->value);
-    }
-
-    private function validar(Request $request): void
-    {
-        $request->validate([
-            'carrera_id' => ['nullable', 'integer'],
-            'estado' => ['nullable', 'string', 'max:30'],
-            'ciclo' => ['nullable', 'regex:/^\d{4}[AB]$/'],
-            'desde' => ['nullable', 'date'],
-            'hasta' => ['nullable', 'date', 'after_or_equal:desde'],
-        ]);
-    }
-
-    /** Neutraliza fórmulas: un texto que empiece con = + - @ no debe ejecutarse al abrirlo en Excel. */
-    private function limpiar(mixed $valor): mixed
-    {
-        if (! is_string($valor)) {
-            return $valor;
-        }
-
-        return preg_match('/^[=+\-@\t\r]/', $valor) ? "'".$valor : $valor;
+        return $request->user()->hasRole(Rol::Administrador->value);
     }
 }

@@ -1,22 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\ReporteEstado;
 use App\Enums\ReporteTipo;
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\ValidaDocumentos;
+use App\Observers\ReporteObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use App\Observers\ReporteObserver;
-use Illuminate\Database\Eloquent\Attributes\ObservedBy; 
-use App\Models\Concerns\Auditable;
 
 #[ObservedBy([ReporteObserver::class])]
+/**
+ * Reporte de horas del alumno: periodo, actividades y el archivo firmado que valida la coordinación.
+ */
 class Reporte extends Model implements HasMedia
 {
-    use InteractsWithMedia, ValidaDocumentos, Auditable;
+    use Auditable, InteractsWithMedia, ValidaDocumentos;
 
     protected $table = 'reportes';
 
@@ -42,6 +47,7 @@ class Reporte extends Model implements HasMedia
             ->acceptsMimeTypes(['application/pdf']);
     }
 
+    /** @return BelongsTo<Practica, $this> */
     public function practica(): BelongsTo
     {
         return $this->belongsTo(Practica::class);

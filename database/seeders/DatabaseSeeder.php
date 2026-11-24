@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Services\Auditoria;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -14,7 +15,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        \App\Services\Auditoria::sinRegistro(fn () => $this->sembrar());
+        Auditoria::sinRegistro(fn () => $this->sembrar());
     }
 
     private function sembrar(): void

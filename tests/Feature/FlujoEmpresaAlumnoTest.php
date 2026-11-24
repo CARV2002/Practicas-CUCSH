@@ -10,8 +10,8 @@ use App\Enums\Rol;
 use App\Enums\TipoOrganismo;
 use App\Enums\ValidacionEstado;
 use App\Models\Alumno;
-use App\Models\CartaTermino;
 use App\Models\Carrera;
+use App\Models\CartaTermino;
 use App\Models\Convenio;
 use App\Models\Division;
 use App\Models\Empresa;
@@ -84,7 +84,7 @@ beforeEach(function () {
         'division_id' => $division->id,
         'horas_requeridas' => 250,
         'porcentaje_creditos_minimo' => 50,
-        'creditos_otorgados' => 8
+        'creditos_otorgados' => 8,
     ];
     $this->abogado = Carrera::create($datos + ['carrera_clave' => 'ABOG', 'nombre' => 'Abogado']);
     $this->historia = Carrera::create($datos + ['carrera_clave' => 'HIST', 'nombre' => 'Historia']);
@@ -115,7 +115,7 @@ beforeEach(function () {
     [$this->anaUser, $this->ana] = escAlumno($this->abogado, '215000001');
     [$this->luisUser, $this->luis] = escAlumno($this->historia, '215000002');
 
-    $this->programa = fn(array $extra = []) => Programa::create($extra + [
+    $this->programa = fn (array $extra = []) => Programa::create($extra + [
         'convenio_id' => $this->convenio->id,
         'carrera_id' => $this->abogado->id,
         'modalidad' => 'externa',
@@ -223,7 +223,7 @@ test('empresa publica, alumno se postula y la práctica llega a acreditada', fun
         ->post(route('alumno.documentos.termino', $practica), ['archivo' => escPdf('termino.pdf')])
         ->assertSessionHasNoErrors()->assertRedirect();
 
-   // Coordinación valida la carta, registra el oficio y confirma Control Escolar / SIIAU
+    // Coordinación valida la carta, registra el oficio y confirma Control Escolar / SIIAU
     $admin = $this->actingAs($this->coordUser);
 
     $admin->post(route('coordinacion.cierres.carta', $practica), ['estado' => 'validada'])->assertSessionHasNoErrors()->assertRedirect();
@@ -310,7 +310,7 @@ test('una empresa no ve ni retroalimenta practicantes ajenos', function () {
         'programa_id' => $programa->id,
         'estado' => PostulacionEstado::Aceptada,
         'porcentaje_creditos_declarado' => 70,
-        'fecha_postulacion' => today()
+        'fecha_postulacion' => today(),
     ]);
     $practica = Practica::create([
         'postulacion_id' => $po->id,
@@ -318,7 +318,7 @@ test('una empresa no ve ni retroalimenta practicantes ajenos', function () {
         'fecha_inicio' => today(),
         'fecha_fin' => today()->addMonths(6),
         'horas_requeridas' => 250,
-        'estado' => PracticaEstado::EnCurso
+        'estado' => PracticaEstado::EnCurso,
     ]);
     $reporte = Reporte::create([
         'practica_id' => $practica->id,
@@ -326,7 +326,7 @@ test('una empresa no ve ni retroalimenta practicantes ajenos', function () {
         'periodo_inicio' => today(),
         'periodo_fin' => today()->addMonth(),
         'horas_reportadas' => 40,
-        'estado' => ReporteEstado::Pendiente
+        'estado' => ReporteEstado::Pendiente,
     ]);
 
     $this->actingAs($this->otraEmpresaUser)->get(route('empresa.practicantes.show', $practica))->assertForbidden();
@@ -342,7 +342,7 @@ test('un alumno no puede subir ni descargar archivos de otro alumno', function (
         'programa_id' => $programa->id,
         'estado' => PostulacionEstado::CartaPresentacionEmitida,
         'porcentaje_creditos_declarado' => 70,
-        'fecha_postulacion' => today()
+        'fecha_postulacion' => today(),
     ]);
 
     // Subir a la postulación de Ana siendo Luis

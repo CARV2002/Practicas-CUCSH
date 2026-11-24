@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Listeners;
 
 use App\Models\User;
@@ -12,6 +14,10 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Events\Dispatcher;
 
+/**
+ * Anota en la bitácora los eventos de acceso: inicio y cierre de sesión, intentos fallidos, bloqueos,
+ * contraseña restablecida y correo verificado.
+ */
 class RegistrarAccesos
 {
     /** @return array<class-string, string> */

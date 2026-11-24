@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Controllers\Auth\ActivarCuentaController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
+use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
@@ -11,7 +13,6 @@ use App\Http\Controllers\Auth\RegistroAlumnoController;
 use App\Http\Controllers\Auth\RegistroEmpresaController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\GoogleAuthController;
 
 Route::middleware('guest')->group(function () {
     // Registro público: SOLO alumnos y empresas, siempre con rol y perfil.
@@ -47,8 +48,8 @@ Route::middleware('guest')->group(function () {
         ->name('password.store');
 
     // Personal dado de alta por el administrador: configura su propia contraseña con el enlace de su correo
-    Route::get('cuenta/activar/{token}', [\App\Http\Controllers\Auth\ActivarCuentaController::class, 'create'])->name('cuenta.activar');
-    Route::post('cuenta/activar', [\App\Http\Controllers\Auth\ActivarCuentaController::class, 'store'])->middleware('throttle:10,1')->name('cuenta.activar.store');
+    Route::get('cuenta/activar/{token}', [ActivarCuentaController::class, 'create'])->name('cuenta.activar');
+    Route::post('cuenta/activar', [ActivarCuentaController::class, 'store'])->middleware('throttle:10,1')->name('cuenta.activar.store');
 
     Route::get('auth/google', [GoogleAuthController::class, 'redirect'])->name('google.redirect');
     Route::get('auth/google/callback', [GoogleAuthController::class, 'callback'])->name('google.callback');

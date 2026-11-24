@@ -1,16 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\Concerns\Auditable;
 
 /** Catálogo de profesores supervisores, adscritos a una división (sin login en esta fase). */
 class Profesor extends Model
 {
     use Auditable;
+
     protected $table = 'profesores';
 
     protected $fillable = ['division_id', 'nombre', 'email', 'telefono', 'activo'];
@@ -18,16 +22,18 @@ class Profesor extends Model
     protected $casts = ['activo' => 'boolean'];
 
     /** Solo los activos se pueden asignar a una práctica nueva. */
-    public function scopeActivos(\Illuminate\Database\Eloquent\Builder $q): \Illuminate\Database\Eloquent\Builder
+    public function scopeActivos(Builder $q): Builder
     {
         return $q->where('activo', true);
     }
 
+    /** @return BelongsTo<Division, $this> */
     public function division(): BelongsTo
     {
         return $this->belongsTo(Division::class);
     }
 
+    /** @return HasMany<Practica, $this> */
     public function practicas(): HasMany
     {
         return $this->hasMany(Practica::class, 'profesor_supervisor_id');
@@ -43,5 +49,4 @@ class Profesor extends Model
     {
         return $this->nombre;
     }
-
 }

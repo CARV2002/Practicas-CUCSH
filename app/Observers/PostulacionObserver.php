@@ -1,11 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Observers;
 
 use App\Enums\PostulacionEstado;
 use App\Models\Postulacion;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Impide que una postulación salte a un estado no permitido (PostulacionEstado::transiciones).
+ */
 class PostulacionObserver
 {
     public function updating(Postulacion $postulacion): void

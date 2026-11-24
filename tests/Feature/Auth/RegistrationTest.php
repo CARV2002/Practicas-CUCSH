@@ -1,8 +1,11 @@
 <?php
 
 use App\Enums\Rol;
+use App\Enums\Turno;
+use App\Models\Alumno;
 use App\Models\Carrera;
 use App\Models\Division;
+use App\Models\Empresa;
 use App\Models\User;
 use Database\Seeders\RolesSeeder;
 
@@ -70,7 +73,7 @@ test('students register with the student role and profile', function () {
         ->and($user->alumno->num_control)->toBe('215123456')
         ->and($user->alumno->carrera_id)->toBe($this->carrera->id)
         ->and($user->alumno->grado)->toBe(6)
-        ->and($user->alumno->turno)->toBe(\App\Enums\Turno::Matutino)
+        ->and($user->alumno->turno)->toBe(Turno::Matutino)
         ->and($user->aviso_privacidad_at)->not->toBeNull();
 });
 
@@ -162,7 +165,7 @@ test('el código de alumno son exactamente 9 números y el nombre lleva nombre y
 
     // Pegado con espacios o guiones: se limpia y se acepta
     $this->post('/registro/alumno', datosAlumno(['num_control' => '215-123 456', 'name' => '  Ana   López  ']))->assertSessionHasNoErrors();
-    expect(\App\Models\Alumno::first()->num_control)->toBe('215123456')
+    expect(Alumno::first()->num_control)->toBe('215123456')
         ->and(User::first()->name)->toBe('Ana López');
 });
 
@@ -173,11 +176,11 @@ test('el registro de empresa valida el RFC del SAT y el teléfono', function () 
     $this->post('/registro/empresa', datosEmpresa(['rfc' => 'XAXX010101000']))->assertSessionHasErrors(['rfc' => 'Ese es un RFC genérico del SAT: escribe el RFC propio de tu organización.']);
     $this->post('/registro/empresa', datosEmpresa(['rfc' => 'ABC011340AB1']))->assertSessionHasErrors('rfc');
     $this->post('/registro/empresa', datosEmpresa(['rfc' => 'ABC0101']))->assertSessionHasErrors('rfc');
-    $this->post('/registro/empresa', datosEmpresa(['name' => str_repeat('Nombre ', 15) . 'Largo']))->assertSessionHasErrors('name');
+    $this->post('/registro/empresa', datosEmpresa(['name' => str_repeat('Nombre ', 15).'Largo']))->assertSessionHasErrors('name');
     $this->assertGuest();
 
     // Persona física (13) y RFC con guiones o en minúsculas: se normaliza
     $this->post('/registro/empresa', datosEmpresa(['rfc' => 'pegs-850812-xyz', 'contacto_telefono' => '33 1234 5678']))->assertSessionHasNoErrors();
-    $empresa = \App\Models\Empresa::first();
+    $empresa = Empresa::first();
     expect($empresa->rfc)->toBe('PEGS850812XYZ')->and($empresa->contacto_telefono)->toBe('3312345678');
 });

@@ -29,7 +29,7 @@ return new class extends Migration
             ]);
         }
 
-        if (!DB::table('configuraciones')->where('clave', 'correo_juridica')->exists()) {
+        if (! DB::table('configuraciones')->where('clave', 'correo_juridica')->exists()) {
             DB::table('configuraciones')->insert(['clave' => 'correo_juridica', 'valor' => 'juridico@csh.udg.mx', 'created_at' => now(), 'updated_at' => now()]);
         }
     }

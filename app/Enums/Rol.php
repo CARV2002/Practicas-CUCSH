@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Enums;
 
 /**
@@ -64,8 +66,8 @@ enum Rol: string
 
     /**
      * @return string[] Roles que entran a coordinacion/ (proceso académico del alumno).
-     * Solo las coordinaciones de carrera: el administrador (Coordinación de Servicios Académicos) no tiene autoridad
-     * académica sobre las licenciaturas, así que no valida kardex, vacantes, reportes ni cierres.
+     *                  Solo las coordinaciones de carrera: el administrador (Coordinación de Servicios Académicos) no tiene autoridad
+     *                  académica sobre las licenciaturas, así que no valida kardex, vacantes, reportes ni cierres.
      */
     public static function deCoordinacion(): array
     {

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use App\Enums\ConvenioEstado;
@@ -16,6 +18,10 @@ use App\Notifications\AvisoOperativo;
 use App\Services\Avisos;
 use Illuminate\Console\Command;
 
+/**
+ * Tarea diaria (practicas:avisos-programados): recordatorios que dependen de fechas —convenios por vencer,
+ * etapas que exceden su plazo, papeles y juegos que no regresan, dictámenes pendientes y prácticas por terminar.
+ */
 class AvisosProgramados extends Command
 {
     protected $signature = 'practicas:avisos-programados';
@@ -149,16 +155,16 @@ class AvisosProgramados extends Command
             ->whereDate('fecha_compromiso', '<=', today()->addWeekday()->toDateString())
             ->get()
             ->filter(fn (DocumentoFisico $d) => $d->convenio !== null)
-            ->groupBy(fn (DocumentoFisico $d) => $d->convenio_id . '-' . $d->fecha_compromiso->toDateString())
+            ->groupBy(fn (DocumentoFisico $d) => $d->convenio_id.'-'.$d->fecha_compromiso->toDateString())
             ->each(function ($docs) use (&$enviados) {
                 $primero = $docs->first();
                 $convenio = $primero->convenio;
                 $vencido = $primero->vencido();
-                $clave = 'fisico-' . $convenio->id . '-' . $primero->fecha_compromiso->toDateString() . ($vencido ? '-v' : '-p');
-                $lista = $docs->map(fn (DocumentoFisico $d) => $d->nombre() . ' (' . mb_strtolower($d->estado->label()) . ')')->join(', ', ' y ');
+                $clave = 'fisico-'.$convenio->id.'-'.$primero->fecha_compromiso->toDateString().($vencido ? '-v' : '-p');
+                $lista = $docs->map(fn (DocumentoFisico $d) => $d->nombre().' ('.mb_strtolower($d->estado->label()).')')->join(', ', ' y ');
                 $cuando = $vencido
-                    ? 'debían regresar el ' . $primero->fecha_compromiso->format('d/m/Y')
-                    : 'deben regresar el ' . $primero->fecha_compromiso->format('d/m/Y');
+                    ? 'debían regresar el '.$primero->fecha_compromiso->format('d/m/Y')
+                    : 'deben regresar el '.$primero->fecha_compromiso->format('d/m/Y');
 
                 foreach (Avisos::vinculacionDe($convenio) as $admin) {
                     if (! $this->yaAvisado($admin, $clave)) {
@@ -190,7 +196,7 @@ class AvisosProgramados extends Command
             ->each(function ($juegos) use (&$enviados) {
                 $convenio = $juegos->first()->convenio;
                 $user = $convenio->empresa->user;
-                $clave = 'juegos-' . $convenio->id . '-' . $juegos->min('fecha_compromiso')->toDateString();
+                $clave = 'juegos-'.$convenio->id.'-'.$juegos->min('fecha_compromiso')->toDateString();
 
                 if ($user->activo && ! $this->yaAvisado($user, $clave)) {
                     Avisos::enviar($user, new AvisoOperativo(
@@ -225,7 +231,7 @@ class AvisosProgramados extends Command
                     return;
                 }
 
-                $clave = "dictamen-{$d->id}-" . today()->format('o-W');
+                $clave = "dictamen-{$d->id}-".today()->format('o-W');
 
                 foreach (Avisos::coordinadores((int) $d->carrera_id) as $coord) {
                     if (! $this->yaAvisado($coord, $clave)) {

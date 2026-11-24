@@ -20,6 +20,11 @@
 /storage/*.key
 /storage/pail
 /vendor
+.claude/
+docs/
+auditoria-codigo.md
+DESIGN_SYSTEM.md
+_audit_ui/
 Homestead.json
 Homestead.yaml
 Thumbs.db

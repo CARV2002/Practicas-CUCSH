@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
-use App\Enums\TipoOrganismo;
 use App\Models\Empresa;
+use App\Rules\UnicoNormalizado;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -71,8 +73,8 @@ final class SolicitudEmpresa
 
         return match ($seccion) {
             'generales' => [
-                'razon_social' => ['required', 'string', 'min:3', 'max:' . Formatos::MAX_RAZON_SOCIAL,
-                    new \App\Rules\UnicoNormalizado('empresas', 'razon_social', 'Ya hay otra organización registrada con esa razón social.', $empresa->id)],
+                'razon_social' => ['required', 'string', 'min:3', 'max:'.Formatos::MAX_RAZON_SOCIAL,
+                    new UnicoNormalizado('empresas', 'razon_social', 'Ya hay otra organización registrada con esa razón social.', $empresa->id)],
                 'giro' => [$req(), 'string', 'min:3', 'max:120'],
                 'descripcion' => [$req(), 'string', 'min:30', 'max:1500'],
                 'proyectos_principales' => [$req(), 'string', 'min:10', 'max:1500'],
@@ -80,26 +82,26 @@ final class SolicitudEmpresa
                 'numero_exterior' => [$req(), 'string', 'max:15', 'regex:/^[A-Za-z0-9\-\/ ]+$/'],
                 'numero_interior' => ['nullable', 'string', 'max:15', 'regex:/^[A-Za-z0-9\-\/ ]+$/'],
                 'colonia' => [$req(), 'string', 'min:3', 'max:120'],
-                'codigo_postal' => [$req(), 'regex:' . Formatos::CODIGO_POSTAL],
-                'municipio' => [$req(), 'string', 'min:3', 'max:120', 'regex:' . Formatos::TEXTO_LETRAS],
+                'codigo_postal' => [$req(), 'regex:'.Formatos::CODIGO_POSTAL],
+                'municipio' => [$req(), 'string', 'min:3', 'max:120', 'regex:'.Formatos::TEXTO_LETRAS],
                 'entidad' => [$req(), Rule::in(self::ENTIDADES)],
-                'contacto_nombre' => ['required', 'string', 'min:5', 'max:' . Formatos::MAX_NOMBRE_PERSONA, 'regex:' . Formatos::NOMBRE_PERSONA],
-                'contacto_cargo' => [$req(), 'string', 'min:3', 'max:120', 'regex:' . Formatos::TEXTO_LETRAS],
-                'contacto_telefono' => [$req(), 'regex:' . Formatos::TELEFONO],
+                'contacto_nombre' => ['required', 'string', 'min:5', 'max:'.Formatos::MAX_NOMBRE_PERSONA, 'regex:'.Formatos::NOMBRE_PERSONA],
+                'contacto_cargo' => [$req(), 'string', 'min:3', 'max:120', 'regex:'.Formatos::TEXTO_LETRAS],
+                'contacto_telefono' => [$req(), 'regex:'.Formatos::TELEFONO],
             ],
             'legales' => [
-                'representante_legal' => [$req(), 'string', 'min:5', 'max:' . Formatos::MAX_NOMBRE_PERSONA, 'regex:' . Formatos::NOMBRE_PERSONA],
-                'representante_cargo' => [$req(), 'string', 'min:3', 'max:120', 'regex:' . Formatos::TEXTO_LETRAS],
+                'representante_legal' => [$req(), 'string', 'min:5', 'max:'.Formatos::MAX_NOMBRE_PERSONA, 'regex:'.Formatos::NOMBRE_PERSONA],
+                'representante_cargo' => [$req(), 'string', 'min:3', 'max:120', 'regex:'.Formatos::TEXTO_LETRAS],
                 'objeto_social' => [$req(), 'string', 'min:20', 'max:1500'],
                 ...self::reglasCreacion($escritura, $estricto),
                 // Facultades de quien firma: del acta o de un poder (sociedades); de su nombramiento (dependencias)
                 'facultad_origen' => [$req(), Rule::in($escritura ? ['acta', 'poder'] : ['nombramiento'])],
-                'facultad_firmante' => [$req(!$escritura), 'nullable', 'string', 'min:15', 'max:1500'],
-                'poder_escritura_numero' => [$req($escritura && $poder), 'nullable', 'regex:' . Formatos::NUMERO],
+                'facultad_firmante' => [$req(! $escritura), 'nullable', 'string', 'min:15', 'max:1500'],
+                'poder_escritura_numero' => [$req($escritura && $poder), 'nullable', 'regex:'.Formatos::NUMERO],
                 'poder_fecha' => [$req($escritura && $poder), 'nullable', 'date', 'before_or_equal:today'],
-                'poder_notario_nombre' => [$req($escritura && $poder), 'nullable', 'string', 'min:5', 'max:' . Formatos::MAX_NOMBRE_PERSONA, 'regex:' . Formatos::NOMBRE_PERSONA],
-                'poder_notaria_numero' => [$req($escritura && $poder), 'nullable', 'regex:' . Formatos::NUMERO],
-                'poder_notaria_ciudad' => [$req($escritura && $poder), 'nullable', 'string', 'max:120', 'regex:' . Formatos::TEXTO_LETRAS],
+                'poder_notario_nombre' => [$req($escritura && $poder), 'nullable', 'string', 'min:5', 'max:'.Formatos::MAX_NOMBRE_PERSONA, 'regex:'.Formatos::NOMBRE_PERSONA],
+                'poder_notaria_numero' => [$req($escritura && $poder), 'nullable', 'regex:'.Formatos::NUMERO],
+                'poder_notaria_ciudad' => [$req($escritura && $poder), 'nullable', 'string', 'max:120', 'regex:'.Formatos::TEXTO_LETRAS],
             ],
             'perfiles' => [
                 'carreras' => [$req(), 'array', $estricto ? 'min:1' : 'min:0'],
@@ -120,14 +122,14 @@ final class SolicitudEmpresa
         $req = fn (bool $cuando) => $estricto && $cuando ? 'required' : 'nullable';
 
         return [
-            'escritura_numero' => [$req($escritura), 'nullable', 'regex:' . Formatos::NUMERO],
+            'escritura_numero' => [$req($escritura), 'nullable', 'regex:'.Formatos::NUMERO],
             'escritura_fecha' => [$req($escritura), 'nullable', 'date', 'before_or_equal:today'],
-            'notario_nombre' => [$req($escritura), 'nullable', 'string', 'min:5', 'max:' . Formatos::MAX_NOMBRE_PERSONA, 'regex:' . Formatos::NOMBRE_PERSONA],
-            'notaria_numero' => [$req($escritura), 'nullable', 'regex:' . Formatos::NUMERO],
-            'notaria_ciudad' => [$req($escritura), 'nullable', 'string', 'max:120', 'regex:' . Formatos::TEXTO_LETRAS],
+            'notario_nombre' => [$req($escritura), 'nullable', 'string', 'min:5', 'max:'.Formatos::MAX_NOMBRE_PERSONA, 'regex:'.Formatos::NOMBRE_PERSONA],
+            'notaria_numero' => [$req($escritura), 'nullable', 'regex:'.Formatos::NUMERO],
+            'notaria_ciudad' => [$req($escritura), 'nullable', 'string', 'max:120', 'regex:'.Formatos::TEXTO_LETRAS],
             // El folio mercantil se pide a las sociedades mercantiles (privadas)
-            'folio_mercantil' => ['nullable', 'regex:' . Formatos::FOLIO],
-            'constitucion' => [$req(!$escritura), 'nullable', 'string', 'min:15', 'max:1500'],
+            'folio_mercantil' => ['nullable', 'regex:'.Formatos::FOLIO],
+            'constitucion' => [$req(! $escritura), 'nullable', 'string', 'min:15', 'max:1500'],
         ];
     }
 
@@ -220,8 +222,8 @@ final class SolicitudEmpresa
         $notario = preg_replace('/^\s*lic(enciad[oa])?\.?\s+/iu', '', (string) ($d['poder_notario_nombre'] ?? ''));
 
         return "el poder notarial contenido en la escritura pública número {$d['poder_escritura_numero']} de fecha {$fecha}"
-            . ($notario ? ", otorgada ante la fe del Lic. {$notario}, Notario Público número {$d['poder_notaria_numero']} de {$d['poder_notaria_ciudad']}" : '')
-            . ', mismo que no le ha sido revocado ni limitado';
+            .($notario ? ", otorgada ante la fe del Lic. {$notario}, Notario Público número {$d['poder_notaria_numero']} de {$d['poder_notaria_ciudad']}" : '')
+            .', mismo que no le ha sido revocado ni limitado';
     }
 
     /**

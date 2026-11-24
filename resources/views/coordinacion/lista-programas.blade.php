@@ -14,26 +14,12 @@
     ])->values();
 @endphp
 
-<div x-data="{
-    modal: false,
-    {{-- Ventana de revisión: toda la información que capturó la empresa --}}
-    detalle: null,
-    motivo: '',
-    ver(d) { this.detalle = d; this.motivo = ''; },
-    cerrarDetalle() { this.detalle = null; this.motivo = ''; },
-    p: @js($vacio),
-    vacio: @js($vacio),
-    convenios: @js($conveniosJs),
-    urlUpdate: '{{ route('coordinacion.programas.update', 0) }}',
-    urlStore: '{{ route('coordinacion.programas.store') }}',
-    nuevo() { this.p = { ...this.vacio }; this.modal = true; },
-    editar(d) { this.p = { ...this.vacio, ...d }; this.modal = true; },
-    get action() { return this.p.id ? this.urlUpdate.replace(/0$/, this.p.id) : this.urlStore; },
-    get conveniosDeCarrera() {
-        if (!this.p.carrera_id) return this.convenios;
-        return this.convenios.filter(c => c.carreras.includes(Number(this.p.carrera_id)));
-    }
-}" class="space-y-6">
+<div x-data="programaFormulario(@js([
+    'vacio' => $vacio,
+    'convenios' => $conveniosJs,
+    'urlStore' => route('coordinacion.programas.store'),
+    'urlUpdate' => route('coordinacion.programas.update', 0),
+]))" class="space-y-6">
 
     <x-pagina.encabezado titulo="Programas y vacantes" descripcion="Aprueba las vacantes que proponen las organizaciones y crea proyectos internos para tu carrera.">
         <x-slot:acciones>
@@ -108,7 +94,7 @@
                             'perfil_requerido' => $pr->perfil_requerido, 'horario' => $pr->horario ?? '',
                             'sede' => $pr->sede ?? '', 'cupos_totales' => $pr->cupos_totales,
                         ];
-                        $faltaAprobar = $pendiente ? \App\Support\Requisitos::aprobarVacante($pr) : null;
+                        $faltaAprobar = $bloqueosAprobar[$pr->id] ?? null;
                         $ficha = [
                             'titulo' => $pr->titulo,
                             'organizacion' => $pr->convenio?->empresa->razon_social ?? 'Proyecto interno (sin convenio)',
@@ -137,7 +123,7 @@
                     @endphp
                     @php
                         $E = \App\Enums\ProgramaEstado::class;
-                        $sinPostulaciones = !($pr->postulaciones_count ?? $pr->postulaciones()->exists());
+                        $sinPostulaciones = !$pr->postulaciones_count;
                     @endphp
                     <tr @class(['tabla-fila', 'bg-amber-50/50 shadow-[inset_3px_0_0_var(--color-amber-400)]' => $pendiente])>
                         <td class="px-4 py-3">
@@ -408,5 +394,4 @@
     </div>
 </div>
 
-<style>[x-cloak]{display:none !important;}</style>
 @endsection

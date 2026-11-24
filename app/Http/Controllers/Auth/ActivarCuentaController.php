@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
@@ -27,7 +29,7 @@ class ActivarCuentaController extends Controller
         // Enlace vencido (72 h), ya usado o alterado: se avisa ANTES de que escriba su contraseña
         $vigente = $usuario !== null && Password::broker('invitaciones')->tokenExists($usuario, $token);
 
-        return view('pages.auth.activar-cuenta', ['token' => $token, 'email' => $email, 'vencido' => !$vigente]);
+        return view('pages.auth.activar-cuenta', ['token' => $token, 'email' => $email, 'vencido' => ! $vigente]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -56,7 +58,7 @@ class ActivarCuentaController extends Controller
             ]);
         }
 
-        if (!$usuario->activo) {
+        if (! $usuario->activo) {
             return redirect()->route('login')->with('status', 'Tu contraseña quedó lista, pero tu cuenta está desactivada. Contacta a la administración.');
         }
 

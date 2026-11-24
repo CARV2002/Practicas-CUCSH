@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions;
 
 use App\Enums\PostulacionEstado;
@@ -9,11 +11,11 @@ use App\Models\Personal;
 use App\Models\Postulacion;
 use App\Models\Practica;
 use App\Models\Profesor;
+use App\Notifications\AvisoOperativo;
+use App\Services\Avisos;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use App\Services\Avisos;
-use App\Notifications\AvisoOperativo;
 
 /**
  * Nace la práctica. Congela horas_requeridas desde la carrera, exige que convenio e IMSS
@@ -33,7 +35,7 @@ class ActivarPractica
             $postulacion = Postulacion::with('programa.convenio')->lockForUpdate()->findOrFail($postulacion->id);
             $programa = $postulacion->programa;
 
-            if (!$por->puedeVerCarrera((int) $alumno->carrera_id)) {
+            if (! $por->puedeVerCarrera((int) $alumno->carrera_id)) {
                 $this->fallar('No tienes alcance sobre la carrera de este alumno.');
             }
 
@@ -46,26 +48,26 @@ class ActivarPractica
             }
 
             // Si se asigna supervisor, debe ser de la misma DIVISIÓN que la carrera del alumno
-            if ($supervisor !== null && !$supervisor->puedeSupervisar($alumno->carrera)) {
+            if ($supervisor !== null && ! $supervisor->puedeSupervisar($alumno->carrera)) {
                 $this->fallar('El profesor supervisor no pertenece a la división de la carrera del alumno.');
             }
 
             // Modalidad interna (sin convenio): el área receptora de la UdeG firma un Oficio de Aceptación Interno
-            if ($programa->esInterno() && !$postulacion->media()->where('collection_name', 'oficio_aceptacion_interno')->exists()) {
+            if ($programa->esInterno() && ! $postulacion->media()->where('collection_name', 'oficio_aceptacion_interno')->exists()) {
                 $this->fallar('Falta el Oficio de Aceptación Interno firmado por el Jefe de Departamento o Director de División.');
             }
 
             // Un convenio que vence a mitad de la práctica invalida las horas
-            if (!$programa->esInterno() && !$programa->convenio?->cubreHasta($fechaFin)) {
+            if (! $programa->esInterno() && ! $programa->convenio?->cubreHasta($fechaFin)) {
                 $this->fallar('El convenio no está vigente durante todo el periodo de la práctica.');
             }
 
             // Nadie llega a la práctica sin su expediente: kardex e IMSS validados por la coordinación
-            if (!$alumno->documentoValidado('kardex') || !$alumno->documentoValidado('constancia_imss')) {
+            if (! $alumno->documentoValidado('kardex') || ! $alumno->documentoValidado('constancia_imss')) {
                 $this->fallar('El expediente del alumno (kardex e IMSS) no está validado.');
             }
 
-            if (!$alumno->tieneImssVigenteHasta($fechaFin)) {
+            if (! $alumno->tieneImssVigenteHasta($fechaFin)) {
                 $this->fallar('El seguro IMSS del alumno vence antes de terminar la práctica.');
             }
 
@@ -109,6 +111,7 @@ class ActivarPractica
                 mensaje: "{$alumno->user->name} inició su práctica en «{$programa->titulo}».",
                 url: route('empresa.practicantes.show', $practica, false),
             ));
+
             return $practica;
         });
     }

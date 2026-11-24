@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
@@ -9,10 +11,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
+/**
+ * Confirmación de contraseña antes de acciones sensibles.
+ */
 class ConfirmablePasswordController extends Controller
 {
     /**
-     * Show the confirm password view.
+     * Pantalla para confirmar la contraseña antes de una acción sensible.
      */
     public function show(): View
     {
@@ -20,7 +25,7 @@ class ConfirmablePasswordController extends Controller
     }
 
     /**
-     * Confirm the user's password.
+     * Confirma la contraseña; vale por unos minutos (password_timeout).
      */
     public function store(Request $request): RedirectResponse
     {

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\ConvenioEstado;
@@ -8,19 +10,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Carrera;
 use App\Models\Convenio;
 use App\Models\ConvenioCarrera;
-use App\Services\ConvenioWorkflow;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Dictámenes académicos en consulta para Vinculación (los emite cada coordinación).
+ */
 class DictamenController extends Controller
 {
-    public function __construct(private ConvenioWorkflow $workflow)
-    {
-    }
-
     /**
      * Seguimiento (solo lectura) de los dictámenes que emite cada Coordinación de carrera:
      *  - pendientes (por defecto), filtrables por carrera y estado del dictamen
@@ -31,14 +30,14 @@ class DictamenController extends Controller
         $personal = $request->user()->personal;
         $filtro = $request->string('dictamen')->toString() ?: Dictamen::Pendiente->value;
 
-        $dictamenes = ConvenioCarrera::with(['convenio.empresa', 'carrera.division', 'dictaminador.user', 'media'])
+        $dictamenes = ConvenioCarrera::with(['convenio.empresa', 'convenio.dictamenes.carrera', 'carrera.division', 'dictaminador.user', 'media'])
             ->visiblesPara($personal)
-            ->when($filtro !== 'todos', fn($q) => $q->where('dictamen', $filtro))
-            ->when($request->filled('carrera_id'), fn($q) => $q->where('carrera_id', $request->integer('carrera_id')))
-            ->when($request->filled('q'), fn($q) => $q->whereHas('convenio.empresa', fn($e) => $e
-                ->where('razon_social', 'like', '%' . $request->string('q') . '%')
-                ->orWhere('rfc', 'like', '%' . $request->string('q') . '%')))
-            ->whereHas('convenio', fn($c) => $filtro === Dictamen::Pendiente->value
+            ->when($filtro !== 'todos', fn ($q) => $q->where('dictamen', $filtro))
+            ->when($request->filled('carrera_id'), fn ($q) => $q->where('carrera_id', $request->integer('carrera_id')))
+            ->when($request->filled('q'), fn ($q) => $q->whereHas('convenio.empresa', fn ($e) => $e
+                ->where('razon_social', 'like', '%'.$request->string('q').'%')
+                ->orWhere('rfc', 'like', '%'.$request->string('q').'%')))
+            ->whereHas('convenio', fn ($c) => $filtro === Dictamen::Pendiente->value
                 ? $c->where('estado', ConvenioEstado::EnValidacionAcademica->value)
                 : $c)
             ->orderByRaw("case dictamen when 'pendiente' then 0 else 1 end")
@@ -49,7 +48,7 @@ class DictamenController extends Controller
         $todasNegativas = Convenio::with(['empresa', 'dictamenes.carrera'])
             ->visiblesPara($personal)
             ->whereHas('dictamenes')
-            ->whereDoesntHave('dictamenes', fn($d) => $d->where('dictamen', '!=', Dictamen::Negativo->value))
+            ->whereDoesntHave('dictamenes', fn ($d) => $d->where('dictamen', '!=', Dictamen::Negativo->value))
             ->latest('id')
             ->limit(20)
             ->get();
@@ -61,7 +60,7 @@ class DictamenController extends Controller
             'carreras' => Carrera::orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
             'resumen' => [
                 'pendientes' => ConvenioCarrera::visiblesPara($personal)->pendientes()
-                    ->whereHas('convenio', fn($c) => $c->where('estado', ConvenioEstado::EnValidacionAcademica->value))
+                    ->whereHas('convenio', fn ($c) => $c->where('estado', ConvenioEstado::EnValidacionAcademica->value))
                     ->count(),
                 'aprobatorios' => ConvenioCarrera::visiblesPara($personal)->where('dictamen', Dictamen::Aprobatorio->value)->count(),
                 'negativos' => ConvenioCarrera::visiblesPara($personal)->where('dictamen', Dictamen::Negativo->value)->count(),
@@ -73,16 +72,8 @@ class DictamenController extends Controller
     // El dictamen ya no lo captura Vinculación: lo emite cada Coordinación (Coordinacion\DictamenController).
 
     /** Descarga del PDF escaneado del dictamen (disco privado). */
-    public function descargar(ConvenioCarrera $dictamen, Media $media)
+    public function descargar(ConvenioCarrera $dictamen, Media $media): Response
     {
-        abort_unless(
-            $media->model_type === ConvenioCarrera::class && (int) $media->model_id === (int) $dictamen->id,
-            404
-        );
-
-        $this->authorize('download', $media);
-
-        return $this->entregar($media);
+        return $this->entregarDe($dictamen, $media);
     }
 }
-

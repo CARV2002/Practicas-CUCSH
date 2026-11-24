@@ -1,11 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Models\Programa;
 use App\Models\User;
 use App\Policies\Concerns\ResuelveActores;
 
+/**
+ * Programas: los gestiona la coordinación de su carrera.
+ */
 class ProgramaPolicy
 {
     use ResuelveActores;

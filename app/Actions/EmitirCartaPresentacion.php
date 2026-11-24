@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions;
 
 use App\Enums\PostulacionEstado;
@@ -8,12 +10,13 @@ use App\Models\Alumno;
 use App\Models\Personal;
 use App\Models\Postulacion;
 use App\Models\Programa;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
-use App\Services\Avisos;
 use App\Notifications\AvisoOperativo;
-use App\Enums\ValidacionEstado;
+use App\Services\Avisos;
+use App\Services\ConvertidorPdf;
 use App\Services\GeneradorCartaPresentacion;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Validation\ValidationException;
 
 /**
  * El coordinador valida la postulación y emite la carta de presentación (reserva el cupo).
@@ -22,9 +25,7 @@ use App\Services\GeneradorCartaPresentacion;
  */
 class EmitirCartaPresentacion
 {
-    public function __construct(private GeneradorCartaPresentacion $generador)
-    {
-    }
+    public function __construct(private GeneradorCartaPresentacion $generador) {}
 
     public function __invoke(Postulacion $postulacion, Personal $por): Postulacion
     {
@@ -35,7 +36,7 @@ class EmitirCartaPresentacion
             $postulacion = Postulacion::lockForUpdate()->findOrFail($postulacion->id);
 
             // Cada coordinador solo valida alumnos de su carrera (el director, de su división)
-            if (!$por->puedeVerCarrera((int) $alumno->carrera_id)) {
+            if (! $por->puedeVerCarrera((int) $alumno->carrera_id)) {
                 $this->fallar('No tienes alcance sobre la carrera de este alumno.');
             }
 
@@ -52,7 +53,7 @@ class EmitirCartaPresentacion
             }
 
             // Sin convenio vigente no hay oferta (salvo modalidad interna)
-            if (!$programa->esInterno() && !$programa->convenio?->estaVigente()) {
+            if (! $programa->esInterno() && ! $programa->convenio?->estaVigente()) {
                 $this->fallar('El convenio de la empresa no está vigente.');
             }
 
@@ -60,12 +61,12 @@ class EmitirCartaPresentacion
                 $this->fallar("El alumno no cumple el {$alumno->carrera->porcentaje_creditos_minimo}% mínimo de créditos.");
             }
 
-            if (!$alumno->tieneImssVigenteHasta(now())) {
+            if (! $alumno->tieneImssVigenteHasta(now())) {
                 $this->fallar('El alumno no tiene seguro facultativo (IMSS) vigente.');
             }
 
             // Expediente (kardex + IMSS) validado por la coordinación antes de postularse
-            if (!$alumno->expedienteValidado()) {
+            if (! $alumno->expedienteValidado()) {
                 $this->fallar('El expediente del alumno (kardex e IMSS) no está validado.');
             }
 
@@ -101,7 +102,7 @@ class EmitirCartaPresentacion
             $ruta = $this->generador->generar($postulacion->setRelation('alumno', $alumno)->setRelation('programa', $programa), $por);
 
             // PDF listo para imprimir (LibreOffice); el Word queda por si la coordinación necesita ajustarlo
-            $pdf = app(\App\Services\ConvertidorPdf::class)->convertir($ruta);
+            $pdf = app(ConvertidorPdf::class)->convertir($ruta);
 
             $postulacion->addMedia($ruta)
                 ->usingFileName("carta-presentacion-{$alumno->num_control}.docx")
@@ -112,13 +113,13 @@ class EmitirCartaPresentacion
                     ->usingFileName("carta-presentacion-{$alumno->num_control}.pdf")
                     ->withCustomProperties(['generada' => true])
                     ->toMediaCollection('carta_presentacion');
-                \Illuminate\Support\Facades\File::deleteDirectory(dirname($pdf));
+                File::deleteDirectory(dirname($pdf));
             }
 
             $empresa = $programa->convenio?->empresa;
 
             Avisos::enviar($alumno->user, new AvisoOperativo(
-                mensaje: "Tu postulación a «{$programa->titulo}» fue validada. Preséntate con " . ($empresa?->razon_social ?? 'el proyecto interno del CUCSH') . ' y sube tu carta de aceptación.',
+                mensaje: "Tu postulación a «{$programa->titulo}» fue validada. Preséntate con ".($empresa->razon_social ?? 'el proyecto interno del CUCSH').' y sube tu carta de aceptación.',
                 url: route('alumno.mis-documentos', absolute: false),
                 detalle: $programa->titulo,
                 correo: true,

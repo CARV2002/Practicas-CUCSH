@@ -1,16 +1,23 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Enums\Dictamen;
 use App\Enums\EtapaConvenio;
 use App\Enums\SeguimientoEstado;
 use App\Models\Concerns\ValidaDocumentos;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
+/**
+ * Etapa de la bitácora del convenio: quién la atiende, cuándo empezó y terminó, resultado y días hábiles.
+ */
 class ConvenioSeguimiento extends Model implements HasMedia
 {
     use InteractsWithMedia, ValidaDocumentos;
@@ -39,11 +46,13 @@ class ConvenioSeguimiento extends Model implements HasMedia
             ->acceptsMimeTypes(['application/pdf']);
     }
 
+    /** @return BelongsTo<Convenio, $this> */
     public function convenio(): BelongsTo
     {
         return $this->belongsTo(Convenio::class);
     }
 
+    /** @return BelongsTo<Personal, $this> */
     public function registrador(): BelongsTo
     {
         return $this->belongsTo(Personal::class, 'registrado_por');
@@ -69,6 +78,7 @@ class ConvenioSeguimiento extends Model implements HasMedia
 
         return $rango !== null && $this->diasHabiles() > $rango[1];
     }
+
     /**
      * Quién resolvió realmente la etapa (no quién la capturó): Lorena registra en el sistema lo que
      * deciden las coordinaciones, la Unidad Jurídica, la empresa y Rectoría.
@@ -85,12 +95,12 @@ class ConvenioSeguimiento extends Model implements HasMedia
 
         return match ($this->etapa) {
             EtapaConvenio::TurnoAcademico => $convenio->dictamenes
-                ->filter(fn ($d) => $d->dictamen !== \App\Enums\Dictamen::Pendiente)
-                ->map(fn ($d) => "Coordinación de {$d->carrera->carrera_clave}" . ($d->dictaminador?->user ? " ({$d->dictaminador->user->name})" : "") . " " . ($d->dictamen === \App\Enums\Dictamen::Aprobatorio ? "aprobó" : "rechazó"))
+                ->filter(fn ($d) => $d->dictamen !== Dictamen::Pendiente)
+                ->map(fn ($d) => "Coordinación de {$d->carrera->carrera_clave}".($d->dictaminador?->user ? " ({$d->dictaminador->user->name})" : '').' '.($d->dictamen === Dictamen::Aprobatorio ? 'aprobó' : 'rechazó'))
                 ->values()->all(),
-            EtapaConvenio::DictamenJuridico => ["Unidad Jurídica del CUCSH"],
-            EtapaConvenio::FirmaEmpresa => [trim(($convenio->empresa->representante_legal ?: "Representante legal") . ", " . $convenio->empresa->razon_social)],
-            EtapaConvenio::FirmaRectoria => ["Rectoría del CUCSH (" . \Illuminate\Support\Str::title(mb_strtolower(config("practicas.rectora"))) . ")"],
+            EtapaConvenio::DictamenJuridico => ['Unidad Jurídica del CUCSH'],
+            EtapaConvenio::FirmaEmpresa => [trim(($convenio->empresa->representante_legal ?: 'Representante legal').', '.$convenio->empresa->razon_social)],
+            EtapaConvenio::FirmaRectoria => ['Rectoría del CUCSH ('.Str::title(mb_strtolower(config('practicas.rectora'))).')'],
             default => array_filter([$registrador ? "{$registrador} (Vinculación)" : null]),
         };
     }

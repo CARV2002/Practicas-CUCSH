@@ -1,19 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Empresa;
 
 use App\Enums\PracticaEstado;
 use App\Http\Controllers\Controller;
-use App\Models\Programa;
 use App\Models\Practica;
+use App\Models\Programa;
 use App\Models\Reporte;
+use App\Notifications\AvisoOperativo;
+use App\Services\Avisos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use App\Services\Avisos;
-use App\Notifications\AvisoOperativo;
+use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Practicantes de la organización: avance, reportes firmados y comentarios del jefe directo.
+ */
 class PracticanteController extends Controller
 {
     /** Practicantes asignados a los programas de la empresa, con horas validadas. */
@@ -24,18 +30,18 @@ class PracticanteController extends Controller
         $practicas = $this->propias($empresa->id)
             ->with(['postulacion.alumno.user', 'postulacion.alumno.carrera', 'postulacion.programa', 'supervisor'])
             ->conHorasAcumuladas()
-            ->when($request->filled('q'), fn($q) => $q->whereHas('postulacion.alumno', fn($a) => $a
-                ->where('num_control', 'like', '%' . $request->string('q') . '%')
-                ->orWhereHas('user', fn($u) => $u->where('name', 'like', '%' . $request->string('q') . '%'))))
-            ->when($request->filled('programa_id'), fn($q) => $q->whereHas('postulacion', fn($p) => $p->where('programa_id', $request->integer('programa_id'))))
-            ->when($request->filled('estado'), fn($q) => $q->where('estado', $request->string('estado')))
+            ->when($request->filled('q'), fn ($q) => $q->whereHas('postulacion.alumno', fn ($a) => $a
+                ->where('num_control', 'like', '%'.$request->string('q').'%')
+                ->orWhereHas('user', fn ($u) => $u->where('name', 'like', '%'.$request->string('q').'%'))))
+            ->when($request->filled('programa_id'), fn ($q) => $q->whereHas('postulacion', fn ($p) => $p->where('programa_id', $request->integer('programa_id'))))
+            ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->string('estado')))
             ->latest('id')
             ->paginate(15)
             ->withQueryString();
 
         return view('empresa.lista-practicantes', [
             'practicas' => $practicas,
-            'programas' => Programa::whereHas('convenio', fn($c) => $c->where('empresa_id', $empresa->id))
+            'programas' => Programa::whereHas('convenio', fn ($c) => $c->where('empresa_id', $empresa->id))
                 ->orderBy('titulo')->get(['id', 'titulo', 'ciclo']),
             'estados' => PracticaEstado::cases(),
             'resumen' => [
@@ -72,24 +78,21 @@ class PracticanteController extends Controller
         $reporte->update($datos);
 
         Avisos::enviar(Avisos::alumnoDe($reporte->practica), new AvisoOperativo(
-            mensaje: $request->user()->empresa->razon_social . ' dejó retroalimentación en tu reporte del ' . $reporte->periodo_inicio->format('d/m') . ' al ' . $reporte->periodo_fin->format('d/m/Y') . '.',
+            mensaje: $request->user()->empresa->razon_social.' dejó retroalimentación en tu reporte del '.$reporte->periodo_inicio->format('d/m').' al '.$reporte->periodo_fin->format('d/m/Y').'.',
             url: route('alumno.mis-practicas', absolute: false),
         ));
 
         return back()->with('status', 'Retroalimentación guardada.');
     }
 
-    public function descargarReporte(Request $request, Reporte $reporte, Media $media)
+    public function descargarReporte(Request $request, Reporte $reporte, Media $media): Response
     {
-        abort_unless($media->model_type === Reporte::class && (int) $media->model_id === (int) $reporte->id, 404);
-        $this->authorize('download', $media);
-
-        return $this->entregar($media);
+        return $this->entregarDe($reporte, $media);
     }
 
     private function propias(int $empresaId)
     {
-        return Practica::whereHas('postulacion.programa.convenio', fn($c) => $c->where('empresa_id', $empresaId));
+        return Practica::whereHas('postulacion.programa.convenio', fn ($c) => $c->where('empresa_id', $empresaId));
     }
 
     private function autorizar(Request $request, Practica $practica): void

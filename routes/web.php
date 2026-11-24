@@ -1,39 +1,42 @@
 <?php
 
 use App\Enums\Rol;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\HomeController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\CatalogoController;
 use App\Http\Controllers\Admin\ConvenioController;
-use App\Http\Controllers\Admin\EmpresaController;
-use App\Http\Controllers\Admin\DictamenController;
-use App\Http\Controllers\Admin\UsuarioController;
-use App\Http\Controllers\Coordinacion\CierreController;
-use App\Http\Controllers\Coordinacion\DictamenController as CoordinacionDictamenController;
-use App\Http\Controllers\Coordinacion\ExpedienteController;
-use App\Http\Controllers\Alumno\DatosEscolaresController;
-use App\Http\Controllers\Coordinacion\PracticanteController;
-use App\Http\Controllers\Coordinacion\ProgramaController;
-use App\Http\Controllers\Coordinacion\ReglaController;
-use App\Http\Controllers\Coordinacion\ProfesorController;
-use App\Http\Controllers\Coordinacion\ReporteController;
-use App\Http\Controllers\Coordinacion\DashboardController as CoordinacionDashboardController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\NotificacionController;
-use App\Http\Controllers\Empresa\ProgramaController as EmpresaProgramaController;
-use App\Http\Controllers\Empresa\ConvenioController as EmpresaConvenioController;
-use App\Http\Controllers\Empresa\DocumentoController;
-use App\Http\Controllers\Empresa\PracticanteController as EmpresaPracticanteController;
-use App\Http\Controllers\Empresa\DashboardController as EmpresaDashboardController;
+use App\Http\Controllers\Admin\DictamenController;
+use App\Http\Controllers\Admin\DocumentoFisicoController;
+use App\Http\Controllers\Admin\EmpresaController;
+use App\Http\Controllers\Admin\InformeController;
+use App\Http\Controllers\Admin\UsuarioController;
+use App\Http\Controllers\Alumno\DashboardController as AlumnoDashboardController;
+use App\Http\Controllers\Alumno\DatosEscolaresController;
 use App\Http\Controllers\Alumno\DocumentoController as AlumnoDocumentoController;
 use App\Http\Controllers\Alumno\MisPracticasController;
 use App\Http\Controllers\Alumno\OfertaController;
-use App\Http\Controllers\Alumno\DashboardController as AlumnoDashboardController;
-use App\Http\Controllers\Admin\AuditoriaController;
-use App\Http\Controllers\Admin\InformeController;
+use App\Http\Controllers\AyudaController;
+use App\Http\Controllers\Coordinacion\CierreController;
+use App\Http\Controllers\Coordinacion\DashboardController as CoordinacionDashboardController;
+use App\Http\Controllers\Coordinacion\DictamenController as CoordinacionDictamenController;
+use App\Http\Controllers\Coordinacion\ExpedienteController;
+use App\Http\Controllers\Coordinacion\PracticanteController;
+use App\Http\Controllers\Coordinacion\ProfesorController;
+use App\Http\Controllers\Coordinacion\ProgramaController;
+use App\Http\Controllers\Coordinacion\ReglaController;
+use App\Http\Controllers\Coordinacion\ReporteController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Empresa\ConvenioController as EmpresaConvenioController;
+use App\Http\Controllers\Empresa\DashboardController as EmpresaDashboardController;
+use App\Http\Controllers\Empresa\DocumentoController;
+use App\Http\Controllers\Empresa\PerfilController;
+use App\Http\Controllers\Empresa\PracticanteController as EmpresaPracticanteController;
+use App\Http\Controllers\Empresa\ProgramaController as EmpresaProgramaController;
 use App\Http\Controllers\FotoUsuarioController;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\NotificacionController;
+use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,7 +52,7 @@ Route::view('/terminos-y-condiciones', 'pages.home.terminos')->name('terminos');
 Route::view('/aviso-de-privacidad', 'pages.home.privacidad')->name('privacidad');
 
 // /login es el nombre histórico; la pantalla real es /signin (ruta nombrada "login" en auth.php)
-Route::get('/login', fn() => redirect()->route('login'));
+Route::get('/login', fn () => redirect()->route('login'));
 
 /*
 |--------------------------------------------------------------------------
@@ -67,20 +70,19 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
 */
 Route::prefix('alumno')
     ->name('alumno.')
-    ->middleware(['auth', 'verified', 'role:' . Rol::Alumno->value])
+    ->middleware(['auth', 'verified', 'role:'.Rol::Alumno->value])
     ->group(function () {
-        //Route::view('/dashboard', 'alumno.dashboard')->name('dashboard');
+        // Route::view('/dashboard', 'alumno.dashboard')->name('dashboard');
         Route::get('/dashboard', [AlumnoDashboardController::class, 'index'])->name('dashboard');
 
-        //Route::view('/oferta-programas', 'alumno.oferta-programas')->name('oferta-programas');
+        // Route::view('/oferta-programas', 'alumno.oferta-programas')->name('oferta-programas');
         Route::get('/oferta-programas', [OfertaController::class, 'index'])->name('oferta-programas');
         Route::post('/oferta-programas/{programa}/postular', [OfertaController::class, 'postular'])->name('oferta-programas.postular');
 
-
-        //Route::view('/mis-practicas', 'alumno.mis-practicas')->name('mis-practicas');
+        // Route::view('/mis-practicas', 'alumno.mis-practicas')->name('mis-practicas');
         Route::get('/mis-practicas', [MisPracticasController::class, 'index'])->name('mis-practicas');
 
-        //Route::view('/mis-documentos', 'alumno.mis-documentos')->name('mis-documentos');
+        // Route::view('/mis-documentos', 'alumno.mis-documentos')->name('mis-documentos');
         Route::get('/mis-documentos', [AlumnoDocumentoController::class, 'index'])->name('mis-documentos');
         Route::post('/documentos/imss', [AlumnoDocumentoController::class, 'subirImss'])->name('documentos.imss');
         Route::post('/documentos/expediente', [AlumnoDocumentoController::class, 'enviarExpediente'])->name('documentos.expediente');
@@ -103,9 +105,9 @@ Route::prefix('alumno')
 */
 Route::prefix('empresa')
     ->name('empresa.')
-    ->middleware(['auth', 'verified', 'role:' . Rol::Empresa->value])
+    ->middleware(['auth', 'verified', 'role:'.Rol::Empresa->value])
     ->group(function () {
-        //Route::view('/dashboard', 'empresa.dashboard')->name('dashboard');
+        // Route::view('/dashboard', 'empresa.dashboard')->name('dashboard');
         Route::get('/dashboard', [EmpresaDashboardController::class, 'index'])->name('dashboard');
 
         // Route::view('/convenio', 'empresa.convenio')->name('convenio');
@@ -115,14 +117,14 @@ Route::prefix('empresa')
         Route::get('/codigo-postal/{cp}', [EmpresaConvenioController::class, 'codigoPostal'])->where('cp', '[0-9]{5}')->middleware('throttle:30,1')->name('codigo-postal');
         Route::get('/convenio/{convenio}/archivo', [EmpresaConvenioController::class, 'descargar'])->name('convenio.archivo');
 
-        //Route::view('/documentos', 'empresa.documentos')->name('documentos');
+        // Route::view('/documentos', 'empresa.documentos')->name('documentos');
         Route::get('/documentos', [DocumentoController::class, 'index'])->name('documentos');
         Route::post('/documentos', [DocumentoController::class, 'subir'])->name('documentos.subir');
         Route::put('/datos-legales', [EmpresaConvenioController::class, 'datosLegales'])->name('datos-legales');
-        Route::patch('/perfil', [\App\Http\Controllers\Empresa\PerfilController::class, 'update'])->name('perfil.update');
+        Route::patch('/perfil', [PerfilController::class, 'update'])->name('perfil.update');
         Route::get('/documentos/{media}', [DocumentoController::class, 'descargar'])->name('documentos.descargar');
 
-        //Route::view('/lista-programas', 'empresa.lista-programas')->name('lista-programas');
+        // Route::view('/lista-programas', 'empresa.lista-programas')->name('lista-programas');
         Route::get('/lista-programas', [EmpresaProgramaController::class, 'index'])->name('lista-programas');
         Route::post('/programas', [EmpresaProgramaController::class, 'store'])->name('programas.store');
         Route::put('/programas/{programa}', [EmpresaProgramaController::class, 'update'])->name('programas.update');
@@ -130,7 +132,7 @@ Route::prefix('empresa')
         Route::delete('/programas/{programa}', [EmpresaProgramaController::class, 'destroy'])->name('programas.destroy');
         Route::get('/programas/{programa}/postulantes', [EmpresaProgramaController::class, 'postulantes'])->name('programas.postulantes');
 
-        //Route::view('/lista-practicantes', 'empresa.lista-practicantes')->name('lista-practicantes');
+        // Route::view('/lista-practicantes', 'empresa.lista-practicantes')->name('lista-practicantes');
         Route::get('/lista-practicantes', [EmpresaPracticanteController::class, 'index'])->name('lista-practicantes');
         Route::get('/practicantes/{practica}', [EmpresaPracticanteController::class, 'show'])->name('practicantes.show');
         Route::post('/reportes/{reporte}/retroalimentacion', [EmpresaPracticanteController::class, 'retroalimentar'])->name('reportes.retroalimentar');
@@ -146,7 +148,7 @@ Route::prefix('empresa')
 */
 Route::prefix('admin')
     ->name('admin.')
-    ->middleware(['auth', 'verified', 'role:' . implode(',', Rol::deVinculacion())])
+    ->middleware(['auth', 'verified', 'role:'.implode(',', Rol::deVinculacion())])
     ->group(function () {
         /*
          * Consulta: Vinculación y el administrador (supervisión de solo lectura).
@@ -159,7 +161,7 @@ Route::prefix('admin')
         Route::get('/convenios/{convenio}/archivos/{media}', [ConvenioController::class, 'descargar'])->name('convenios.archivos.descargar');
 
         // Documentos físicos del trámite híbrido (oficios, dictamen jurídico y juegos firmados)
-        Route::get('/documentos-fisicos', [\App\Http\Controllers\Admin\DocumentoFisicoController::class, 'index'])->name('documentos-fisicos');
+        Route::get('/documentos-fisicos', [DocumentoFisicoController::class, 'index'])->name('documentos-fisicos');
 
         // Dictámenes por carrera: los emite cada Coordinación; Vinculación da seguimiento
         Route::get('/lista-dictamenes', [DictamenController::class, 'index'])->name('lista-dictamenes');
@@ -180,7 +182,7 @@ Route::prefix('admin')
          * Operación del trámite de convenios: SOLO Vinculación.
          * El administrador supervisa en solo lectura para que haya un único responsable de cada versión del contrato.
          */
-        Route::middleware('role:' . Rol::Vinculacion->value)->group(function () {
+        Route::middleware('role:'.Rol::Vinculacion->value)->group(function () {
             Route::prefix('convenios/{convenio}')->name('convenios.')->group(function () {
                 Route::post('/documentos/validar', [ConvenioController::class, 'validarDocumentos'])->name('documentos.validar');
                 Route::post('/documentos/{media}', [ConvenioController::class, 'resolverDocumento'])->name('documentos.resolver');
@@ -198,14 +200,14 @@ Route::prefix('admin')
                 // Fechas de paso del oficio por Secretaría Académica y la División
                 Route::post('/turnos', [ConvenioController::class, 'registrarTurnos'])->name('turnos');
 
-                Route::post('/documentos-fisicos', [\App\Http\Controllers\Admin\DocumentoFisicoController::class, 'preparar'])->name('fisicos.preparar');
-                Route::post('/recordar-juegos', [\App\Http\Controllers\Admin\DocumentoFisicoController::class, 'recordarEmpresa'])->name('fisicos.recordar');
+                Route::post('/documentos-fisicos', [DocumentoFisicoController::class, 'preparar'])->name('fisicos.preparar');
+                Route::post('/recordar-juegos', [DocumentoFisicoController::class, 'recordarEmpresa'])->name('fisicos.recordar');
             });
 
             // Correo de la Unidad Jurídica que recibe los borradores turnados (opcional)
             Route::put('/configuracion/juridica', [ConvenioController::class, 'configurarJuridica'])->name('configuracion.juridica');
 
-            Route::post('/documentos-fisicos/{documento}',[\App\Http\Controllers\Admin\DocumentoFisicoController::class, 'mover'])->name('documentos-fisicos.mover');
+            Route::post('/documentos-fisicos/{documento}', [DocumentoFisicoController::class, 'mover'])->name('documentos-fisicos.mover');
 
             Route::put('/empresas/{empresa}', [EmpresaController::class, 'update'])->name('empresas.update');
             Route::post('/empresas/{empresa}/activo', [EmpresaController::class, 'toggleActivo'])->name('empresas.activo');
@@ -213,7 +215,7 @@ Route::prefix('admin')
 
         // Administración del sistema: solo el administrador
         // (cuentas de personal y alta de coordinadores, auditoría y estructura del catálogo)
-        Route::middleware('role:' . Rol::Administrador->value)->group(function () {
+        Route::middleware('role:'.Rol::Administrador->value)->group(function () {
             Route::get('/lista-usuarios', [UsuarioController::class, 'index'])->name('lista-usuarios');
             Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
             Route::post('/usuarios/{usuario}/activo', [UsuarioController::class, 'toggleActivo'])->name('usuarios.activo');
@@ -238,7 +240,7 @@ Route::prefix('admin')
 */
 Route::prefix('coordinacion')
     ->name('coordinacion.')
-    ->middleware(['auth', 'verified', 'role:' . implode(',', Rol::deCoordinacion())])
+    ->middleware(['auth', 'verified', 'role:'.implode(',', Rol::deCoordinacion())])
     ->group(function () {
         Route::get('/dashboard', [CoordinacionDashboardController::class, 'index'])->name('dashboard');
 
@@ -313,7 +315,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/notificaciones/leer-todas', [NotificacionController::class, 'marcarTodas'])->name('notificaciones.leer-todas');
 
     // Centro de ayuda por rol (Vinculación y Administrador van a su panel)
-    Route::get('/ayuda', \App\Http\Controllers\AyudaController::class)->name('ayuda');
+    Route::get('/ayuda', AyudaController::class)->name('ayuda');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -322,4 +324,4 @@ Route::middleware('auth')->group(function () {
     Route::get('/usuarios/{user}/foto', FotoUsuarioController::class)->name('usuarios.foto');
 });
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

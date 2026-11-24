@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\Concerns\Auditable;
 
 /**
  * Personal institucional. El rol (administrador, vinculación, coordinador) está en Spatie;
@@ -17,31 +19,40 @@ use App\Models\Concerns\Auditable;
 class Personal extends Model
 {
     use Auditable;
+
     protected $table = 'personal_institucional';
 
     protected $fillable = ['user_id', 'division_id', 'carrera_id', 'puesto'];
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return BelongsTo<Division, $this> */
     public function division(): BelongsTo
     {
         return $this->belongsTo(Division::class);
     }
 
+    /** @return BelongsTo<Carrera, $this> */
     public function carrera(): BelongsTo
     {
         return $this->belongsTo(Carrera::class);
     }
 
-    /** Convenios que lleva como gestor (Vinculación). */
+    /**
+     * Convenios que lleva como gestor (Vinculación).
+     *
+     * @return HasMany<Convenio, $this>
+     */
     public function convenios(): HasMany
     {
         return $this->hasMany(Convenio::class, 'gestionado_por');
     }
 
+    /** @return HasMany<ConvenioCarrera, $this> */
     public function dictamenes(): HasMany
     {
         return $this->hasMany(ConvenioCarrera::class, 'dictaminado_por');
@@ -66,7 +77,7 @@ class Personal extends Model
         }
 
         if ($this->division_id !== null) {
-            return Carrera::where('division_id', $this->division_id)->pluck('id')->map(fn($id) => (int) $id)->all();
+            return Carrera::where('division_id', $this->division_id)->pluck('id')->map(fn ($id) => (int) $id)->all();
         }
 
         return null;
@@ -83,5 +94,4 @@ class Personal extends Model
     {
         return $this->puesto;
     }
-
 }

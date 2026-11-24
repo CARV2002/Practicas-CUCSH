@@ -8,35 +8,32 @@
 
     <title>{{ $title ?? 'Panel' }} | Prácticas Profesionales CUCSH</title>
 
-    <!-- Scripts -->
+    {{-- Estilos y scripts compilados por Vite --}}
     @include('partials.errores-servidor')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @stack('estilos')
 
-    <!-- Alpine.js -->
-    {{--
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script> --}}
-
-    <!-- Theme Store -->
+    {{-- Estado global del menú lateral (Alpine llega con Vite en resources/js/app.js) --}}
     <script>
         document.addEventListener('alpine:init', () => {
             // Solo modo claro (DESIGN_SYSTEM.md). El store se conserva vacío para no romper referencias antiguas.
             Alpine.store('theme', { theme: 'light', toggle() {}, updateTheme() {} });
 
             Alpine.store('sidebar', {
-                // Initialize based on screen size
-                isExpanded: window.innerWidth >= 1280, // true for desktop, false for mobile
+                // Abierto en escritorio (≥ 1280 px); en móvil y tableta empieza cerrado
+                isExpanded: window.innerWidth >= 1280,
                 isMobileOpen: false,
                 isHovered: false,
 
                 toggleExpanded() {
                     this.isExpanded = !this.isExpanded;
-                    // When toggling desktop sidebar, ensure mobile menu is closed
+                    // Al contraer o expandir en escritorio, el menú móvil queda cerrado
                     this.isMobileOpen = false;
                 },
 
                 toggleMobileOpen() {
                     this.isMobileOpen = !this.isMobileOpen;
-                    // Don't modify isExpanded when toggling mobile menu
+                    // El menú móvil no cambia el estado contraído/expandido de escritorio
                 },
 
                 setMobileOpen(val) {
@@ -44,7 +41,7 @@
                 },
 
                 setHovered(val) {
-                    // Only allow hover effects on desktop when sidebar is collapsed
+                    // Al pasar el cursor se despliega solo en escritorio y con el menú contraído
                     if (window.innerWidth >= 1280 && !this.isExpanded) {
                         this.isHovered = val;
                     }
@@ -53,7 +50,7 @@
         });
     </script>
 
-    <!-- Solo modo claro: borra la preferencia oscura que haya guardado la plantilla anterior -->
+    {{-- Solo modo claro: borra la preferencia oscura que haya guardado la plantilla anterior --}}
     <script>
         localStorage.removeItem('theme');
         document.documentElement.classList.remove('dark');
@@ -86,9 +83,9 @@
                 'xl:ml-[90px]': !$store.sidebar.isExpanded && !$store.sidebar.isHovered,
                 'ml-0': $store.sidebar.isMobileOpen
             }">
-            <!-- app header start -->
+            {{-- Encabezado --}}
             @include('layouts.app-header')
-            <!-- app header end -->
+            {{-- Fin del encabezado --}}
             <div class="p-4 mx-auto max-w-(--breakpoint-2xl) md:p-6">
                 @yield('content')
             </div>

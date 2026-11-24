@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Empresa;
 
 use App\Enums\Dictamen;
@@ -13,9 +15,13 @@ use App\Models\Postulacion;
 use App\Models\Practica;
 use App\Models\Programa;
 use App\Models\Reporte;
+use App\Support\Pendientes;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
+/**
+ * Panel de la organización: convenio vigente o en trámite, vacantes, practicantes y pendientes.
+ */
 class DashboardController extends Controller
 {
     public function index(Request $request): View
@@ -39,7 +45,12 @@ class DashboardController extends Controller
 
         $practicas = fn () => Practica::whereHas('postulacion.programa.convenio', fn ($c) => $c->where('empresa_id', $id));
 
+        $pendientes = Pendientes::de($request->user());
+
         return view('empresa.dashboard', [
+            'pendientes' => $pendientes,
+            // Mismo total que la tarjeta «Por atender»
+            'totalPendientes' => Pendientes::sumar($pendientes),
             'empresa' => $empresa,
             'vigente' => $vigente,
             'enTramite' => $enTramite,

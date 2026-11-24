@@ -1,7 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Enums;
 
+/**
+ * Etapas del convenio: solicitud, dictamen académico, Jurídica, firmas, formalizado o rechazado.
+ */
 enum ConvenioEstado: string
 {
     case Solicitado = 'solicitado';                         // Fase 1: revisión de documentos

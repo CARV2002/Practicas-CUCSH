@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Empresa;
 
+use App\Enums\Dictamen;
 use App\Enums\Modalidad;
 use App\Enums\PostulacionEstado;
 use App\Enums\ProgramaEstado;
@@ -9,6 +12,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Programa;
 use App\Notifications\AvisoOperativo;
 use App\Services\Avisos;
+use App\Support\Requisitos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -28,9 +32,9 @@ class ProgramaController extends Controller
 
         $programas = Programa::with(['carrera', 'convenio'])
             ->conCuposOcupados()
-            ->whereHas('convenio', fn($c) => $c->where('empresa_id', $empresa->id))
-            ->when($request->filled('q'), fn($q) => $q->where('titulo', 'like', '%' . $request->string('q') . '%'))
-            ->when($request->filled('estado'), fn($q) => $q->where('estado', $request->string('estado')))
+            ->whereHas('convenio', fn ($c) => $c->where('empresa_id', $empresa->id))
+            ->when($request->filled('q'), fn ($q) => $q->where('titulo', 'like', '%'.$request->string('q').'%'))
+            ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->string('estado')))
             ->latest('id')
             ->paginate(15)
             ->withQueryString();
@@ -38,7 +42,7 @@ class ProgramaController extends Controller
         // Convenios vigentes con las carreras aprobadas en cada uno (las únicas para las que se puede ofertar)
         $convenios = $empresa->convenios()
             ->vigentes()
-            ->with(['dictamenes' => fn($d) => $d->where('dictamen', \App\Enums\Dictamen::Aprobatorio->value)->with('carrera')])
+            ->with(['dictamenes' => fn ($d) => $d->where('dictamen', Dictamen::Aprobatorio->value)->with('carrera')])
             ->get();
 
         return view('empresa.lista-programas', [
@@ -46,13 +50,13 @@ class ProgramaController extends Controller
             'convenios' => $convenios,
             'estados' => ProgramaEstado::cases(),
             'puedeCrear' => $convenios->isNotEmpty(),
-            'motivoBloqueo' => \App\Support\Requisitos::empresaProponerVacantes($empresa),
+            'motivoBloqueo' => Requisitos::empresaProponerVacantes($empresa),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        if ($motivo = \App\Support\Requisitos::empresaProponerVacantes($request->user()->empresa)) {
+        if ($motivo = Requisitos::empresaProponerVacantes($request->user()->empresa)) {
             throw ValidationException::withMessages(['programa' => $motivo]);
         }
 
@@ -118,7 +122,7 @@ class ProgramaController extends Controller
                 return back()->with('status', 'La Coordinación había cerrado esta vacante: se envió de nuevo a su revisión antes de reabrirla.');
             }
 
-            if (!$programa->convenio?->estaVigente()) {
+            if (! $programa->convenio?->estaVigente()) {
                 return back()->withErrors(['programa' => 'Tu convenio ya no está vigente: no puedes reabrir la vacante.']);
             }
 
@@ -185,11 +189,11 @@ class ProgramaController extends Controller
             throw ValidationException::withMessages(['convenio_id' => 'El convenio no pertenece a tu empresa.']);
         }
 
-        if (!$convenio->estaVigente()) {
+        if (! $convenio->estaVigente()) {
             throw ValidationException::withMessages(['convenio_id' => 'Ese convenio no está vigente: elige un convenio formalizado y vigente.']);
         }
 
-        if (!$convenio->autorizaCarrera($carreraId)) {
+        if (! $convenio->autorizaCarrera($carreraId)) {
             throw ValidationException::withMessages(['carrera_id' => 'Esa carrera no aprobó tu convenio: solo puedes ofertar vacantes a las carreras con dictamen aprobatorio.']);
         }
     }
@@ -222,7 +226,7 @@ class ProgramaController extends Controller
         ]);
 
         $datos['actividades'] = collect(preg_split('/\R/', $datos['actividades']))
-            ->map(fn($l) => trim($l))
+            ->map(fn ($l) => trim($l))
             ->filter()
             ->values()
             ->all();

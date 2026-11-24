@@ -21,7 +21,7 @@
     ];
     $clases = 'group/btn relative inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border text-sm font-semibold shadow-theme-xs transition duration-150 ease-out active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25 motion-reduce:transition-none '
         . ($conTexto ? 'px-3 ' : 'w-9 ') . ($tonos[$tono] ?? $tonos['neutro']);
-    $tooltip = 'pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-md bg-udg-950 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-theme-md transition duration-150 group-hover/btn:translate-y-0 group-hover/btn:opacity-100 group-focus-visible/btn:translate-y-0 group-focus-visible/btn:opacity-100';
+    $tooltip = 'tooltip-boton';
 @endphp
 
 @if ($href)

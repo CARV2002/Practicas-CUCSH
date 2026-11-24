@@ -1,23 +1,29 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\PostulacionEstado;
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\ValidaDocumentos;
+use App\Observers\PostulacionObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use App\Observers\PostulacionObserver;
-use Illuminate\Database\Eloquent\Attributes\ObservedBy;
-use App\Models\Concerns\Auditable;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 #[ObservedBy([PostulacionObserver::class])]
+/**
+ * Postulación de un alumno a un programa: cartas de presentación y aceptación hasta activar la práctica.
+ */
 class Postulacion extends Model implements HasMedia
 {
-    use InteractsWithMedia, ValidaDocumentos, Auditable;
+    use Auditable, InteractsWithMedia, ValidaDocumentos;
 
     protected $table = 'postulaciones';
 
@@ -55,28 +61,32 @@ class Postulacion extends Model implements HasMedia
     }
 
     /** Carta de presentación para imprimir: el PDF si existe; si LibreOffice no estaba disponible, el Word. */
-    public function cartaPresentacion(): ?\Spatie\MediaLibrary\MediaCollections\Models\Media
+    public function cartaPresentacion(): ?Media
     {
         $cartas = $this->getMedia('carta_presentacion')->sortByDesc('id');
 
         return $cartas->first(fn ($m) => $m->mime_type === 'application/pdf') ?? $cartas->first();
     }
 
+    /** @return BelongsTo<Alumno, $this> */
     public function alumno(): BelongsTo
     {
         return $this->belongsTo(Alumno::class);
     }
 
+    /** @return BelongsTo<Programa, $this> */
     public function programa(): BelongsTo
     {
         return $this->belongsTo(Programa::class);
     }
 
+    /** @return BelongsTo<Personal, $this> */
     public function validador(): BelongsTo
     {
         return $this->belongsTo(Personal::class, 'validado_por');
     }
 
+    /** @return HasOne<Practica, $this> */
     public function practica(): HasOne
     {
         return $this->hasOne(Practica::class);
@@ -89,12 +99,11 @@ class Postulacion extends Model implements HasMedia
 
         return $ids === null
             ? $query
-            : $query->whereHas('alumno', fn(Builder $q) => $q->whereIn('carrera_id', $ids));
+            : $query->whereHas('alumno', fn (Builder $q) => $q->whereIn('carrera_id', $ids));
     }
 
     public function auditoriaEtiqueta(): string
     {
         return 'Postulación';
     }
-
 }

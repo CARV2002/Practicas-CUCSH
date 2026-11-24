@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Enums\Rol;
@@ -14,7 +16,7 @@ class AyudaController extends Controller
     public function __invoke(Request $request): View|RedirectResponse
     {
         $usuario = $request->user();
-        $rol = Rol::tryFrom((string) $usuario->roles->first()?->name);
+        $rol = Rol::tryFrom((string) $usuario->getRoleNames()->first());
 
         if (! Ayuda::disponiblePara($rol)) {
             return redirect()->route('dashboard');

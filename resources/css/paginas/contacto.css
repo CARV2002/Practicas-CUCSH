@@ -1,0 +1,308 @@
+/*
+ * Sitio público › Contacto: recursos, beneficios y directorio.
+ * Solo se carga en esa página (@push('estilos') en resources/views/pages/home/contacto.blade.php),
+ * por eso sus clases no chocan con las de otras páginas.
+ */
+
+/* Estilos de Contenedor Global y Estructura Basal */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+.badge-category {
+    display: inline-block;
+    padding: 6px 14px;
+    background-color: var(--color-oro-50);
+    color: var(--color-oro-700);
+    border-radius: 99px;
+    font-size: var(--text-theme-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+}
+
+.section-header {
+    text-align: center;
+    max-width: 680px;
+    margin: 0 auto 64px auto;
+}
+
+.section-header h2 {
+    font-size: var(--text-title-lg);
+    line-height: var(--text-title-lg--line-height);
+    color: var(--color-black);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.section-header p {
+    font-size: 16px;
+    color: var(--color-gray-500);
+    margin-top: 16px;
+    line-height: 1.6;
+}
+
+/* --- SECCIÓN RECURSOS (CARDS PREMIUM) --- */
+.section-resources {
+    padding: 120px 0;
+    background-color: var(--color-white);
+}
+
+.resources-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 880px;
+    margin: 0 auto;
+    gap: 24px;
+}
+
+.resource-premium-card {
+    background: var(--color-gray-50);
+    border: 1px solid var(--color-gray-100);
+    border-radius: 20px;
+    padding: 36px 28px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    transition: all 0.3s ease;
+}
+
+.resource-premium-card:hover {
+    background: var(--color-white);
+    border-color: var(--color-gray-200);
+    box-shadow: var(--shadow-theme-xl);
+}
+
+.resource-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.resource-icon-wrapper.red-accent { background: var(--color-error-50); color: var(--color-error-600); }
+.resource-icon-wrapper.blue-accent { background: var(--color-blue-50); color: var(--color-blue-600); }
+.resource-icon-wrapper.orange-accent { background: var(--color-orange-50); color: var(--color-orange-600); }
+.resource-icon-wrapper.purple-accent { background: #f4efff; color: var(--color-theme-purple-500); }
+
+.resource-premium-card h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-black);
+    margin-bottom: 12px;
+}
+
+.resource-premium-card p {
+    font-size: var(--text-theme-sm);
+    color: var(--color-gray-500);
+    line-height: 1.5;
+    flex-grow: 1;
+    margin-bottom: 24px;
+}
+
+.resource-link {
+    font-size: var(--text-theme-sm);
+    font-weight: 600;
+    color: var(--color-black);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.resource-link span {
+    transition: transform 0.2s ease;
+}
+
+.resource-premium-card:hover .resource-link span {
+    transform: translateX(4px);
+}
+
+/* --- SECCIÓN BENEFICIOS (ASIMÉTRICA Y EDITORIAL) --- */
+.section-benefits {
+    padding: 120px 0;
+    background-color: var(--color-gray-25);
+    border-top: 1px solid var(--color-gray-200);
+}
+
+.benefits-layout {
+    display: grid;
+    grid-template-columns: 4fr 7fr;
+    gap: 80px;
+}
+
+.benefits-sticky-header {
+    position: sticky;
+    top: 40px;
+    height: fit-content;
+}
+
+.benefits-sticky-header h2 {
+    font-size: var(--text-title-lg);
+    line-height: var(--text-title-lg--line-height);
+    font-weight: 800;
+    color: var(--color-black);
+    letter-spacing: -0.02em;
+}
+
+.benefits-sticky-header p {
+    font-size: 16px;
+    color: var(--color-gray-500);
+    margin-top: 16px;
+    line-height: 1.6;
+}
+
+.benefits-list {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+.benefit-item {
+    border-bottom: 1px solid var(--color-gray-200);
+    padding-bottom: 32px;
+}
+
+.benefit-item h4 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-black);
+    margin-bottom: 12px;
+}
+
+.benefit-item p {
+    font-size: 15px;
+    color: var(--color-gray-600);
+    line-height: 1.6;
+}
+
+/* --- SECCIÓN CONTACTO (DASHBOARD-STYLE TICKETING) --- */
+.section-contact {
+    padding: 140px 0;
+    background-color: var(--color-white);
+}
+
+.contact-card-wrapper {
+    display: grid;
+    grid-template-columns: 5fr 7fr;
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: var(--shadow-theme-xl);
+}
+
+.contact-info-side {
+    background: var(--color-brand-950);
+    padding: 60px;
+    color: var(--color-white);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.contact-info-side h2 {
+    font-size: var(--text-title-sm);
+    line-height: 1.2;
+    font-weight: 800;
+    margin-bottom: 20px;
+}
+
+.contact-info-side p {
+    color: var(--color-brand-200);
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+.quick-contact-meta {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: var(--text-theme-sm);
+}
+
+.contact-form-side {
+    padding: 60px;
+    background: var(--color-white);
+}
+
+.form-row-twin {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.form-group label {
+    font-size: var(--text-theme-xs);
+    font-weight: 600;
+    color: var(--color-gray-700);
+}
+
+.form-group input, 
+.form-group textarea {
+    font-family: var(--font-sans);
+    font-size: var(--text-theme-sm);
+    padding: 12px 16px;
+    border: 1px solid var(--color-gray-300);
+    border-radius: 10px;
+    background: var(--color-gray-25);
+    color: var(--color-black);
+    transition: all 0.2s ease;
+}
+
+.form-group input:focus, 
+.form-group textarea:focus {
+    outline: none;
+    background: var(--color-white);
+    border-color: var(--color-brand-500);
+    box-shadow: var(--shadow-focus-ring);
+}
+
+.btn-primary-submit {
+    font-family: var(--font-sans);
+    background: var(--color-udg-800);
+    color: var(--color-white);
+    font-size: var(--text-theme-sm);
+    font-weight: 600;
+    padding: 14px 28px;
+    border-radius: 12px;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s ease;
+    width: auto;
+}
+
+.btn-primary-submit:hover {
+    background: var(--color-udg-700);
+    transform: translateY(-1px);
+}
+
+/* --- Adaptación a tableta y móvil --- */
+@media (max-width: 1024px) {
+    .resources-grid { grid-template-columns: repeat(2, 1fr); }
+    .benefits-layout { grid-template-columns: 1fr; gap: 40px; }
+    .benefits-sticky-header { position: relative; top: 0; }
+    .contact-card-wrapper { grid-template-columns: 1fr; }
+    .section-header h2, .benefits-sticky-header h2 { font-size: var(--text-title-md); }
+}
+
+@media (max-width: 640px) {
+    .resources-grid { grid-template-columns: 1fr; }
+    .form-row-twin { grid-template-columns: 1fr; gap: 0; }
+    .contact-info-side, .contact-form-side { padding: 32px 24px; }
+}

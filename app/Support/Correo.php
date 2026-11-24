@@ -1,7 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
+/**
+ * Enlaces para escribir un correo desde Gmail con destinatario, asunto y cuerpo ya llenos.
+ */
 class Correo
 {
     /**

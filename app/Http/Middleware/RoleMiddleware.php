@@ -1,11 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Middleware;
 
 use App\Enums\Rol;
 use Closure;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Restringe una ruta a uno o varios roles (role:administrador,vinculacion); si no corresponde, 403.
+ */
 class RoleMiddleware
 {
     /** Acepta uno o varios roles: `role:alumno` o `role:coordinador,administrador`. */
@@ -21,8 +26,8 @@ class RoleMiddleware
             abort(403);
         }
 
-        $deRuta = array_values(array_filter($roles, fn(string $r) => $user->hasRole($r)));
-        $esPersonal = collect($deRuta)->contains(fn(string $r) => Rol::tryFrom($r)?->esPersonal() === true);
+        $deRuta = array_values(array_filter($roles, fn (string $r) => $user->hasRole($r)));
+        $esPersonal = collect($deRuta)->contains(fn (string $r) => Rol::tryFrom($r)?->esPersonal() === true);
 
         // Sin perfil de Personal no hay alcance definido: se niega con mensaje claro
         if ($esPersonal && $user->personal === null) {

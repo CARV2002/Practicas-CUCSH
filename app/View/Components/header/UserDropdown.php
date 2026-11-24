@@ -1,25 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\View\Components\header;
 
-use Closure;
 use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
 
+/** Menú de la cuenta en el encabezado: perfil, ayuda y cerrar sesión. */
 class UserDropdown extends Component
 {
-    /**
-     * Create a new component instance.
-     */
-    public function __construct()
-    {
-        //
-    }
-
-    /**
-     * Get the view / contents that represent the component.
-     */
-    public function render(): View|Closure|string
+    public function render(): View
     {
         return view('components.header.user-dropdown');
     }

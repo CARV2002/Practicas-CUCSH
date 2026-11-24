@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
@@ -8,10 +10,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 
+/**
+ * Cambio de contraseña desde «Mi perfil».
+ */
 class PasswordController extends Controller
 {
     /**
-     * Update the user's password.
+     * Cambio de contraseña desde «Mi perfil» (pide la actual).
      */
     public function update(Request $request): RedirectResponse
     {

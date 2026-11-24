@@ -1,8 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Enums;
 
 use App\Enums\Concerns\TieneTransiciones;
+
+/**
+ * Revisión del reporte de horas por la coordinación: pendiente, validado, rechazado o anulado (por una baja).
+ */
 enum ReporteEstado: string
 {
     use TieneTransiciones;

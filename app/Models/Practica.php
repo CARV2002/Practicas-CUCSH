@@ -1,10 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\Modalidad;
 use App\Enums\PracticaEstado;
 use App\Enums\ReporteEstado;
+use App\Enums\ValidacionEstado;
+use App\Models\Concerns\Auditable;
+use App\Observers\PracticaObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
@@ -13,15 +19,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Observers\PracticaObserver;
-use Illuminate\Database\Eloquent\Attributes\ObservedBy;
-use App\Models\Concerns\Auditable;
-use App\Enums\ValidacionEstado;
 
 #[ObservedBy([PracticaObserver::class])]
+/**
+ * Práctica activa del alumno: fechas, supervisor, horas validadas, reportes, cierre o baja.
+ */
 class Practica extends Model
 {
-    use SoftDeletes, Auditable;
+    use Auditable, SoftDeletes;
 
     protected $table = 'practicas';
 
@@ -56,6 +61,7 @@ class Practica extends Model
         ];
     }
 
+    /** @return BelongsTo<Postulacion, $this> */
     public function postulacion(): BelongsTo
     {
         return $this->belongsTo(Postulacion::class);
@@ -66,26 +72,31 @@ class Practica extends Model
         return $this->hasOneThrough(Alumno::class, Postulacion::class, 'id', 'id', 'postulacion_id', 'alumno_id');
     }
 
+    /** @return BelongsTo<Personal, $this> */
     public function autorizador(): BelongsTo
     {
         return $this->belongsTo(Personal::class, 'autorizado_por');
     }
 
+    /** @return BelongsTo<Profesor, $this> */
     public function supervisor(): BelongsTo
     {
         return $this->belongsTo(Profesor::class, 'profesor_supervisor_id');
     }
 
+    /** @return HasMany<Reporte, $this> */
     public function reportes(): HasMany
     {
         return $this->hasMany(Reporte::class);
     }
 
+    /** @return HasOne<CartaTermino, $this> */
     public function cartaTermino(): HasOne
     {
         return $this->hasOne(CartaTermino::class);
     }
 
+    /** @return HasOne<OficioAcreditacion, $this> */
     public function oficioAcreditacion(): HasOne
     {
         return $this->hasOne(OficioAcreditacion::class);
@@ -103,12 +114,14 @@ class Practica extends Model
 
         return $ids === null
             ? $query
-            : $query->whereHas('postulacion.alumno', fn(Builder $q) => $q->whereIn('carrera_id', $ids));
+            : $query->whereHas('postulacion.alumno', fn (Builder $q) => $q->whereIn('carrera_id', $ids));
     }
 
     /**
      * Horas acumuladas = suma de reportes VALIDADOS (no es columna, no se desincroniza).
      * En listados usa scopeConHorasAcumuladas() para evitar N+1.
+     *
+     * @return Attribute<int, never>
      */
     protected function horasAcumuladas(): Attribute
     {
@@ -184,7 +197,7 @@ class Practica extends Model
     public function scopeConHorasAcumuladas(Builder $query): Builder
     {
         return $query->withSum(
-            ['reportes as horas_acumuladas' => fn($q) => $q->where('estado', ReporteEstado::Validado->value)],
+            ['reportes as horas_acumuladas' => fn ($q) => $q->where('estado', ReporteEstado::Validado->value)],
             'horas_reportadas'
         );
     }
@@ -192,7 +205,7 @@ class Practica extends Model
     /** Texto para el panel del alumno: "240/480". */
     public function progresoTexto(): string
     {
-        return $this->horas_acumuladas . '/' . $this->horas_requeridas;
+        return $this->horas_acumuladas.'/'.$this->horas_requeridas;
     }
 
     public function horasCompletas(): bool
@@ -222,7 +235,7 @@ class Practica extends Model
             return 'Tienes reportes pendientes de validación o rechazados. Resuélvelos antes de subir tu carta de término.';
         }
 
-        if (!$this->horasCompletas()) {
+        if (! $this->horasCompletas()) {
             return "Aún no completas tus horas ({$this->progresoTexto()}). La carta de término se sube al terminar.";
         }
 
@@ -233,5 +246,4 @@ class Practica extends Model
     {
         return 'Práctica';
     }
-
 }

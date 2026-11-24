@@ -121,7 +121,7 @@
                                                 @csrf
                                                 <label class="sr-only" for="mot-{{ $pr->id }}">Motivo del rechazo</label>
                                                 <input id="mot-{{ $pr->id }}" type="text" name="motivo" placeholder="Motivo (obligatorio si rechazas)" maxlength="1000" class="campo h-9 text-xs">
-                                                @php $faltaValidar = \App\Support\Requisitos::validarCartaTermino($pr); @endphp
+                                                @php $faltaValidar = $bloqueosValidar[$pr->id] ?? null; @endphp
                                                 <div class="grid grid-cols-2 gap-2">
                                                     @if ($faltaValidar)
                                                         <x-ui.accion-bloqueada :motivo="$faltaValidar" tamano="chico">Validar</x-ui.accion-bloqueada>

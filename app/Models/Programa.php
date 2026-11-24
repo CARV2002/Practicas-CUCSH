@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\Modalidad;
 use App\Enums\PostulacionEstado;
 use App\Enums\ProgramaEstado;
+use App\Models\Concerns\Auditable;
 use App\Observers\ProgramaObserver;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -12,12 +15,18 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\Concerns\Auditable;
 
+/**
+ * @property-read int|null $cupos_ocupados Solo si la consulta usó scopeConCuposOcupados()
+ */
 #[ObservedBy([ProgramaObserver::class])]
+/**
+ * Programa de prácticas: vacante de una organización con convenio o proyecto interno, con cupos y ciclo.
+ */
 class Programa extends Model
 {
     use Auditable;
+
     protected $table = 'programas';
 
     protected $fillable = [
@@ -50,22 +59,29 @@ class Programa extends Model
         ];
     }
 
-    /** Coordinador que aprobó o rechazó la vacante. */
+    /**
+     * Coordinador que aprobó o rechazó la vacante.
+     *
+     * @return BelongsTo<Personal, $this>
+     */
     public function revisor(): BelongsTo
     {
         return $this->belongsTo(Personal::class, 'revisado_por');
     }
 
+    /** @return BelongsTo<Convenio, $this> */
     public function convenio(): BelongsTo
     {
         return $this->belongsTo(Convenio::class);
     }
 
+    /** @return BelongsTo<Carrera, $this> */
     public function carrera(): BelongsTo
     {
         return $this->belongsTo(Carrera::class);
     }
 
+    /** @return HasMany<Postulacion, $this> */
     public function postulaciones(): HasMany
     {
         return $this->hasMany(Postulacion::class);
@@ -83,7 +99,11 @@ class Programa extends Model
             ->count();
     }
 
-    /** cupos_totales - ocupados. Si cargaste scopeConCuposOcupados() no hace consulta extra. */
+    /**
+     * cupos_totales - ocupados. Si cargaste scopeConCuposOcupados() no hace consulta extra.
+     *
+     * @return Attribute<int<0, max>, never>
+     */
     protected function cuposDisponibles(): Attribute
     {
         return Attribute::get(function () {
@@ -97,14 +117,19 @@ class Programa extends Model
     public function scopeConCuposOcupados(Builder $query): Builder
     {
         return $query->withCount([
-            'postulaciones as cupos_ocupados' => fn($q) => $q->whereIn(
+            'postulaciones as cupos_ocupados' => fn ($q) => $q->whereIn(
                 'estado',
                 PostulacionEstado::valores(PostulacionEstado::ocupanCupo())
             ),
         ]);
     }
 
-    /** Lo que un alumno puede ver/postular: publicado, convenio vigente (o interno) y con cupo. */
+    /**
+     * Lo que un alumno puede ver/postular: publicado, convenio vigente (o interno) y con cupo.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
     public function scopeAbiertos(Builder $query): Builder
     {
         $estados = PostulacionEstado::valores(PostulacionEstado::ocupanCupo());
@@ -112,10 +137,10 @@ class Programa extends Model
 
         return $query
             ->where('estado', ProgramaEstado::Publicado->value)
-            ->where(fn(Builder $q) => $q
+            ->where(fn ($q) => $q
                 ->whereNull('convenio_id')
-                ->orWhereHas('convenio', fn(Builder $c) => $c->vigentes()
-                    ->whereHas('empresa.user', fn($u) => $u->where('activo', true))))
+                ->orWhereHas('convenio', fn ($c) => $c->vigentes()
+                    ->whereHas('empresa.user', fn ($u) => $u->where('activo', true))))
             ->whereRaw(
                 "programas.cupos_totales > (select count(*) from postulaciones where postulaciones.programa_id = programas.id and postulaciones.estado in ($marcadores))",
                 $estados
@@ -126,5 +151,4 @@ class Programa extends Model
     {
         return $this->titulo;
     }
-
 }

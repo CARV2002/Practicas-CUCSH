@@ -12,26 +12,13 @@
     $personal = ($conteosRol['administrador'] ?? 0) + ($conteosRol['vinculacion'] ?? 0) + ($conteosRol['coordinador'] ?? 0);
 @endphp
 
-<div x-data="{
-        modalAlta: {{ $errors->hasAny(['name', 'email', 'rol', 'carrera_id', 'division_id']) ? 'true' : 'false' }},
-        rolAlta: @js(old('rol', $rolesAlta[0]->value)),
-        alcance: @js(old('division_id') ? 'division' : 'carrera'),
-        {{-- Cancelar o cerrar el alta borra lo capturado y los avisos de validación, para empezar limpio --}}
-        cerrarAlta() {
-            const f = this.$refs.formAlta;
-            f.querySelectorAll('input[type=text], input[type=email]').forEach(i => { i.value = ''; i.removeAttribute('aria-invalid'); });
-            f.querySelectorAll('select').forEach(s => { s.value = ''; });
-            f.querySelectorAll('.js-mensaje-campo, .js-aviso-formulario').forEach(p => p.remove());
-            this.rolAlta = @js($rolesAlta[0]->value);
-            this.alcance = 'carrera';
-            this.modalAlta = false;
-        },
-        modalPass: false,
-        pass: { id: null, nombre: '' },
-        urlPass: '{{ route('admin.usuarios.password', 0) }}',
-        cambiar(id, nombre) { this.pass = { id, nombre }; this.modalPass = true; },
-        get actionPass() { return this.urlPass.replace(/0$/, this.pass.id); }
-    }" class="space-y-6">
+<div x-data="usuarios(@js([
+        'abrirAlta' => $errors->hasAny(['name', 'email', 'rol', 'carrera_id', 'division_id']),
+        'rol' => old('rol', $rolesAlta[0]->value),
+        'rolInicial' => $rolesAlta[0]->value,
+        'alcance' => old('division_id') ? 'division' : 'carrera',
+        'urlPass' => route('admin.usuarios.password', 0),
+    ]))" class="space-y-6">
 
     <x-pagina.encabezado titulo="Usuarios y coordinadores" descripcion="Alumnos y empresas se registran solos; aquí das de alta al personal (Vinculación y coordinaciones de carrera) y cuidas el acceso de todas las cuentas.">
         <x-slot:acciones>
@@ -143,7 +130,7 @@
                                         class="group/btn relative inline-flex size-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-theme-xs transition hover:border-udg-200 hover:bg-udg-50 hover:text-udg-900 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25"
                                         aria-label="Enviar enlace de contraseña">
                                         <x-dashboard.icono nombre="candado" clase="size-4" />
-                                        <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-udg-950 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-theme-md transition group-hover/btn:opacity-100" aria-hidden="true">Enviar enlace de contraseña</span>
+                                        <span class="tooltip-boton" aria-hidden="true">Enviar enlace de contraseña</span>
                                     </button>
                                     @unless ($esYo)
                                         <x-ui.boton-icono :accion="route('admin.usuarios.activo', $u)" :icono="$u->activo ? 'apagar' : 'encender'"

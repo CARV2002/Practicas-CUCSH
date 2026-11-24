@@ -1,10 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models\Concerns;
 
 use App\Services\Auditoria;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Registra en la bitácora cada alta, cambio o baja del modelo, con su nombre legible y sin campos sensibles.
+ */
 trait Auditable
 {
     public static function bootAuditable(): void

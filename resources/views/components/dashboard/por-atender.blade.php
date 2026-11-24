@@ -1,8 +1,9 @@
 {{--
     «Por atender»: lo que el usuario tiene pendiente según su situación actual, en su panel (ya no en la campana,
     para no duplicarlo con las notificaciones). Cada renglón lleva a la sección donde se resuelve.
+    La lista la calcula el controlador del panel con App\Support\Pendientes::de().
 --}}
-@php $pendientes = \App\Support\Pendientes::de(auth()->user()); @endphp
+@props(['pendientes' => []])
 
 @if (count($pendientes))
     <section class="tarjeta overflow-hidden" aria-labelledby="titulo-por-atender">

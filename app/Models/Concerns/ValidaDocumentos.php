@@ -1,12 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models\Concerns;
 
 use App\Enums\ValidacionEstado;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use App\Models\User;
 use App\Services\Auditoria;
+use Illuminate\Validation\ValidationException;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
+/**
+ * Documentos con revisión (pendiente, validado o rechazado con motivo) para modelos con archivos de Media Library.
+ */
 trait ValidaDocumentos
 {
     public function resolverDocumento(Media $media, ValidacionEstado $estado, ?string $motivo, int $revisorUserId): void
@@ -14,8 +20,8 @@ trait ValidaDocumentos
         // Regla de todos los paneles: lo validado ya no se rechaza ni se «des-valida».
         // Si cambia algo real (p. ej. un nuevo apoderado), el dueño sube un documento nuevo y ese se revisa.
         if ($media->getCustomProperty('estado') === ValidacionEstado::Validada->value && $estado !== ValidacionEstado::Validada) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'documento' => '«' . $media->file_name . '» ya está validado: no se puede rechazar. Si cambió algo, pide que se suba un documento nuevo.',
+            throw ValidationException::withMessages([
+                'documento' => '«'.$media->file_name.'» ya está validado: no se puede rechazar. Si cambió algo, pide que se suba un documento nuevo.',
             ]);
         }
 
@@ -27,7 +33,7 @@ trait ValidaDocumentos
 
         Auditoria::registrar(
             "documento.{$estado->value}",
-            "Documento «{$media->collection_name}» ({$media->file_name}) marcado como {$estado->value}" . ($motivo ? ": {$motivo}" : ''),
+            "Documento «{$media->collection_name}» ({$media->file_name}) marcado como {$estado->value}".($motivo ? ": {$motivo}" : ''),
             $this,
             ['coleccion' => $media->collection_name, 'archivo' => $media->file_name, 'motivo' => $motivo],
             User::find($revisorUserId),

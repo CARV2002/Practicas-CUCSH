@@ -1,13 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Auth;
 
+use App\Enums\Turno;
 use App\Models\User;
+use App\Support\Formatos;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
+/**
+ * Registro del alumno: nombre, correo, contraseña, carrera, código, grado y turno.
+ */
 class RegistroAlumnoRequest extends FormRequest
 {
     public function authorize(): bool
@@ -19,8 +26,8 @@ class RegistroAlumnoRequest extends FormRequest
     {
         $this->merge([
             'email' => Str::lower(trim((string) $this->input('email'))),
-            'num_control' => \App\Support\Formatos::digitos($this->input('num_control')),
-            'name' => \App\Support\Formatos::limpiar($this->input('name')),
+            'num_control' => Formatos::digitos($this->input('num_control')),
+            'name' => Formatos::limpiar($this->input('name')),
         ]);
     }
 
@@ -28,13 +35,13 @@ class RegistroAlumnoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'min:5', 'max:255', 'regex:' . \App\Support\Formatos::NOMBRE_PERSONA],
+            'name' => ['required', 'string', 'min:5', 'max:255', 'regex:'.Formatos::NOMBRE_PERSONA],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class)],
             'password' => ['required', 'confirmed', Password::defaults()],
             'carrera_id' => ['required', 'integer', Rule::exists('carreras', 'id')],
-            'num_control' => ['required', 'regex:' . \App\Support\Formatos::CODIGO_ALUMNO, Rule::unique('alumnos', 'num_control')],
+            'num_control' => ['required', 'regex:'.Formatos::CODIGO_ALUMNO, Rule::unique('alumnos', 'num_control')],
             'grado' => ['required', 'integer', 'between:1,12'],
-            'turno' => ['required', Rule::enum(\App\Enums\Turno::class)],
+            'turno' => ['required', Rule::enum(Turno::class)],
             'aviso_privacidad' => ['accepted'],
         ];
     }
@@ -66,7 +73,7 @@ class RegistroAlumnoRequest extends FormRequest
             'password.confirmed' => 'Las contraseñas no coinciden. Escribe la misma en ambos campos.',
             'aviso_privacidad.accepted' => 'Debes aceptar el aviso de privacidad para registrarte.',
             'grado.between' => 'El grado va del 1 al 12.',
-            ...\App\Support\Formatos::mensajes(),
+            ...Formatos::mensajes(),
         ];
     }
 }

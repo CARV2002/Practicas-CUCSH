@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Enums\Dictamen;
@@ -18,7 +20,7 @@ class GeneradorBorradorConvenio
     private $s;   // sección
 
     /**
-     * @param  array{representante_nombre:string,representante_cargo:string,constitucion:string,atribuciones:string,facultad_firmante:string,domicilio_legal:string,lugar_firma:string,fecha_firma:string,apoyo_economico?:?string,vigencia_anios?:int}  $d
+     * @param  array{representante_nombre:string,representante_cargo:string,constitucion:string,atribuciones:string,facultad_firmante:string,domicilio_legal:string,lugar_firma:string,fecha_firma?:?string,apoyo_economico?:?string,vigencia_anios?:int}  $d
      * @return string ruta del archivo temporal generado
      */
     public function generar(Convenio $convenio, array $d): string
@@ -40,7 +42,7 @@ class GeneradorBorradorConvenio
         $carreras = $convenio->dictamenes()->with('carrera')->where('dictamen', Dictamen::Aprobatorio->value)->get()
             ->map(fn ($x) => $x->carrera->nombre)->join('; ');
 
-        $this->doc = new PhpWord();
+        $this->doc = new PhpWord;
         $this->doc->setDefaultFontName('Arial');
         $this->doc->setDefaultFontSize(11);
         $this->s = $this->doc->addSection(['marginTop' => 1440, 'marginBottom' => 1440, 'marginLeft' => 1700, 'marginRight' => 1700]);
@@ -130,8 +132,8 @@ class GeneradorBorradorConvenio
         $this->clausula('UNDÉCIMA', "El presente convenio entrará en vigor a partir de su fecha de firma y tendrá una vigencia por {$duracion}, pudiendo modificarse adicionarse o darse por terminado anticipadamente por mutuo acuerdo entre las partes. Igualmente podrá darse por terminada anticipadamente por cualquiera de las partes previo aviso por escrito que haga la otra, con treinta días de anticipación, sin perjuicio del cumplimiento de las actividades que se encuentren en desarrollo.");
         $this->clausula('DUODÉCIMA', 'Las partes manifiestan que la firma de este convenio y los compromisos contraídos con el, son producto de su buena fe, por lo que realizarán todas las acciones necesarias para su debido cumplimiento; en caso de presentarse alguna discrepancia sobre su interpretación esta será resuelta por mutuo acuerdo.');
 
-        $this->p("Leído el presente instrumento, enteradas las partes del contenido y alcance de cada una de sus cláusulas e indicando que en su celebración no existe dolo, mala fe, o cualquier otro motivo que vicie su consentimiento, lo firma por triplicado en la ciudad de {$d['lugar_firma']}, Jalisco, " . ($fecha
-            ? 'el ' . $fecha->translatedFormat('j \d\e F \d\e Y') . '.'
+        $this->p("Leído el presente instrumento, enteradas las partes del contenido y alcance de cada una de sus cláusulas e indicando que en su celebración no existe dolo, mala fe, o cualquier otro motivo que vicie su consentimiento, lo firma por triplicado en la ciudad de {$d['lugar_firma']}, Jalisco, ".($fecha
+            ? 'el '.$fecha->translatedFormat('j \d\e F \d\e Y').'.'
             : 'a los ______ días del mes de ____________________ de ________.'));
 
         // --- Firmas

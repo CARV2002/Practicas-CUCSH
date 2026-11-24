@@ -1,11 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Models\Postulacion;
 use App\Models\User;
 use App\Policies\Concerns\ResuelveActores;
 
+/**
+ * Postulaciones: la coordinación de la carrera las gestiona; el alumno sube sus documentos a la suya.
+ */
 class PostulacionPolicy
 {
     use ResuelveActores;

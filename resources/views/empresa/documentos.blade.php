@@ -24,8 +24,6 @@
         $devueltos = $porAtender->filter(fn ($d) => $estadoDe($d) === 'rechazada');
         $faltan = $obligatorios->filter(fn ($d) => !$d['media'])->count();
         $max = \App\Models\Empresa::MAX_MB;
-        // Paso 4 de la solicitud: si aún no la envía, al terminar regresa a «Mi convenio»
-        $enSolicitud = !$bloqueado && !$empresa->convenios()->vigentes()->exists();
         $pct = (int) round($subidos / max(1, $obligatorios->count()) * 100);
     @endphp
 
@@ -125,7 +123,7 @@
                                         <div class="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-gray-50 px-3.5 py-2.5 ring-1 ring-inset ring-gray-100">
                                             <x-dashboard.icono nombre="documento" clase="size-5 shrink-0 text-gray-400" />
                                             <div class="min-w-0 flex-1">
-                                                <p class="truncate text-sm font-medium text-gray-800">{{ $media->file_name }}</p>
+                                                <p class="truncate text-sm font-medium text-gray-800" title="{{ $media->file_name }}">{{ $media->file_name }}</p>
                                                 <p class="text-xs text-gray-500">{{ $st === 'rechazada' ? 'Archivo devuelto' : 'Archivo actual' }} · subido el {{ $media->created_at->format('d/m/Y') }}</p>
                                             </div>
                                             <a href="{{ route('empresa.documentos.descargar', $media->id) }}" class="boton boton-secundario h-10 shrink-0"><x-dashboard.icono nombre="descargar" clase="size-4" /> Descargar</a>
@@ -171,7 +169,7 @@
                             <li class="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/40 px-3.5 py-2.5">
                                 <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700"><x-dashboard.icono nombre="check" clase="size-4" /></span>
                                 <div class="min-w-0 flex-1">
-                                    <p class="truncate text-sm font-medium text-gray-900">{{ \App\Models\Empresa::nombreDocumento($col) }}</p>
+                                    <p class="break-words text-sm font-medium text-gray-900">{{ \App\Models\Empresa::nombreDocumento($col) }}</p>
                                     <p class="text-xs text-gray-500">Subido el {{ $d['media']->created_at->format('d/m/Y') }}</p>
                                 </div>
                                 <a href="{{ route('empresa.documentos.descargar', $d['media']->id) }}" class="boton boton-chico boton-secundario shrink-0"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Descargar</a>

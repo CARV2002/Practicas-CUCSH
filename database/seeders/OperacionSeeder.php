@@ -19,8 +19,8 @@ use App\Enums\TipoOrganismo;
 use App\Enums\Turno;
 use App\Enums\ValidacionEstado;
 use App\Models\Alumno;
-use App\Models\CartaTermino;
 use App\Models\Carrera;
+use App\Models\CartaTermino;
 use App\Models\Convenio;
 use App\Models\Empresa;
 use App\Models\OficioAcreditacion;
@@ -33,10 +33,14 @@ use App\Models\Reporte;
 use App\Models\User;
 use App\Notifications\AvisoOperativo;
 use App\Notifications\ConvenioActualizado;
+use App\Services\Auditoria;
 use App\Support\DatosNotariales;
 use App\Support\Formatos;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use PhpOffice\PhpWord\IOFactory;
+use PhpOffice\PhpWord\PhpWord;
 
 /**
  * Datos de operación para probar el sistema de punta a punta en local, con organizaciones y alumnos
@@ -68,7 +72,7 @@ class OperacionSeeder extends Seeder
 {
     private Personal $lorena;
 
-    /** @var \Illuminate\Support\Collection<string, Carrera> */
+    /** @var Collection<string, Carrera> */
     private $carreras;
 
     /** @var array<string, Personal> */
@@ -84,18 +88,18 @@ class OperacionSeeder extends Seeder
 
     public function run(): void
     {
-        if (!app()->environment('local')) {
+        if (! app()->environment('local')) {
             return;
         }
 
-        \App\Services\Auditoria::sinRegistro(fn () => $this->sembrar());
+        Auditoria::sinRegistro(fn () => $this->sembrar());
     }
 
     private function sembrar(): void
     {
         $this->carreras = Carrera::all()->keyBy('carrera_clave');
         if ($this->carreras->count() < 15) {
-            $this->command?->warn('Falta el catálogo de carreras: corre CarreraSeeder primero.');
+            $this->command->warn('Falta el catálogo de carreras: corre CarreraSeeder primero.');
 
             return;
         }
@@ -156,7 +160,7 @@ class OperacionSeeder extends Seeder
             'Lic. Mariana Esquivel Rangel', 'Coordinadora administrativa', 'Lic. Arturo Esquivel Rangel', 'Despacho jurídico',
             'Despacho fundado en 2015 que asesora a pequeñas empresas y familias en materia civil, mercantil y familiar.');
         foreach (['constancia_situacion_fiscal', 'comprobante_domicilio', 'identificacion_representante'] as $col) {
-            $this->adjuntar($e, $col, str_replace('_', '-', $col) . '.pdf', fechaEmision: now()->subWeeks(3));
+            $this->adjuntar($e, $col, str_replace('_', '-', $col).'.pdf', fechaEmision: now()->subWeeks(3));
         }
         $this->adjuntar($e, 'acta_constitutiva', 'acta-constitutiva.pdf', ValidacionEstado::Rechazada, 'El acta está ilegible en las páginas 3 y 4; súbela escaneada a color y completa.');
         $c = $this->convenio($e, ConvenioEstado::Solicitado, now()->subDays(3), ['ABOG', 'CRIM'], [
@@ -367,7 +371,7 @@ class OperacionSeeder extends Seeder
         $this->reporte($pr, 2, ReporteEstado::Validado, 75, now()->subMonths(2), now()->subMonth(), true, 'Reporte completo.');
         $this->reporte($pr, 3, ReporteEstado::Rechazado, 70, now()->subMonth(), now()->subDays(3), true, 'Las horas no coinciden con la bitácora firmada por tu jefe directo; corrige y vuelve a subirlo.');
         $this->reporte($pr, 4, ReporteEstado::Pendiente, 40, now()->subDays(3), now()->addWeeks(3), false, actividades: 'Revisión de expedientes del juzgado tercero civil, redacción de dos demandas de cobro y asistencia a una audiencia de conciliación.');
-        $this->aviso($daniela->user->email, 'Tu coordinación te devolvió el reporte del ' . now()->subMonth()->format('d/m') . ' al ' . now()->subDays(3)->format('d/m/Y') . '. Motivo: «Las horas no coinciden con la bitácora firmada por tu jefe directo; corrige y vuelve a subirlo.». Qué hacer: entra a «Mis documentos › Reportes de horas», busca el reporte marcado en rojo, corrígelo y súbelo firmado de nuevo.', '/alumno/mis-documentos', null);
+        $this->aviso($daniela->user->email, 'Tu coordinación te devolvió el reporte del '.now()->subMonth()->format('d/m').' al '.now()->subDays(3)->format('d/m/Y').'. Motivo: «Las horas no coinciden con la bitácora firmada por tu jefe directo; corrige y vuelve a subirlo.». Qué hacer: entra a «Mis documentos › Reportes de horas», busca el reporte marcado en rojo, corrígelo y súbelo firmado de nuevo.', '/alumno/mis-documentos', null);
 
         $miguel = $this->alumno('Miguel Ángel Torres Vela', 'HIST', $vigente, 78);
         $pr = $this->practica($this->postulacion($miguel, $this->p['archivo'], PostulacionEstado::Aceptada, presentacion: true, oficioInterno: true),
@@ -459,7 +463,7 @@ class OperacionSeeder extends Seeder
 
                 // Formalizados: el expediente y el juego de Vinculación concluyen; los otros dos se entregan
                 if ($c->estado === ConvenioEstado::Formalizado) {
-                    $expediente && !in_array($expediente->estado->value, EF::concluidos(), true)
+                    $expediente && ! in_array($expediente->estado->value, EF::concluidos(), true)
                         && $expediente->mover(EF::Archivado, $this->lorena, 'Convenio formalizado: el expediente jurídico concluye.');
                     foreach ($juegos as $j) {
                         if (in_array($j->estado->value, EF::concluidos(), true)) {
@@ -498,7 +502,7 @@ class OperacionSeeder extends Seeder
 
         $datos = [
             'user_id' => $user->id, 'razon_social' => $razon, 'tipo_organismo' => $tipo,
-            'contacto_nombre' => $contacto, 'contacto_cargo' => $cargo, 'contacto_telefono' => '33' . str_pad((string) (31000000 + $n * 7919), 8, '0', STR_PAD_LEFT),
+            'contacto_nombre' => $contacto, 'contacto_cargo' => $cargo, 'contacto_telefono' => '33'.str_pad((string) (31000000 + $n * 7919), 8, '0', STR_PAD_LEFT),
             'representante_legal' => $representante, 'representante_cargo' => $escritura ? 'Representante legal' : 'Titular de la dependencia',
             'giro' => $giro, 'descripcion' => $descripcion,
             'proyectos_principales' => 'Atención al público, gestión documental y proyectos de investigación aplicada con universidades.',
@@ -515,7 +519,7 @@ class OperacionSeeder extends Seeder
             ? DatosNotariales::preparar([
                 'escritura_numero' => (string) (10200 + $n * 13), 'escritura_fecha' => now()->subYears(8)->startOfMonth()->toDateString(),
                 'notario_nombre' => 'Lic. Ricardo Alatorre Gómez', 'notaria_numero' => '12', 'notaria_ciudad' => 'Guadalajara, Jalisco',
-                'folio_mercantil' => $tipo === TipoOrganismo::Privado ? 'N-2018-0' . (4500 + $n) : null,
+                'folio_mercantil' => $tipo === TipoOrganismo::Privado ? 'N-2018-0'.(4500 + $n) : null,
             ], $tipo)
             : ['constitucion' => 'el decreto publicado en el Periódico Oficial «El Estado de Jalisco» el 15 de marzo de 2012'];
 
@@ -528,7 +532,7 @@ class OperacionSeeder extends Seeder
     private function expedienteCompleto(Empresa $empresa): void
     {
         foreach ($empresa->obligatorias() as $col) {
-            $this->adjuntar($empresa, $col, str_replace('_', '-', $col) . '.pdf', ValidacionEstado::Validada,
+            $this->adjuntar($empresa, $col, str_replace('_', '-', $col).'.pdf', ValidacionEstado::Validada,
                 fechaEmision: in_array($col, Empresa::CON_VIGENCIA, true) ? now()->subWeeks(3) : null);
         }
     }
@@ -661,7 +665,7 @@ class OperacionSeeder extends Seeder
     {
         // nombre.primer-apellido@test.com (p. ej. «Luis Fernando Ortega Ramos» → luis.ortega@test.com)
         $partes = str($nombre)->ascii()->lower()->explode(' ')->values();
-        $email = $partes[0] . '.' . $partes[$partes->count() - 2] . '@test.com';
+        $email = $partes[0].'.'.$partes[$partes->count() - 2].'@test.com';
         $user = $this->usuario($email, $nombre, Rol::Alumno, $activo);
 
         $alumno = Alumno::firstOrCreate(['user_id' => $user->id], [
@@ -673,18 +677,22 @@ class OperacionSeeder extends Seeder
             'porcentaje_creditos' => $creditos,
         ]);
 
-        match ($expediente) {
-            'validado' => [$this->adjuntar($alumno, 'kardex', 'kardex.pdf', ValidacionEstado::Validada), $this->adjuntar($alumno, 'constancia_imss', 'constancia-imss.pdf', ValidacionEstado::Validada)],
-            'en_revision' => [$this->adjuntar($alumno, 'kardex', 'kardex.pdf'), $this->adjuntar($alumno, 'constancia_imss', 'constancia-imss.pdf')],
-            'devuelto' => [$this->adjuntar($alumno, 'kardex', 'kardex.pdf', ValidacionEstado::Rechazada, $motivo), $this->adjuntar($alumno, 'constancia_imss', 'constancia-imss.pdf', ValidacionEstado::Validada)],
-            'imss_vencido' => [$this->adjuntar($alumno, 'kardex', 'kardex.pdf'), $this->adjuntar($alumno, 'constancia_imss', 'constancia-imss.pdf', ValidacionEstado::Rechazada,
-                'La constancia está vencida (vigencia al ' . $imss?->format('d/m/Y') . '). Descarga una vigente en el portal del IMSS.')],
-            default => null,
+        // Estado del kardex y del IMSS según la situación del alumno
+        [$kardex, $imssEstado, $motivoImss] = match ($expediente) {
+            'validado' => [ValidacionEstado::Validada, ValidacionEstado::Validada, null],
+            'en_revision' => [null, null, null],
+            'devuelto' => [ValidacionEstado::Rechazada, ValidacionEstado::Validada, null],
+            'imss_vencido' => [null, ValidacionEstado::Rechazada, 'La constancia está vencida (vigencia al '.$imss?->format('d/m/Y').'). Descarga una vigente en el portal del IMSS.'],
+            default => [false, false, null],   // sin_enviar: no sube nada
         };
+        if ($kardex !== false) {
+            $this->adjuntar($alumno, 'kardex', 'kardex.pdf', $kardex, $expediente === 'devuelto' ? $motivo : null);
+            $this->adjuntar($alumno, 'constancia_imss', 'constancia-imss.pdf', $imssEstado, $motivoImss);
+        }
 
         if ($expediente === 'devuelto' || $expediente === 'imss_vencido') {
             $doc = $expediente === 'devuelto' ? 'kardex' : 'constancia IMSS';
-            $this->aviso($email, "Tu coordinación te devolvió tu {$doc}. Motivo: «" . ($expediente === 'devuelto' ? $motivo : 'La constancia está vencida.') . '». Qué hacer: entra a «Mis documentos › Tu expediente», busca la tarjeta marcada en rojo y sube el archivo corregido.', '/alumno/mis-documentos', null);
+            $this->aviso($email, "Tu coordinación te devolvió tu {$doc}. Motivo: «".($expediente === 'devuelto' ? $motivo : 'La constancia está vencida.').'». Qué hacer: entra a «Mis documentos › Tu expediente», busca la tarjeta marcada en rojo y sube el archivo corregido.', '/alumno/mis-documentos', null);
         }
 
         return $alumno;
@@ -761,7 +769,7 @@ class OperacionSeeder extends Seeder
     private function aviso(string $email, string $mensaje, string $url, ?string $detalle): void
     {
         $user = User::where('email', $email)->first();
-        if ($user && !$user->notifications()->where('data->mensaje', $mensaje)->exists()) {
+        if ($user && ! $user->notifications()->where('data->mensaje', $mensaje)->exists()) {
             $user->notify(new AvisoOperativo($mensaje, $url, $detalle));
         }
     }
@@ -788,9 +796,9 @@ class OperacionSeeder extends Seeder
 
         if (str_ends_with($nombre, '.docx')) {
             // Word real (mínimo) para que se reconozca como .docx
-            $doc = new \PhpOffice\PhpWord\PhpWord();
+            $doc = new PhpWord;
             $doc->addSection()->addText("Borrador de convenio de prueba: {$nombre}");
-            \PhpOffice\PhpWord\IOFactory::createWriter($doc, 'Word2007')->save($ruta);
+            IOFactory::createWriter($doc, 'Word2007')->save($ruta);
 
             return $ruta;
         }

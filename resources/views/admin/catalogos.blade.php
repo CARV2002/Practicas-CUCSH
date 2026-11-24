@@ -7,27 +7,12 @@
     $pct = fn ($v) => \App\Support\Formato::porcentaje($v);
 @endphp
 
-<div x-data="{
-    modalDivision: false,
-    modalCarrera: false,
-    division: { id: null, nombre: '' },
-    carrera: { id: null, division_id: '', carrera_clave: '', nombre: ''},
-    urlDivision: '{{ route('admin.catalogos.divisiones.update', 0) }}',
-    urlCarrera: '{{ route('admin.catalogos.carreras.update', 0) }}',
-    nuevaDivision() { this.division = { id: null, nombre: '' }; this.modalDivision = true; },
-    editarDivision(d) { this.division = { ...d }; this.modalDivision = true; },
-    nuevaCarrera(divisionId = '') {
-        this.carrera = { id: null, division_id: divisionId, carrera_clave: '', nombre: ''};
-        this.modalCarrera = true;
-    },
-    editarCarrera(c) { this.carrera = { ...c }; this.modalCarrera = true; },
-    get actionDivision() {
-        return this.division.id ? this.urlDivision.replace(/0$/, this.division.id) : '{{ route('admin.catalogos.divisiones.store') }}';
-    },
-    get actionCarrera() {
-        return this.carrera.id ? this.urlCarrera.replace(/0$/, this.carrera.id) : '{{ route('admin.catalogos.carreras.store') }}';
-    }
-}" class="space-y-6">
+<div x-data="catalogos(@js([
+    'guardarDivision' => route('admin.catalogos.divisiones.store'),
+    'actualizarDivision' => route('admin.catalogos.divisiones.update', 0),
+    'guardarCarrera' => route('admin.catalogos.carreras.store'),
+    'actualizarCarrera' => route('admin.catalogos.carreras.update', 0),
+]))" class="space-y-6">
 
     <x-pagina.encabezado titulo="Divisiones y carreras" descripcion="Estructura académica del CUCSH: divisiones y carreras. Las horas y los créditos de cada carrera los define su coordinación (consulta de solo lectura aquí).">
         <x-slot:acciones>
@@ -116,7 +101,7 @@
                                     class="group/btn relative inline-flex size-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-theme-xs transition hover:border-udg-200 hover:bg-udg-50 hover:text-udg-900 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25"
                                     aria-label="Editar {{ $carrera->carrera_clave }}">
                                     <x-dashboard.icono nombre="editar" clase="size-4" />
-                                    <span class="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-udg-950 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-theme-md transition group-hover/btn:opacity-100" aria-hidden="true">Editar carrera</span>
+                                    <span class="tooltip-boton" aria-hidden="true">Editar carrera</span>
                                 </button>
                             </td>
                         </tr>

@@ -19,10 +19,9 @@
         $pendiente = $postulaciones->first(fn ($p) => $p->estado === PE::Pendiente);
         $enCurso = $postulaciones->first(fn ($p) => in_array($p->estado, [PE::CartaPresentacionEmitida, PE::CartaAceptacionRecibida], true));
         $practicaActiva = $practicas->first(fn ($p) => in_array($p->estado, PrE::activas(), true));
-        $puedePostularse = \App\Support\Requisitos::alumnoVerOferta($alumno) === null;
+        $puedePostularse = $motivoOferta === null;
 
-        // Guía: los mismos pasos que el panel (App\Support\TramiteAlumno)
-        $tramite = \App\Support\TramiteAlumno::de($alumno);
+        // Guía: los mismos pasos que el panel ($tramite viene de App\Support\TramiteAlumno)
         $pasos = $tramite->pasos();
         $minimo = \App\Support\Formato::porcentaje($alumno->carrera->porcentaje_creditos_minimo);
     @endphp
@@ -68,10 +67,10 @@
 
         {{-- Guía: en qué paso vas --}}
         <nav aria-label="Avance de tu trámite" class="overflow-x-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs no-scrollbar sm:p-5">
-            <ol class="flex min-w-max items-center gap-2 sm:min-w-0 sm:gap-0">
+            <ol class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:flex lg:items-center lg:gap-0">
                 @foreach ($pasos as $i => ['titulo' => $nombre, 'estado' => $estadoPaso])
                     @php $n = $i + 1; $hecho = $estadoPaso === 'hecho'; $alerta = $estadoPaso === 'alerta'; $actual = $estadoPaso === 'actual' || $alerta; @endphp
-                    <li class="flex flex-1 items-center gap-2 sm:gap-3" @if ($actual) aria-current="step" @endif>
+                    <li class="flex items-center gap-2 lg:flex-1 lg:gap-3" @if ($actual) aria-current="step" @endif>
                         <span @class([
                             'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ring-4 transition',
                             'bg-udg-800 text-white ring-udg-100' => $hecho,
@@ -82,7 +81,7 @@
                             @if ($hecho)<x-dashboard.icono nombre="check" clase="size-4" />@else{{ $alerta ? '!' : $n }}@endif
                         </span>
                         <span @class(['text-xs font-semibold leading-tight sm:text-sm', 'text-gray-900' => $actual, 'text-gray-500' => !$actual])>{{ $nombre }}</span>
-                        @unless ($loop->last)<span class="mx-1 hidden h-px flex-1 bg-gray-200 sm:block" aria-hidden="true"></span>@endunless
+                        @unless ($loop->last)<span class="mx-1 hidden h-px flex-1 bg-gray-200 lg:block" aria-hidden="true"></span>@endunless
                     </li>
                 @endforeach
             </ol>
@@ -132,17 +131,7 @@
             @if ($expediente === 'sin_enviar' && !$kardex && !$imss)
                 {{-- Primera entrega: todo en un solo envío --}}
                 <form method="POST" action="{{ route('alumno.documentos.expediente') }}" enctype="multipart/form-data" novalidate
-                    x-data="{ enviando: false,
-                        enviar(e) {
-                            let primero = null;
-                            this.$el.querySelectorAll('[data-zona-archivo]').forEach(z => {
-                                const i = z.querySelector('input[type=file]');
-                                if (i.required && !i.files.length) { Alpine.$data(z).error = 'Falta adjuntar este archivo.'; primero ??= z; }
-                            });
-                            if (primero) { e.preventDefault(); primero.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
-                            if (!this.$el.checkValidity()) { e.preventDefault(); this.$el.reportValidity(); return; }
-                            this.enviando = true;
-                        } }"
+                    x-data="envioExpediente()"
                     x-on:submit="enviar($event)"
                     class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs sm:p-6">
                     @csrf
@@ -231,7 +220,7 @@
                         Esta postulación ya no está activa.
                         @if ($puedePostularse)
                             Tu expediente sigue validado: puedes postularte a otra vacante de tu carrera.
-                        @elseif ($motivoOferta = \App\Support\Requisitos::alumnoVerOferta($alumno))
+                        @elseif ($motivoOferta)
                             {{ $motivoOferta }}
                         @endif
                     </p>

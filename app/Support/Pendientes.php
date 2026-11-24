@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 use App\Enums\ConvenioEstado;
+use App\Enums\EstadoDocumentoFisico;
 use App\Enums\PostulacionEstado;
 use App\Enums\PracticaEstado;
 use App\Enums\ProgramaEstado;
@@ -12,12 +15,15 @@ use App\Enums\ValidacionEstado;
 use App\Models\Alumno;
 use App\Models\Carrera;
 use App\Models\Convenio;
+use App\Models\DocumentoFisico;
 use App\Models\Empresa;
+use App\Models\Personal;
 use App\Models\Postulacion;
 use App\Models\Practica;
 use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\User;
+use Illuminate\Support\Collection;
 
 /**
  * «Lo que tienes por atender», calculado en vivo para cada usuario.
@@ -47,7 +53,7 @@ final class Pendientes
 
         // Su situación siempre encabeza la lista (salvo cuando ya acreditó y no queda nada)
         if ($situacion['titulo'] !== 'Práctica acreditada') {
-            $items[] = self::item($situacion['tipo'], $situacion['titulo'] . ': ' . $situacion['texto'],
+            $items[] = self::item($situacion['tipo'], $situacion['titulo'].': '.$situacion['texto'],
                 $situacion['accion'][1] ?? route('alumno.mis-documentos', absolute: false));
         }
 
@@ -79,7 +85,7 @@ final class Pendientes
      * @return array{expedientes:int, imss:int, kardex:int, postulaciones:int, cartas_aceptacion:int, reportes:int,
      *               cartas_termino:int, en_cierre:int, vacantes:int, bloqueados:int}
      */
-    public static function conteosCoordinacion(\App\Models\Personal $personal): array
+    public static function conteosCoordinacion(Personal $personal): array
     {
         $ids = $personal->carreraIdsEnAlcance();
         $enAlcance = fn ($q) => $ids === null ? $q : $q->whereIn('carrera_id', $ids);
@@ -133,6 +139,7 @@ final class Pendientes
             ->values()
             ->all();
     }
+
     private static function empresa(Empresa $empresa): array
     {
         $items = [];
@@ -144,18 +151,18 @@ final class Pendientes
             $items[] = self::item('error', "Vinculación te devolvió {$rechazados} documento(s): revisa el motivo y súbelos corregidos.", route('empresa.documentos', absolute: false), $rechazados);
         }
 
-        if (!$empresa->convenios()->exists() && ($motivo = Requisitos::empresaSolicitarConvenio($empresa))) {
+        if (! $empresa->convenios()->exists() && ($motivo = Requisitos::empresaSolicitarConvenio($empresa))) {
             $items[] = self::item('advertencia', "Para solicitar tu convenio: {$motivo}", route('empresa.documentos', absolute: false));
         }
 
-        $juegos = \App\Models\DocumentoFisico::where('estado', \App\Enums\EstadoDocumentoFisico::ConEmpresa->value)
+        $juegos = DocumentoFisico::where('estado', EstadoDocumentoFisico::ConEmpresa->value)
             ->whereHas('convenio', fn ($c) => $c->where('empresa_id', $empresa->id))->count();
         if ($juegos > 0) {
             $items[] = self::item('advertencia', "Tienes {$juegos} juego(s) original(es) del convenio por firmar y entregar en Vinculación.", route('empresa.convenio', absolute: false), $juegos);
         }
 
         $sinComentar = Reporte::whereHas('practica', fn ($p) => $p->activas()
-                ->whereHas('postulacion.programa.convenio', fn ($c) => $c->where('empresa_id', $empresa->id)))
+            ->whereHas('postulacion.programa.convenio', fn ($c) => $c->where('empresa_id', $empresa->id)))
             ->where('estado', ReporteEstado::Pendiente->value)->whereNull('retroalimentacion_empresa')->count();
         if ($sinComentar > 0) {
             $items[] = self::item('info', "{$sinComentar} reporte(s) de tus practicantes esperan tu comentario.", route('empresa.lista-practicantes', absolute: false), $sinComentar);
@@ -173,7 +180,7 @@ final class Pendientes
      * Lo que Vinculación tiene por atender: los convenios donde le toca actuar (lo mismo que «Te toca a ti»
      * en la bandeja), los papeles fuera de plazo y los convenios por vencer. Misma fuente para la campana y el saludo.
      *
-     * @return array{te_tocan:\Illuminate\Support\Collection, fisicos_vencidos:int, por_vencer:int}
+     * @return array{te_tocan:Collection, fisicos_vencidos:int, por_vencer:int}
      */
     public static function conteosVinculacion(): array
     {
@@ -185,7 +192,7 @@ final class Pendientes
 
         return [
             'te_tocan' => $teTocan,
-            'fisicos_vencidos' => \App\Models\DocumentoFisico::deTramiteVivo()->vencidos()->count(),
+            'fisicos_vencidos' => DocumentoFisico::deTramiteVivo()->vencidos()->count(),
             'por_vencer' => Convenio::porVencer(60)->count(),
         ];
     }
@@ -231,6 +238,16 @@ final class Pendientes
     /** Total de pendientes del usuario: lo que dice el saludo de su panel. */
     public static function total(User $user): int
     {
-        return (int) array_sum(array_column(self::de($user), 'n'));
+        return self::sumar(self::de($user));
+    }
+
+    /**
+     * Suma de una lista ya calculada con de(): así el panel no la calcula dos veces (saludo y tarjeta).
+     *
+     * @param  array<int, array{n?: int}>  $pendientes
+     */
+    public static function sumar(array $pendientes): int
+    {
+        return (int) array_sum(array_column($pendientes, 'n'));
     }
 }

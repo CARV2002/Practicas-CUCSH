@@ -1,9 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Enums;
 
 use App\Enums\Concerns\TieneTransiciones;
 
+/**
+ * Estado de la práctica: en curso, en cierre, acreditada o cancelada (baja).
+ */
 enum PracticaEstado: string
 {
     use TieneTransiciones;
@@ -20,7 +25,7 @@ enum PracticaEstado: string
     /** @return string[] */
     public static function valores(array $casos): array
     {
-        return array_map(fn(self $c) => $c->value, $casos);
+        return array_map(fn (self $c) => $c->value, $casos);
     }
 
     public function label(): string

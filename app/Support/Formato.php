@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 /** Formatos de presentación reutilizables en las vistas. */

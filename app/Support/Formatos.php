@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 /**
@@ -43,7 +45,7 @@ class Formatos
         $telefono = self::digitos($telefono);
         $extension = self::digitos($extension);
 
-        return trim($telefono . ($extension !== '' ? ($telefono !== '' ? ' ' : '') . 'ext. ' . $extension : '')) ?: null;
+        return trim($telefono.($extension !== '' ? ($telefono !== '' ? ' ' : '').'ext. '.$extension : '')) ?: null;
     }
 
     /**

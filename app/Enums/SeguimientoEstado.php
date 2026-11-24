@@ -1,7 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Enums;
 
+/**
+ * Resultado de cada etapa de la bitácora del convenio: pendiente, aprobada, con observaciones o rechazada.
+ */
 enum SeguimientoEstado: string
 {
     case Pendiente = 'pendiente';   // etapa abierta: alguien tiene "la pelota"
@@ -15,7 +20,7 @@ enum SeguimientoEstado: string
         return match ($this) {
             self::Pendiente => 'ambar',
             self::Aprobado => 'menta',
-            self::Observado => 'cielo',
+            self::Observado => 'ambar',   // con observaciones: falta corregir (no es un rechazo)
             self::Rechazado => 'rosa',
         };
     }

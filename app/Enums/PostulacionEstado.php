@@ -1,9 +1,15 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Enums;
 
 use App\Enums\Concerns\TieneTransiciones;
 
-
+/**
+ * Avance de la postulación del alumno: pendiente, carta de presentación, carta de aceptación,
+ * en práctica, rechazada o cancelada.
+ */
 enum PostulacionEstado: string
 {
     use TieneTransiciones;
@@ -35,7 +41,7 @@ enum PostulacionEstado: string
     /** @return string[] */
     public static function valores(array $casos): array
     {
-        return array_map(fn(self $c) => $c->value, $casos);
+        return array_map(fn (self $c) => $c->value, $casos);
     }
 
     public function label(): string

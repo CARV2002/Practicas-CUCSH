@@ -19,6 +19,7 @@ use App\Models\Alumno;
 use App\Models\Carrera;
 use App\Models\Convenio;
 use App\Models\ConvenioCarrera;
+use App\Models\Division;
 use App\Models\Empresa;
 use App\Models\Personal;
 use App\Models\Postulacion;
@@ -27,6 +28,8 @@ use App\Models\User;
 use App\Notifications\AvisoOperativo;
 use App\Notifications\ConvenioActualizado;
 use App\Notifications\NuevaSolicitudConvenio;
+use App\Services\Avisos;
+use App\Support\SolicitudEmpresa;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Http\UploadedFile;
@@ -59,7 +62,7 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
 
     // ── 1. Administrador: división y carrera nuevas ─────────────────────────────
     $this->actingAs($this->admin)->post(route('admin.catalogos.divisiones.store'), ['nombre' => 'División de Estudios Antropológicos'])->assertSessionHasNoErrors();
-    $division = \App\Models\Division::firstOrFail();
+    $division = Division::firstOrFail();
     // El administrador solo crea la estructura: las reglas académicas que mande se ignoran (nace con las iniciales)
     $this->actingAs($this->admin)->post(route('admin.catalogos.carreras.store'), [
         'division_id' => $division->id, 'carrera_clave' => 'antr', 'nombre' => 'Licenciatura en Antropología',
@@ -88,7 +91,7 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
     $alumno = $alumnoUser->alumno;
 
     // Si algo le llega a una carrera sin coordinación, el aviso no se pierde: lo recibe el administrador
-    \App\Services\Avisos::aCoordinacion($carrera->id, new AvisoOperativo(mensaje: 'Pendiente de prueba', url: '/'));
+    Avisos::aCoordinacion($carrera->id, new AvisoOperativo(mensaje: 'Pendiente de prueba', url: '/'));
     expect(e2eAvisos($this->admin, 'no tiene coordinación activa'))->toBe(1);
     $this->actingAs($alumnoUser)->get(route('alumno.dashboard'))->assertOk()->assertSee('Tu coordinación aún no está en la plataforma');
 
@@ -130,7 +133,7 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
         'representante_legal' => 'Mtra. Elena Firma', 'representante_cargo' => 'Directora General', ...datosNotarialesPrueba(),
         'objeto_social' => 'la difusión del patrimonio cultural', 'facultad_origen' => 'poder',
     ])->assertSessionHasNoErrors();
-    expect(\App\Support\SolicitudEmpresa::faltantes($empresa->fresh())['legales'])->not->toBeEmpty();
+    expect(SolicitudEmpresa::faltantes($empresa->fresh())['legales'])->not->toBeEmpty();
     $this->actingAs($empresaUser)->put(route('empresa.convenio.seccion', 'legales'), [
         'representante_legal' => 'Mtra. Elena Firma', 'representante_cargo' => 'Directora General', ...datosNotarialesPrueba(),
         'objeto_social' => 'la difusión del patrimonio cultural', 'facultad_origen' => 'poder',
@@ -173,7 +176,7 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
 
     // ── 6. Coordinación dictamina ───────────────────────────────────────────────
     $dictamen = ConvenioCarrera::where('convenio_id', $convenio->id)->firstOrFail();
-    $this->actingAs($coord)->post(route('coordinacion.dictamenes.registrar', $dictamen), ['dictamen' => 'aprobatorio', 'documento' => \Illuminate\Http\UploadedFile::fake()->create('dictamen.pdf', 40, 'application/pdf')])->assertSessionHasNoErrors();
+    $this->actingAs($coord)->post(route('coordinacion.dictamenes.registrar', $dictamen), ['dictamen' => 'aprobatorio', 'documento' => UploadedFile::fake()->create('dictamen.pdf', 40, 'application/pdf')])->assertSessionHasNoErrors();
     expect(e2eAvisos($lorena, 'emitió dictamen aprobatorio'))->toBe(1);
 
     // ── 7. Vinculación: borrador, Jurídica, firmas y formalización ──────────────
@@ -314,12 +317,12 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
 test('la vista previa muestra el PDF en línea y un archivo Word como ficha de descarga', function () {
     $alumnoUser = User::factory()->create();
     $alumnoUser->assignRole(Rol::Alumno->value);
-    $div = \App\Models\Division::create(['nombre' => 'D']);
+    $div = Division::create(['nombre' => 'D']);
     $c = Carrera::create(['division_id' => $div->id, 'carrera_clave' => 'X', 'nombre' => 'X', 'horas_requeridas' => 1, 'porcentaje_creditos_minimo' => 1, 'creditos_otorgados' => 1]);
     $alumno = Alumno::create(['user_id' => $alumnoUser->id, 'carrera_id' => $c->id, 'num_control' => '1']);
     $pdf = $alumno->addMedia(e2ePdf('imss.pdf'))->toMediaCollection('constancia_imss');
 
-    $this->actingAs($alumnoUser)->get(route('alumno.documentos.descargar', $pdf) . '?ver=1')
+    $this->actingAs($alumnoUser)->get(route('alumno.documentos.descargar', $pdf).'?ver=1')
         ->assertOk()->assertHeader('content-type', 'application/pdf')
         ->assertHeader('content-disposition', 'inline; filename="imss.pdf"');
     $this->actingAs($alumnoUser)->get(route('alumno.documentos.descargar', $pdf))

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
@@ -14,10 +16,13 @@ use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
+/**
+ * Restablecer la contraseña desde el enlace que llega por correo.
+ */
 class NewPasswordController extends Controller
 {
     /**
-     * Display the password reset view.
+     * Formulario para escribir la contraseña nueva (llega desde el enlace del correo).
      */
     public function create(Request $request): View
     {
@@ -25,7 +30,7 @@ class NewPasswordController extends Controller
     }
 
     /**
-     * Handle an incoming new password request.
+     * Guarda la contraseña nueva si el enlace (token) sigue vigente.
      *
      * @throws ValidationException
      */
@@ -37,9 +42,8 @@ class NewPasswordController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        // Here we will attempt to reset the user's password. If it is successful we
-        // will update the password on an actual user model and persist it to the
-        // database. Otherwise we will parse the error and return the response.
+        // Si el token es válido se guarda la contraseña nueva (y un remember_token nuevo, para cerrar
+        // las sesiones abiertas con la anterior); si no, se regresa con el motivo.
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function (User $user) use ($request) {
@@ -52,9 +56,7 @@ class NewPasswordController extends Controller
             }
         );
 
-        // If the password was successfully reset, we will redirect the user back to
-        // the application's home authenticated view. If there is an error we can
-        // redirect them back to where they came from with their error message.
+        // Con la contraseña cambiada vuelve al inicio de sesión; si falló, regresa al formulario con el motivo.
         return $status == Password::PASSWORD_RESET
                     ? redirect()->route('login')->with('status', __($status))
                     : back()->withInput($request->only('email'))

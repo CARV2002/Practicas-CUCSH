@@ -1,11 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Models\Practica;
 use App\Models\User;
 use App\Policies\Concerns\ResuelveActores;
 
+/**
+ * Prácticas: la coordinación de la carrera las gestiona; el alumno entrega sus documentos; la organización ve las suyas.
+ */
 class PracticaPolicy
 {
     use ResuelveActores;

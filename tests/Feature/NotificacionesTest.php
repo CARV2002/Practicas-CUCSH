@@ -7,6 +7,7 @@ use App\Enums\PracticaEstado;
 use App\Enums\ProgramaEstado;
 use App\Enums\Rol;
 use App\Enums\TipoOrganismo;
+use App\Enums\ValidacionEstado;
 use App\Models\Alumno;
 use App\Models\Carrera;
 use App\Models\Convenio;
@@ -19,11 +20,11 @@ use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\User;
 use App\Notifications\AvisoOperativo;
+use App\Notifications\NuevaSolicitudConvenio;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
-use App\Notifications\NuevaSolicitudConvenio;
 
 function notPdf(): UploadedFile
 {
@@ -86,7 +87,7 @@ beforeEach(function () {
     ]);
     // Constancia IMSS ya validada por su coordinación (requisito para emitir la carta)
     $imss = $this->ana->addMedia(notPdf())->toMediaCollection('constancia_imss');
-    $this->ana->resolverDocumento($imss, \App\Enums\ValidacionEstado::Validada, null, $this->adminAbog->id);
+    $this->ana->resolverDocumento($imss, ValidacionEstado::Validada, null, $this->adminAbog->id);
     $this->ana = expedienteDe($this->ana, 70);   // kardex + IMSS validados: ya puede postularse
 });
 
@@ -139,10 +140,10 @@ test('un reporte rechazado avisa por correo y uno validado solo en la plataforma
     $malo = Reporte::create($base);
     $bueno = Reporte::create($base);
     // Solo se valida con el escaneo firmado y sellado
-    \Illuminate\Support\Facades\Storage::fake('local');
-    $malo->addMedia(\Illuminate\Http\UploadedFile::fake()->createWithContent('reporte.pdf', "%PDF-1.4
-%%EOF"))->toMediaCollection('reporte_firmado');
-    $bueno->addMedia(\Illuminate\Http\UploadedFile::fake()->createWithContent('reporte.pdf', "%PDF-1.4\n%%EOF"))->toMediaCollection('reporte_firmado');
+    Storage::fake('local');
+    $malo->addMedia(UploadedFile::fake()->createWithContent('reporte.pdf', '%PDF-1.4
+%%EOF'))->toMediaCollection('reporte_firmado');
+    $bueno->addMedia(UploadedFile::fake()->createWithContent('reporte.pdf', "%PDF-1.4\n%%EOF"))->toMediaCollection('reporte_firmado');
 
     Notification::fake();
 

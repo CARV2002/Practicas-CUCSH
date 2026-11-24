@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use Illuminate\Support\Facades\File;
@@ -18,7 +20,7 @@ class ConvertidorPdf
     /** @return string|null ruta del PDF generado, o null si LibreOffice no está disponible o falló */
     public function convertir(string $docx): ?string
     {
-        if (!config('practicas.pdf.habilitado')) {
+        if (! config('practicas.pdf.habilitado')) {
             return null;
         }
 
@@ -29,11 +31,11 @@ class ConvertidorPdf
             return null;
         }
 
-        $salida = storage_path('app/tmp-pdf/' . uniqid('pdf', true));
+        $salida = storage_path('app/tmp-pdf/'.uniqid('pdf', true));
         File::ensureDirectoryExists($salida);
 
         // Perfil propio: evita choques con una sesión de LibreOffice abierta en el servidor
-        $perfil = 'file:///' . ltrim(str_replace('\\', '/', storage_path('app/lo-perfil')), '/');
+        $perfil = 'file:///'.ltrim(str_replace('\\', '/', storage_path('app/lo-perfil')), '/');
 
         try {
             // El servidor web (Apache, artisan serve) arranca PHP sin variables del sistema;
@@ -57,9 +59,9 @@ class ConvertidorPdf
             $proceso->setTimeout((int) config('practicas.pdf.timeout', 90));
             $proceso->run();
 
-            $pdf = $salida . DIRECTORY_SEPARATOR . pathinfo($docx, PATHINFO_FILENAME) . '.pdf';
+            $pdf = $salida.DIRECTORY_SEPARATOR.pathinfo($docx, PATHINFO_FILENAME).'.pdf';
 
-            if (!$proceso->isSuccessful() || !is_file($pdf)) {
+            if (! $proceso->isSuccessful() || ! is_file($pdf)) {
                 Log::warning('ConvertidorPdf: la conversión falló.', ['codigo' => $proceso->getExitCode(), 'salida' => $proceso->getErrorOutput() ?: $proceso->getOutput()]);
 
                 return null;

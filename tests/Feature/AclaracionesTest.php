@@ -33,10 +33,14 @@ use App\Models\User;
 use App\Notifications\AvisoOperativo;
 use App\Notifications\ConvenioActualizado;
 use App\Services\ConvenioWorkflow;
+use App\Support\Pendientes;
+use App\Support\Requisitos;
+use App\Support\TramiteAlumno;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 function acUsuario(Rol $rol): User
 {
@@ -53,7 +57,7 @@ function acPdf(string $n = 'doc.pdf'): UploadedFile
 
 function acTextoDocx(string $ruta): string
 {
-    $zip = new ZipArchive();
+    $zip = new ZipArchive;
     $zip->open($ruta);
     $xml = $zip->getFromName('word/document.xml');
     $zip->close();
@@ -92,7 +96,7 @@ beforeEach(function () {
 
     $this->programa = fn (Convenio $c) => Programa::create([
         'convenio_id' => $c->id, 'carrera_id' => $this->abog->id, 'modalidad' => 'externa', 'ciclo' => '2027A',
-        'titulo' => 'Programa ' . $c->id, 'descripcion' => 'x', 'actividades' => ['a'], 'perfil_requerido' => 'p',
+        'titulo' => 'Programa '.$c->id, 'descripcion' => 'x', 'actividades' => ['a'], 'perfil_requerido' => 'p',
         'cupos_totales' => 3, 'estado' => ProgramaEstado::Publicado,
     ]);
 
@@ -200,7 +204,7 @@ test('la baja justificada con reportes validados (parcial acreditada) pasa las h
 
     expect($practica->refresh()->estado)->toBe(PracticaEstado::Cancelada)
         ->and($this->alumno->fresh()->horasConservadas())->toBe(80)
-        ->and(\App\Support\Requisitos::alumnoPostularse($this->alumno->fresh()))->toBeNull();
+        ->and(Requisitos::alumnoPostularse($this->alumno->fresh()))->toBeNull();
     Notification::assertSentTo($this->alumnoUser, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'Conservas tus 80 horas'));
 
     // Nueva plaza: la práctica arranca con las 80 horas reconocidas
@@ -262,7 +266,7 @@ test('la baja sin reportes validados pierde las horas y deja postularse de nuevo
         ->and($practica->fecha_baja)->not->toBeNull()
         ->and($this->alumno->fresh()->horasConservadas())->toBe(0)
         ->and($this->alumno->fresh()->estaBloqueado())->toBeFalse()
-        ->and(\App\Support\Requisitos::alumnoPostularse($this->alumno->fresh()))->toBeNull();
+        ->and(Requisitos::alumnoPostularse($this->alumno->fresh()))->toBeNull();
     Notification::assertSentTo($this->alumnoUser, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'no tenías reportes validados'));
 });
 
@@ -278,7 +282,7 @@ test('la baja por sanción invalida las horas, bloquea al alumno y solo la coord
     expect($practica->refresh()->tipo_baja)->toBe('sancion')
         ->and($alumno->horasConservadas())->toBe(0)
         ->and($alumno->motivoBloqueo())->toBe('sancion')
-        ->and(\App\Support\Requisitos::alumnoPostularse($alumno))->toContain('sanción');
+        ->and(Requisitos::alumnoPostularse($alumno))->toContain('sanción');
 
     // No puede postularse por su cuenta y su panel lo explica
     $otro = ($this->programa)($this->convenio);
@@ -315,7 +319,7 @@ test('al llegar a 2 bajas el alumno queda bloqueado para una tercera postulació
     $alumno = $this->alumno->fresh();
     expect($alumno->motivoBloqueo())->toBe('limite')
         ->and($alumno->horasConservadas())->toBe(50)   // la baja justificada conserva sus horas aunque quede bloqueado
-        ->and(\App\Support\Requisitos::alumnoVerOferta($alumno))->toContain('límite de 2 bajas');
+        ->and(Requisitos::alumnoVerOferta($alumno))->toContain('límite de 2 bajas');
     Notification::assertSentTo($this->alumnoUser, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'límite de 2 bajas'));
 });
 
@@ -324,7 +328,7 @@ test('el panel, mis documentos y la campana muestran la etapa real del alumno', 
     Postulacion::create(['alumno_id' => $this->alumno->id, 'programa_id' => $programa->id, 'estado' => PostulacionEstado::CartaAceptacionRecibida,
         'porcentaje_creditos_declarado' => 70, 'fecha_postulacion' => today()]);
 
-    $tramite = \App\Support\TramiteAlumno::de($this->alumno->fresh());
+    $tramite = TramiteAlumno::de($this->alumno->fresh());
     expect($tramite->paso())->toBe(4)
         ->and($tramite->situacion()['titulo'])->toBe('Tu carta de aceptación quedó registrada');
 
@@ -335,7 +339,7 @@ test('el panel, mis documentos y la campana muestran la etapa real del alumno', 
     $this->actingAs($this->alumnoUser)->get(route('alumno.mis-documentos'))->assertOk()->assertSee('Cartas de presentación y aceptación');
 
     // «Por atender» vive en el panel, no en la campana
-    expect(\App\Support\Pendientes::de($this->alumnoUser)[0]['mensaje'])->toContain('Tu carta de aceptación quedó registrada');
+    expect(Pendientes::de($this->alumnoUser)[0]['mensaje'])->toContain('Tu carta de aceptación quedó registrada');
     $this->actingAs($this->alumnoUser)->getJson(route('notificaciones.resumen'))->assertOk()->assertJsonMissingPath('pendientes');
 });
 
@@ -345,7 +349,7 @@ test('la campana avisa al alumno que su coordinación le devolvió un documento 
     $imss = $alumno->addMedia(acPdf('imss-nueva.pdf'))->toMediaCollection('constancia_imss');
     $alumno->resolverDocumento($imss, ValidacionEstado::Rechazada, 'Está vencida.', $this->coordUser->id);
 
-    expect(\App\Support\Pendientes::de($this->alumnoUser)[0]['tipo'])->toBe('error');
+    expect(Pendientes::de($this->alumnoUser)[0]['tipo'])->toBe('error');
     $this->actingAs($this->alumnoUser)->get(route('alumno.dashboard'))->assertOk()
         ->assertSee('Por atender')->assertSee('te devolvió tu constancia IMSS')->assertSee('Está vencida');
 });
@@ -433,8 +437,8 @@ test('el saludo del panel de coordinación suma lo mismo que la campana', functi
     Postulacion::create(['alumno_id' => $this->alumno->id, 'programa_id' => $programa->id, 'estado' => PostulacionEstado::Pendiente,
         'porcentaje_creditos_declarado' => 70, 'fecha_postulacion' => today()]);
 
-    $total = \App\Support\Pendientes::total($this->coordUser);
-    $items = \App\Support\Pendientes::de($this->coordUser);
+    $total = Pendientes::total($this->coordUser);
+    $items = Pendientes::de($this->coordUser);
 
     expect($total)->toBe(1)->and(array_sum(array_column($items, 'n')))->toBe($total);
     $this->actingAs($this->coordUser)->get(route('coordinacion.dashboard'))->assertOk()
@@ -448,7 +452,7 @@ test('Vinculación descarga el informe de documentos físicos con los filtros de
     }
     // El turno a las carreras es digital: el primer papel aparece cuando el expediente va a la Unidad Jurídica
     expect($c->documentosFisicos()->count())->toBe(0);
-    $c->update(['estado' => \App\Enums\ConvenioEstado::EnRevisionJuridica]);
+    $c->update(['estado' => ConvenioEstado::EnRevisionJuridica]);
     $c->prepararDocumentosFisicos($this->lorena->personal);
     expect($c->documentosFisicos()->count())->toBeGreaterThan(0);
 
@@ -491,7 +495,7 @@ test('los reportes se filtran por vacantes internas o de organizaciones externas
 test('lo validado no se rechaza en ningún panel', function () {
     $alumno = $this->alumno->fresh();
     expect(fn () => $alumno->resolverDocumento($alumno->documentoVigente('kardex'), ValidacionEstado::Rechazada, 'Ya no sirve.', $this->coordUser->id))
-        ->toThrow(\Illuminate\Validation\ValidationException::class);
+        ->toThrow(ValidationException::class);
     expect($alumno->fresh()->documentoValidado('kardex'))->toBeTrue();
 });
 /* ------------------- Procedimiento de la empresa (documento «PROCESO EMPRESA») ------------------- */
@@ -574,7 +578,7 @@ test('Lorena devuelve con un motivo corto y le avisan cuando la empresa corrige 
     // La empresa corrige el acta: a Lorena le llega un aviso claro que lleva al expediente
     $this->actingAs($this->empresaUser)->post(route('empresa.documentos.subir'), ['archivos' => ['acta_constitutiva' => acPdf('acta-legible.pdf')]])->assertSessionHasNoErrors();
     Notification::assertSentTo($this->lorena, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'Aclaraciones S.C. corrigió «Acta constitutiva»')
-        && str_ends_with($n->url, '/admin/convenios/' . $convenio->id . '#expediente'));
+        && str_ends_with($n->url, '/admin/convenios/'.$convenio->id.'#expediente'));
 });
 
 test('con la solicitud en revisión la empresa sube lo que falta, pero no cambia lo que Vinculación revisa', function () {

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\ConvenioEstado;
@@ -8,6 +10,7 @@ use App\Enums\EstadoDocumentoFisico;
 use App\Enums\EtapaConvenio;
 use App\Enums\SeguimientoEstado;
 use App\Enums\TipoDocumentoFisico;
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\ValidaDocumentos;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,13 +19,19 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use App\Models\Concerns\Auditable;
+use Spatie\MediaLibrary\MediaCollections\File;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
+/**
+ * Convenio de una organización con el CUCSH: etapas, dictámenes por carrera, borradores, papeles físicos y vigencia.
+ */
 class Convenio extends Model implements HasMedia
 {
-    use InteractsWithMedia, SoftDeletes, ValidaDocumentos, Auditable;
+    use Auditable, InteractsWithMedia, SoftDeletes, ValidaDocumentos;
 
     protected $table = 'convenios';
 
@@ -62,7 +71,7 @@ class Convenio extends Model implements HasMedia
         // Borradores: SIN singleFile(), cada versión que Jurídica devuelve queda guardada.
         $this->addMediaCollection('borrador_convenio')
             ->useDisk('local')
-            ->acceptsFile(function (\Spatie\MediaLibrary\MediaCollections\File $file) {
+            ->acceptsFile(function (File $file) {
                 $ext = strtolower(pathinfo($file->name, PATHINFO_EXTENSION));
 
                 return match ($ext) {
@@ -88,22 +97,29 @@ class Convenio extends Model implements HasMedia
             ->acceptsMimeTypes(['application/pdf']);
     }
 
+    /** @return BelongsTo<Empresa, $this> */
     public function empresa(): BelongsTo
     {
         return $this->belongsTo(Empresa::class);
     }
 
+    /** @return BelongsTo<Personal, $this> */
     public function gestor(): BelongsTo
     {
         return $this->belongsTo(Personal::class, 'gestionado_por');
     }
 
-    /** Un dictamen por carrera solicitada. */
+    /**
+     * Un dictamen por carrera solicitada.
+     *
+     * @return HasMany<ConvenioCarrera, $this>
+     */
     public function dictamenes(): HasMany
     {
         return $this->hasMany(ConvenioCarrera::class);
     }
 
+    /** @return BelongsToMany<Carrera, $this> */
     public function carreras(): BelongsToMany
     {
         return $this->belongsToMany(Carrera::class, 'convenio_carrera')
@@ -111,17 +127,23 @@ class Convenio extends Model implements HasMedia
             ->withTimestamps();
     }
 
-    /** Las carreras que quedan en el contrato (dictamen aprobatorio). */
+    /**
+     * Las carreras que quedan en el contrato (dictamen aprobatorio).
+     *
+     * @return BelongsToMany<Carrera, $this>
+     */
     public function carrerasAprobadas(): BelongsToMany
     {
         return $this->carreras()->wherePivot('dictamen', Dictamen::Aprobatorio->value);
     }
 
+    /** @return HasMany<ConvenioSeguimiento, $this> */
     public function seguimientos(): HasMany
     {
         return $this->hasMany(ConvenioSeguimiento::class)->orderBy('fecha_registro')->orderBy('id');
     }
 
+    /** @return HasMany<Programa, $this> */
     public function programas(): HasMany
     {
         return $this->hasMany(Programa::class);
@@ -152,7 +174,7 @@ class Convenio extends Model implements HasMedia
     {
         return $this->dictamenes()->exists()
             && $this->dictamenesPendientes() === 0
-            && !$this->tieneAprobatorio();
+            && ! $this->tieneAprobatorio();
     }
 
     /** Sin pendientes y con al menos una carrera aprobatoria. */
@@ -161,7 +183,11 @@ class Convenio extends Model implements HasMedia
         return $this->dictamenesPendientes() === 0 && $this->tieneAprobatorio();
     }
 
-    /** Etapas abiertas = quién tiene "la pelota" ahora mismo. */
+    /**
+     * Etapas abiertas = quién tiene "la pelota" ahora mismo.
+     *
+     * @return HasMany<ConvenioSeguimiento, $this>
+     */
     public function etapasAbiertas(): HasMany
     {
         return $this->seguimientos()->where('estado', SeguimientoEstado::Pendiente->value);
@@ -178,7 +204,12 @@ class Convenio extends Model implements HasMedia
             ->whereDate('fecha_fin_vigencia', '>=', $fecha);
     }
 
-    /** Convenios que vencen en los próximos N días (avisos a 60 y 30 días). */
+    /**
+     * Convenios que vencen en los próximos N días (avisos a 60 y 30 días).
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
     public function scopePorVencer(Builder $query, int $dias): Builder
     {
         return $query->vigentes()
@@ -192,7 +223,7 @@ class Convenio extends Model implements HasMedia
 
         return $ids === null
             ? $query
-            : $query->whereHas('dictamenes', fn(Builder $q) => $q->whereIn('carrera_id', $ids));
+            : $query->whereHas('dictamenes', fn (Builder $q) => $q->whereIn('carrera_id', $ids));
     }
 
     /**
@@ -214,9 +245,9 @@ class Convenio extends Model implements HasMedia
      * Versiones del borrador (v1, v2…), de la más antigua a la vigente. Cada una con su archivo editable o
      * el PDF que se adjuntó, y el PDF limpio para imprimir (generado con LibreOffice, o el mismo si ya era PDF).
      *
-     * @return \Illuminate\Support\Collection<int, array{version:int, archivo:\Spatie\MediaLibrary\MediaCollections\Models\Media, pdf:?\Spatie\MediaLibrary\MediaCollections\Models\Media, vigente:bool}>
+     * @return Collection<int, array{version:int, archivo:Media, pdf:?Media, vigente:bool}>
      */
-    public function versionesBorrador(): \Illuminate\Support\Collection
+    public function versionesBorrador(): Collection
     {
         $pdfs = $this->getMedia('borrador_pdf');
         $versiones = $this->getMedia('borrador_convenio')->sortBy('id')->values()
@@ -240,12 +271,12 @@ class Convenio extends Model implements HasMedia
      * Fecha de firma impresa en los juegos finales (la que Lorena fija al imprimirlos). El borrador para Jurídica
      * la deja en blanco; si los juegos ya llevan fecha, la vigencia debe empezar ese mismo día.
      */
-    public function fechaFirmaImpresa(): ?\Illuminate\Support\Carbon
+    public function fechaFirmaImpresa(): ?Carbon
     {
         $final = $this->getMedia('borrador_convenio')->sortByDesc('id')->first(fn ($m) => $m->getCustomProperty('final'));
         $fecha = $final?->getCustomProperty('fecha_firma');
 
-        return $fecha ? \Illuminate\Support\Carbon::parse($fecha) : null;
+        return $fecha ? Carbon::parse($fecha) : null;
     }
 
     /** Datos con que se generó el borrador vigente (null si el vigente lo adjuntó Lorena y no se puede regenerar). */
@@ -263,9 +294,9 @@ class Convenio extends Model implements HasMedia
     }
 
     /** ¿Este archivo es el PDF para imprimir de una versión que ya no es la vigente? */
-    public function esImpresionObsoleta(\Spatie\MediaLibrary\MediaCollections\Models\Media $media): bool
+    public function esImpresionObsoleta(Media $media): bool
     {
-        if (!in_array($media->collection_name, ['borrador_pdf', 'borrador_convenio'], true) || $media->mime_type !== 'application/pdf') {
+        if (! in_array($media->collection_name, ['borrador_pdf', 'borrador_convenio'], true) || $media->mime_type !== 'application/pdf') {
             return false;
         }
 
@@ -305,6 +336,7 @@ class Convenio extends Model implements HasMedia
 
     // ---- Documentos físicos (trámite híbrido) ------------------------------------------
 
+    /** @return HasMany<DocumentoFisico, $this> */
     public function documentosFisicos(): HasMany
     {
         return $this->hasMany(DocumentoFisico::class)->orderByRaw("CASE tipo WHEN 'oficio_turno' THEN 1 WHEN 'dictamen_juridico' THEN 2 ELSE 3 END")->orderBy('juego');
@@ -393,7 +425,7 @@ class Convenio extends Model implements HasMedia
             ConvenioEstado::EnValidacionAcademica => match (true) {
                 $abierta?->etapa === EtapaConvenio::RedaccionBorrador => $r(
                     'Redacción del borrador',
-                    $this->getMedia('borrador_convenio')->isEmpty() ? 'Sin borrador adjunto' : 'Borrador v' . $this->getMedia('borrador_convenio')->count() . ' listo para turnar',
+                    $this->getMedia('borrador_convenio')->isEmpty() ? 'Sin borrador adjunto' : 'Borrador v'.$this->getMedia('borrador_convenio')->count().' listo para turnar',
                     'lavanda', 'Vinculación'),
                 default => $this->detalleDictamenes($r),
             },
@@ -407,7 +439,7 @@ class Convenio extends Model implements HasMedia
                     ? $r('Imprimir los 3 juegos', 'Para entregarlos a la empresa', 'ambar', 'Vinculación')
                     : $r(
                         'Pendiente de firma de la empresa',
-                        $juegos->where('estado', EstadoDocumentoFisico::ConEmpresa)->count() . ' de 3 juegos con la empresa · ' . $juegos->where('estado', EstadoDocumentoFisico::FirmadoEmpresa)->count() . ' de vuelta',
+                        $juegos->where('estado', EstadoDocumentoFisico::ConEmpresa)->count().' de 3 juegos con la empresa · '.$juegos->where('estado', EstadoDocumentoFisico::FirmadoEmpresa)->count().' de vuelta',
                         $juegos->contains(fn ($j) => $j->vencido()) ? 'rosa' : 'ambar', 'Empresa'),
                 EtapaConvenio::FirmaRectoria => $r('Pendiente de firma de Rectoría', $enDias, $abierta->excedeEspera() ? 'rosa' : 'ambar', 'Rectoría'),
                 EtapaConvenio::ArchivoDistribucion => $r('Por formalizar', 'Registrar folio, vigencia y escaneo', 'turquesa', 'Vinculación'),
@@ -434,7 +466,7 @@ class Convenio extends Model implements HasMedia
 
         return match (true) {
             $rechazados > 0 => $r('Esperando correcciones', "{$rechazados} documento(s) rechazado(s) por corregir", 'rosa', 'Empresa'),
-            $vigentes->count() < $total => $r('Expediente incompleto', 'Faltan ' . ($total - $vigentes->count()) . " de {$total} documentos", 'cielo', 'Empresa'),
+            $vigentes->count() < $total => $r('Expediente incompleto', 'Faltan '.($total - $vigentes->count())." de {$total} documentos", 'cielo', 'Empresa'),
             $validados === 0 => $r('Solicitud recibida', "{$total} documentos por revisar", 'cielo', 'Vinculación'),
             $validados < $total => $r('En revisión de documentos', "{$validados} de {$total} validados", 'cielo', 'Vinculación'),
             default => $r('Listo para turnar', 'Expediente completo y validado', 'turquesa', 'Vinculación'),
@@ -452,12 +484,12 @@ class Convenio extends Model implements HasMedia
 
     private function detalleFormalizado(\Closure $r, $juegos): array
     {
-        $porEntregar = $juegos->filter(fn ($j) => !$j->estado->concluido())->count();
+        $porEntregar = $juegos->filter(fn ($j) => ! $j->estado->concluido())->count();
 
-        if (!$this->estaVigente()) {
+        if (! $this->estaVigente()) {
             return $this->fecha_fin_vigencia?->isPast()
-                ? $r('Vencido', 'Venció el ' . $this->fecha_fin_vigencia->format('d/m/Y'), 'rosa', 'Empresa (renovación)')
-                : $r('Formalizado', 'Inicia el ' . $this->fecha_inicio_vigencia?->format('d/m/Y'), 'cielo', 'Vinculación');
+                ? $r('Vencido', 'Venció el '.$this->fecha_fin_vigencia->format('d/m/Y'), 'rosa', 'Empresa (renovación)')
+                : $r('Formalizado', 'Inicia el '.$this->fecha_inicio_vigencia?->format('d/m/Y'), 'cielo', 'Vinculación');
         }
 
         $dias = (int) today()->diffInDays($this->fecha_fin_vigencia, false);
@@ -465,7 +497,7 @@ class Convenio extends Model implements HasMedia
         return match (true) {
             $dias <= 60 => $r('Por vencer', "Vence en {$dias} días ({$this->fecha_fin_vigencia->format('d/m/Y')})", 'ambar', 'Empresa (renovación)'),
             $porEntregar > 0 => $r('Convenio activo (vigente)', "{$porEntregar} juego(s) por entregar o archivar", 'menta', 'Vinculación'),
-            default => $r('Convenio activo (vigente)', 'Hasta el ' . $this->fecha_fin_vigencia->format('d/m/Y'), 'menta', '—'),
+            default => $r('Convenio activo (vigente)', 'Hasta el '.$this->fecha_fin_vigencia->format('d/m/Y'), 'menta', '—'),
         };
     }
 }

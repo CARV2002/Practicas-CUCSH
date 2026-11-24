@@ -5,7 +5,6 @@
     // Los mismos pasos que «Mis documentos» (App\Support\TramiteAlumno)
     $pasos = $tramite->pasos();
     $pct = $kpis['pct'] ?? 0;
-    $bloqueoOferta = \App\Support\Requisitos::alumnoVerOferta($alumno);
 @endphp
 
 <div class="space-y-6">
@@ -41,7 +40,7 @@
     </x-dashboard.encabezado>
 
     {{-- Lo pendiente vive aquí, no en la campana --}}
-    <x-dashboard.por-atender />
+    <x-dashboard.por-atender :pendientes="$pendientes" />
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div class="space-y-6 xl:col-span-2">

@@ -1,26 +1,34 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Empresa;
 
+use App\Enums\EstadoDocumentoFisico;
 use App\Http\Controllers\Controller;
 use App\Models\Carrera;
 use App\Models\Convenio;
+use App\Models\DocumentoFisico;
+use App\Models\Practica;
 use App\Services\ConvenioWorkflow;
+use App\Support\Requisitos;
 use App\Support\SolicitudEmpresa;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * «Mi convenio» de la organización: solicitud por secciones (con borrador), seguimiento, renovación y descarga.
+ */
 class ConvenioController extends Controller
 {
-    public function __construct(private ConvenioWorkflow $workflow)
-    {
-    }
+    public function __construct(private ConvenioWorkflow $workflow) {}
 
     /** Convenio vigente, trámite en curso (con su bitácora) e historial. */
     public function show(Request $request): View
@@ -32,27 +40,37 @@ class ConvenioController extends Controller
             ->latest('id')
             ->get();
 
-        $vigente = $convenios->first(fn(Convenio $c) => $c->estaVigente());
-        $enTramite = $convenios->first(fn(Convenio $c) => !$c->estado->esFinal());
+        $vigente = $convenios->first(fn (Convenio $c) => $c->estaVigente());
+        $enTramite = $convenios->first(fn (Convenio $c) => ! $c->estado->esFinal());
 
         $diasRestantes = $vigente
             ? (int) now()->startOfDay()->diffInDays($vigente->fecha_fin_vigencia, false)
             : null;
 
+        $puedeRenovar = $vigente !== null && $enTramite === null && $diasRestantes <= 60;
+
         return view('empresa.convenio', [
             'empresa' => $empresa,
+            // Juegos originales que la empresa tiene en su poder para firmar
+            'juegosPendientes' => DocumentoFisico::where('estado', EstadoDocumentoFisico::ConEmpresa->value)
+                ->whereHas('convenio', fn ($c) => $c->where('empresa_id', $empresa->id))
+                ->get(),
+            // Renovación: practicantes recibidos con el convenio que vence (precarga «Experiencia previa»)
+            'recibidosVigente' => $puedeRenovar
+                ? Practica::whereHas('postulacion.programa', fn ($q) => $q->where('convenio_id', $vigente->id))->count()
+                : 0,
             'vigente' => $vigente,
             'enTramite' => $enTramite,
-            'historial' => $convenios->filter(fn(Convenio $c) => $c->estado->esFinal() && $c->isNot($vigente)),
+            'historial' => $convenios->filter(fn (Convenio $c) => $c->estado->esFinal() && $c->isNot($vigente)),
             'diasRestantes' => $diasRestantes,
-            'puedeRenovar' => $vigente !== null && $enTramite === null && $diasRestantes <= 60,
+            'puedeRenovar' => $puedeRenovar,
             'puedeSolicitar' => $vigente === null && $enTramite === null,
             'carreras' => Carrera::with('division')->orderBy('nombre')->get(),
             'expedienteCompleto' => $empresa->expedienteEnOrden(),
             // Motivo por el que el botón de enviar aparece deshabilitado (null = se puede enviar)
-            'motivoSolicitud' => \App\Support\Requisitos::empresaSolicitarConvenio($empresa),
+            'motivoSolicitud' => Requisitos::empresaSolicitarConvenio($empresa),
             // Solicitud por secciones con borrador (procedimiento de la empresa, etapa 2)
-            'faltantes' => \App\Support\SolicitudEmpresa::faltantes($empresa),
+            'faltantes' => SolicitudEmpresa::faltantes($empresa),
             'borrador' => $empresa->solicitud_borrador ?? [],
             'seccion' => $request->query('seccion'),
         ]);
@@ -85,7 +103,7 @@ class ConvenioController extends Controller
                 'perfiles_guardado_at' => now()->toIso8601String(),
             ])]);
         } else {
-            $empresa->update(\Illuminate\Support\Arr::only(
+            $empresa->update(Arr::only(
                 SolicitudEmpresa::paraGuardar($seccion, $datos, $empresa),
                 [...SolicitudEmpresa::CAMPOS[$seccion], 'domicilio_fiscal']
             ));
@@ -96,8 +114,8 @@ class ConvenioController extends Controller
 
         return redirect()->route('empresa.convenio', ['seccion' => $faltan ? $seccion : $siguiente])
             ->with('status', $faltan
-                ? 'Avance guardado. A «' . SolicitudEmpresa::SECCIONES[$seccion] . '» le faltan ' . count($faltan) . ' dato(s); puedes terminarla después.'
-                : '«' . SolicitudEmpresa::SECCIONES[$seccion] . '» quedó completa.');
+                ? 'Avance guardado. A «'.SolicitudEmpresa::SECCIONES[$seccion].'» le faltan '.count($faltan).' dato(s); puedes terminarla después.'
+                : '«'.SolicitudEmpresa::SECCIONES[$seccion].'» quedó completa.');
     }
 
     /** Ruta anterior de «Datos legales»: hoy es la sección «Declaraciones legales» de la solicitud. */
@@ -113,12 +131,12 @@ class ConvenioController extends Controller
 
         $faltan = collect(SolicitudEmpresa::faltantes($empresa))->filter();
         if ($faltan->isNotEmpty()) {
-            throw ValidationException::withMessages(['convenio' => 'Completa antes: ' . $faltan->keys()
-                ->map(fn ($s) => SolicitudEmpresa::SECCIONES[$s] . ' (' . count($faltan[$s]) . ')')->join(', ') . '.']);
+            throw ValidationException::withMessages(['convenio' => 'Completa antes: '.$faltan->keys()
+                ->map(fn ($s) => SolicitudEmpresa::SECCIONES[$s].' ('.count($faltan[$s]).')')->join(', ').'.']);
         }
 
         // Mismas reglas que deshabilitan el botón en la vista (App\Support\Requisitos)
-        if ($motivo = \App\Support\Requisitos::empresaSolicitarConvenio($empresa)) {
+        if ($motivo = Requisitos::empresaSolicitarConvenio($empresa)) {
             throw ValidationException::withMessages(['convenio' => $motivo]);
         }
 
@@ -144,7 +162,7 @@ class ConvenioController extends Controller
             } catch (\Throwable) {
                 return null;
             }
-            if (!$r->successful()) {
+            if (! $r->successful()) {
                 return ['colonias' => [], 'estado' => null];
             }
             $lugares = collect($r->json('places', []));
@@ -167,8 +185,9 @@ class ConvenioController extends Controller
 
         return in_array($estado, SolicitudEmpresa::ENTIDADES, true) ? $estado : null;
     }
+
     /** Descarga del convenio firmado (solo propio y formalizado; disco privado). */
-    public function descargar(Request $request, Convenio $convenio)
+    public function descargar(Request $request, Convenio $convenio): Response
     {
         $this->authorize('descargarFirmado', $convenio);
 

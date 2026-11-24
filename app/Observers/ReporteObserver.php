@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Observers;
 
 use App\Enums\PracticaEstado;
@@ -7,6 +9,9 @@ use App\Enums\ReporteEstado;
 use App\Models\Reporte;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Impide cambios de estado no permitidos en los reportes y que cambien cuando la práctica ya no está en curso.
+ */
 class ReporteObserver
 {
     public function updating(Reporte $reporte): void

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Observers;
 
 use App\Enums\Modalidad;
@@ -42,14 +44,14 @@ class ProgramaObserver
 
             $convenio = Convenio::find($programa->convenio_id);
 
-            if ($convenio === null || !$convenio->autorizaCarrera((int) $programa->carrera_id)) {
+            if ($convenio === null || ! $convenio->autorizaCarrera((int) $programa->carrera_id)) {
                 $this->fallar('La carrera no tiene dictamen aprobatorio en el convenio de la empresa.');
             }
 
             if (
                 $programa->isDirty('estado')
                 && $programa->estado === ProgramaEstado::Publicado
-                && !$convenio->estaVigente()
+                && ! $convenio->estaVigente()
             ) {
                 $this->fallar('No se puede publicar: el convenio no está vigente.');
             }

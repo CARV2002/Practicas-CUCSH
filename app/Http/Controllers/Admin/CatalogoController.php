@@ -1,16 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Carrera;
 use App\Models\Division;
+use App\Rules\UnicoNormalizado;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
+/**
+ * Catálogo académico del administrador: divisiones y carreras con sus reglas iniciales de prácticas.
+ */
 class CatalogoController extends Controller
 {
     public function index(): View
@@ -26,7 +32,7 @@ class CatalogoController extends Controller
     {
         $request->merge(['nombre' => preg_replace('/\s+/u', ' ', trim((string) $request->input('nombre')))]);
         $datos = $request->validate([
-            'nombre' => ['required', 'string', 'max:255', new \App\Rules\UnicoNormalizado('divisiones', 'nombre', 'Ya existe una división con ese nombre.')],
+            'nombre' => ['required', 'string', 'max:255', new UnicoNormalizado('divisiones', 'nombre', 'Ya existe una división con ese nombre.')],
         ]);
 
         Division::create($datos);
@@ -38,7 +44,7 @@ class CatalogoController extends Controller
     {
         $request->merge(['nombre' => preg_replace('/\s+/u', ' ', trim((string) $request->input('nombre')))]);
         $datos = $request->validate([
-            'nombre' => ['required', 'string', 'max:255', new \App\Rules\UnicoNormalizado('divisiones', 'nombre', 'Ya existe una división con ese nombre.', $division->id)],
+            'nombre' => ['required', 'string', 'max:255', new UnicoNormalizado('divisiones', 'nombre', 'Ya existe una división con ese nombre.', $division->id)],
         ]);
 
         $division->update($datos);
@@ -53,8 +59,8 @@ class CatalogoController extends Controller
         // Nace con reglas iniciales; desde ahí solo su coordinación las ajusta
         Carrera::create($request->validate($this->reglasCarrera()) + Carrera::REGLAS_INICIALES);
 
-        return back()->with('status', 'Carrera creada con reglas iniciales (' . Carrera::REGLAS_INICIALES['horas_requeridas'] . ' h, '
-            . Carrera::REGLAS_INICIALES['porcentaje_creditos_minimo'] . '% de créditos). Su coordinación las ajusta en «Reglas de mi carrera».');
+        return back()->with('status', 'Carrera creada con reglas iniciales ('.Carrera::REGLAS_INICIALES['horas_requeridas'].' h, '
+            .Carrera::REGLAS_INICIALES['porcentaje_creditos_minimo'].'% de créditos). Su coordinación las ajusta en «Reglas de mi carrera».');
     }
 
     public function updateCarrera(Request $request, Carrera $carrera): RedirectResponse
@@ -77,7 +83,7 @@ class CatalogoController extends Controller
         return [
             'division_id' => ['required', 'integer', Rule::exists('divisiones', 'id')],
             'carrera_clave' => ['required', 'string', 'max:10', 'regex:/^[A-Z0-9-]{2,10}$/', Rule::unique('carreras', 'carrera_clave')->ignore($carrera?->id)],
-            'nombre' => ['required', 'string', 'max:255', new \App\Rules\UnicoNormalizado('carreras', 'nombre', 'Ya existe una carrera con ese nombre.', $carrera?->id)],
+            'nombre' => ['required', 'string', 'max:255', new UnicoNormalizado('carreras', 'nombre', 'Ya existe una carrera con ese nombre.', $carrera?->id)],
         ];
     }
 }

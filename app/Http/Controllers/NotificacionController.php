@@ -1,12 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
+use App\Enums\Rol;
+use App\Support\TextoAviso;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
+/**
+ * Notificaciones: bandeja completa, resumen para la campana, abrir (marca como leída) y marcar todas.
+ */
 class NotificacionController extends Controller
 {
     /** Días tras los que una notificación ya leída se archiva (sale de la campana y de «Recientes»). */
@@ -42,7 +49,7 @@ class NotificacionController extends Controller
             'items' => $user->notifications()
                 ->where(fn ($q) => $q->whereNull('read_at')->orWhere('read_at', '>=', now()->subDays(self::DIAS_ARCHIVO)))
                 ->limit(8)->get()->map(function ($n) {
-                    $partes = \App\Support\TextoAviso::partes($n->data['mensaje'] ?? null, $n->data['titulo'] ?? null);
+                    $partes = TextoAviso::partes($n->data['mensaje'] ?? null, $n->data['titulo'] ?? null);
 
                     return [
                         'id' => $n->id,
@@ -66,14 +73,14 @@ class NotificacionController extends Controller
         $url = $n->data['url'] ?? null;
 
         // Solo rutas internas: nunca se redirige a un dominio externo
-        if (is_string($url) && str_starts_with($url, '/') && !str_starts_with($url, '//') && !str_contains($url, '\\')) {
+        if (is_string($url) && str_starts_with($url, '/') && ! str_starts_with($url, '//') && ! str_contains($url, '\\')) {
             return redirect($url);
         }
 
         // Avisos anteriores a `url`
         $convenioId = $n->data['convenio_id'] ?? null;
 
-        if ($convenioId && $request->user()->hasAnyRole(\App\Enums\Rol::deVinculacion())) {
+        if ($convenioId && $request->user()->hasAnyRole(Rol::deVinculacion())) {
             return redirect()->route('admin.convenios.show', $convenioId);
         }
 

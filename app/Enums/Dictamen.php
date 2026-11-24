@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Enums;
 
 /** Dictamen Técnico de Pertinencia Académica de UNA carrera sobre UN convenio. */

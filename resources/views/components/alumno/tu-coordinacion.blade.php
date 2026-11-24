@@ -1,14 +1,8 @@
-@props(['carrera'])
-
 {{--
     «Tu coordinación»: el alumno resuelve su proceso (postulación, cartas, reportes, liberación)
     con la Coordinación de su carrera. Vinculación solo atiende convenios con empresas.
+    Datos: App\View\Components\Alumno\TuCoordinacion ($coordinador, $correo, $telefono).
 --}}
-@php
-    $coordinador = $carrera->coordinadores()->first();
-    $correo = $carrera->coordinacion_correo ?: $coordinador?->email;
-    $telefono = $carrera->coordinacion_telefono;
-@endphp
 
 <section {{ $attributes->merge(['class' => 'overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xs']) }} aria-labelledby="tu-coordinacion-titulo"
     x-data="{ copiado: false, copiar(t) { navigator.clipboard?.writeText(t).then(() => { this.copiado = true; setTimeout(() => this.copiado = false, 2000) }) } }">

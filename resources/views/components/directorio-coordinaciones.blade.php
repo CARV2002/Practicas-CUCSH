@@ -1,21 +1,9 @@
-@props(['titulo' => 'Directorio de coordinaciones de carrera'])
-
 {{--
     Directorio público: el alumno resuelve su trámite con la Coordinación de su carrera.
     Cada coordinación captura su correo y teléfono en «Reglas de mi carrera».
     Se usa en las páginas de Estudiantes y Contacto.
+    Datos: App\View\Components\DirectorioCoordinaciones ($divisiones, $totalCarreras, $textosCarreras, $textoBusqueda).
 --}}
-@php
-    $divisiones = \App\Models\Division::with(['carreras' => fn ($q) => $q->orderBy('nombre')])
-        ->whereHas('carreras')
-        ->orderBy('nombre')
-        ->get();
-    $totalCarreras = $divisiones->sum(fn ($d) => $d->carreras->count());
-    $quitarAcentos = fn (string $t) => mb_strtolower(\Illuminate\Support\Str::ascii($t));
-    $textosCarreras = $divisiones->flatMap(fn ($d) => $d->carreras->map(
-        fn ($c) => $quitarAcentos($c->nombre . ' ' . $c->carrera_clave . ' ' . $d->nombre)
-    ))->values();
-@endphp
 
 <div {{ $attributes->merge(['class' => 'mx-auto w-full max-w-6xl px-4 sm:px-6']) }}
     x-data="{
@@ -50,7 +38,7 @@
         @foreach ($divisiones as $division)
             @php
                 $textosDivision = $division->carreras
-                    ->map(fn ($c) => $quitarAcentos($c->nombre . ' ' . $c->carrera_clave . ' ' . $division->nombre))
+                    ->map(fn ($c) => $textoBusqueda($c, $division))
                     ->join(' | ');
             @endphp
             <section x-show="coincide(@js($textosDivision))" class="!p-0" aria-labelledby="division-{{ $division->id }}">
@@ -61,7 +49,7 @@
 
                 <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     @foreach ($division->carreras as $c)
-                        <li x-show="coincide(@js($quitarAcentos($c->nombre . ' ' . $c->carrera_clave . ' ' . $division->nombre)))"
+                        <li x-show="coincide(@js($textoBusqueda($c, $division)))"
                             class="flex flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-theme-xs transition-shadow duration-200 hover:shadow-theme-md">
                             <div class="flex items-start justify-between gap-3">
                                 <p class="font-semibold leading-snug text-gray-900">{{ $c->nombre }}</p>

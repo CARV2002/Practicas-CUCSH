@@ -1,15 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
+/**
+ * Reenvío del correo de verificación de cuenta.
+ */
 class EmailVerificationNotificationController extends Controller
 {
     /**
-     * Send a new email verification notification.
+     * Reenvía el correo para verificar la cuenta.
      */
     public function store(Request $request): RedirectResponse
     {
@@ -19,7 +25,7 @@ class EmailVerificationNotificationController extends Controller
 
         try {
             $request->user()->sendEmailVerificationNotification();
-        } catch (\Symfony\Component\Mailer\Exception\TransportExceptionInterface $e) {
+        } catch (TransportExceptionInterface $e) {
             report($e);
 
             return back()->with('status', 'verification-failed');

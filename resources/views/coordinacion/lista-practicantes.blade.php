@@ -80,7 +80,7 @@
                                             <span class="size-1.5 rounded-full {{ $alerta ? 'bg-rose-500' : 'bg-amber-500' }}" title="Hay casos esperando" aria-hidden="true"></span>
                                         @endif
                                     </span>
-                                    <span class="block truncate text-xs text-gray-500">{{ $sub }}</span>
+                                    <span class="block whitespace-nowrap text-xs text-gray-500">{{ $sub }}</span>
                                 </span>
                                 <span class="font-display text-2xl font-bold tabular-nums leading-none"
                                     :class="tab === '{{ $clave }}' ? '{{ $alerta ? 'text-rose-600' : 'text-udg-900' }}' : 'text-gray-400'">{{ $total }}</span>
@@ -117,7 +117,7 @@
                             <div class="flex items-start gap-3">
                                 <x-ui.user-avatar :user="$al->user" size="size-10 shrink-0 text-xs ring-2 ring-white" />
                                 <div class="min-w-0 flex-1">
-                                    <p class="truncate font-semibold text-gray-900">{{ $al->user->name }}</p>
+                                    <p class="break-words font-semibold text-gray-900">{{ $al->user->name }}</p>
                                     <p class="text-xs text-gray-500">{{ $al->num_control }} · {{ $al->carrera->carrera_clave }} · {{ $al->grado ? $al->grado . '.º semestre' : 'sin grado' }}</p>
                                 </div>
                                 <span @class(['shrink-0 text-right font-display text-lg font-bold tabular-nums', 'text-emerald-700' => $cumple, 'text-rose-600' => !$cumple])>
@@ -278,7 +278,7 @@
                         $cumple = (float) $po->porcentaje_creditos_declarado >= (float) $min;
                         $imssVigente = $po->alumno->tieneImssVigenteHasta(now());
                         $faltaOficio = $interno && !$oficioInterno && in_array($po->estado, [PE::CartaPresentacionEmitida, PE::CartaAceptacionRecibida], true);
-                        $faltaActivar = $po->estado === PE::CartaAceptacionRecibida ? \App\Support\Requisitos::activarPractica($po) : null;
+                        $faltaActivar = $bloqueosActivar[$po->id] ?? null;
                     @endphp
                     <tbody x-data="{ abierto: {{ $errors->any() && old('postulacion') == $po->id ? 'true' : 'false' }} }">
                         <tr class="tabla-fila align-top border-t border-gray-100">
@@ -286,12 +286,9 @@
                                 <div class="flex items-start gap-3">
                                     <x-ui.user-avatar :user="$po->alumno->user" size="mt-0.5 size-9 shrink-0 text-xs ring-2 ring-white" />
                                     <div class="min-w-0">
-                                        <p class="truncate font-semibold text-gray-900">{{ $po->alumno->user->name }}</p>
+                                        <p class="break-words font-semibold text-gray-900">{{ $po->alumno->user->name }}</p>
                                         <p class="text-xs text-gray-500">{{ $po->alumno->num_control }} · {{ $po->alumno->carrera->carrera_clave }} · {{ $po->alumno->grado ? $po->alumno->grado . '.º sem.' : 'sin grado' }}</p>
-                                        <p class="mt-1 flex flex-wrap items-center gap-x-2 text-xs">
-                                            <span class="{{ $imssVigente ? 'text-gray-500' : 'font-semibold text-rose-600' }}">IMSS {{ $po->alumno->vigencia_imss ? 'al ' . $po->alumno->vigencia_imss->format('d/m/Y') : 'sin vigencia' }}</span>
-                                            @if ($imss)<a href="{{ route('coordinacion.alumnos.archivos', [$po->alumno, $imss]) }}" class="font-semibold text-real-600 hover:underline">Ver</a>@endif
-                                        </p>
+                                        <p class="mt-1 text-xs {{ $imssVigente ? 'text-gray-500' : 'font-semibold text-rose-600' }}">IMSS {{ $po->alumno->vigencia_imss ? 'vigente al ' . $po->alumno->vigencia_imss->format('d/m/Y') : 'sin vigencia' }}</p>
                                     </div>
                                 </div>
                             </td>
@@ -302,22 +299,24 @@
                             <td class="px-4 py-4">
                                 <p @class(['font-display text-lg font-bold leading-none tabular-nums', 'text-emerald-700' => $cumple, 'text-rose-600' => !$cumple])>{{ \App\Support\Formato::porcentaje($po->porcentaje_creditos_declarado) }}%</p>
                                 <p class="mt-1 text-xs text-gray-500">mínimo {{ \App\Support\Formato::porcentaje($min) }}%</p>
-                                @if ($kardex)<a href="{{ route('coordinacion.alumnos.archivos', [$po->alumno, $kardex]) }}" class="text-xs font-semibold text-real-600 hover:underline">Kardex</a>@endif
                             </td>
                             <td class="px-4 py-4">
                                 <x-ui.estatus :estado="$po->estado" />
-                                <p class="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                                    @if ($presentacion)<a href="{{ route('coordinacion.postulaciones.archivos', [$po, $presentacion]) }}" class="inline-flex items-center gap-1 font-semibold text-real-600 hover:underline"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Presentación</a>@endif
-                                    @if ($aceptacion)<a href="{{ route('coordinacion.postulaciones.archivos', [$po, $aceptacion]) }}" class="inline-flex items-center gap-1 font-semibold text-real-600 hover:underline"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Aceptación</a>@endif
-                                    @if ($oficioInterno)<a href="{{ route('coordinacion.postulaciones.archivos', [$po, $oficioInterno]) }}" class="inline-flex items-center gap-1 font-semibold text-real-600 hover:underline"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Oficio interno</a>@endif
-                                </p>
                                 @if ($faltaOficio)<p class="mt-1 text-xs font-semibold text-rose-600">Falta el oficio de aceptación interno</p>@endif
+                                {{-- Documentos del trámite en un solo lugar: expediente del alumno y cartas de esta postulación --}}
+                                <div class="mt-2.5 flex flex-wrap gap-1.5">
+                                    @if ($imss)<x-ui.documento-mini :href="route('coordinacion.alumnos.archivos', [$po->alumno, $imss])" nombre="IMSS" :alerta="! $imssVigente" />@endif
+                                    @if ($kardex)<x-ui.documento-mini :href="route('coordinacion.alumnos.archivos', [$po->alumno, $kardex])" nombre="Kardex" />@endif
+                                    @if ($presentacion)<x-ui.documento-mini :href="route('coordinacion.postulaciones.archivos', [$po, $presentacion])" nombre="Presentación" />@endif
+                                    @if ($aceptacion)<x-ui.documento-mini :href="route('coordinacion.postulaciones.archivos', [$po, $aceptacion])" nombre="Aceptación" />@endif
+                                    @if ($oficioInterno)<x-ui.documento-mini :href="route('coordinacion.postulaciones.archivos', [$po, $oficioInterno])" nombre="Oficio interno" />@endif
+                                </div>
                             </td>
                             <td class="acciones px-6 py-4 text-right">
                                 <div class="ml-auto flex w-48 flex-col items-stretch gap-1.5">
                                     @if ($po->estado === PE::Pendiente)
                                         {{-- El expediente (kardex + IMSS) ya se validó antes de postularse: aquí solo se emite la carta --}}
-                                        @if ($faltaCarta = \App\Support\Requisitos::emitirCarta($po))
+                                        @if ($faltaCarta = $bloqueosCarta[$po->id] ?? [])
                                             <x-ui.accion-bloqueada :motivo="$faltaCarta" tamano="chico">Emitir carta</x-ui.accion-bloqueada>
                                         @else
                                             <x-ui.accion-principal tono="primario" icono="documento" etiqueta="Emitir carta" :accion="route('coordinacion.postulaciones.carta', $po)" title="Emitir carta de presentación"
@@ -522,7 +521,7 @@
                                 <div class="flex items-center justify-end gap-2">
                                     @if ($activa)
                                         <button type="button" x-data
-                                            x-on:click="$dispatch('abrir-baja', { id: {{ $pr->id }}, nombre: @js($al->user->name), horas: {{ $horas }}, bajas: {{ $al->bajasVigentes()->count() }} })"
+                                            x-on:click="$dispatch('abrir-baja', { id: {{ $pr->id }}, nombre: @js($al->user->name), horas: {{ $horas }}, bajas: {{ $bajasPrevias[$pr->id] ?? 0 }} })"
                                             class="group/btn relative inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 text-sm font-semibold text-rose-600 shadow-theme-xs transition hover:border-rose-300 hover:bg-rose-50 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25">
                                             <x-dashboard.icono nombre="equis" clase="size-4" /> Baja o cambio
                                         </button>
@@ -546,24 +545,13 @@
             $motivosJustificados = collect(\App\Models\Practica::MOTIVOS_BAJA)->except($sanciones);
             $motivosSancion = collect(\App\Models\Practica::MOTIVOS_BAJA)->only($sanciones);
         @endphp
-        <div x-data="{ abierto: false, p: { id: 0, nombre: '', horas: 0, bajas: 0 }, motivo: 'cierre_empresa', sanciones: @js($sanciones), limite: {{ \App\Models\Alumno::LIMITE_BAJAS }}, url: '{{ route('coordinacion.practicas.cancelar', 0) }}',
-                get tipo() { return this.sanciones.includes(this.motivo) ? 'sancion' : (this.p.horas > 0 ? 'parcial' : 'sin_reportes'); },
-                get bloquea() { return this.tipo === 'sancion' || this.p.bajas + 1 >= this.limite; },
-                get explicacion() {
-                    return { parcial: 'Conserva sus ' + this.p.horas + ' h validadas: en su siguiente plaza solo cubrirá las horas restantes.',
-                        sin_reportes: 'No tiene reportes validados: sus horas no se conservan y deberá iniciar un trámite nuevo.',
-                        sancion: 'Se invalidan todas sus horas (' + this.p.horas + ' h), aunque tenga reportes firmados.' }[this.tipo];
-                },
-                get consecuencia() {
-                    if (this.tipo === 'sancion') return 'El alumno quedará bloqueado hasta que levantes la restricción.';
-                    return 'Será su baja número ' + (this.p.bajas + 1) + ' de ' + this.limite + (this.bloquea ? ': alcanza el límite y quedará bloqueado para postularse.' : '. Podrá postularse de nuevo.');
-                } }"
+        <div x-data="bajaPractica(@js(['sanciones' => $sanciones, 'limite' => \App\Models\Alumno::LIMITE_BAJAS, 'url' => route('coordinacion.practicas.cancelar', 0)]))"
             x-on:abrir-baja.window="p = $event.detail; motivo = 'cierre_empresa'; abierto = true">
         <template x-teleport="body">
         <div x-show="abierto" x-cloak x-transition.opacity.duration.200ms x-on:keydown.escape.window="abierto = false"
             class="fixed inset-0 z-[100050] flex items-start justify-center overflow-y-auto p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="titulo-baja">
             <div class="fixed inset-0 bg-udg-950/50 backdrop-blur-sm" x-on:click="abierto = false"></div>
-            <form method="POST" :action="url.replace(/0$/, p.id)" x-on:click.stop
+            <form method="POST" :action="accion" x-on:click.stop
                 :data-confirmar="'¿Registrar la baja de ' + p.nombre + '? ' + (bloquea ? 'El alumno quedará bloqueado para postularse. ' : '') + 'La práctica se cancela y no se puede deshacer.'" data-confirmar-titulo="Baja de práctica" data-confirmar-boton="Sí, registrar baja" class="relative w-full max-w-lg animate-entrada overflow-hidden rounded-2xl bg-white shadow-theme-xl motion-reduce:animate-none">
                 @csrf
                 <div class="border-b border-gray-100 px-6 py-4">

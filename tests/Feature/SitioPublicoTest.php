@@ -23,7 +23,7 @@ function pubEmpresaConConvenio(string $rfc, string $razon, array $convenio = [],
     Convenio::create($convenio + [
         'empresa_id' => $empresa->id,
         'estado' => ConvenioEstado::Formalizado,
-        'folio' => 'CV-PUB-' . $rfc,
+        'folio' => 'CV-PUB-'.$rfc,
         'fecha_recepcion' => now()->subMonths(3),
         'fecha_inicio_vigencia' => now()->subMonth(),
         'fecha_fin_vigencia' => now()->addYears(3),
@@ -174,7 +174,7 @@ test('contacto muestra los datos de la Coordinación tomados de la configuració
     $this->get(route('contacto'))
         ->assertOk()
         ->assertSee('mail.google.com/mail/?view=cm', false)
-        ->assertSee('to=' . rawurlencode(config('practicas.contacto.correo')), false)
+        ->assertSee('to='.rawurlencode(config('practicas.contacto.correo')), false)
         ->assertSee(config('practicas.contacto.telefono'))
         ->assertSee('23549')
         ->assertSee('23404')
@@ -199,7 +199,7 @@ test('contacto ofrece la ayuda interna cuando ya hay sesión', function () {
 test('el menú público enlaza a la página de contacto', function () {
     $this->get(route('inicio'))
         ->assertOk()
-        ->assertSee('href="' . route('contacto') . '"', false);
+        ->assertSee('href="'.route('contacto').'"', false);
 });
 
 test('todas las páginas públicas muestran el mismo correo de contacto', function () {
@@ -207,7 +207,7 @@ test('todas las páginas públicas muestran el mismo correo de contacto', functi
         $this->get(route($ruta))
             ->assertOk()
             ->assertSee('mail.google.com/mail/?view=cm', false)
-        ->assertSee('to=' . rawurlencode(config('practicas.contacto.correo')), false)
+            ->assertSee('to='.rawurlencode(config('practicas.contacto.correo')), false)
             ->assertDontSee('vinculacion.cucsh@academicos.udg.mx');
     }
 });

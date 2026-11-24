@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Observers;
 
 use App\Enums\PostulacionEstado;
@@ -8,18 +10,22 @@ use App\Enums\ReporteEstado;
 use App\Models\Practica;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Cambios de estado de la práctica: impide transiciones no permitidas o cancelar una ya enviada a Control Escolar;
+ * al cancelarla, cancela su postulación (libera el cupo) y anula los reportes que quedaron pendientes.
+ */
 class PracticaObserver
 {
     public function updating(Practica $practica): void
     {
-        if (!$practica->isDirty('estado')) {
+        if (! $practica->isDirty('estado')) {
             return;
         }
 
         $desde = $practica->getOriginal('estado');
         $hacia = $practica->estado;
 
-        if ($desde instanceof PracticaEstado && !$desde->puedePasarA($hacia)) {
+        if ($desde instanceof PracticaEstado && ! $desde->puedePasarA($hacia)) {
             $this->fallar("Una práctica «{$desde->label()}» no puede pasar a «{$hacia->label()}».");
         }
 
@@ -34,7 +40,7 @@ class PracticaObserver
     /** Al cancelar: se libera el cupo y se anula lo que quedó sin resolver. */
     public function updated(Practica $practica): void
     {
-        if (!$practica->wasChanged('estado') || $practica->estado !== PracticaEstado::Cancelada) {
+        if (! $practica->wasChanged('estado') || $practica->estado !== PracticaEstado::Cancelada) {
             return;
         }
 

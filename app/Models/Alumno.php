@@ -1,21 +1,29 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\PracticaEstado;
+use App\Enums\Turno;
+use App\Enums\ValidacionEstado;
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\ValidaDocumentos;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Support\Collection;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use App\Models\Concerns\Auditable;
 
+/**
+ * Alumno: datos escolares, expediente (kardex + IMSS), postulaciones, prácticas y bloqueos por bajas.
+ */
 class Alumno extends Model implements HasMedia
 {
-    use InteractsWithMedia, ValidaDocumentos, Auditable;
+    use Auditable, InteractsWithMedia, ValidaDocumentos;
 
     protected $table = 'alumnos';
 
@@ -27,7 +35,7 @@ class Alumno extends Model implements HasMedia
 
     protected function casts(): array
     {
-        return ['vigencia_imss' => 'date', 'grado' => 'integer', 'turno' => \App\Enums\Turno::class, 'porcentaje_creditos' => 'decimal:2',
+        return ['vigencia_imss' => 'date', 'grado' => 'integer', 'turno' => Turno::class, 'porcentaje_creditos' => 'decimal:2',
             'desbloqueado_at' => 'datetime'];
     }
 
@@ -44,21 +52,25 @@ class Alumno extends Model implements HasMedia
             ->acceptsMimeTypes(['application/pdf']);
     }
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /** @return BelongsTo<Carrera, $this> */
     public function carrera(): BelongsTo
     {
         return $this->belongsTo(Carrera::class);
     }
 
+    /** @return HasMany<Postulacion, $this> */
     public function postulaciones(): HasMany
     {
         return $this->hasMany(Postulacion::class);
     }
 
+    /** @return HasManyThrough<Practica, Postulacion, $this> */
     public function practicas(): HasManyThrough
     {
         return $this->hasManyThrough(Practica::class, Postulacion::class, 'alumno_id', 'postulacion_id');
@@ -94,12 +106,12 @@ class Alumno extends Model implements HasMedia
      * Alumnos del alcance de una coordinación con algo del expediente por revisar: kardex o IMSS
      * recién enviados o reemplazados (también renovaciones de IMSS durante la práctica).
      *
-     * @return \Illuminate\Support\Collection<int, self>
+     * @return Collection<int, self>
      */
-    public static function conExpedientePorRevisar(Personal $personal): \Illuminate\Support\Collection
+    public static function conExpedientePorRevisar(Personal $personal): Collection
     {
         $ids = $personal->carreraIdsEnAlcance();
-        $pendiente = fn ($m) => $m !== null && in_array($m->getCustomProperty('estado'), [null, \App\Enums\ValidacionEstado::Pendiente->value], true);
+        $pendiente = fn ($m) => $m !== null && in_array($m->getCustomProperty('estado'), [null, ValidacionEstado::Pendiente->value], true);
 
         return self::with(['user', 'carrera', 'media'])
             ->when($ids !== null, fn ($q) => $q->whereIn('carrera_id', $ids))
@@ -112,7 +124,7 @@ class Alumno extends Model implements HasMedia
     }
 
     /** @deprecated Usa conExpedientePorRevisar(): el IMSS se revisa junto con el kardex. */
-    public static function conImssPorRevisar(Personal $personal): \Illuminate\Support\Collection
+    public static function conImssPorRevisar(Personal $personal): Collection
     {
         return self::conExpedientePorRevisar($personal);
     }
@@ -132,7 +144,7 @@ class Alumno extends Model implements HasMedia
     }
 
     /** Bajas que cuentan para el bloqueo: las posteriores al último desbloqueo excepcional. */
-    public function bajasVigentes(): \Illuminate\Support\Collection
+    public function bajasVigentes(): Collection
     {
         return $this->practicas()
             ->where('practicas.estado', PracticaEstado::Cancelada->value)
@@ -168,13 +180,13 @@ class Alumno extends Model implements HasMedia
     {
         return match ($this->motivoBloqueo()) {
             'sancion' => 'Tu última práctica se dio de baja por sanción: tus horas no se conservan y no puedes postularte hasta que tu coordinación levante la restricción. Acude en persona a tu Coordinación de Carrera.',
-            'limite' => 'Llegaste al límite de ' . self::LIMITE_BAJAS . ' bajas de práctica, así que ya no puedes postularte por tu cuenta. Si tuviste una causa de fuerza mayor, acude en persona a tu Coordinación de Carrera para solicitar un desbloqueo excepcional.',
+            'limite' => 'Llegaste al límite de '.self::LIMITE_BAJAS.' bajas de práctica, así que ya no puedes postularte por tu cuenta. Si tuviste una causa de fuerza mayor, acude en persona a tu Coordinación de Carrera para solicitar un desbloqueo excepcional.',
             default => null,
         };
     }
 
     /** Alumnos bloqueados del alcance de una coordinación (para el desbloqueo excepcional). */
-    public static function bloqueadosPara(Personal $personal): \Illuminate\Support\Collection
+    public static function bloqueadosPara(Personal $personal): Collection
     {
         $ids = $personal->carreraIdsEnAlcance();
 
@@ -200,7 +212,7 @@ class Alumno extends Model implements HasMedia
         return match (true) {
             $kardex === 'rechazada' || $imss === 'rechazada' => 'devuelto',
             // Un IMSS validado que ya venció se renueva antes de seguir, esté como esté el kardex
-            $imss === 'validada' && !$this->tieneImssVigenteHasta(now()) => 'imss_vencido',
+            $imss === 'validada' && ! $this->tieneImssVigenteHasta(now()) => 'imss_vencido',
             $kardex === 'validada' && $imss === 'validada' => 'validado',
             $hayKardex && $hayImss => 'en_revision',
             default => 'sin_enviar',
@@ -234,5 +246,4 @@ class Alumno extends Model implements HasMedia
     {
         return $this->num_control;
     }
-
 }

@@ -1,12 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 use App\Enums\ConvenioEstado;
 use App\Enums\PostulacionEstado;
 use App\Enums\ProgramaEstado;
 use App\Enums\ReporteEstado;
-use App\Enums\ValidacionEstado;
 use App\Models\Alumno;
 use App\Models\Convenio;
 use App\Models\Empresa;
@@ -50,11 +51,11 @@ class Requisitos
     {
         $convenios = $empresa->convenios()->get();
 
-        if ($convenios->contains(fn(Convenio $c) => !$c->estado->esFinal())) {
+        if ($convenios->contains(fn (Convenio $c) => ! $c->estado->esFinal())) {
             return 'Ya tienes una solicitud de convenio en trámite.';
         }
 
-        $vigente = $convenios->first(fn(Convenio $c) => $c->estaVigente());
+        $vigente = $convenios->first(fn (Convenio $c) => $c->estaVigente());
         if ($vigente && now()->diffInDays($vigente->fecha_fin_vigencia, false) > 60) {
             return 'Tu convenio sigue vigente; podrás renovarlo 60 días antes de su vencimiento.';
         }
@@ -67,14 +68,14 @@ class Requisitos
         $faltanLegales = collect(['representante_cargo', 'domicilio_fiscal', 'constitucion', 'objeto_social', 'facultad_firmante'])
             ->filter(fn ($campo) => blank($empresa->{$campo}));
         if ($faltanLegales->isNotEmpty()) {
-            return 'Completa tus declaraciones legales en «Mi convenio» (faltan ' . $faltanLegales->count() . ').';
+            return 'Completa tus declaraciones legales en «Mi convenio» (faltan '.$faltanLegales->count().').';
         }
 
         $faltantes = collect($empresa->obligatorias())
-            ->filter(fn($col) => $empresa->documentoVigente($col) === null);
+            ->filter(fn ($col) => $empresa->documentoVigente($col) === null);
 
         if ($faltantes->isNotEmpty()) {
-            return 'Sube todos los documentos obligatorios en la sección Documentos (faltan ' . $faltantes->count() . ').';
+            return 'Sube todos los documentos obligatorios en la sección Documentos (faltan '.$faltantes->count().').';
         }
 
         return null;
@@ -90,10 +91,10 @@ class Requisitos
             $alumno->tienePracticaActiva() => 'Ya tienes una práctica activa.',
             $alumno->tieneBajaSinResolver() => 'Tu práctica fue cancelada; consulta a tu coordinación de carrera antes de postularte de nuevo.',
             $alumno->estaBloqueado() => $alumno->textoBloqueo(),
-            $alumno->postulaciones()->whereIn('estado', PostulacionEstado::valores([PostulacionEstado::Pendiente, ...PostulacionEstado::enTramite()]))->exists()
-                => 'Ya tienes una postulación en trámite; termina ese proceso antes de postularte a otra.',
-            $alumno->grado === null || $alumno->turno === null
-                => 'Captura tu grado y turno en «Mi perfil» antes de postularte (van en tu carta de presentación).',
+            $alumno->postulaciones()->whereIn('estado', PostulacionEstado::valores([PostulacionEstado::Pendiente, ...PostulacionEstado::enTramite()]))->exists() => 'Ya tienes una postulación en trámite; termina ese proceso antes de postularte a otra.',
+            $alumno->grado === null || $alumno->turno === null => 'Captura tu grado y turno en «Mi perfil» antes de postularte (van en tu carta de presentación).',
+            // Aunque su expediente ya esté validado: si la carrera subió el mínimo, no puede postularse por debajo de él
+            (float) $alumno->porcentaje_creditos < (float) $alumno->carrera?->porcentaje_creditos_minimo => "Necesitas al menos el {$alumno->carrera->porcentaje_creditos_minimo}% de créditos de tu carrera para postularte (tienes {$alumno->porcentaje_creditos}%).",
             // Kardex e IMSS validados por la coordinación ANTES de postularse
             default => self::motivoExpediente($alumno),
         };
@@ -108,6 +109,7 @@ class Requisitos
             'en_revision' => 'Tu coordinación está revisando juntos tu kardex y tu constancia IMSS. Si están correctos, te avisaremos y podrás postularte a una vacante.',
             'devuelto' => 'Tu coordinación te pidió corregir un documento de tu expediente: súbelo en «Mis documentos» para poder postularte.',
             'imss_vencido' => 'Tu constancia IMSS venció: sube una vigente en «Mis documentos»; cuando tu coordinación la valide podrás postularte.',
+            default => 'Revisa tu expediente en «Mis documentos» antes de postularte.',
         };
     }
 
@@ -123,10 +125,8 @@ class Requisitos
             $alumno->yaAcreditado() => 'Ya acreditaste tus prácticas profesionales.',
             $alumno->tienePracticaActiva() => 'Ya tienes una práctica en curso: consulta tu avance en «Mis prácticas».',
             $alumno->estaBloqueado() => $alumno->textoBloqueo(),
-            $estados->contains(PostulacionEstado::Pendiente)
-                => 'Ya te postulaste: tu coordinación emitirá tu carta de presentación. Se habilita de nuevo si tu postulación se rechaza o cancela.',
-            $estados->contains(fn ($e) => in_array($e, [PostulacionEstado::CartaPresentacionEmitida, PostulacionEstado::CartaAceptacionRecibida], true))
-                => 'Ya tienes una empresa en trámite: sigue con tu carta de aceptación en «Mis documentos».',
+            $estados->contains(PostulacionEstado::Pendiente) => 'Ya te postulaste: tu coordinación emitirá tu carta de presentación. Se habilita de nuevo si tu postulación se rechaza o cancela.',
+            $estados->contains(fn ($e) => in_array($e, [PostulacionEstado::CartaPresentacionEmitida, PostulacionEstado::CartaAceptacionRecibida], true)) => 'Ya tienes una empresa en trámite: sigue con tu carta de aceptación en «Mis documentos».',
             default => self::motivoExpediente($alumno),
         };
     }
@@ -150,7 +150,7 @@ class Requisitos
             return ['La postulación ya no está pendiente.'];
         }
         // Kardex e IMSS ya se validaron antes de postularse (expediente); si algo cambió, se avisa
-        if (!$alumno->expedienteValidado()) {
+        if (! $alumno->expedienteValidado()) {
             $faltan[] = $alumno->estadoExpediente() === 'imss_vencido'
                 ? 'El IMSS del alumno ya no está vigente: debe subir una constancia actual.'
                 : 'El expediente del alumno (kardex e IMSS) no está validado.';
@@ -166,7 +166,7 @@ class Requisitos
         } elseif ($programa->cuposOcupados() >= $programa->cupos_totales) {
             $faltan[] = 'El programa ya no tiene cupos.';
         }
-        if (!$programa->esInterno() && !$programa->convenio?->estaVigente()) {
+        if (! $programa->esInterno() && ! $programa->convenio?->estaVigente()) {
             $faltan[] = 'El convenio de la empresa no está vigente.';
         }
 
@@ -189,10 +189,10 @@ class Requisitos
         if ($programa->estado !== ProgramaEstado::PendienteAprobacion) {
             return 'Solo se aprueban vacantes pendientes.';
         }
-        if (!$programa->convenio?->estaVigente()) {
+        if (! $programa->convenio?->estaVigente()) {
             return 'El convenio de la empresa no está vigente: no se puede publicar.';
         }
-        if (!$programa->convenio->autorizaCarrera((int) $programa->carrera_id)) {
+        if (! $programa->convenio->autorizaCarrera((int) $programa->carrera_id)) {
             return 'La carrera no tiene dictamen aprobatorio en el convenio de la empresa.';
         }
 
@@ -202,7 +202,7 @@ class Requisitos
     /** Validar la carta de término (pasa la práctica a cierre). */
     public static function validarCartaTermino(Practica $practica): ?string
     {
-        if (!$practica->horasCompletas()) {
+        if (! $practica->horasCompletas()) {
             return "Faltan horas validadas ({$practica->progresoTexto()}).";
         }
         if ($practica->reportes()->where('estado', ReporteEstado::Pendiente->value)->exists()) {
@@ -219,10 +219,10 @@ class Requisitos
     {
         $empresa = $convenio->empresa;
         $pendientes = collect($empresa->obligatorias())
-            ->reject(fn($col) => $empresa->documentoValidado($col));
+            ->reject(fn ($col) => $empresa->documentoValidado($col));
 
         return $pendientes->isEmpty()
             ? null
-            : 'Valida primero todo el expediente de la empresa (faltan ' . $pendientes->count() . ' documento(s) por validar).';
+            : 'Valida primero todo el expediente de la empresa (faltan '.$pendientes->count().' documento(s) por validar).';
     }
 }

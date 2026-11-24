@@ -1,22 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Coordinacion;
 
 use App\Enums\PracticaEstado;
+use App\Enums\ReporteEstado;
 use App\Enums\ValidacionEstado;
 use App\Http\Controllers\Controller;
 use App\Models\CartaTermino;
 use App\Models\OficioAcreditacion;
 use App\Models\Practica;
+use App\Notifications\AvisoOperativo;
+use App\Services\Avisos;
+use App\Support\ReglasArchivo;
+use App\Support\Requisitos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use App\Services\Avisos;
-use App\Notifications\AvisoOperativo;
-use App\Enums\ReporteEstado;
+use Symfony\Component\HttpFoundation\Response;
 
 /** Cierre de la práctica: carta de término -> oficio -> Control Escolar -> SIIAU. */
 class CierreController extends Controller
@@ -41,14 +46,21 @@ class CierreController extends Controller
             ->visiblesPara($personal)
             ->whereHas('cartaTermino')
             ->whereIn('estado', $estados)
-            ->when($request->filled('q'), fn($q) => $q->whereHas('postulacion.alumno', fn($a) => $a
-                ->where('num_control', 'like', '%' . $request->string('q') . '%')
-                ->orWhereHas('user', fn($u) => $u->where('name', 'like', '%' . $request->string('q') . '%'))))
+            ->when($request->filled('q'), fn ($q) => $q->whereHas('postulacion.alumno', fn ($a) => $a
+                ->where('num_control', 'like', '%'.$request->string('q').'%')
+                ->orWhereHas('user', fn ($u) => $u->where('name', 'like', '%'.$request->string('q').'%'))))
             ->latest('id')
             ->paginate(15)
             ->withQueryString();
 
-        return view('coordinacion.lista-cierres', ['practicas' => $practicas, 'ver' => $todas ? 'todas' : 'pendientes']);
+        return view('coordinacion.lista-cierres', [
+            'practicas' => $practicas,
+            'ver' => $todas ? 'todas' : 'pendientes',
+            // Por qué todavía no se puede validar cada carta de término (id => motivo; null = se puede)
+            'bloqueosValidar' => $practicas->getCollection()
+                ->mapWithKeys(fn (Practica $pr) => [$pr->id => Requisitos::validarCartaTermino($pr)])
+                ->all(),
+        ]);
     }
 
     /** Valida o rechaza la carta de término. Validarla exige horas completas (lo aplica CartaTerminoObserver). */
@@ -95,7 +107,7 @@ class CierreController extends Controller
         Avisos::enviar(Avisos::alumnoDe($practica), new AvisoOperativo(
             mensaje: $valida
             ? 'Tu carta de término fue validada. Solo falta que la Coordinación registre tu acreditación; no tienes que hacer nada más.'
-            : 'Tu coordinación te devolvió la carta de término. Motivo: «' . $datos['motivo'] . '». Qué hacer: entra a «Mis documentos › Carta de término», en el recuadro marcado en rojo, y sube la carta corregida.',
+            : 'Tu coordinación te devolvió la carta de término. Motivo: «'.$datos['motivo'].'». Qué hacer: entra a «Mis documentos › Carta de término», en el recuadro marcado en rojo, y sube la carta corregida.',
             url: route($valida ? 'alumno.mis-practicas' : 'alumno.mis-documentos', absolute: false),
             correo: true,
             asunto: 'Actualización de tu carta de término',
@@ -115,7 +127,7 @@ class CierreController extends Controller
             return back()->withErrors(['oficio' => 'La práctica aún no está en cierre (falta validar la carta de término).']);
         }
 
-        $request->validate(['archivo' => ['required', 'file', 'mimes:pdf', 'max:10240']]);
+        $request->validate(['archivo' => ReglasArchivo::pdfRequerido()]);
 
         $existente = $practica->oficioAcreditacion;
 
@@ -188,7 +200,7 @@ class CierreController extends Controller
         return back()->with('status', 'Captura en SIIAU registrada: la práctica quedó acreditada.');
     }
 
-    public function descargar(Request $request, Practica $practica, Media $media)
+    public function descargar(Request $request, Practica $practica, Media $media): Response
     {
         $this->autorizar($request, $practica);
 

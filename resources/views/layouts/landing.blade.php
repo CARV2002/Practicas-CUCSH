@@ -15,6 +15,7 @@
   @include('partials.errores-servidor')
 
   @vite(['resources/css/app.css', 'resources/js/app.js'])
+  @stack('estilos')
 </head>
 
 @php
@@ -33,14 +34,14 @@
     Saltar al contenido
   </a>
 
-  <!-- NAVEGACIÓN -->
+  {{-- Navegación --}}
   <header class="sticky top-0 z-[100] border-b border-gray-200 bg-white/95 shadow-theme-xs backdrop-blur supports-[backdrop-filter]:bg-white/85">
     <nav class="mx-auto flex h-[4.5rem] max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 lg:h-24 lg:px-8" aria-label="Principal">
       <a href="{{ route('inicio') }}" class="flex shrink-0 items-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-real-500/40">
         <img src="{{ asset('images/home/cucsh.svg') }}" alt="CUCSH · Prácticas Profesionales" class="h-11 w-auto sm:h-12 lg:h-[3.75rem]" width="200" height="60">
       </a>
 
-      <!-- Escritorio -->
+      {{-- Escritorio --}}
       <div class="hidden items-center gap-1 md:flex lg:gap-2">
         @foreach ($enlaces as $e)
           @php $activo = request()->routeIs($e['ruta'], ...($e['tambien'] ?? [])); @endphp
@@ -55,7 +56,7 @@
         </a>
       </div>
 
-      <!-- Móvil -->
+      {{-- Móvil --}}
       <button type="button" class="flex size-11 items-center justify-center rounded-lg text-udg-900 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-real-500/40 md:hidden"
         @click="menu = !menu" :aria-expanded="menu.toString()" aria-controls="menu-publico" aria-label="Abrir el menú">
         <svg x-show="!menu" class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/></svg>
@@ -88,7 +89,7 @@
     @yield('content')
   </main>
 
-  <!-- PIE DE PÁGINA -->
+  {{-- Pie de página --}}
   <footer class="border-t-4 border-oro-400 bg-udg-950 text-white/80">
     <div class="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[2fr_1fr_1fr] lg:px-8 lg:py-16">
       <div>

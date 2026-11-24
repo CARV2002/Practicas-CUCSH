@@ -1,12 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Enums\ConvenioEstado;
+use App\Enums\Rol;
 use App\Models\Convenio;
 use App\Models\User;
 use App\Policies\Concerns\ResuelveActores;
 
+/**
+ * Quién ve y quién opera cada convenio: Vinculación lo gestiona, el administrador solo lee y la organización ve el suyo.
+ */
 class ConvenioPolicy
 {
     use ResuelveActores;
@@ -34,7 +40,7 @@ class ConvenioPolicy
      */
     public function gestionar(User $user, Convenio $convenio): bool
     {
-        return $user->hasRole(\App\Enums\Rol::Vinculacion->value)
+        return $user->hasRole(Rol::Vinculacion->value)
             && $this->esVinculacion($user)
             && $this->view($user, $convenio);
     }

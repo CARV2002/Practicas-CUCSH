@@ -1,13 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions;
 
 use App\Enums\PostulacionEstado;
 use App\Models\Postulacion;
+use App\Notifications\AvisoOperativo;
+use App\Services\Avisos;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use App\Services\Avisos;
-use App\Notifications\AvisoOperativo;
 
 /**
  * El alumno regresa la carta de aceptación sellada por la empresa y la Coordinación la da por recibida.
@@ -27,7 +29,7 @@ class RegistrarCartaAceptacion
                 ]);
             }
 
-            if (!$postulacion->media()->where('collection_name', 'carta_aceptacion')->exists()) {
+            if (! $postulacion->media()->where('collection_name', 'carta_aceptacion')->exists()) {
                 throw ValidationException::withMessages([
                     'postulacion' => 'Falta adjuntar la carta de aceptación de la empresa.',
                 ]);
@@ -36,7 +38,7 @@ class RegistrarCartaAceptacion
             $postulacion->update(['estado' => PostulacionEstado::CartaAceptacionRecibida]);
 
             Avisos::enviar($postulacion->alumno->user, new AvisoOperativo(
-                mensaje: 'Tu coordinación registró tu carta de aceptación de «' . $postulacion->programa->titulo . '». En breve activará tu práctica.',
+                mensaje: 'Tu coordinación registró tu carta de aceptación de «'.$postulacion->programa->titulo.'». En breve activará tu práctica.',
                 url: route('alumno.mis-practicas', absolute: false),
             ));
 

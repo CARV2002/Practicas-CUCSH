@@ -1,16 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Enums\EsquemaReportes;
+use App\Models\Concerns\Auditable;
+use App\Services\Avisos;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\Concerns\Auditable;
+use Illuminate\Support\Collection;
 
+/**
+ * Carrera de una división, con sus reglas de prácticas (horas, % de créditos, esquema de reportes) y el contacto de su coordinación.
+ */
 class Carrera extends Model
 {
     use Auditable;
+
     protected $table = 'carreras';
 
     protected $attributes = ['esquema_reportes' => 'mensual'];
@@ -39,37 +49,49 @@ class Carrera extends Model
             'horas_requeridas' => 'integer',
             'porcentaje_creditos_minimo' => 'decimal:2',
             'creditos_otorgados' => 'integer',
-            'esquema_reportes' => \App\Enums\EsquemaReportes::class,
+            'esquema_reportes' => EsquemaReportes::class,
         ];
     }
 
+    /** @return BelongsTo<Division, $this> */
     public function division(): BelongsTo
     {
         return $this->belongsTo(Division::class);
     }
 
+    /** @return HasMany<Alumno, $this> */
     public function alumnos(): HasMany
     {
         return $this->hasMany(Alumno::class);
     }
 
-    /** Coordinadores de esta carrera. */
+    /**
+     * Coordinadores de esta carrera.
+     *
+     * @return HasMany<Personal, $this>
+     */
     public function personal(): HasMany
     {
         return $this->hasMany(Personal::class);
     }
 
+    /** @return HasMany<Programa, $this> */
     public function programas(): HasMany
     {
         return $this->hasMany(Programa::class);
     }
 
-    /** Un dictamen por cada convenio que solicitó esta carrera. */
+    /**
+     * Un dictamen por cada convenio que solicitó esta carrera.
+     *
+     * @return HasMany<ConvenioCarrera, $this>
+     */
     public function dictamenes(): HasMany
     {
         return $this->hasMany(ConvenioCarrera::class);
     }
 
+    /** @return BelongsToMany<Convenio, $this> */
     public function convenios(): BelongsToMany
     {
         return $this->belongsToMany(Convenio::class, 'convenio_carrera')
@@ -78,7 +100,7 @@ class Carrera extends Model
     }
 
     /** Carreras dentro del alcance de ese personal (global ve todas). */
-    public function scopeEnAlcance(\Illuminate\Database\Eloquent\Builder $query, Personal $personal): \Illuminate\Database\Eloquent\Builder
+    public function scopeEnAlcance(Builder $query, Personal $personal): Builder
     {
         $ids = $personal->carreraIdsEnAlcance();
 
@@ -86,9 +108,9 @@ class Carrera extends Model
     }
 
     /** Coordinación de la carrera (personal con rol coordinador y esa carrera, o su división). */
-    public function coordinadores(): \Illuminate\Support\Collection
+    public function coordinadores(): Collection
     {
-        return \App\Services\Avisos::coordinadores((int) $this->id);
+        return Avisos::coordinadores((int) $this->id);
     }
 
     /** Correo al que el alumno escribe: el de la coordinación o, si no lo ha capturado, el de su coordinador. */
@@ -101,5 +123,4 @@ class Carrera extends Model
     {
         return $this->carrera_clave;
     }
-
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Enums\Rol;
@@ -12,10 +14,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 
+/**
+ * «Mi perfil»: datos de la cuenta, contraseña y, según el rol, los de la organización o los escolares del alumno.
+ */
 class ProfileController extends Controller
 {
     /**
-     * Display the user's profile form.
+     * «Mi perfil»: datos de la cuenta y, según el rol, los de la organización o del alumno.
      */
     public function edit(Request $request): View
     {
@@ -37,7 +42,7 @@ class ProfileController extends Controller
                 ['texto' => 'Constancia IMSS validada', 'ok' => $estadoImss === ValidacionEstado::Validada->value,
                     'ayuda' => $estadoImss === ValidacionEstado::Rechazada->value ? 'Fue rechazada: sube una nueva.' : 'Tu coordinación la revisa.', 'ruta' => 'alumno.mis-documentos'],
                 ['texto' => 'Seguro IMSS vigente', 'ok' => $alumno->tieneImssVigenteHasta(now()),
-                    'ayuda' => $alumno->vigencia_imss ? 'Vigente hasta el ' . $alumno->vigencia_imss->format('d/m/Y') . '.' : 'Captura la vigencia al subir tu constancia.', 'ruta' => 'alumno.mis-documentos'],
+                    'ayuda' => $alumno->vigencia_imss ? 'Vigente hasta el '.$alumno->vigencia_imss->format('d/m/Y').'.' : 'Captura la vigencia al subir tu constancia.', 'ruta' => 'alumno.mis-documentos'],
             ];
             $datos['motivoPostular'] = Requisitos::alumnoPostularse($alumno);
         }
@@ -64,7 +69,7 @@ class ProfileController extends Controller
     }
 
     /**
-     * Update the user's profile information.
+     * Guarda nombre y correo; si cambia el correo, hay que verificarlo de nuevo.
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
@@ -113,5 +118,4 @@ class ProfileController extends Controller
 
         return back()->with('status', 'foto-deleted');
     }
-
 }

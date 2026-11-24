@@ -1,16 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\ConvenioEstado;
 use App\Enums\TipoOrganismo;
 use App\Http\Controllers\Controller;
 use App\Models\Empresa;
+use App\Rules\UnicoNormalizado;
+use App\Services\Auditoria;
+use App\Support\Formatos;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Organizaciones registradas: ficha, situación frente al CUCSH, reporte en PDF y activar o desactivar la cuenta.
+ */
 class EmpresaController extends Controller
 {
     public function index(Request $request): View
@@ -32,7 +43,7 @@ class EmpresaController extends Controller
     }
 
     /** Lista de empresas en PDF, agrupada por situación (respeta los filtros de la bandeja). */
-    public function pdf(Request $request)
+    public function pdf(Request $request): Response
     {
         $situacion = $request->string('situacion')->toString();
 
@@ -42,14 +53,14 @@ class EmpresaController extends Controller
             ->groupBy(fn ($par) => $par[1]['clave'])
             ->sortBy(fn ($grupo, $clave) => array_search($clave, array_keys(Empresa::SITUACIONES)));
 
-        \App\Services\Auditoria::registrar('informe.exportado', 'Descargó la lista de empresas en PDF (' . $empresas->flatten(1)->count() . ' empresas)');
+        Auditoria::registrar('informe.exportado', 'Descargó la lista de empresas en PDF ('.$empresas->flatten(1)->count().' empresas)');
 
-        return \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.pdf.empresas', [
+        return Pdf::loadView('admin.pdf.empresas', [
             'grupos' => $empresas,
             'filtro' => Empresa::SITUACIONES[$situacion][0] ?? null,
             'busqueda' => $request->string('q')->toString(),
         ])->setOption('isFontSubsettingEnabled', true)->setPaper('letter', 'landscape')
-            ->download('empresas-' . ($situacion ?: 'todas') . '-' . now()->format('Y-m-d') . '.pdf');
+            ->download('empresas-'.($situacion ?: 'todas').'-'.now()->format('Y-m-d').'.pdf');
     }
 
     /** Filtros compartidos por la bandeja y el PDF. */
@@ -81,22 +92,22 @@ class EmpresaController extends Controller
     public function update(Request $request, Empresa $empresa): RedirectResponse
     {
         $request->merge([
-            'rfc' => \Illuminate\Support\Str::upper(trim((string) $request->input('rfc'))),
-            'contacto_telefono' => \App\Support\Formatos::digitos($request->input('contacto_telefono')) ?: null,
+            'rfc' => Str::upper(trim((string) $request->input('rfc'))),
+            'contacto_telefono' => Formatos::digitos($request->input('contacto_telefono')) ?: null,
         ]);
 
         $datos = $request->validate([
             'rfc' => ['required', 'string', 'regex:/^[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}$/u', Rule::unique('empresas', 'rfc')->ignore($empresa->id)],
-            'razon_social' => ['required', 'string', 'max:255', new \App\Rules\UnicoNormalizado('empresas', 'razon_social', 'Ya hay otra organización registrada con esa razón social.', $empresa->id)],
+            'razon_social' => ['required', 'string', 'max:255', new UnicoNormalizado('empresas', 'razon_social', 'Ya hay otra organización registrada con esa razón social.', $empresa->id)],
             'tipo_organismo' => ['required', Rule::enum(TipoOrganismo::class)],
             'domicilio_fiscal' => ['nullable', 'string', 'max:255'],
-            'representante_legal' => ['nullable', 'string', 'max:255', 'regex:' . \App\Support\Formatos::NOMBRE_PERSONA],
-            'contacto_nombre' => ['required', 'string', 'max:255', 'regex:' . \App\Support\Formatos::NOMBRE_PERSONA],
-            'contacto_cargo' => ['nullable', 'string', 'max:255', 'regex:' . \App\Support\Formatos::TEXTO_LETRAS],
-            'contacto_telefono' => ['nullable', 'regex:' . \App\Support\Formatos::TELEFONO],
+            'representante_legal' => ['nullable', 'string', 'max:255', 'regex:'.Formatos::NOMBRE_PERSONA],
+            'contacto_nombre' => ['required', 'string', 'max:255', 'regex:'.Formatos::NOMBRE_PERSONA],
+            'contacto_cargo' => ['nullable', 'string', 'max:255', 'regex:'.Formatos::TEXTO_LETRAS],
+            'contacto_telefono' => ['nullable', 'regex:'.Formatos::TELEFONO],
             'descripcion' => ['nullable', 'string', 'max:3000'],
             'proyectos_principales' => ['nullable', 'string', 'max:3000'],
-        ], \App\Support\Formatos::mensajes() + [
+        ], Formatos::mensajes() + [
             'contacto_nombre.regex' => 'Escribe el nombre completo del contacto (nombre y apellido), solo con letras.',
         ]);
 

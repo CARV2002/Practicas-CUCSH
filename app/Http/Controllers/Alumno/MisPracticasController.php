@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Alumno;
 
 use App\Enums\PostulacionEstado;
@@ -11,6 +13,9 @@ use App\Models\Practica;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
+/**
+ * «Mis prácticas»: detalle de la práctica en curso (horas, reportes, supervisor y siguientes pasos).
+ */
 class MisPracticasController extends Controller
 {
     public function index(Request $request): View
@@ -126,11 +131,11 @@ class MisPracticasController extends Controller
             return '¡Felicidades! Tu práctica profesional quedó acreditada. Misión cumplida. 🎓';
         }
         if ($p->estado === PracticaEstado::Cancelada) {
-            return 'Esta práctica se dio de baja (' . ($p->tipoBajaTexto() ?? 'baja registrada por tu coordinación') . '). '
-                . ($p->horasQueConserva() > 0
+            return 'Esta práctica se dio de baja ('.($p->tipoBajaTexto() ?? 'baja registrada por tu coordinación').'). '
+                .($p->horasQueConserva() > 0
                     ? "Conservas {$p->horasQueConserva()} horas validadas para tu siguiente plaza."
                     : 'Sus horas no se conservan.')
-                . ' Consulta los detalles en Mis documentos.';
+                .' Consulta los detalles en Mis documentos.';
         }
         if ($p->estado === PracticaEstado::EnCierre) {
             return 'Tu carta de término ya fue validada. Solo falta que tu coordinación envíe tu oficio y Control Escolar capture tu acreditación en SIIAU; no tienes que hacer nada más.';

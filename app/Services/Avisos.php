@@ -1,25 +1,34 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
+use App\Enums\PracticaEstado;
 use App\Enums\Rol;
+use App\Models\Carrera;
 use App\Models\Convenio;
 use App\Models\Practica;
 use App\Models\User;
+use App\Notifications\AvisoOperativo;
 use App\Notifications\AvisoPracticas;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Throwable;
 
+/**
+ * Envío de avisos a los actores del proceso: alumno, organización, coordinación de la carrera y Vinculación.
+ * Si un envío falla, se reporta sin romper la operación.
+ */
 class Avisos
 {
     public static function enviar(User|iterable|null $destinatarios, AvisoPracticas $aviso): void
     {
         DB::afterCommit(function () use ($destinatarios, $aviso) {
             $usuarios = collect($destinatarios instanceof User ? [$destinatarios] : $destinatarios)
-                ->filter(fn($u) => $u instanceof User && $u->activo !== false)
-                ->unique(fn(User $u) => $u->id)
+                ->filter(fn ($u) => $u instanceof User && $u->activo !== false)
+                ->unique(fn (User $u) => $u->id)
                 ->values();
 
             if ($usuarios->isEmpty()) {
@@ -53,7 +62,7 @@ class Avisos
     public static function coordinadores(int $carreraId): Collection
     {
         return User::role(Rol::Coordinador->value)->where('activo', true)->with('personal')->get()
-            ->filter(fn(User $u) => $u->personal !== null
+            ->filter(fn (User $u) => $u->personal !== null
                 && $u->personal->tieneAlcanceDeCoordinacion()
                 && $u->personal->puedeVerCarrera($carreraId))
             ->values();
@@ -74,12 +83,12 @@ class Avisos
             return;
         }
 
-        $carrera = \App\Models\Carrera::find($carreraId);
+        $carrera = Carrera::find($carreraId);
         $administradores = User::role(Rol::Administrador->value)->where('activo', true)->get();
 
-        self::enviar($administradores, new \App\Notifications\AvisoOperativo(
-            mensaje: 'La carrera ' . ($carrera?->carrera_clave ?? "#{$carreraId}") . ' no tiene coordinación activa en el sistema y quedó un pendiente sin atender: «'
-                . $aviso->toArray(new User())['mensaje'] . '». Da de alta su coordinación.',
+        self::enviar($administradores, new AvisoOperativo(
+            mensaje: 'La carrera '.($carrera->carrera_clave ?? "#{$carreraId}").' no tiene coordinación activa en el sistema y quedó un pendiente sin atender: «'
+                .$aviso->toArray(new User)['mensaje'].'». Da de alta su coordinación.',
             url: route('admin.lista-usuarios', ['rol' => Rol::Coordinador->value], false),
             detalle: $carrera?->nombre,
             clave: null,
@@ -96,7 +105,7 @@ class Avisos
     public static function vinculacion(): Collection
     {
         return User::role(Rol::Vinculacion->value)->where('activo', true)->with('personal')->get()
-            ->filter(fn(User $u) => $u->personal !== null)
+            ->filter(fn (User $u) => $u->personal !== null)
             ->values();
     }
 
@@ -104,7 +113,7 @@ class Avisos
     public static function vinculacionDe(Convenio $convenio): Collection
     {
         return self::vinculacion()
-            ->filter(fn(User $u) => $u->can('view', $convenio))
+            ->filter(fn (User $u) => $u->can('view', $convenio))
             ->values();
     }
 
@@ -112,8 +121,8 @@ class Avisos
     public static function alumnosDeCarrera(int $carreraId): Collection
     {
         return User::where('activo', true)
-            ->whereHas('alumno', fn($a) => $a->where('carrera_id', $carreraId)
-                ->whereDoesntHave('practicas', fn($p) => $p->where('practicas.estado', \App\Enums\PracticaEstado::Acreditada->value)))
+            ->whereHas('alumno', fn ($a) => $a->where('carrera_id', $carreraId)
+                ->whereDoesntHave('practicas', fn ($p) => $p->where('practicas.estado', PracticaEstado::Acreditada->value)))
             ->get();
     }
 

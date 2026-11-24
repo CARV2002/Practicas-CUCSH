@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Models\Personal;
@@ -28,9 +30,9 @@ class GeneradorCartaPresentacion
         $destinatario = $empresa
             ? ($empresa->representante_legal ?: $empresa->contacto_nombre)
             : 'Titular del área receptora';
-        $institucion = $empresa?->razon_social ?? 'Centro Universitario de Ciencias Sociales y Humanidades (proyecto interno)';
+        $institucion = $empresa->razon_social ?? 'Centro Universitario de Ciencias Sociales y Humanidades (proyecto interno)';
 
-        $doc = new PhpWord();
+        $doc = new PhpWord;
         $doc->setDefaultFontName('Arial');
         $doc->setDefaultFontSize(11);
         $s = $doc->addSection(['marginTop' => 1440, 'marginBottom' => 1440, 'marginLeft' => 1700, 'marginRight' => 1700]);
@@ -43,7 +45,7 @@ class GeneradorCartaPresentacion
         $s->addText(mb_strtoupper("Coordinación de la {$carrera->nombre}"), ['bold' => true], ['alignment' => Jc::CENTER, 'spaceAfter' => 360]);
 
         $s->addText('Asunto: Carta de presentación para prácticas profesionales', ['bold' => true], $derecha);
-        $s->addText('Zapopan, Jalisco, a ' . $hoy->isoFormat('D [de] MMMM [de] YYYY'), [], $derecha);
+        $s->addText('Zapopan, Jalisco, a '.$hoy->isoFormat('D [de] MMMM [de] YYYY'), [], $derecha);
 
         $s->addText(mb_strtoupper($destinatario), ['bold' => true]);
         $s->addText(mb_strtoupper($institucion), ['bold' => true]);
@@ -54,15 +56,15 @@ class GeneradorCartaPresentacion
 
         $s->addText(
             "Por medio de la presente me permito presentar a {$alumno->user->name}, con código de alumno {$alumno->num_control}, "
-            . "estudiante del {$grado}, turno {$turno}, de la {$carrera->nombre}, adscrita a la {$carrera->division->nombre}, "
-            . "quien está interesado(a) en realizar sus prácticas profesionales en el programa «{$programa->titulo}».",
+            ."estudiante del {$grado}, turno {$turno}, de la {$carrera->nombre}, adscrita a la {$carrera->division->nombre}, "
+            ."quien está interesado(a) en realizar sus prácticas profesionales en el programa «{$programa->titulo}».",
             [],
             $just
         );
         $s->addText(
             "El alumno(a) deberá cubrir un total de {$carrera->horas_requeridas} horas de práctica, conforme al reglamento de su carrera. "
-            . 'Le solicitamos atentamente que, de ser aceptado(a), nos haga llegar la carta de aceptación correspondiente '
-            . 'indicando las actividades a desarrollar, el horario y el nombre de su asesor(a) en la institución.',
+            .'Le solicitamos atentamente que, de ser aceptado(a), nos haga llegar la carta de aceptación correspondiente '
+            .'indicando las actividades a desarrollar, el horario y el nombre de su asesor(a) en la institución.',
             [],
             $just
         );
@@ -75,7 +77,7 @@ class GeneradorCartaPresentacion
         $s->addText(mb_strtoupper($firma->user->name), ['bold' => true], ['alignment' => Jc::CENTER]);
         $s->addText($firma->puesto ?? "Coordinación de la {$carrera->nombre}", [], ['alignment' => Jc::CENTER]);
 
-        $ruta = tempnam(sys_get_temp_dir(), 'carta') . '.docx';
+        $ruta = tempnam(sys_get_temp_dir(), 'carta').'.docx';
         IOFactory::createWriter($doc, 'Word2007')->save($ruta);
 
         return $ruta;

@@ -7,21 +7,7 @@
 @endphp
 
 <div class="space-y-6"
-    x-data="{
-        q: '',
-        cat: '',
-        abierta: null,
-        temas: @js(collect($contenido['temas'])->values()),
-        norm(t) { return (t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); },
-        visible(i) {
-            const t = this.temas[i];
-            const q = this.norm(this.q.trim());
-            return (this.cat === '' || t.categoria === this.cat)
-                && (q === '' || this.norm(t.pregunta + ' ' + t.respuesta + ' ' + t.categoria).includes(q));
-        },
-        get total() { return this.temas.filter((_, i) => this.visible(i)).length; },
-        buscar() { this.abierta = null; if (this.q.trim() !== '') this.$nextTick(() => document.getElementById('preguntas')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); },
-    }">
+    x-data="buscadorAyuda(@js(['temas' => collect($contenido['temas'])->values()]))">
 
     <x-dashboard.encabezado :eyebrow="$contenido['eyebrow']" :titulo="$contenido['titulo']" :subtitulo="$contenido['subtitulo']">
         <form class="mt-5 max-w-xl" role="search" @submit.prevent="buscar()">

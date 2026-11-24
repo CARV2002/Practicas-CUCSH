@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use App\Enums\ConvenioEstado;
 use App\Enums\EstadoDocumentoFisico;
 use App\Enums\TipoDocumentoFisico;
 use Carbon\CarbonInterface;
@@ -9,6 +12,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -35,16 +40,19 @@ class DocumentoFisico extends Model
         ];
     }
 
+    /** @return BelongsTo<Convenio, $this> */
     public function convenio(): BelongsTo
     {
         return $this->belongsTo(Convenio::class);
     }
 
+    /** @return BelongsTo<Personal, $this> */
     public function actualizador(): BelongsTo
     {
         return $this->belongsTo(Personal::class, 'actualizado_por');
     }
 
+    /** @return HasMany<DocumentoFisicoMovimiento, $this> */
     public function movimientos(): HasMany
     {
         return $this->hasMany(DocumentoFisicoMovimiento::class)->latest('fecha')->latest('id');
@@ -62,7 +70,7 @@ class DocumentoFisico extends Model
     /** ¿La Unidad Jurídica ya dio el dictamen favorable? (el convenio está en firmas o formalizado) */
     private function juridicaAprobo(): bool
     {
-        return in_array($this->convenio?->estado, [\App\Enums\ConvenioEstado::EnFirmas, \App\Enums\ConvenioEstado::Formalizado], true);
+        return in_array($this->convenio?->estado, [ConvenioEstado::EnFirmas, ConvenioEstado::Formalizado], true);
     }
 
     /**
@@ -77,7 +85,7 @@ class DocumentoFisico extends Model
         }
 
         if ($this->tipo === TipoDocumentoFisico::DictamenJuridico
-            && !in_array($estado, [EstadoDocumentoFisico::EnJuridica, EstadoDocumentoFisico::ConObservaciones], true)) {
+            && ! in_array($estado, [EstadoDocumentoFisico::EnJuridica, EstadoDocumentoFisico::ConObservaciones], true)) {
             return 'Jurídica aún no emite el dictamen favorable: el expediente solo puede volver a la Unidad Jurídica.';
         }
 
@@ -117,7 +125,7 @@ class DocumentoFisico extends Model
     {
         return $this->estado->fueraDeOficina()
             && $this->fecha_compromiso !== null
-            && !$this->vencido()
+            && ! $this->vencido()
             && $this->fecha_compromiso->lte(today()->addWeekdays(2));
     }
 
@@ -126,6 +134,12 @@ class DocumentoFisico extends Model
         return $q->whereIn('estado', EstadoDocumentoFisico::fuera());
     }
 
+    /**
+     * Fuera de la oficina y con la fecha de regreso ya pasada.
+     *
+     * @param  Builder<self>  $q
+     * @return Builder<self>
+     */
     public function scopeVencidos(Builder $q): Builder
     {
         return $q->fuera()->whereDate('fecha_compromiso', '<', today()->toDateString());
@@ -134,22 +148,25 @@ class DocumentoFisico extends Model
     /** Papeles de trámites que siguen vivos: un convenio rechazado ya no genera recordatorios. */
     public function scopeDeTramiteVivo(Builder $q): Builder
     {
-        return $q->whereHas('convenio', fn ($c) => $c->where('estado', '!=', \App\Enums\ConvenioEstado::Rechazado->value));
+        return $q->whereHas('convenio', fn ($c) => $c->where('estado', '!=', ConvenioEstado::Rechazado->value));
     }
 
     /** Texto del recordatorio a la empresa (manual o automático). */
-    public static function mensajeJuegosEmpresa(\Illuminate\Support\Collection $juegos): string
+    public static function mensajeJuegosEmpresa(Collection $juegos): string
     {
         $n = $juegos->count();
         $fecha = $juegos->min('fecha_compromiso');
-        $cuando = $fecha ? ' a más tardar el ' . \Illuminate\Support\Carbon::parse($fecha)->format('d/m/Y') : '';
+        $cuando = $fecha ? ' a más tardar el '.Carbon::parse($fecha)->format('d/m/Y') : '';
 
-        return "Tienes {$n} " . ($n === 1 ? 'juego original' : 'juegos originales') . " del convenio por firmar. Fírmalos al calce y entrégalos en Vinculación{$cuando}.";
+        return "Tienes {$n} ".($n === 1 ? 'juego original' : 'juegos originales')." del convenio por firmar. Fírmalos al calce y entrégalos en Vinculación{$cuando}.";
     }
 
     /**
      * Filtro de la pantalla «Documentos físicos» (y de su informe):
      * activos · fuera · vencidos · casa (en la oficina de Vinculación) · concluidos; y búsqueda por organización o folio.
+     *
+     * @param  Builder<self>  $q
+     * @return Builder<self>
      */
     public function scopeEnVista(Builder $q, string $vista, string $buscar = ''): Builder
     {
@@ -163,6 +180,7 @@ class DocumentoFisico extends Model
                 ->where('folio', 'like', "%{$buscar}%")
                 ->orWhereHas('empresa', fn ($e) => $e->where('razon_social', 'like', "%{$buscar}%"))));
     }
+
     public function scopeActivos(Builder $q): Builder
     {
         return $q->whereNotIn('estado', EstadoDocumentoFisico::concluidos());
@@ -178,7 +196,7 @@ class DocumentoFisico extends Model
         ?CarbonInterface $compromiso = null,
         ?CarbonInterface $fecha = null,
     ): self {
-        if (!in_array($estado, $this->tipo->estados(), true)) {
+        if (! in_array($estado, $this->tipo->estados(), true)) {
             throw ValidationException::withMessages([
                 'estado' => "«{$estado->label()}» no aplica a {$this->tipo->label()}.",
             ]);
@@ -193,7 +211,7 @@ class DocumentoFisico extends Model
                 'estado' => $estado,
                 'fecha_estado' => $fecha->toDateString(),
                 'fecha_compromiso' => $compromiso?->toDateString(),
-                'actualizado_por' => $por?->id ?? $this->actualizado_por,
+                'actualizado_por' => $por->id ?? $this->actualizado_por,
             ]);
 
             $this->movimientos()->create([

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Notifications;
 
 use App\Models\Convenio;
@@ -8,9 +10,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 /** A Vinculación: llegó una solicitud de convenio nueva (campana + correo). */
 class NuevaSolicitudConvenio extends AvisoPracticas
 {
-    public function __construct(public Convenio $convenio)
-    {
-    }
+    public function __construct(public Convenio $convenio) {}
 
     protected function porCorreo(): bool
     {
@@ -47,7 +47,7 @@ class NuevaSolicitudConvenio extends AvisoPracticas
 
         $mensaje = (new MailMessage)
             ->subject($this->asunto())
-            ->greeting('Hola ' . data_get($notifiable, 'name', 'equipo de Prácticas Profesionales'))
+            ->greeting('Hola '.data_get($notifiable, 'name', 'equipo de Prácticas Profesionales'))
             ->line("La empresa **{$e->razon_social}** ({$e->rfc}, {$e->tipo_organismo->label()}) envió una solicitud de convenio.")
             ->line("**Contacto:** {$contacto}")
             ->line('**Carreras de interés:** '.$c->dictamenes->map(fn ($d) => $d->carrera->nombre)->join('; '))

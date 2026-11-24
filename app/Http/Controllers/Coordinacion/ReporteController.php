@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Coordinacion;
 
 use App\Enums\PracticaEstado;
@@ -9,14 +11,18 @@ use App\Http\Controllers\Controller;
 use App\Models\Carrera;
 use App\Models\Practica;
 use App\Models\Reporte;
+use App\Notifications\AvisoOperativo;
+use App\Services\Avisos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use App\Services\Avisos;
-use App\Notifications\AvisoOperativo;
+use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Reportes de horas por validar: la coordinación valida o rechaza el reporte firmado; solo los validados suman horas.
+ */
 class ReporteController extends Controller
 {
     /**
@@ -28,16 +34,16 @@ class ReporteController extends Controller
         $personal = $request->user()->personal;
 
         $reportes = Reporte::with(['practica.postulacion.alumno.user', 'practica.postulacion.alumno.carrera', 'practica.postulacion.programa.convenio.empresa', 'media'])
-            ->whereHas('practica', fn($p) => $p->visiblesPara($personal))
-            ->when($request->filled('estado'), fn($q) => $q->where('estado', $request->string('estado')))
-            ->when($request->filled('tipo'), fn($q) => $q->where('tipo', $request->string('tipo')))
+            ->whereHas('practica', fn ($p) => $p->visiblesPara($personal))
+            ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->string('estado')))
+            ->when($request->filled('tipo'), fn ($q) => $q->where('tipo', $request->string('tipo')))
             // Origen de la vacante: proyecto interno de la carrera (sin convenio) u organización externa
-            ->when($request->input('origen') === 'interno', fn($q) => $q->whereHas('practica.postulacion.programa', fn($p) => $p->whereNull('convenio_id')))
-            ->when($request->input('origen') === 'externo', fn($q) => $q->whereHas('practica.postulacion.programa', fn($p) => $p->whereNotNull('convenio_id')))
-            ->when($request->filled('carrera_id'), fn($q) => $q->whereHas('practica.postulacion.alumno', fn($a) => $a->where('carrera_id', $request->integer('carrera_id'))))
-            ->when($request->filled('q'), fn($q) => $q->whereHas('practica.postulacion.alumno', fn($a) => $a
-                ->where('num_control', 'like', '%' . $request->string('q') . '%')
-                ->orWhereHas('user', fn($u) => $u->where('name', 'like', '%' . $request->string('q') . '%'))))
+            ->when($request->input('origen') === 'interno', fn ($q) => $q->whereHas('practica.postulacion.programa', fn ($p) => $p->whereNull('convenio_id')))
+            ->when($request->input('origen') === 'externo', fn ($q) => $q->whereHas('practica.postulacion.programa', fn ($p) => $p->whereNotNull('convenio_id')))
+            ->when($request->filled('carrera_id'), fn ($q) => $q->whereHas('practica.postulacion.alumno', fn ($a) => $a->where('carrera_id', $request->integer('carrera_id'))))
+            ->when($request->filled('q'), fn ($q) => $q->whereHas('practica.postulacion.alumno', fn ($a) => $a
+                ->where('num_control', 'like', '%'.$request->string('q').'%')
+                ->orWhereHas('user', fn ($u) => $u->where('name', 'like', '%'.$request->string('q').'%'))))
             ->orderByRaw("case estado when 'pendiente' then 0 else 1 end")
             ->latest('periodo_fin')
             ->paginate(15, ['*'], 'reportes')
@@ -57,7 +63,7 @@ class ReporteController extends Controller
             ->visiblesPara($personal)
             ->activas()
             ->get()
-            ->filter(fn($p) => $p->fecha_fin->lessThanOrEqualTo(now()->addDays(30)) || $p->horasCompletas())
+            ->filter(fn ($p) => $p->fecha_fin->lessThanOrEqualTo(now()->addDays(30)) || $p->horasCompletas())
             ->sortBy('fecha_fin')
             ->values();
 
@@ -69,11 +75,11 @@ class ReporteController extends Controller
             'estados' => ReporteEstado::cases(),
             'tipos' => ReporteTipo::cases(),
             'porOrigen' => [
-                'interno' => Reporte::whereHas('practica', fn($p) => $p->visiblesPara($personal))->whereHas('practica.postulacion.programa', fn($p) => $p->whereNull('convenio_id'))->count(),
-                'externo' => Reporte::whereHas('practica', fn($p) => $p->visiblesPara($personal))->whereHas('practica.postulacion.programa', fn($p) => $p->whereNotNull('convenio_id'))->count(),
+                'interno' => Reporte::whereHas('practica', fn ($p) => $p->visiblesPara($personal))->whereHas('practica.postulacion.programa', fn ($p) => $p->whereNull('convenio_id'))->count(),
+                'externo' => Reporte::whereHas('practica', fn ($p) => $p->visiblesPara($personal))->whereHas('practica.postulacion.programa', fn ($p) => $p->whereNotNull('convenio_id'))->count(),
             ],
             'pendientes' => Reporte::where('estado', ReporteEstado::Pendiente->value)
-                ->whereHas('practica', fn($p) => $p->visiblesPara($personal))
+                ->whereHas('practica', fn ($p) => $p->visiblesPara($personal))
                 ->count(),
         ]);
     }
@@ -83,11 +89,10 @@ class ReporteController extends Controller
     {
         $this->authorize('resolver', $reporte);
 
-
         $datos = $request->validate([
             'estado' => ['required', Rule::in([ReporteEstado::Validado->value, ReporteEstado::Rechazado->value])],
             // Al rechazar, el alumno necesita saber qué corregir
-            'evaluacion_profesor' => ['nullable', 'required_if:estado,' . ReporteEstado::Rechazado->value, 'string', 'max:2000'],
+            'evaluacion_profesor' => ['nullable', 'required_if:estado,'.ReporteEstado::Rechazado->value, 'string', 'max:2000'],
             'retroalimentacion_empresa' => ['nullable', 'string', 'max:2000'],
         ], [
             'evaluacion_profesor.required_if' => 'Escribe el motivo del rechazo para que el alumno sepa qué corregir.',
@@ -98,7 +103,7 @@ class ReporteController extends Controller
         }
 
         // Sin el escaneo firmado y sellado por la organización no hay nada que auditar: ni se valida ni se rechaza
-        if ($reporte->estado === ReporteEstado::Pendiente && !$reporte->media()->where('collection_name', 'reporte_firmado')->exists()) {
+        if ($reporte->estado === ReporteEstado::Pendiente && ! $reporte->media()->where('collection_name', 'reporte_firmado')->exists()) {
             return back()->withErrors(['reporte' => 'El alumno aún no sube el reporte firmado y sellado: se podrá validar o rechazar cuando lo suba.']);
         }
 
@@ -110,26 +115,23 @@ class ReporteController extends Controller
         $reporte->update($datos);
 
         $ok = $datos['estado'] === ReporteEstado::Validado->value;
-        $periodo = $reporte->periodo_inicio->format('d/m') . ' al ' . $reporte->periodo_fin->format('d/m/Y');
+        $periodo = $reporte->periodo_inicio->format('d/m').' al '.$reporte->periodo_fin->format('d/m/Y');
 
         Avisos::enviar(Avisos::alumnoDe($reporte->practica), new AvisoOperativo(
             mensaje: $ok
             ? "Tu reporte del {$periodo} fue validado: se sumaron {$reporte->horas_reportadas} horas."
             : "Tu coordinación te devolvió el reporte del {$periodo}. Motivo: «{$datos['evaluacion_profesor']}». Qué hacer: entra a «Mis documentos › Reportes de horas», busca el reporte marcado en rojo, corrígelo y súbelo firmado de nuevo.",
             url: route($ok ? 'alumno.mis-practicas' : 'alumno.mis-documentos', absolute: false),
-            correo: !$ok,
+            correo: ! $ok,
             asunto: 'Tu reporte fue rechazado',
         ));
 
-        return back()->with('status', 'Reporte ' . ($datos['estado'] === ReporteEstado::Validado->value ? 'validado' : 'rechazado') . '.');
+        return back()->with('status', 'Reporte '.($datos['estado'] === ReporteEstado::Validado->value ? 'validado' : 'rechazado').'.');
     }
 
     /** Descarga del reporte firmado (disco privado). */
-    public function descargar(Request $request, Reporte $reporte, Media $media)
+    public function descargar(Request $request, Reporte $reporte, Media $media): Response
     {
-        abort_unless($media->model_type === Reporte::class && (int) $media->model_id === (int) $reporte->id, 404);
-        $this->authorize('download', $media);
-
-        return $this->entregar($media);
+        return $this->entregarDe($reporte, $media);
     }
 }

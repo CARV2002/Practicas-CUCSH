@@ -1,7 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Enums;
 
+/**
+ * Periodicidad del reporte de horas (mensual, bimestral, intermedio o final), según el esquema de la carrera.
+ */
 enum ReporteTipo: string
 {
     case Mensual = 'mensual';

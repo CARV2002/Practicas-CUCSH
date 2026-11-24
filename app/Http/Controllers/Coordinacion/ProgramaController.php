@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Coordinacion;
 
 use App\Enums\Modalidad;
@@ -8,13 +10,18 @@ use App\Http\Controllers\Controller;
 use App\Models\Carrera;
 use App\Models\Convenio;
 use App\Models\Programa;
+use App\Notifications\AvisoOperativo;
+use App\Services\Avisos;
+use App\Support\Requisitos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
-use App\Notifications\AvisoOperativo;
-use App\Services\Avisos;
 
+/**
+ * Programas y vacantes de las carreras de la coordinación: proyectos internos (alta, edición, cierre)
+ * y revisión de las vacantes que proponen las empresas.
+ */
 class ProgramaController extends Controller
 {
     /** Programas y vacantes de las carreras de la coordinación (internos y de empresas con convenio). */
@@ -25,6 +32,7 @@ class ProgramaController extends Controller
 
         $programas = Programa::with(['convenio.empresa', 'carrera'])
             ->conCuposOcupados()
+            ->withCount('postulaciones')   // sin postulaciones se puede editar o eliminar
             ->when($ids !== null, fn ($q) => $q->whereIn('carrera_id', $ids))
             ->when($request->filled('q'), fn ($q) => $q->where(fn ($w) => $w
                 ->where('titulo', 'like', '%'.$request->string('q').'%')
@@ -33,13 +41,18 @@ class ProgramaController extends Controller
             ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->string('estado')))
             ->when($request->filled('modalidad'), fn ($q) => $q->where('modalidad', $request->string('modalidad')))
             ->when($request->filled('ciclo'), fn ($q) => $q->where('ciclo', $request->string('ciclo')))
-            ->orderByRaw("estado = ? desc", [ProgramaEstado::PendienteAprobacion->value])   // lo que espera revisión, primero
+            ->orderByRaw('estado = ? desc', [ProgramaEstado::PendienteAprobacion->value])   // lo que espera revisión, primero
             ->latest('id')
             ->paginate(15)
             ->withQueryString();
 
         return view('coordinacion.lista-programas', [
             'programas' => $programas,
+            // Por qué no se puede aprobar cada vacante pendiente (id => motivo; null = se puede)
+            'bloqueosAprobar' => $programas->getCollection()
+                ->filter(fn (Programa $pr) => $pr->estado === ProgramaEstado::PendienteAprobacion)
+                ->mapWithKeys(fn (Programa $pr) => [$pr->id => Requisitos::aprobarVacante($pr)])
+                ->all(),
             'carreras' => Carrera::enAlcance($personal)->orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
             'estados' => ProgramaEstado::cases(),
             'modalidades' => Modalidad::cases(),
@@ -65,7 +78,7 @@ class ProgramaController extends Controller
     {
         $this->authorize('gestionar', $programa);
 
-        if (!$programa->esInterno()) {
+        if (! $programa->esInterno()) {
             return back()->withErrors(['programa' => 'Las vacantes externas las edita la empresa; tú las apruebas o rechazas.']);
         }
 
@@ -99,7 +112,7 @@ class ProgramaController extends Controller
 
         // Vacante externa: la coordinación solo puede cerrarla (por alguna irregularidad) y explica por qué.
         // Despublicarla o reabrirla le corresponde a la empresa desde su panel.
-        if (!$programa->esInterno()) {
+        if (! $programa->esInterno()) {
             return $this->cerrarExterna($request, $programa, $nuevo);
         }
 
@@ -216,7 +229,7 @@ class ProgramaController extends Controller
     private function avisarAlumnos(Programa $programa): void
     {
         Avisos::enviar(Avisos::alumnosDeCarrera((int) $programa->carrera_id), new AvisoOperativo(
-            mensaje: "Nueva vacante disponible para tu carrera: «{$programa->titulo}»" . ($programa->convenio?->empresa ? " en {$programa->convenio->empresa->razon_social}" : '') . '.',
+            mensaje: "Nueva vacante disponible para tu carrera: «{$programa->titulo}»".($programa->convenio?->empresa ? " en {$programa->convenio->empresa->razon_social}" : '').'.',
             url: route('alumno.oferta-programas', ['programa' => $programa->id], false),
             detalle: $programa->titulo,
         ));
@@ -226,7 +239,7 @@ class ProgramaController extends Controller
     {
         $this->authorize('gestionar', $programa);
 
-        if (!$programa->esInterno()) {
+        if (! $programa->esInterno()) {
             return back()->withErrors(['programa' => 'Las vacantes externas las elimina la empresa; tú puedes rechazarlas o cerrarlas.']);
         }
 
@@ -272,4 +285,3 @@ class ProgramaController extends Controller
         return $datos;
     }
 }
-

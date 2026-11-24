@@ -12,6 +12,7 @@
 
 use App\Enums\ConvenioEstado;
 use App\Enums\Dictamen;
+use App\Enums\EstadoDocumentoFisico;
 use App\Enums\PostulacionEstado;
 use App\Enums\PracticaEstado;
 use App\Enums\ProgramaEstado;
@@ -31,13 +32,18 @@ use App\Models\Profesor;
 use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\User;
+use App\Notifications\AvisoOperativo;
 use App\Notifications\BorradorTurnadoJuridica;
 use App\Notifications\ConvenioActualizado;
+use App\Support\SolicitudEmpresa;
+use App\Support\TextoAviso;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 function ajUsuario(Rol $rol, ?array $personal = null): User
 {
@@ -119,8 +125,8 @@ test('Vinculación tiene acceso directo a los convenios por vencer y de ahí a c
 
     // El aviso diario lleva directo a la empresa
     $this->artisan('practicas:avisos-programados')->assertSuccessful();
-    Notification::assertSentTo($this->lorena, \App\Notifications\AvisoOperativo::class,
-        fn ($n) => str_ends_with($n->url, '/admin/empresas/' . $this->empresa->id));
+    Notification::assertSentTo($this->lorena, AvisoOperativo::class,
+        fn ($n) => str_ends_with($n->url, '/admin/empresas/'.$this->empresa->id));
 });
 
 /* ------------------------------- Jurídica ------------------------------- */
@@ -401,11 +407,11 @@ test('teléfonos, folio y clave solo aceptan su formato en todo el sistema', fun
 
 test('sin sesión ninguna ruta privada responde: todas llevan al inicio de sesión', function () {
     $revisadas = 0;
-    foreach (\Illuminate\Support\Facades\Route::getRoutes() as $ruta) {
-        if (!in_array('auth', $ruta->gatherMiddleware(), true)) {
+    foreach (Route::getRoutes() as $ruta) {
+        if (! in_array('auth', $ruta->gatherMiddleware(), true)) {
             continue;
         }
-        $url = '/' . preg_replace('/\{[^}]+\}/', '1', $ruta->uri());
+        $url = '/'.preg_replace('/\{[^}]+\}/', '1', $ruta->uri());
         $metodo = collect($ruta->methods())->first(fn ($x) => $x !== 'HEAD');
         $r = $this->call($metodo, $url);
         // Una ruta con formato fijo en su parámetro ({seccion}, {cp}…) responde 404 antes de pedir sesión: tampoco revela nada
@@ -441,8 +447,8 @@ test('por URL directa nadie abre el detalle de algo ajeno', function () {
     $this->actingAs($this->coordAbog)->get(route('coordinacion.alumnos.archivos', [$alumno, $kardex]))->assertOk();
 
     // Notificación de otra persona
-    $id = (string) \Illuminate\Support\Str::uuid();
-    $alumno->user->notifications()->create(['id' => $id, 'type' => \App\Notifications\AvisoOperativo::class, 'data' => ['mensaje' => 'Privado', 'url' => '/alumno/dashboard']]);
+    $id = (string) Str::uuid();
+    $alumno->user->notifications()->create(['id' => $id, 'type' => AvisoOperativo::class, 'data' => ['mensaje' => 'Privado', 'url' => '/alumno/dashboard']]);
     $this->actingAs($otroAlumno)->get(route('notificaciones.abrir', $id))->assertNotFound();
 
     // Una cuenta desactivada ya no entra
@@ -473,7 +479,7 @@ test('si Jurídica devuelve el borrador, Lorena ve en rojo qué corregir y el ex
 
     // Documentos físicos: devuelto con observaciones → solo puede volver a la Unidad Jurídica
     $expediente = $c->documentosFisicos()->where('tipo', 'dictamen_juridico')->first();
-    expect($expediente->estado)->toBe(\App\Enums\EstadoDocumentoFisico::ConObservaciones);
+    expect($expediente->estado)->toBe(EstadoDocumentoFisico::ConObservaciones);
     $this->actingAs($this->lorena)->post(route('admin.documentos-fisicos.mover', $expediente), ['estado' => 'en_vinculacion'])
         ->assertSessionHasErrors(['estado' => 'Jurídica aún no emite el dictamen favorable: el expediente solo puede volver a la Unidad Jurídica.']);
     $this->actingAs($this->lorena)->post(route('admin.documentos-fisicos.mover', $expediente), ['estado' => 'en_juridica'])->assertSessionHasNoErrors();
@@ -508,7 +514,7 @@ test('al renovar, «Perfiles requeridos» viene precargado con el convenio vigen
         ->assertSee('Precargamos los perfiles de tu convenio CV-2023-014')->assertSee('Precargada · revisa y guarda')
         ->assertSee('Catalogación de fondos, digitalización y atención a investigadores.')
         ->assertSee('Por un egresado')
-        ->assertDontSee('Para enviar la solicitud te falta:</p>' . "\n" . '                <p class="mt-0.5">carreras', false);
+        ->assertDontSee('Para enviar la solicitud te falta:</p>'."\n".'                <p class="mt-0.5">carreras', false);
     // Solo las carreras que ya tenía autorizadas
     expect(preg_match('/elegidas: JSON\.parse\(\'\[(\d+)\]\'\)/', $pagina->getContent(), $m))->toBe(1)->and((int) $m[1])->toBe($this->abog->id);
 
@@ -517,7 +523,7 @@ test('al renovar, «Perfiles requeridos» viene precargado con el convenio vigen
         '_seccion' => 'perfiles', 'carreras' => [$this->abog->id], 'objetivos' => $vigente->objetivos, 'actividades_propuestas' => $vigente->actividades_propuestas,
         'plazas_estimadas' => 3, 'medio_conocimiento' => 'Por un egresado', 'experiencia_previa' => 'Ninguno',
     ])->assertSessionHasNoErrors();
-    expect(\App\Support\SolicitudEmpresa::faltantes($this->empresa->fresh())['perfiles'])->toBe([]);
+    expect(SolicitudEmpresa::faltantes($this->empresa->fresh())['perfiles'])->toBe([]);
 });
 
 /* ------------------------------- Los avisos de corrección se van al corregir ------------------------------- */
@@ -551,14 +557,14 @@ test('la empresa rechazada recibe aviso y el recuadro rojo desaparece en cuanto 
 
 test('las notificaciones largas se muestran con título y detalle, y las leídas antiguas solo en «Archivadas»', function () {
     $largo = 'Tu coordinación te devolvió el reporte del 01/11 al 30/11/2026. Motivo: «Las horas no coinciden». Qué hacer: entra a «Mis documentos › Reportes de horas» y súbelo de nuevo.';
-    expect(\App\Support\TextoAviso::partes($largo))->toBe([
+    expect(TextoAviso::partes($largo))->toBe([
         'titulo' => 'Tu coordinación te devolvió el reporte del 01/11 al 30/11/2026',
         'detalle' => 'Motivo: «Las horas no coinciden». Qué hacer: entra a «Mis documentos › Reportes de horas» y súbelo de nuevo.',
     ]);
 
     $u = $this->empresaUser;
-    $u->notifications()->create(['id' => (string) \Illuminate\Support\Str::uuid(), 'type' => 'x', 'data' => ['mensaje' => $largo, 'url' => '/x']]);
-    $u->notifications()->create(['id' => (string) \Illuminate\Support\Str::uuid(), 'type' => 'x', 'data' => ['mensaje' => 'Aviso viejo ya leído.', 'url' => '/x'], 'read_at' => now()->subDays(20), 'created_at' => now()->subDays(25)]);
+    $u->notifications()->create(['id' => (string) Str::uuid(), 'type' => 'x', 'data' => ['mensaje' => $largo, 'url' => '/x']]);
+    $u->notifications()->create(['id' => (string) Str::uuid(), 'type' => 'x', 'data' => ['mensaje' => 'Aviso viejo ya leído.', 'url' => '/x'], 'read_at' => now()->subDays(20), 'created_at' => now()->subDays(25)]);
 
     $this->actingAs($u)->getJson(route('notificaciones.resumen'))->assertOk()
         ->assertJsonCount(1, 'items')->assertJsonPath('items.0.titulo', 'Tu coordinación te devolvió el reporte del 01/11 al 30/11/2026')

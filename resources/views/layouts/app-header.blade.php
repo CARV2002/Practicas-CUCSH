@@ -15,7 +15,7 @@
     <div class="flex grow flex-col items-center justify-between xl:flex-row xl:px-6">
         <div class="flex w-full items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-4 xl:justify-normal xl:px-0 lg:py-4">
 
-            <!-- Contraer / expandir menú lateral (escritorio) -->
+            {{-- Contraer / expandir menú lateral (escritorio) --}}
             <button type="button" class="{{ $botonIcono }} hidden border border-white/20 xl:flex"
                 :class="{ 'bg-white/10': !$store.sidebar.isExpanded }" @click="$store.sidebar.toggleExpanded()"
                 aria-label="Contraer o expandir el menú lateral">
@@ -26,7 +26,7 @@
                 </svg>
             </button>
 
-            <!-- Abrir / cerrar menú lateral (móvil y tableta) -->
+            {{-- Abrir / cerrar menú lateral (móvil y tableta) --}}
             <button type="button" class="{{ $botonIcono }} xl:hidden"
                 :class="{ 'bg-white/10': $store.sidebar.isMobileOpen }" @click="$store.sidebar.toggleMobileOpen()"
                 :aria-expanded="$store.sidebar.isMobileOpen.toString()" aria-controls="sidebar" aria-label="Abrir el menú">
@@ -42,12 +42,12 @@
                 </svg>
             </button>
 
-            <!-- Campana (móvil y tableta; en escritorio va junto al usuario) -->
+            {{-- Campana (móvil y tableta; en escritorio va junto al usuario) --}}
             <div class="ml-auto xl:hidden">
                 <x-header.notification-dropdown />
             </div>
 
-            <!-- Menú de usuario (móvil y tableta) -->
+            {{-- Menú de usuario (móvil y tableta) --}}
             <button type="button" @click="toggleApplicationMenu()" class="{{ $botonIcono }} xl:hidden"
                 :class="{ 'bg-white/10': isApplicationMenuOpen }"
                 :aria-expanded="isApplicationMenuOpen.toString()" aria-label="Opciones de mi cuenta">
@@ -59,7 +59,7 @@
             </button>
         </div>
 
-        <!-- Cuenta: fila desplegable en móvil, lado derecho en escritorio -->
+        {{-- Cuenta: fila desplegable en móvil, lado derecho en escritorio --}}
         <div x-cloak :class="isApplicationMenuOpen ? 'flex' : 'hidden'"
             class="w-full items-center justify-end gap-4 border-t border-white/10 px-4 py-3 xl:flex xl:w-auto xl:border-t-0 xl:px-0 xl:py-0">
             <div class="hidden xl:block">

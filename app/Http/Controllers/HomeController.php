@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
+use App\Enums\Dictamen;
 use App\Enums\EtapaConvenio;
 use App\Enums\PracticaEstado;
 use App\Enums\TipoOrganismo;
@@ -57,12 +60,12 @@ class HomeController extends Controller
     public function conveniosVigentesPublico(): View
     {
         $vigentes = $this->conveniosVigentes()->load([
-            'dictamenes' => fn ($d) => $d->where('dictamen', \App\Enums\Dictamen::Aprobatorio->value)->with('carrera'),
+            'dictamenes' => fn ($d) => $d->where('dictamen', Dictamen::Aprobatorio->value)->with('carrera'),
         ]);
 
         return view('pages.home.convenios-vigentes', [
             'divisiones' => $this->divisionesConCarreras(),
-            'conveniosVigentes' => $vigentes->sortBy(fn ($c) => $c->empresa->razon_social)->values(),
+            'conveniosVigentes' => $vigentes->sortBy(fn (Convenio $c) => $c->empresa->razon_social)->values(),
         ]);
     }
 
@@ -88,8 +91,10 @@ class HomeController extends Controller
     /**
      * Convenios formalizados y vigentes hoy, de empresas con cuenta activa;
      * uno por empresa, los más recientes primero.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, Convenio>
      */
-    private function conveniosVigentes(): Collection
+    private function conveniosVigentes(): \Illuminate\Database\Eloquent\Collection
     {
         return Convenio::vigentes()
             ->whereHas('empresa.user', fn ($q) => $q->where('activo', true))

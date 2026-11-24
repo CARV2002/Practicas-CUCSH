@@ -73,7 +73,6 @@ test('la coordinación puede marcar un correo como verificado', function () {
     $pendiente = User::factory()->unverified()->create();
 
     $this->actingAs($admin)->post(route('admin.usuarios.verificar', $pendiente))->assertRedirect();
-    
 
     expect($pendiente->refresh()->hasVerifiedEmail())->toBeTrue();
 });

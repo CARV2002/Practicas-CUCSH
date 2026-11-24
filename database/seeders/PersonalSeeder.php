@@ -92,7 +92,7 @@ class PersonalSeeder extends Seeder
         if (blank($carrera->coordinacion_correo)) {
             $carrera->update([
                 'coordinacion_correo' => $email,
-                'coordinacion_telefono' => Formatos::telefonoConExtension('3338193300', '2' . str_pad((string) $carrera->id, 4, '0', STR_PAD_LEFT)),
+                'coordinacion_telefono' => Formatos::telefonoConExtension('3338193300', '2'.str_pad((string) $carrera->id, 4, '0', STR_PAD_LEFT)),
             ]);
         }
 

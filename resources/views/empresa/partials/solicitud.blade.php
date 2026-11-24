@@ -25,7 +25,7 @@
         $prefill = $base->only(['objetivos', 'actividades_propuestas', 'plazas_estimadas', 'medio_conocimiento', 'experiencia_previa']);
         if ($propuestaAnterior === null) {
             // Renovación: cómo nos conoce y cuántos practicantes ha recibido ya con el convenio que vence
-            $recibidos = \App\Models\Practica::whereHas('postulacion.programa', fn ($q) => $q->where('convenio_id', $base->id))->count();
+            $recibidos = $recibidosVigente ?? 0;   // lo cuenta Empresa\ConvenioController
             $prefill['medio_conocimiento'] = filled($prefill['medio_conocimiento'] ?? null) ? $prefill['medio_conocimiento'] : 'Renovación del convenio ' . ($base->folio ?? 'vigente');
             $prefill['experiencia_previa'] = ($prefill['experiencia_previa'] ?? '') !== '' && $recibidos === 0
                 ? $prefill['experiencia_previa']

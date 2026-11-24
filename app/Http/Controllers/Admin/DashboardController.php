@@ -1,17 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\ConvenioEstado;
 use App\Enums\EstadoDocumentoFisico;
 use App\Enums\EtapaConvenio;
-use App\Models\DocumentoFisico;
+use App\Enums\PracticaEstado;
+use App\Enums\Rol;
 use App\Http\Controllers\Controller;
+use App\Models\Alumno;
+use App\Models\Carrera;
 use App\Models\Convenio;
 use App\Models\ConvenioCarrera;
 use App\Models\ConvenioSeguimiento;
+use App\Models\Division;
+use App\Models\DocumentoFisico;
 use App\Models\Empresa;
+use App\Models\Practica;
+use App\Support\Pendientes;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /** Panel de Vinculación: solo el trámite de convenios (lo académico vive en coordinacion/). */
@@ -56,8 +66,8 @@ class DashboardController extends Controller
         return view('admin.dashboard', [
             'nombre' => explode(' ', trim($request->user()->name))[0],
             // Mismo total que «Por atender» de la campana
-            'totalPendientes' => \App\Support\Pendientes::total($request->user()),
-            'esAdministrador' => $esAdmin = $request->user()->hasRole(\App\Enums\Rol::Administrador->value),
+            'totalPendientes' => Pendientes::total($request->user()),
+            'esAdministrador' => $esAdmin = $request->user()->hasRole(Rol::Administrador->value),
             // Panorama global (solo lectura) para la Coordinación de Servicios Académicos
             'panorama' => $esAdmin ? $this->panorama() : null,
             'etapas' => [
@@ -107,31 +117,31 @@ class DashboardController extends Controller
     /**
      * Métricas de todo el CUCSH para el administrador: alumnos y prácticas por división y estado de las coordinaciones.
      *
-     * @return array{alumnos:int, activas:int, acreditadas:int, en_cierre:int, bajas:int, divisiones:\Illuminate\Support\Collection, sin_coordinacion:\Illuminate\Support\Collection}
+     * @return array{alumnos:int, activas:int, acreditadas:int, en_cierre:int, bajas:int, divisiones:Collection, sin_coordinacion:Collection}
      */
     private function panorama(): array
     {
-        $porEstado = \App\Models\Practica::query()->selectRaw('estado, count(*) as total')->groupBy('estado')->pluck('total', 'estado');
-        $n = fn (\App\Enums\PracticaEstado $e) => (int) ($porEstado[$e->value] ?? 0);
+        $porEstado = Practica::query()->selectRaw('estado, count(*) as total')->groupBy('estado')->pluck('total', 'estado');
+        $n = fn (PracticaEstado $e) => (int) ($porEstado[$e->value] ?? 0);
 
-        $activas = \App\Models\Practica::query()
-            ->whereIn('practicas.estado', \App\Enums\PracticaEstado::valores(\App\Enums\PracticaEstado::activas()))
+        $activas = Practica::query()
+            ->whereIn('practicas.estado', PracticaEstado::valores(PracticaEstado::activas()))
             ->join('postulaciones', 'postulaciones.id', '=', 'practicas.postulacion_id')
             ->join('alumnos', 'alumnos.id', '=', 'postulaciones.alumno_id')
             ->join('carreras', 'carreras.id', '=', 'alumnos.carrera_id')
             ->selectRaw('carreras.division_id, count(*) as total')->groupBy('carreras.division_id')->pluck('total', 'carreras.division_id');
-        $alumnos = \App\Models\Alumno::query()->join('carreras', 'carreras.id', '=', 'alumnos.carrera_id')
+        $alumnos = Alumno::query()->join('carreras', 'carreras.id', '=', 'alumnos.carrera_id')
             ->selectRaw('carreras.division_id, count(*) as total')->groupBy('carreras.division_id')->pluck('total', 'carreras.division_id');
 
-        $carreras = \App\Models\Carrera::with('division')->orderBy('nombre')->get();
+        $carreras = Carrera::with('division')->orderBy('nombre')->get();
 
         return [
-            'alumnos' => \App\Models\Alumno::count(),
-            'activas' => $n(\App\Enums\PracticaEstado::EnCurso),
-            'acreditadas' => $n(\App\Enums\PracticaEstado::Acreditada),
-            'en_cierre' => $n(\App\Enums\PracticaEstado::EnCierre),
-            'bajas' => $n(\App\Enums\PracticaEstado::Cancelada),
-            'divisiones' => \App\Models\Division::withCount('carreras')->orderBy('nombre')->get()->map(fn ($d) => (object) [
+            'alumnos' => Alumno::count(),
+            'activas' => $n(PracticaEstado::EnCurso),
+            'acreditadas' => $n(PracticaEstado::Acreditada),
+            'en_cierre' => $n(PracticaEstado::EnCierre),
+            'bajas' => $n(PracticaEstado::Cancelada),
+            'divisiones' => Division::withCount('carreras')->orderBy('nombre')->get()->map(fn ($d) => (object) [
                 'nombre' => $d->nombre,
                 'carreras' => $d->carreras_count,
                 'alumnos' => (int) ($alumnos[$d->id] ?? 0),

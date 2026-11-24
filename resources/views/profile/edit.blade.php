@@ -80,7 +80,7 @@
             </button>
             <div class="min-w-0 flex-1 animate-entrada motion-reduce:animate-none">
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-oro-300">Mi perfil · {{ $rolEtiqueta }}</p>
-                <h1 class="mt-1 truncate font-display text-2xl font-bold tracking-[-0.02em] sm:text-3xl">{{ $user->name }}</h1>
+                <h1 class="mt-1 break-words font-display text-2xl font-bold tracking-[-0.02em] sm:text-3xl">{{ $user->name }}</h1>
                 <div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-white/80">
                     <span class="break-all">{{ $user->email }}</span>
                     @if ($user->hasVerifiedEmail())
@@ -394,14 +394,7 @@
             <section id="panel-seguridad" role="tabpanel" aria-labelledby="tab-seguridad" x-show="tab === 'seguridad'" x-cloak class="space-y-6 animate-entrada motion-reduce:animate-none">
                 <x-dashboard.panel titulo="Cambiar contraseña" icono="vigente" descripcion="Usa una contraseña larga que no uses en otros sitios.">
                     <form method="POST" action="{{ route('password.update') }}" class="space-y-5"
-                        x-data="{ nueva: '', ver: false,
-                            get reglas() { const n = this.nueva; return [
-                                { t: 'Al menos 8 caracteres', ok: n.length >= 8 },
-                                { t: 'Una mayúscula y una minúscula', ok: /[A-ZÁÉÍÓÚÑ]/.test(n) && /[a-záéíóúñ]/.test(n) },
-                                { t: 'Un número', ok: /\d/.test(n) },
-                                { t: 'Un símbolo', ok: /[^A-Za-z0-9ÁÉÍÓÚÑáéíóúñ]/.test(n) },
-                            ]; },
-                            get fuerza() { return this.reglas.filter(r => r.ok).length; } }">
+                        x-data="fuerzaContrasena()">
                         @csrf
                         @method('PUT')
                         <div class="max-w-md">

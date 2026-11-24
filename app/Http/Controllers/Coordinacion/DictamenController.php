@@ -1,19 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Coordinacion;
 
 use App\Enums\ConvenioEstado;
 use App\Enums\Dictamen;
 use App\Http\Controllers\Controller;
 use App\Models\Carrera;
-use App\Models\Convenio;
 use App\Models\ConvenioCarrera;
 use App\Services\ConvenioWorkflow;
+use App\Support\ReglasArchivo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Dictamen de pertinencia: la Coordinación de cada carrera decide si las actividades
@@ -21,23 +24,21 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 class DictamenController extends Controller
 {
-    public function __construct(private ConvenioWorkflow $workflow)
-    {
-    }
+    public function __construct(private ConvenioWorkflow $workflow) {}
 
     public function index(Request $request): View
     {
         $personal = $request->user()->personal;
         $filtro = $request->string('dictamen')->toString() ?: Dictamen::Pendiente->value;
 
-        $dictamenes = ConvenioCarrera::with(['convenio.empresa', 'carrera.division', 'dictaminador.user', 'media'])
+        $dictamenes = ConvenioCarrera::with(['convenio.empresa', 'convenio.dictamenes.carrera', 'carrera.division', 'dictaminador.user', 'media'])
             ->visiblesPara($personal)
-            ->when($filtro !== 'todos', fn($q) => $q->where('dictamen', $filtro))
-            ->when($request->filled('carrera_id'), fn($q) => $q->where('carrera_id', $request->integer('carrera_id')))
-            ->when($request->filled('q'), fn($q) => $q->whereHas('convenio.empresa', fn($e) => $e
-                ->where('razon_social', 'like', '%' . $request->string('q') . '%')
-                ->orWhere('rfc', 'like', '%' . $request->string('q') . '%')))
-            ->whereHas('convenio', fn($c) => $filtro === Dictamen::Pendiente->value
+            ->when($filtro !== 'todos', fn ($q) => $q->where('dictamen', $filtro))
+            ->when($request->filled('carrera_id'), fn ($q) => $q->where('carrera_id', $request->integer('carrera_id')))
+            ->when($request->filled('q'), fn ($q) => $q->whereHas('convenio.empresa', fn ($e) => $e
+                ->where('razon_social', 'like', '%'.$request->string('q').'%')
+                ->orWhere('rfc', 'like', '%'.$request->string('q').'%')))
+            ->whereHas('convenio', fn ($c) => $filtro === Dictamen::Pendiente->value
                 ? $c->where('estado', ConvenioEstado::EnValidacionAcademica->value)
                 : $c)
             ->orderByRaw("case dictamen when 'pendiente' then 0 else 1 end")
@@ -52,7 +53,7 @@ class DictamenController extends Controller
             'carreras' => Carrera::enAlcance($personal)->orderBy('nombre')->get(['id', 'carrera_clave', 'nombre']),
             'resumen' => [
                 'pendientes' => ConvenioCarrera::visiblesPara($personal)->pendientes()
-                    ->whereHas('convenio', fn($c) => $c->where('estado', ConvenioEstado::EnValidacionAcademica->value))
+                    ->whereHas('convenio', fn ($c) => $c->where('estado', ConvenioEstado::EnValidacionAcademica->value))
                     ->count(),
                 'aprobatorios' => ConvenioCarrera::visiblesPara($personal)->where('dictamen', Dictamen::Aprobatorio->value)->count(),
                 'negativos' => ConvenioCarrera::visiblesPara($personal)->where('dictamen', Dictamen::Negativo->value)->count(),
@@ -68,10 +69,12 @@ class DictamenController extends Controller
 
         $datos = $request->validate([
             'dictamen' => ['required', Rule::in([Dictamen::Aprobatorio->value, Dictamen::Negativo->value])],
-            'observaciones' => ['nullable', 'string', 'max:2000'],
-            'documento' => ['required', 'file', 'mimes:pdf', 'max:10240'],
+            // Un dictamen negativo siempre explica por qué: la empresa recibe ese motivo para ajustar su propuesta
+            'observaciones' => ['nullable', 'required_if:dictamen,'.Dictamen::Negativo->value, 'string', 'max:2000'],
+            'documento' => ReglasArchivo::pdfRequerido(),
         ], [
             'documento.required' => 'Sube tu dictamen escaneado, firmado y sellado (PDF).',
+            'observaciones.required_if' => 'Escribe el motivo del dictamen negativo: la empresa lo recibe para ajustar su propuesta.',
         ]);
 
         $this->workflow->registrarDictamenCarrera(
@@ -86,15 +89,8 @@ class DictamenController extends Controller
         return back()->with('status', 'Dictamen emitido. Vinculación fue notificada.');
     }
 
-    public function descargar(ConvenioCarrera $dictamen, Media $media)
+    public function descargar(ConvenioCarrera $dictamen, Media $media): Response
     {
-        abort_unless(
-            $media->model_type === ConvenioCarrera::class && (int) $media->model_id === (int) $dictamen->id,
-            404
-        );
-
-        $this->authorize('download', $media);
-
-        return $this->entregar($media);
+        return $this->entregarDe($dictamen, $media);
     }
 }

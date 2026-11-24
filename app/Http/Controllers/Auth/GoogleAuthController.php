@@ -1,11 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Auth;
 
 use App\Enums\Rol;
+use App\Enums\Turno;
 use App\Http\Controllers\Controller;
 use App\Models\Carrera;
 use App\Models\User;
+use App\Support\Formatos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,17 +18,21 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\AbstractProvider;
 use Throwable;
 
 /** Acceso con Google, solo con correo institucional de la UdG. */
 class GoogleAuthController extends Controller
 {
-    public function redirect(): RedirectResponse
+    public function redirect(): \Symfony\Component\HttpFoundation\RedirectResponse
     {
         // "hd" solo es una pista visual para Google; la validación real está en callback().
-        return Socialite::driver('google')
-            ->with(['hd' => '*', 'prompt' => 'select_account'])
-            ->redirect();
+        $google = Socialite::driver('google');
+        if ($google instanceof AbstractProvider) {
+            $google->with(['hd' => '*', 'prompt' => 'select_account']);
+        }
+
+        return $google->redirect();
     }
 
     public function callback(Request $request): RedirectResponse
@@ -109,23 +117,23 @@ class GoogleAuthController extends Controller
         }
 
         $request->merge([
-            'num_control' => \App\Support\Formatos::digitos($request->input('num_control')),
-            'name' => \App\Support\Formatos::limpiar($request->input('name')),
+            'num_control' => Formatos::digitos($request->input('num_control')),
+            'name' => Formatos::limpiar($request->input('name')),
         ]);
 
         $validado = $request->validate([
-            'name' => ['required', 'string', 'min:5', 'max:255', 'regex:' . \App\Support\Formatos::NOMBRE_PERSONA],
+            'name' => ['required', 'string', 'min:5', 'max:255', 'regex:'.Formatos::NOMBRE_PERSONA],
             'carrera_id' => ['required', 'integer', Rule::exists('carreras', 'id')],
-            'num_control' => ['required', 'regex:' . \App\Support\Formatos::CODIGO_ALUMNO, Rule::unique('alumnos', 'num_control')],
+            'num_control' => ['required', 'regex:'.Formatos::CODIGO_ALUMNO, Rule::unique('alumnos', 'num_control')],
             'grado' => ['required', 'integer', 'between:1,12'],
-            'turno' => ['required', Rule::enum(\App\Enums\Turno::class)],
+            'turno' => ['required', Rule::enum(Turno::class)],
             'aviso_privacidad' => ['accepted'],
         ], [
             'required' => 'El campo :attribute es obligatorio.',
             'carrera_id.exists' => 'Selecciona una carrera válida.',
             'num_control.unique' => 'Ya existe una cuenta con ese código de alumno.',
             'aviso_privacidad.accepted' => 'Debes aceptar el aviso de privacidad para registrarte.',
-            ...\App\Support\Formatos::mensajes(),
+            ...Formatos::mensajes(),
         ], [
             'name' => 'nombre',
             'carrera_id' => 'carrera',

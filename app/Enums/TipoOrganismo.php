@@ -1,7 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Enums;
 
+/**
+ * Tipo de organización: pública, privada, sociedad civil u otra. Define qué documentos se le piden.
+ */
 enum TipoOrganismo: string
 {
     case Publico = 'publico';

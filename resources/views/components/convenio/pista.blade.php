@@ -31,16 +31,16 @@
                 'border-gray-200 bg-white' => !$hecha && !$esActual,
                 'opacity-60' => $rechazado,
             ])>
-                <div class="flex items-center gap-2">
+                <div class="flex items-start gap-2">
                     <span @class([
-                        'flex size-6 items-center justify-center rounded-full text-[11px] font-bold',
+                        'flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold',
                         'bg-udg-800 text-white' => $hecha,
                         $f['punto'] . ' text-white' => $esActual,
                         'bg-gray-100 text-gray-400' => !$hecha && !$esActual,
                     ])>
                         @if ($hecha)<x-dashboard.icono nombre="check" clase="size-3.5" />@else{{ $i + 1 }}@endif
                     </span>
-                    <span @class(['text-sm font-semibold', 'text-udg-900' => $hecha || $esActual, 'text-gray-400' => !$hecha && !$esActual])>{{ $f['nombre'] }}</span>
+                    <span @class(['text-sm font-semibold leading-6', 'text-udg-900' => $hecha || $esActual, 'text-gray-400' => !$hecha && !$esActual])>{{ $f['nombre'] }}</span>
                 </div>
                 <p class="mt-1.5 text-xs text-gray-500">{{ $hecha ? 'Completada' : ($esActual ? 'En curso' : 'Pendiente') }}</p>
             </li>

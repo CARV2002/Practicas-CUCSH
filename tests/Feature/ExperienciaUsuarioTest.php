@@ -6,18 +6,15 @@
 
 use App\Enums\ConvenioEstado;
 use App\Enums\Dictamen;
-use App\Enums\PostulacionEstado;
 use App\Enums\ProgramaEstado;
 use App\Enums\Rol;
 use App\Enums\TipoOrganismo;
-use App\Enums\ValidacionEstado;
 use App\Models\Alumno;
 use App\Models\Carrera;
 use App\Models\Convenio;
 use App\Models\Division;
 use App\Models\Empresa;
 use App\Models\Personal;
-use App\Models\Postulacion;
 use App\Models\Programa;
 use App\Models\User;
 use App\Notifications\AvisoOperativo;
@@ -189,7 +186,6 @@ test('el alumno sin grado/turno o sin IMSS no puede postularse y se le dice qué
     $this->actingAs($u)->get(route('alumno.dashboard'))->assertSee('Se habilita cuando te postules a un programa.');
 });
 
-
 test('la coordinación ve qué falta para emitir la carta y Vinculación qué falta para turnar', function () {
     $u = uxUsuario(Rol::Alumno);
     $alumno = Alumno::create(['user_id' => $u->id, 'carrera_id' => $this->carrera->id, 'num_control' => '215000101',
@@ -199,7 +195,6 @@ test('la coordinación ve qué falta para emitir la carta y Vinculación qué fa
     // Solo subió el IMSS: su expediente aparece por revisar, pero no se puede autorizar sin el kardex
     $this->actingAs($this->coord)->get(route('coordinacion.lista-practicantes'))->assertOk()
         ->assertSee('Expedientes por revisar')->assertSee('Falta un documento del alumno.');
-
 
     $convenio = app(ConvenioWorkflow::class)->solicitar($this->empresa, ['objetivos' => 'x', 'actividades_propuestas' => 'y', 'plazas_estimadas' => 2], [$this->carrera->id]);
     $this->actingAs($this->lorena)->get(route('admin.convenios.show', $convenio))->assertOk()

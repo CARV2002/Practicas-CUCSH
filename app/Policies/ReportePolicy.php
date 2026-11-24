@@ -1,11 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Models\Reporte;
 use App\Models\User;
 use App\Policies\Concerns\ResuelveActores;
 
+/**
+ * Reportes: el alumno sube el suyo, la coordinación de la carrera lo valida y la organización lo consulta.
+ */
 class ReportePolicy
 {
     use ResuelveActores;

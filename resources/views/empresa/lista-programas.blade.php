@@ -15,21 +15,13 @@
     ])->values();
 @endphp
 
-<div x-data="{
-    modal: false,
-    p: @js($vacio),
-    vacio: @js($vacio),
-    convenios: @js($conveniosJs),
-    urlUpdate: '{{ route('empresa.programas.update', 0) }}',
-    urlStore: '{{ route('empresa.programas.store') }}',
-    nuevo() { this.p = { ...this.vacio, convenio_id: this.convenios.length === 1 ? this.convenios[0].id : '' }; this.modal = true; },
-    editar(d) { this.p = { ...this.vacio, ...d }; this.modal = true; },
-    get action() { return this.p.id ? this.urlUpdate.replace(/0$/, this.p.id) : this.urlStore; },
-    get carreras() {
-        const c = this.convenios.find(c => c.id == this.p.convenio_id);
-        return c ? c.carreras : [];
-    }
-}" class="space-y-6">
+<div x-data="programaFormulario(@js([
+    'vacio' => $vacio,
+    'convenios' => $conveniosJs,
+    'urlStore' => route('empresa.programas.store'),
+    'urlUpdate' => route('empresa.programas.update', 0),
+    'preseleccionarConvenio' => true,
+]))" class="space-y-6">
 
     <x-pagina.encabezado titulo="Mis vacantes" descripcion="Propón vacantes para las carreras aprobadas en tu convenio. La coordinación de cada carrera las revisa antes de publicarlas a los alumnos.">
         <x-slot:acciones>
@@ -224,5 +216,4 @@
     </div>
 </div>
 
-<style>[x-cloak]{display:none !important;}</style>
 @endsection

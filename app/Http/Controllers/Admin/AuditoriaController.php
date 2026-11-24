@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
@@ -7,6 +9,9 @@ use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
+/**
+ * Bitácora de auditoría (solo administrador): quién hizo qué y cuándo, con filtros por usuario, acción y fecha.
+ */
 class AuditoriaController extends Controller
 {
     /** Grupos de acciones para las pestañas: prefijo de la clave de acción. */

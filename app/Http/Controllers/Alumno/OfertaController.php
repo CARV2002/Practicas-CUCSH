@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Alumno;
 
 use App\Enums\Modalidad;
@@ -8,13 +10,17 @@ use App\Http\Controllers\Controller;
 use App\Models\Convenio;
 use App\Models\Postulacion;
 use App\Models\Programa;
+use App\Notifications\AvisoOperativo;
+use App\Services\Avisos;
+use App\Support\Requisitos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use App\Services\Avisos;
-use App\Notifications\AvisoOperativo;
 
+/**
+ * Oferta de programas de la carrera del alumno y su postulación.
+ */
 class OfertaController extends Controller
 {
     public function index(Request $request): View
@@ -22,7 +28,7 @@ class OfertaController extends Controller
         $alumno = $request->user()->alumno->load('carrera.division');
 
         // Con solicitud en revisión o empresa en trámite no se buscan otras vacantes (un alumno, una empresa)
-        if ($motivo = \App\Support\Requisitos::alumnoVerOferta($alumno)) {
+        if ($motivo = Requisitos::alumnoVerOferta($alumno)) {
             return view('pages.seccion-bloqueada', [
                 'titulo' => 'La oferta de programas no está disponible por ahora',
                 'motivo' => $motivo,
@@ -43,17 +49,17 @@ class OfertaController extends Controller
             ->where(fn ($q) => $q->whereNull('convenio_id')->orWhereHas('convenio', fn ($c) => $c
                 ->whereDate('fecha_fin_vigencia', '>=', now()->addDays(Convenio::DIAS_MINIMOS_POSTULACION)->toDateString())))
             ->when($request->filled('q'), function ($q) use ($request) {
-                $t = '%' . $request->string('q') . '%';
-                $q->where(fn($w) => $w
+                $t = '%'.$request->string('q').'%';
+                $q->where(fn ($w) => $w
                     ->where('titulo', 'like', $t)
                     ->orWhere('descripcion', 'like', $t)
                     ->orWhere('sede', 'like', $t)
-                    ->orWhereHas('convenio.empresa', fn($e) => $e->where('razon_social', 'like', $t)));
+                    ->orWhereHas('convenio.empresa', fn ($e) => $e->where('razon_social', 'like', $t)));
             })
-            ->when($request->filled('modalidad'), fn($q) => $q->where('modalidad', $request->string('modalidad')))
-            ->when($request->filled('ciclo'), fn($q) => $q->where('ciclo', $request->string('ciclo')))
-            ->when($chip === 'nuevas', fn($q) => $q->where('programas.created_at', '>=', now()->subDays(7)))
-            ->when($chip === 'cierre', fn($q) => $q->whereRaw(
+            ->when($request->filled('modalidad'), fn ($q) => $q->where('modalidad', $request->string('modalidad')))
+            ->when($request->filled('ciclo'), fn ($q) => $q->where('ciclo', $request->string('ciclo')))
+            ->when($chip === 'nuevas', fn ($q) => $q->where('programas.created_at', '>=', now()->subDays(7)))
+            ->when($chip === 'cierre', fn ($q) => $q->whereRaw(
                 "programas.cupos_totales - (select count(*) from postulaciones where postulaciones.programa_id = programas.id and postulaciones.estado in ($marcadores)) <= 2",
                 $estados
             ))
@@ -66,7 +72,7 @@ class OfertaController extends Controller
         $misPostulaciones = $alumno->postulaciones()->pluck('estado', 'programa_id');
 
         // Por qué no puede postularse todavía (null = sí puede): práctica, trámite, grado/turno o IMSS
-        $bloqueo = \App\Support\Requisitos::alumnoPostularse($alumno);
+        $bloqueo = Requisitos::alumnoPostularse($alumno);
 
         return view('alumno.oferta-programas', [
             'alumno' => $alumno,
@@ -84,7 +90,7 @@ class OfertaController extends Controller
     {
         $alumno = $request->user()->alumno->load('carrera');
 
-        if (!Programa::abiertos()->whereKey($programa->id)->exists()) {
+        if (! Programa::abiertos()->whereKey($programa->id)->exists()) {
             throw ValidationException::withMessages(['postulacion' => 'El programa ya no está disponible.']);
         }
 
@@ -96,7 +102,7 @@ class OfertaController extends Controller
             throw ValidationException::withMessages(['postulacion' => 'Ya te postulaste a este programa.']);
         }
 
-        if ($motivo = \App\Support\Requisitos::alumnoPostularse($alumno)) {
+        if ($motivo = Requisitos::alumnoPostularse($alumno)) {
             throw ValidationException::withMessages(['postulacion' => $motivo]);
         }
 
@@ -111,10 +117,10 @@ class OfertaController extends Controller
         }
 
         // Un convenio que vence pronto pondría en riesgo las horas: no admite postulaciones nuevas
-        if (!$programa->esInterno() && !$programa->convenio?->admitePostulaciones()) {
+        if (! $programa->esInterno() && ! $programa->convenio?->admitePostulaciones()) {
             throw ValidationException::withMessages([
-                'postulacion' => 'El convenio de esta organización vence el ' . $programa->convenio?->fecha_fin_vigencia?->format('d/m/Y')
-                    . ' y ya no admite postulaciones nuevas: tus horas quedarían en riesgo.',
+                'postulacion' => 'El convenio de esta organización vence el '.$programa->convenio?->fecha_fin_vigencia?->format('d/m/Y')
+                    .' y ya no admite postulaciones nuevas: tus horas quedarían en riesgo.',
             ]);
         }
 
@@ -152,4 +158,3 @@ class OfertaController extends Controller
 
     }
 }
-

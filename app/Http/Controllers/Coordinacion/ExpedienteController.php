@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Coordinacion;
 
 use App\Enums\ValidacionEstado;
@@ -12,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Expediente del alumno que revisa la Coordinación de su carrera:
@@ -31,15 +34,17 @@ class ExpedienteController extends Controller
         abort_if($nombre === null, 404);
 
         $dueno = $media->model;
-        $alumno = $dueno instanceof Alumno ? $dueno : $dueno?->alumno;
-        abort_if($alumno === null, 404);
+        if (! $dueno instanceof Alumno && ! $dueno instanceof Postulacion) {
+            abort(404);
+        }
+        $alumno = $dueno instanceof Alumno ? $dueno : $dueno->alumno;
 
         // Solo la coordinación de la carrera del alumno
         abort_unless($request->user()->personal->puedeVerCarrera((int) $alumno->carrera_id), 403);
 
         $datos = $request->validate([
             'estado' => ['required', Rule::in([ValidacionEstado::Validada->value, ValidacionEstado::Rechazada->value])],
-            'motivo' => ['nullable', 'required_if:estado,' . ValidacionEstado::Rechazada->value, 'string', 'max:500'],
+            'motivo' => ['nullable', 'required_if:estado,'.ValidacionEstado::Rechazada->value, 'string', 'max:500'],
         ], [
             'motivo.required_if' => 'Explica al alumno por qué se rechaza el documento.',
         ]);
@@ -48,7 +53,7 @@ class ExpedienteController extends Controller
         $dueno->resolverDocumento($media, $estado, $datos['motivo'] ?? null, $request->user()->id);
 
         $rechazado = $estado === ValidacionEstado::Rechazada;
-        $completo = !$rechazado && $alumno->fresh()->expedienteValidado();   // con esto ya puede postularse
+        $completo = ! $rechazado && $alumno->fresh()->expedienteValidado();   // con esto ya puede postularse
 
         Avisos::enviar($alumno->user, new AvisoOperativo(
             mensaje: $rechazado
@@ -61,15 +66,12 @@ class ExpedienteController extends Controller
             asunto: $rechazado ? 'Corrige un documento de tu expediente' : ($completo ? 'Ya puedes postularte a prácticas profesionales' : null),
         ));
 
-        return back()->with('status', ucfirst($nombre) . ($rechazado ? ' rechazado.' : ' validado.'));
+        return back()->with('status', ucfirst($nombre).($rechazado ? ' rechazado.' : ' validado.'));
     }
 
     /** Descarga de la constancia IMSS del alumno. */
-    public function descargarAlumno(Alumno $alumno, Media $media)
+    public function descargarAlumno(Alumno $alumno, Media $media): Response
     {
-        abort_unless($media->model_type === Alumno::class && (int) $media->model_id === (int) $alumno->id, 404);
-        $this->authorize('download', $media);
-
-        return $this->entregar($media);
+        return $this->entregarDe($alumno, $media);
     }
 }

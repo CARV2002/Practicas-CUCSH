@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -13,14 +15,18 @@ class Configuracion extends Model
     public const CORREO_JURIDICA = 'correo_juridica';
 
     protected $table = 'configuraciones';
+
     protected $primaryKey = 'clave';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
+
     protected $fillable = ['clave', 'valor', 'actualizado_por'];
 
     public static function valor(string $clave, ?string $porDefecto = null): ?string
     {
-        return static::find($clave)?->valor ?? $porDefecto;
+        return static::find($clave)->valor ?? $porDefecto;
     }
 
     public static function guardar(string $clave, ?string $valor, ?int $userId = null): void

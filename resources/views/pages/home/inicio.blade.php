@@ -5,7 +5,7 @@
 @section('content')
 
 
-  <!-- HERO -->
+  {{-- Portada --}}
   <div class="hero">
     <h1>Prácticas Profesionales</h1>
     <p>Habilidades y competencias para el escenario laboral</p>
@@ -17,7 +17,7 @@
   </div>
 
 
-  <!-- VIDEO / INTRO SECTION -->
+  {{-- Presentación --}}
   <section class="video-section">
     <div class="container">
       <div class="two-col">
@@ -40,7 +40,7 @@
     </div>
   </section>
 
-  <!-- FEATURE 1 -->
+  {{-- Característica 1 --}}
   <section class="feature-section">
     <div class="container">
       <div class="feature-row">
@@ -72,7 +72,7 @@
     </div>
   </section>
 
-  <!-- FEATURE 2 -->
+  {{-- Característica 2 --}}
   <section style="background:#fff; padding: 80px 0;">
     <div class="container">
       <div class="feature-row reverse">
@@ -101,7 +101,7 @@
     </div>
   </section>
 
-  <!-- FEATURE 3 -->
+  {{-- Característica 3 --}}
   <section class="feature-section">
     <div class="container">
       <div class="feature-row">
@@ -111,7 +111,7 @@
           <p>Gestiona todo el proceso de tus prácticas profesionales de forma digital, con seguimiento y notificaciones en cada cambio de etapa.</p>
         </div>
         <div style="display: flex; gap: 16px; justify-content: center; align-items: flex-end;">
-          <!-- Phone mockup 1 -->
+          {{-- Maqueta de teléfono 1 --}}
           <div style="width: 120px; background: #111; border-radius: 18px; padding: 10px 6px; box-shadow: 0 12px 40px rgba(0,0,0,0.25);">
             <div style="background: #fff; border-radius: 12px; overflow: hidden; height: 220px;">
               <div style="background: var(--navy); padding: 8px; text-align: center;">
@@ -125,7 +125,7 @@
               </div>
             </div>
           </div>
-          <!-- Phone mockup 2 -->
+          {{-- Maqueta de teléfono 2 --}}
           <div style="width: 120px; background: #111; border-radius: 18px; padding: 10px 6px; box-shadow: 0 12px 40px rgba(0,0,0,0.25);">
             <div style="background: #fff; border-radius: 12px; overflow: hidden; height: 220px;">
               <div style="background: var(--rust); padding: 8px; text-align: center;">
@@ -144,7 +144,7 @@
     </div>
   </section>
 
-  <!-- PARTNER SECTION -->
+  {{-- Organizaciones con convenio --}}
   <section class="partner-section">
     <div class="container">
       <div class="partner-inner">
@@ -216,7 +216,7 @@
     </div>
   </section>
 
-  <!-- CTA BAND -->
+  {{-- Franja de llamada a la acción --}}
   <div class="cta-band">
     <h2>¿Quieres establecer un convenio con el CUCSH?</h2>
     @guest

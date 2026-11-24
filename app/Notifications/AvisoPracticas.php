@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
@@ -8,6 +10,9 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Queue\SerializesModels;
 
+/**
+ * Base de las notificaciones: campana al momento y correo en la cola, con reintentos.
+ */
 abstract class AvisoPracticas extends Notification implements ShouldQueue
 {
     use Queueable, SerializesModels;
@@ -62,7 +67,7 @@ abstract class AvisoPracticas extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject($this->asunto())
-            ->greeting('Hola ' . data_get($notifiable, 'name', 'equipo de Prácticas Profesionales'))
+            ->greeting('Hola '.data_get($notifiable, 'name', 'equipo de Prácticas Profesionales'))
             ->line($this->texto())
             ->action('Abrir en la plataforma', url($this->ruta()))
             ->salutation('Prácticas Profesionales · CUCSH');

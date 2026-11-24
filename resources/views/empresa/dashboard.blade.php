@@ -8,8 +8,6 @@
         (bool) $enTramite => 'Tu solicitud de convenio está en proceso: ' . mb_strtolower($enTramite->estado->etiquetaEmpresa()) . '.',
         default => 'Solicita tu convenio con el CUCSH para empezar a recibir practicantes.',
     };
-    // Mismo total que «Por atender» del panel
-    $totalPendientes = \App\Support\Pendientes::total(auth()->user());
     $subtitulo .= $totalPendientes
         ? ' Tienes ' . $totalPendientes . ' ' . ($totalPendientes === 1 ? 'pendiente' : 'pendientes') . ' por atender.'
         : ' No tienes pendientes por atender.';
@@ -33,7 +31,7 @@
     </x-dashboard.encabezado>
 
     {{-- Lo pendiente vive aquí, no en la campana --}}
-    <x-dashboard.por-atender />
+    <x-dashboard.por-atender :pendientes="$pendientes" />
 
     {{-- Avisos --}}
     @if ($vigente && $diasRestantes <= 60)
@@ -132,8 +130,8 @@
                     <div class="flex min-w-0 items-center gap-3">
                         <x-ui.user-avatar :user="$al->user" size="size-10 text-xs" />
                         <div class="min-w-0">
-                            <p class="truncate text-sm font-semibold text-gray-900">{{ $al->user->name }}</p>
-                            <p class="truncate text-xs text-gray-500">{{ $r->tipo->label() }} · {{ $r->horas_reportadas }} h · {{ $r->periodo_inicio->format('d/m') }}–{{ $r->periodo_fin->format('d/m/Y') }}</p>
+                            <p class="break-words text-sm font-semibold text-gray-900">{{ $al->user->name }}</p>
+                            <p class="break-words text-xs text-gray-500">{{ $r->tipo->label() }} · {{ $r->horas_reportadas }} h · {{ $r->periodo_inicio->format('d/m') }}–{{ $r->periodo_fin->format('d/m/Y') }}</p>
                         </div>
                     </div>
                     <a href="{{ route('empresa.practicantes.show', $r->practica) }}" class="boton boton-chico boton-primario shrink-0">Comentar</a>
@@ -151,8 +149,8 @@
                     <div class="flex min-w-0 items-center gap-3">
                         <x-ui.user-avatar :user="$po->alumno->user" size="size-10 text-xs" />
                         <div class="min-w-0">
-                            <p class="truncate text-sm font-semibold text-gray-900">{{ $po->alumno->user->name }}</p>
-                            <p class="truncate text-xs text-gray-500">{{ $po->alumno->carrera->nombre }} · {{ $po->programa->titulo }}</p>
+                            <p class="break-words text-sm font-semibold text-gray-900">{{ $po->alumno->user->name }}</p>
+                            <p class="break-words text-xs text-gray-500">{{ $po->alumno->carrera->nombre }} · {{ $po->programa->titulo }}</p>
                         </div>
                     </div>
                     <a href="{{ route('empresa.programas.postulantes', $po->programa) }}" class="enlace shrink-0 text-xs">Ver programa →</a>

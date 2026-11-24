@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Rules;
 
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Único sin importar mayúsculas ni espacios de más: «División  de Estudios Jurídicos» y
@@ -19,8 +22,7 @@ class UnicoNormalizado implements ValidationRule
         private string $mensaje,
         private ?int $ignorarId = null,
         private bool $conBorrados = false,
-    ) {
-    }
+    ) {}
 
     public static function normalizar(?string $valor): string
     {
@@ -33,7 +35,7 @@ class UnicoNormalizado implements ValidationRule
 
         $existe = DB::table($this->tabla)
             ->when($this->ignorarId !== null, fn ($q) => $q->where('id', '!=', $this->ignorarId))
-            ->when(!$this->conBorrados && \Illuminate\Support\Facades\Schema::hasColumn($this->tabla, 'deleted_at'), fn ($q) => $q->whereNull('deleted_at'))
+            ->when(! $this->conBorrados && Schema::hasColumn($this->tabla, 'deleted_at'), fn ($q) => $q->whereNull('deleted_at'))
             ->pluck($this->columna)
             ->contains(fn ($v) => self::normalizar($v) === $buscado);
 

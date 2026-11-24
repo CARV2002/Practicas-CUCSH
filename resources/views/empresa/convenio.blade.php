@@ -19,11 +19,6 @@
         @if ($errors->any())
             <x-ui.aviso tipo="error" titulo="Revisa lo siguiente"><ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></x-ui.aviso>
         @endif
-        @php
-            $juegosPendientes = \App\Models\DocumentoFisico::where('estado', \App\Enums\EstadoDocumentoFisico::ConEmpresa->value)
-                ->whereHas('convenio', fn ($c) => $c->where('empresa_id', $empresa->id))
-                ->get();
-        @endphp
         @if ($juegosPendientes->isNotEmpty())
             @php $limite = $juegosPendientes->min('fecha_compromiso'); @endphp
             <x-ui.aviso :tipo="$limite && $limite->isPast() ? 'error' : 'advertencia'" titulo="Tienes {{ $juegosPendientes->count() }} {{ $juegosPendientes->count() === 1 ? 'juego original' : 'juegos originales' }} del convenio por firmar">
@@ -97,11 +92,11 @@
                             'border-transparent bg-white shadow-theme-sm ring-2 ring-oro-300' => $actual,
                             'border-gray-200' => !$hecho && !$actual,
                         ])>
-                            <div class="flex items-center gap-2">
-                                <span @class(['flex size-6 items-center justify-center rounded-full text-[11px] font-bold', 'bg-udg-800 text-white' => $hecho, 'bg-oro-400 text-udg-950' => $actual, 'bg-gray-100 text-gray-400' => !$hecho && !$actual])>
+                            <div class="flex items-start gap-2">
+                                <span @class(['flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold', 'bg-udg-800 text-white' => $hecho, 'bg-oro-400 text-udg-950' => $actual, 'bg-gray-100 text-gray-400' => !$hecho && !$actual])>
                                     @if ($hecho)<x-dashboard.icono nombre="check" clase="size-3.5" />@else{{ $i + 1 }}@endif
                                 </span>
-                                <span @class(['text-sm font-semibold', 'text-udg-900' => $hecho || $actual, 'text-gray-400' => !$hecho && !$actual])>{{ $nombre }}</span>
+                                <span @class(['text-sm font-semibold leading-6', 'text-udg-900' => $hecho || $actual, 'text-gray-400' => !$hecho && !$actual])>{{ $nombre }}</span>
                             </div>
                             <p class="mt-1.5 text-xs text-gray-500">{{ $hecho ? 'Completado' : ($actual ? 'En curso' : 'Pendiente') }}</p>
                         </li>

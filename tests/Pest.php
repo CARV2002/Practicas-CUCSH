@@ -1,6 +1,18 @@
 <?php
 
+use App\Enums\Rol;
+use App\Enums\TipoOrganismo;
+use App\Enums\ValidacionEstado;
+use App\Models\Alumno;
+use App\Models\Carrera;
+use App\Models\Division;
+use App\Models\Empresa;
+use App\Models\User;
+use App\Support\DatosNotariales;
+use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /*
@@ -53,16 +65,16 @@ function something()
  * Deja el expediente del alumno (kardex + IMSS) entregado y validado por su coordinación,
  * que es el requisito para postularse. $estado: validada | pendiente | rechazada
  */
-function expedienteDe(\App\Models\Alumno $alumno, float $creditos = 70, string $estado = 'validada', ?\Carbon\CarbonInterface $vigencia = null): \App\Models\Alumno
+function expedienteDe(Alumno $alumno, float $creditos = 70, string $estado = 'validada', ?CarbonInterface $vigencia = null): Alumno
 {
-    $pdf = fn (string $n) => \Illuminate\Http\UploadedFile::fake()->createWithContent($n, "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF");
+    $pdf = fn (string $n) => UploadedFile::fake()->createWithContent($n, "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF");
 
     $alumno->update(['porcentaje_creditos' => $creditos, 'vigencia_imss' => ($vigencia ?? now()->addYear())->toDateString()]);
 
     foreach (['kardex' => 'kardex.pdf', 'constancia_imss' => 'imss.pdf'] as $coleccion => $nombre) {
         $media = $alumno->documentoVigente($coleccion) ?? $alumno->addMedia($pdf($nombre))->toMediaCollection($coleccion);
         if ($estado !== 'pendiente') {
-            $alumno->resolverDocumento($media, \App\Enums\ValidacionEstado::from($estado), $estado === 'rechazada' ? 'Motivo de prueba' : null, $alumno->user_id);
+            $alumno->resolverDocumento($media, ValidacionEstado::from($estado), $estado === 'rechazada' ? 'Motivo de prueba' : null, $alumno->user_id);
         }
     }
 
@@ -70,20 +82,20 @@ function expedienteDe(\App\Models\Alumno $alumno, float $creditos = 70, string $
 }
 
 /** Da al usuario el perfil que exige su rol (alumno o empresa): sin él, la cuenta no puede entrar. */
-function conPerfil(\App\Models\User $user): \App\Models\User
+function conPerfil(User $user): User
 {
     $rol = $user->rolPrincipal();
 
-    if ($rol === \App\Enums\Rol::Alumno) {
-        $carrera = \App\Models\Carrera::first() ?? \App\Models\Carrera::create([
-            'division_id' => \App\Models\Division::create(['nombre' => 'División de perfil'])->id,
+    if ($rol === Rol::Alumno) {
+        $carrera = Carrera::first() ?? Carrera::create([
+            'division_id' => Division::create(['nombre' => 'División de perfil'])->id,
             'carrera_clave' => 'PERF', 'nombre' => 'Carrera de perfil',
             'horas_requeridas' => 250, 'porcentaje_creditos_minimo' => 50, 'creditos_otorgados' => 8,
         ]);
-        \App\Models\Alumno::create(['user_id' => $user->id, 'num_control' => \Illuminate\Support\Str::random(9), 'carrera_id' => $carrera->id]);
-    } elseif ($rol === \App\Enums\Rol::Empresa) {
-        \App\Models\Empresa::create(['user_id' => $user->id, 'rfc' => 'T' . \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(11)),
-            'razon_social' => 'Empresa de perfil', 'tipo_organismo' => \App\Enums\TipoOrganismo::Privado, 'contacto_nombre' => 'Contacto']);
+        Alumno::create(['user_id' => $user->id, 'num_control' => Str::random(9), 'carrera_id' => $carrera->id]);
+    } elseif ($rol === Rol::Empresa) {
+        Empresa::create(['user_id' => $user->id, 'rfc' => 'T'.Str::upper(Str::random(11)),
+            'razon_social' => 'Empresa de perfil', 'tipo_organismo' => TipoOrganismo::Privado, 'contacto_nombre' => 'Contacto']);
     }
 
     return $user->unsetRelation('roles');
@@ -100,9 +112,9 @@ function datosNotarialesPrueba(): array
  * Deja completas las secciones de la solicitud de convenio de una empresa (generales, legales y perfiles),
  * como si la hubiera llenado en «Mi convenio». Los documentos se suben aparte.
  */
-function solicitudLista(\App\Models\Empresa $empresa, array $carreraIds, array $perfiles = []): \App\Models\Empresa
+function solicitudLista(Empresa $empresa, array $carreraIds, array $perfiles = []): Empresa
 {
-    $escritura = \App\Support\DatosNotariales::usaEscritura($empresa->tipo_organismo);
+    $escritura = DatosNotariales::usaEscritura($empresa->tipo_organismo);
     $empresa->update(array_merge([
         'giro' => 'Servicios profesionales', 'descripcion' => 'Organización dedicada a la asesoría y atención al público desde hace diez años.',
         'proyectos_principales' => 'Asesoría a dependencias públicas', 'calle' => 'Av. Juárez', 'numero_exterior' => '976',
@@ -113,7 +125,7 @@ function solicitudLista(\App\Models\Empresa $empresa, array $carreraIds, array $
         'representante_legal' => $empresa->representante_legal ?: 'Lic. Rosa Firma', 'representante_cargo' => $empresa->representante_cargo ?: 'Directora General',
         'objeto_social' => 'la prestación de servicios profesionales a la comunidad',
     ], $escritura
-        ? [...datosNotarialesPrueba(), 'constitucion' => \App\Support\DatosNotariales::redactar(datosNotarialesPrueba()), 'facultad_origen' => 'acta',
+        ? [...datosNotarialesPrueba(), 'constitucion' => DatosNotariales::redactar(datosNotarialesPrueba()), 'facultad_origen' => 'acta',
             'facultad_firmante' => 'las facultades que le otorga la escritura constitutiva citada en la declaración I']
         : ['constitucion' => 'el decreto publicado en el Periódico Oficial el 1 de enero de 2000', 'facultad_origen' => 'nombramiento',
             'facultad_firmante' => 'nombramiento de fecha 1 de enero de 2025 expedido por el titular del Ejecutivo'],

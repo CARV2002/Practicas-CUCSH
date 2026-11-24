@@ -1,20 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Enums\Dictamen;
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\ValidaDocumentos;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use App\Models\Concerns\Auditable;
 
 /** Dictamen Técnico de Pertinencia Académica: una carrera opina sobre un convenio. */
 class ConvenioCarrera extends Model implements HasMedia
 {
-    use InteractsWithMedia, ValidaDocumentos, Auditable;
+    use Auditable, InteractsWithMedia, ValidaDocumentos;
 
     protected $table = 'convenio_carrera';
 
@@ -42,16 +44,19 @@ class ConvenioCarrera extends Model implements HasMedia
             ->acceptsMimeTypes(['application/pdf']);
     }
 
+    /** @return BelongsTo<Convenio, $this> */
     public function convenio(): BelongsTo
     {
         return $this->belongsTo(Convenio::class);
     }
 
+    /** @return BelongsTo<Carrera, $this> */
     public function carrera(): BelongsTo
     {
         return $this->belongsTo(Carrera::class);
     }
 
+    /** @return BelongsTo<Personal, $this> */
     public function dictaminador(): BelongsTo
     {
         return $this->belongsTo(Personal::class, 'dictaminado_por');
@@ -74,5 +79,4 @@ class ConvenioCarrera extends Model implements HasMedia
     {
         return 'Dictamen';
     }
-
 }

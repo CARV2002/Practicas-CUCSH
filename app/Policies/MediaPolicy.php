@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Policies;
 
 use App\Models\Alumno;
@@ -16,6 +18,9 @@ use App\Policies\Concerns\ResuelveActores;
 use Illuminate\Auth\Access\Response;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
+/**
+ * Quién puede descargar cada archivo privado, según su dueño (convenio, empresa, alumno, postulación, reporte…).
+ */
 class MediaPolicy
 {
     use ResuelveActores;
