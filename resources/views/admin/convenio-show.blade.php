@@ -159,8 +159,8 @@
                                 $emision = $media?->getCustomProperty('fecha_emision') ? \Illuminate\Support\Carbon::parse($media->getCustomProperty('fecha_emision')) : null;
                                 $obligatorio = in_array($col, $empresa->obligatorias(), true);
                             @endphp
-                            <li class="flex flex-col gap-3 py-3.5 lg:flex-row lg:items-center lg:justify-between" x-data="{ rechazar: false }">
-                                <div class="flex min-w-0 items-start gap-3">
+                            <li class="flex flex-col gap-3 py-3.5 lg:flex-row lg:items-center lg:justify-between lg:gap-4" x-data="{ rechazar: false }">
+                                <div class="flex min-w-0 flex-1 items-start gap-3">
                                     @if ($revisable && $st === 'pendiente')
                                         <input type="checkbox" form="validar-lote" name="documentos[]" value="{{ $media->id }}" x-model.number="elegidos"
                                             class="mt-2.5 size-4 shrink-0 rounded border-gray-300" aria-label="Seleccionar {{ \App\Models\Empresa::nombreDocumento($col) }}">
@@ -175,9 +175,11 @@
                                     <div class="min-w-0">
                                         <p class="text-sm font-semibold text-gray-900">{{ \App\Models\Empresa::nombreDocumento($col) }}@unless ($obligatorio)<span class="ml-1 font-normal text-gray-400">(opcional)</span>@endunless</p>
                                         @if ($media)
-                                            <a href="{{ route('admin.convenios.archivos.descargar', [$convenio, $media]) }}" class="inline-flex max-w-full items-center gap-1 text-xs font-semibold text-real-600 hover:text-real-700">
-                                                <x-dashboard.icono nombre="documento" clase="size-3.5 shrink-0" /><span class="truncate" title="{{ $media->file_name }}">{{ $media->file_name }}</span>
-                                            </a>
+                                            <div class="mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-1">
+                                                <a href="{{ route('admin.convenios.archivos.descargar', [$convenio, $media]) }}" class="inline-flex min-w-0 max-w-full items-center gap-1 text-xs font-semibold text-real-600 hover:text-real-700">
+                                                    <x-dashboard.icono nombre="documento" clase="size-3.5 shrink-0" /><span class="truncate" title="{{ $media->file_name }}">{{ $media->file_name }}</span>
+                                                </a>
+                                            </div>
                                             @if ($emision)
                                                 <p @class(['text-xs', 'font-semibold text-rose-600' => $emision->lt(today()->subMonths(3)), 'text-gray-500' => !$emision->lt(today()->subMonths(3))])>
                                                     Emitido el {{ $emision->format('d/m/Y') }}{{ $emision->lt(today()->subMonths(3)) ? ' · tiene más de 3 meses' : '' }}
@@ -189,7 +191,7 @@
                                         @endif
                                     </div>
                                 </div>
-                                <div class="flex flex-wrap items-center gap-2 lg:justify-end">
+                                <div class="flex flex-wrap items-center gap-2 lg:shrink-0 lg:flex-nowrap lg:justify-end">
                                     @if ($st)
                                         <x-ui.estatus :familia="$estadosDoc[$st][0]" :texto="$st === 'rechazada' ? 'Devuelto: espera corrección' : $estadosDoc[$st][1]" />
                                         @if ($revisable && $st === 'pendiente')
