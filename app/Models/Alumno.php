@@ -213,13 +213,21 @@ class Alumno extends Model implements HasMedia
             $kardex === 'rechazada' || $imss === 'rechazada' => 'devuelto',
             // Un IMSS validado que ya venció se renueva antes de seguir, esté como esté el kardex
             $imss === 'validada' && ! $this->tieneImssVigenteHasta(now()) => 'imss_vencido',
+            // Créditos por debajo del mínimo de su carrera (p. ej. la coordinación subió el mínimo): no puede postularse
+            $hayKardex && $this->creditosInsuficientes() => 'no_cumple',
             $kardex === 'validada' && $imss === 'validada' => 'validado',
             $hayKardex && $hayImss => 'en_revision',
             default => 'sin_enviar',
         };
     }
 
-    /** Kardex e IMSS validados por su coordinación (y el IMSS sigue vigente): ya puede postularse. */
+    /** Su % de créditos declarado no alcanza el mínimo de su carrera (el mismo criterio que la postulación). */
+    public function creditosInsuficientes(): bool
+    {
+        return (float) $this->porcentaje_creditos < (float) $this->carrera?->porcentaje_creditos_minimo;
+    }
+
+    /** Kardex e IMSS validados por su coordinación, IMSS vigente y créditos suficientes: ya puede postularse. */
     public function expedienteValidado(): bool
     {
         return $this->estadoExpediente() === 'validado';

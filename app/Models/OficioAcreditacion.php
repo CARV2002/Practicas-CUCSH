@@ -14,10 +14,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
-#[ObservedBy([OficioAcreditacionObserver::class])]
 /**
  * Oficio con el que la coordinación acredita la práctica (cierre del trámite del alumno).
  */
+#[ObservedBy([OficioAcreditacionObserver::class])]
 class OficioAcreditacion extends Model implements HasMedia
 {
     use Auditable, InteractsWithMedia, ValidaDocumentos;

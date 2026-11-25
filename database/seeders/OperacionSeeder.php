@@ -461,21 +461,8 @@ class OperacionSeeder extends Seeder
                         EF::ConEmpresa, $this->lorena, 'Entregados al representante legal.', $i === 0 ? today()->subDay() : null, today()->subWeekdays(6)));
                 }
 
-                // Formalizados: el expediente y el juego de Vinculación concluyen; los otros dos se entregan
-                if ($c->estado === ConvenioEstado::Formalizado) {
-                    $expediente && ! in_array($expediente->estado->value, EF::concluidos(), true)
-                        && $expediente->mover(EF::Archivado, $this->lorena, 'Convenio formalizado: el expediente jurídico concluye.');
-                    foreach ($juegos as $j) {
-                        if (in_array($j->estado->value, EF::concluidos(), true)) {
-                            continue;
-                        }
-                        // El convenio más reciente aún tiene un juego por repartir
-                        $porRepartir = $c->folio === 'CV-2026-002' && $j->juego === 2;
-                        $j->juego === 1
-                            ? $j->mover(EF::Archivado, $this->lorena, 'Queda en el archivo de Vinculación.')
-                            : ($porRepartir ? null : $j->mover(EF::Entregado, $this->lorena, 'Entregado a su destino.'));
-                    }
-                }
+                // En firmas y formalizados, prepararDocumentosFisicos() ya los deja como corresponde: el expediente concluido
+                // con el dictamen favorable y, al formalizar, los 3 juegos repartidos (archivo de Vinculación, empresa, archivo de Jurídica).
             });
     }
 

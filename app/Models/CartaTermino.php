@@ -14,10 +14,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
-#[ObservedBy([CartaTerminoObserver::class])]
 /**
- * Carta de término que entrega el alumno al cubrir sus horas; la valida su coordinación para pasar a cierre.
+ * Carta de término: la emite la organización al cubrir el alumno sus horas (hoja membretada, firmada y sellada).
+ * El alumno sube el escaneo; su coordinación la valida para pasar a cierre y emitir el oficio de acreditación.
  */
+#[ObservedBy([CartaTerminoObserver::class])]
 class CartaTermino extends Model implements HasMedia
 {
     use Auditable, InteractsWithMedia, ValidaDocumentos;

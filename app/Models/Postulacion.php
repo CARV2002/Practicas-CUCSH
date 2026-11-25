@@ -17,10 +17,10 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-#[ObservedBy([PostulacionObserver::class])]
 /**
  * Postulación de un alumno a un programa: cartas de presentación y aceptación hasta activar la práctica.
  */
+#[ObservedBy([PostulacionObserver::class])]
 class Postulacion extends Model implements HasMedia
 {
     use Auditable, InteractsWithMedia, ValidaDocumentos;

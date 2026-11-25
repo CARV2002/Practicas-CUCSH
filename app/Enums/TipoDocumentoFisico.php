@@ -71,13 +71,19 @@ enum TipoDocumentoFisico: string
         };
     }
 
-    /** Destino habitual de cada juego (editable). */
+    /** Destino habitual de cada juego (editable): uno se queda en Vinculación, otro a la empresa y otro al archivo de Jurídica. */
     public static function destinoJuego(int $juego): string
     {
         return match ($juego) {
             1 => 'Archivo de Vinculación (CUCSH)',
             2 => 'Empresa',
-            default => 'Rectoría',
+            default => 'Archivo de la Unidad Jurídica',
         };
+    }
+
+    /** Cómo termina cada juego al formalizar: el de Vinculación se archiva; los otros dos se entregan a su destino. */
+    public static function estadoFinalJuego(int $juego): EstadoDocumentoFisico
+    {
+        return $juego === 1 ? EstadoDocumentoFisico::Archivado : EstadoDocumentoFisico::Entregado;
     }
 }

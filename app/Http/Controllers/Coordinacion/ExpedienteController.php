@@ -50,6 +50,12 @@ class ExpedienteController extends Controller
         ]);
 
         $estado = ValidacionEstado::from($datos['estado']);
+
+        // El kardex respalda los créditos: no se valida uno que no alcanza el mínimo de la carrera
+        if ($estado === ValidacionEstado::Validada && $media->collection_name === 'kardex' && $alumno->creditosInsuficientes()) {
+            return back()->withErrors(['revision' => 'Los créditos del alumno están por debajo del mínimo de su carrera: devuelve el kardex con ese motivo en lugar de validarlo.']);
+        }
+
         $dueno->resolverDocumento($media, $estado, $datos['motivo'] ?? null, $request->user()->id);
 
         $rechazado = $estado === ValidacionEstado::Rechazada;

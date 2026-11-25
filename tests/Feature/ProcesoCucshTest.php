@@ -30,6 +30,7 @@ use App\Models\Practica;
 use App\Models\Programa;
 use App\Models\User;
 use App\Notifications\AvisoOperativo;
+use App\Services\GeneradorCartaPresentacion;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
@@ -229,13 +230,18 @@ test('sin expediente validado no hay postulación; validado, la carta lleva carr
     $alumno = expedienteDe($alumno, 70);
     $this->actingAs($alumno->user)->post(route('alumno.oferta-programas.postular', $programa), ['siiau' => '1'])->assertSessionHasNoErrors();
     $po = Postulacion::where('alumno_id', $alumno->id)->firstOrFail();
-    $this->actingAs($this->coordAbog)->post(route('coordinacion.postulaciones.carta', $po))->assertSessionHasNoErrors();
+    // Sin el escaneo firmado y sellado no se emite
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.postulaciones.carta', $po))->assertSessionHasErrors('carta');
+    // El formato que se imprime, firma y sella lleva carrera, grado y turno
+    $this->actingAs($this->coordAbog)->get(route('coordinacion.postulaciones.carta.formato', $po))->assertOk();
+    $texto = pcTextoDocx(app(GeneradorCartaPresentacion::class)->generar($po->fresh(), $this->coordAbog->personal));
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.postulaciones.carta', $po), ['carta' => pcPdf('firmada.pdf')])->assertSessionHasNoErrors();
     expect($po->refresh()->estado)->toBe(PostulacionEstado::CartaPresentacionEmitida);
 
     $carta = $po->getFirstMedia('carta_presentacion');
-    expect($carta->file_name)->toBe('carta-presentacion-215100004.docx');
+    expect($carta->file_name)->toBe('carta-presentacion-215100004.pdf')
+        ->and($carta->getCustomProperty('firmada'))->toBeTrue();
 
-    $texto = pcTextoDocx($carta->getPath());
     expect($texto)->toContain('Licenciatura en Abogado')
         ->toContain('7.º semestre')
         ->toContain('turno Vespertino')
@@ -252,7 +258,7 @@ test('si el IMSS vence antes de emitir la carta, la carta se bloquea hasta renov
         'porcentaje_creditos_declarado' => 70, 'fecha_postulacion' => today()]);
     $alumno->update(['vigencia_imss' => now()->subDay()]);
 
-    $this->actingAs($this->coordAbog)->post(route('coordinacion.postulaciones.carta', $po))->assertSessionHasErrors('postulacion');
+    $this->actingAs($this->coordAbog)->post(route('coordinacion.postulaciones.carta', $po), ['carta' => pcPdf('firmada.pdf')])->assertSessionHasErrors('postulacion');
     expect($alumno->fresh()->estadoExpediente())->toBe('imss_vencido');
 });
 
@@ -334,6 +340,7 @@ test('la práctica interna no se activa sin el oficio de aceptación interno', f
     $po = Postulacion::create(['alumno_id' => $alumno->id, 'programa_id' => $interno->id, 'estado' => PostulacionEstado::CartaAceptacionRecibida,
         'porcentaje_creditos_declarado' => 70, 'fecha_postulacion' => today()]);
 
+    $po->addMedia(pcPdf('aceptacion.pdf'))->toMediaCollection('carta_aceptacion');
     $fechas = ['fecha_inicio' => today()->toDateString(), 'fecha_fin' => today()->addMonths(5)->toDateString()];
 
     $this->actingAs($this->coordAbog)->post(route('coordinacion.postulaciones.activar', $po), $fechas)

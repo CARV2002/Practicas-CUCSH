@@ -379,13 +379,38 @@ class Convenio extends Model implements HasMedia
         // El turno a las carreras es 100 % digital (cada coordinación dictamina en su panel): no hay oficio en papel que rastrear.
         // Solo viajan en papel el expediente que va a la Unidad Jurídica y los 3 juegos que firman la empresa y Rectoría.
         if ($nivel >= 2) {
-            $crear(TipoDocumentoFisico::DictamenJuridico, $nivel > 2 ? EstadoDocumentoFisico::EnVinculacion : EstadoDocumentoFisico::EnJuridica);
+            // Con el dictamen favorable el expediente ya cumplió su recorrido: nace concluido
+            $crear(TipoDocumentoFisico::DictamenJuridico, $nivel > 2 ? EstadoDocumentoFisico::Archivado : EstadoDocumentoFisico::EnJuridica);
         }
         if ($nivel >= 3) {
             foreach ([1, 2, 3] as $j) {
-                $crear(TipoDocumentoFisico::JuegoConvenio, $formalizado ? EstadoDocumentoFisico::Firmado : EstadoDocumentoFisico::PorElaborar, $j);
+                $crear(TipoDocumentoFisico::JuegoConvenio, $formalizado ? TipoDocumentoFisico::estadoFinalJuego($j) : EstadoDocumentoFisico::PorElaborar, $j);
             }
         }
+    }
+
+    /**
+     * Reparto final al formalizar: el juego 1 se archiva en Vinculación y los juegos 2 y 3 se entregan
+     * (empresa y archivo de Jurídica). Los tres pasan a Concluidos y dejan limpia la bandeja de seguimiento.
+     */
+    /** @param  int[]  $pendientes  juegos (1, 2 o 3) que aún no se entregan físicamente: siguen en seguimiento */
+    public function repartirJuegos(?Personal $por, array $pendientes = []): void
+    {
+        $pendientes = array_map('intval', $pendientes);
+
+        $this->documentosFisicos()
+            ->where('tipo', TipoDocumentoFisico::JuegoConvenio->value)
+            ->whereNotIn('estado', [EstadoDocumentoFisico::Extraviado->value, ...EstadoDocumentoFisico::concluidos()])
+            ->get()
+            ->each(fn (DocumentoFisico $d) => in_array((int) $d->juego, $pendientes, true)
+                ? $d->mover($d->estado, $por, 'Convenio formalizado: el juego queda pendiente de entrega física a '.($d->destino ?: TipoDocumentoFisico::destinoJuego((int) $d->juego)).'.')
+                : $d->mover(
+                    TipoDocumentoFisico::estadoFinalJuego((int) $d->juego),
+                    $por,
+                    (int) $d->juego === 1
+                        ? 'Convenio formalizado: el juego queda en el archivo de Vinculación.'
+                        : 'Convenio formalizado: juego entregado a '.($d->destino ?: TipoDocumentoFisico::destinoJuego((int) $d->juego)).'.'
+                ));
     }
 
     /**

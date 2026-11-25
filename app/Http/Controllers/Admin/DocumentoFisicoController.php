@@ -15,6 +15,7 @@ use App\Services\Avisos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -98,6 +99,7 @@ class DocumentoFisicoController extends Controller
             'fecha_compromiso' => ['nullable', 'date', 'after_or_equal:fecha'],
             'nota' => ['nullable', 'string', 'max:1000'],
             'destino' => ['nullable', 'string', 'max:255'],
+            'juntos' => ['nullable', 'boolean'],
         ], [
             'fecha_compromiso.after_or_equal' => 'La fecha de regreso no puede ser anterior al movimiento.',
         ]);
@@ -116,15 +118,25 @@ class DocumentoFisicoController extends Controller
             $documento->update(['destino' => $datos['destino']]);
         }
 
-        $documento->mover(
-            $estado,
-            $request->user()->personal,
-            $datos['nota'] ?? null,
-            isset($datos['fecha_compromiso']) ? Carbon::parse($datos['fecha_compromiso']) : null,
-            isset($datos['fecha']) ? Carbon::parse($datos['fecha']) : null,
-        );
+        // Los 3 juegos viajan juntos (a firma de la empresa, luego a Rectoría): con «juntos» se mueven también
+        // los juegos de este convenio que están en el mismo lugar. El destino de cada juego no se toca.
+        $papeles = collect([$documento]);
+        if ($request->boolean('juntos') && $documento->juego) {
+            $papeles = $papeles->merge($documento->hermanosEnMismoEstado());
+        }
 
-        return back()->with('status', "{$documento->nombre()}: {$estado->label()}.");
+        $fecha = isset($datos['fecha']) ? Carbon::parse($datos['fecha']) : today();
+        // Se calcula una sola vez: los juegos que se mueven juntos comparten exactamente la misma fecha de regreso
+        $plazo = $estado->plazoHabiles();
+        $compromiso = isset($datos['fecha_compromiso']) ? Carbon::parse($datos['fecha_compromiso']) : ($plazo ? $fecha->copy()->addWeekdays($plazo) : null);
+
+        DB::transaction(fn () => $papeles->each(fn (DocumentoFisico $d) => $d->mover($estado, $request->user()->personal, $datos['nota'] ?? null, $compromiso, $fecha)));
+
+        $nombres = $papeles->count() > 1
+            ? 'Juegos '.$papeles->pluck('juego')->sort()->join(', ', ' y ')
+            : $documento->nombre();
+
+        return back()->with('status', "{$nombres}: {$estado->label()}.");
     }
 
     /** Da de alta los papeles de un convenio que no tenía control físico. */

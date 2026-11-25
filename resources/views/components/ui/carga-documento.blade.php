@@ -17,6 +17,7 @@
     'compacto' => false,         // versión reducida para tablas y paneles laterales
     'pasoArchivo' => null,       // número del paso del archivo cuando hay campos previos (slot «campos»)
     'etiquetaEstado' => null,    // texto propio de la insignia (p. ej. «Generada» para una carta del sistema)
+    'tituloMotivo' => null,      // título del recuadro rojo cuando no lo devolvió la coordinación (p. ej. una regla del sistema)
     'mensajeListo' => null,      // texto propio cuando ya está listo (sustituye a «Ya está validado…»)
 ])
 
@@ -34,7 +35,7 @@
     $puedeSubir = $action && !$bloqueo && (!$validado || $reemplazable);
     $chip = match (true) {
         $validado => ['menta', $etiquetaEstado ?? 'Validado'],
-        $rechazado => ['rosa', 'Devuelto para corregir'],
+        $rechazado => ['rosa', $etiquetaEstado ?? 'Devuelto para corregir'],
         $enRevision => ['ambar', 'En revisión'],
         default => ['gris', 'Pendiente de subir'],
     };
@@ -85,7 +86,7 @@
         </p>
     @elseif ($rechazado)
         <div class="mt-3 rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-800" role="alert">
-            <p class="flex items-center gap-2 font-semibold"><x-dashboard.icono nombre="alerta" clase="size-4 shrink-0" /> Tu coordinación te pidió corregirlo</p>
+            <p class="flex items-center gap-2 font-semibold"><x-dashboard.icono nombre="alerta" clase="size-4 shrink-0" /> {{ $tituloMotivo ?? 'Tu coordinación te pidió corregirlo' }}</p>
             @if ($motivo)<p class="mt-1 pl-6">«{{ $motivo }}»</p>@endif
             @if ($puedeSubir)<p class="mt-1 pl-6 text-rose-700">Sube el archivo corregido aquí abajo; volverá a revisión automáticamente.</p>@endif
         </div>

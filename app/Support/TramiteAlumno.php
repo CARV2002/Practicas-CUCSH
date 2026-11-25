@@ -74,7 +74,7 @@ final class TramiteAlumno
             $this->practica !== null => 5,
             $this->postulacion !== null => 4,
             $this->bloqueo !== null, $this->expediente === 'validado' => 3,
-            in_array($this->expediente, ['en_revision', 'devuelto'], true) => 2,
+            in_array($this->expediente, ['en_revision', 'devuelto', 'no_cumple'], true) => 2,
             default => 1,
         };
     }
@@ -84,7 +84,7 @@ final class TramiteAlumno
     {
         return match ($this->paso()) {
             1 => $this->expediente === 'imss_vencido',
-            2 => $this->expediente === 'devuelto',
+            2 => in_array($this->expediente, ['devuelto', 'no_cumple'], true),
             3 => $this->bloqueo !== null,
             default => false,
         };
@@ -101,6 +101,9 @@ final class TramiteAlumno
 
             if ($n === 2 && $this->expediente === 'devuelto' && $actual === 2) {
                 [$titulo, $ayuda] = ['Corrige lo que te pidan', 'Tu coordinación te devolvió un documento'];
+            }
+            if ($n === 2 && $this->expediente === 'no_cumple' && $actual === 2) {
+                [$titulo, $ayuda] = ['No cumples los créditos', 'Faltan créditos para el mínimo'];
             }
             if ($n === 3 && $this->bloqueo !== null && $actual === 3) {
                 $ayuda = 'Bloqueado: acude a tu coordinación';
@@ -147,11 +150,11 @@ final class TramiteAlumno
             $titulo = $po->programa->titulo;
 
             return match ($po->estado) {
-                PostulacionEstado::CartaAceptacionRecibida => $this->aviso('info', 'Tu carta de aceptación quedó registrada',
-                    "Tu coordinación activará tu práctica en «{$titulo}». Te avisaremos cuando empiece y puedas reportar tus horas.",
+                PostulacionEstado::CartaAceptacionRecibida => $this->aviso('info', 'Tu carta de aceptación está por validarse',
+                    "Al validarla, tu coordinación activará tu práctica en «{$titulo}». Te avisaremos para que empieces a reportar tus horas.",
                     ['Ver mis documentos', $docs]),
                 PostulacionEstado::CartaPresentacionEmitida => $this->aviso('advertencia', 'Preséntate en la organización',
-                    "Tu carta de presentación para «{$titulo}» ya está generada: descárgala, preséntala en {$organizacion($po)} y entrega a tu coordinación la carta de aceptación que te den.",
+                    "Tu coordinación ya firmó y selló tu carta de presentación para «{$titulo}»: descárgala, imprímela, llévala a {$organizacion($po)} y sube en PDF la carta de aceptación que te entreguen.",
                     ['Descargar mi carta', $docs]),
                 default => $this->aviso('info', "Ya te postulaste a «{$titulo}»",
                     'Tu coordinación emitirá tu carta de presentación. Te avisaremos cuando esté lista.',
@@ -188,6 +191,9 @@ final class TramiteAlumno
                 ['Ver mis documentos', $docs]),
             'devuelto' => $this->aviso('error', 'Corrige tu expediente',
                 $this->textoDevuelto(), ['Corregir en mis documentos', $docs]),
+            'no_cumple' => $this->aviso('error', 'No cumples el mínimo de créditos de tu carrera',
+                'Tu carrera requiere al menos el '.Formato::porcentaje($this->alumno->carrera->porcentaje_creditos_minimo).'% de créditos cursados y declaraste '.Formato::porcentaje($this->alumno->porcentaje_creditos).'%. Aún no puedes postularte: cuando los cumplas, sube tu kardex actualizado con tu nuevo porcentaje en Mis documentos.',
+                ['Actualizar mi kardex', $docs]),
             'imss_vencido' => $this->aviso('error', 'Tu constancia IMSS venció',
                 'Sube una constancia vigente'.($this->alumno->documentoVigente('kardex') ? '' : ' junto con tu kardex').' en Mis documentos; cuando tu coordinación la valide, podrás postularte.',
                 ['Subir mi constancia', $docs]),

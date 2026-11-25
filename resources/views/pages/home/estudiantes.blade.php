@@ -55,7 +55,7 @@
             <div class="timeline-card full-width-mobile">
                 <div class="step-number">05</div>
                 <h3>Concluye y acredita</h3>
-                <p>Al completar tus horas subes tu carta de término. La Coordinación la valida y envía el oficio de acreditación a Control Escolar, que lo captura en SIIAU y deja tu práctica acreditada.</p>
+                <p>Al completar tus horas, la organización te entrega tu carta de término en su hoja membretada, firmada y sellada, y tú la subes escaneada. La Coordinación la valida y envía el oficio de acreditación a Control Escolar, que lo captura en SIIAU y deja tu práctica acreditada.</p>
                 <span class="card-action-hint">Mis prácticas <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
             </div>
         </div>
@@ -103,7 +103,7 @@
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 </div>
                 <h3>Reportes y carta de término</h3>
-                <p>Reportes mensual, intermedio y final con las horas que realizaste, firmados y en PDF. Si uno es rechazado, lo corriges y lo subes de nuevo. Al cubrir tus horas subes la carta de término.</p>
+                <p>Reportes mensual, intermedio y final con las horas que realizaste, firmados y en PDF. Si uno es rechazado, lo corriges y lo subes de nuevo. Al cubrir tus horas, la organización emite tu carta de término y tú la subes.</p>
                 <span class="resource-link">Solo en PDF</span>
             </div>
         </div>

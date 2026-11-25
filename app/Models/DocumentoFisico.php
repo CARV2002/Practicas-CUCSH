@@ -105,6 +105,26 @@ class DocumentoFisico extends Model
         return array_values(array_filter($this->tipo->estados(), fn ($e) => $this->bloqueoPara($e) === null));
     }
 
+    /**
+     * Los otros juegos de este convenio que están en el mismo lugar que este: viajan en la misma carpeta,
+     * así que se pueden mover juntos. Vacío para el expediente o si cada juego va por su lado.
+     *
+     * @return Collection<int, self>
+     */
+    public function hermanosEnMismoEstado(): Collection
+    {
+        if ($this->tipo !== TipoDocumentoFisico::JuegoConvenio) {
+            return new Collection;
+        }
+
+        return self::where('convenio_id', $this->convenio_id)
+            ->where('tipo', TipoDocumentoFisico::JuegoConvenio->value)
+            ->where('estado', $this->estado->value)
+            ->whereKeyNot($this->getKey())
+            ->orderBy('juego')
+            ->get();
+    }
+
     // ---- Plazos ------------------------------------------------------------------------
 
     public function diasEnEstado(): int

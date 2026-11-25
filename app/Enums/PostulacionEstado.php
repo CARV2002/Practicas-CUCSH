@@ -23,7 +23,8 @@ enum PostulacionEstado: string
     /** Estados que ocupan un cupo del programa. */
     public static function ocupanCupo(): array
     {
-        return [self::CartaPresentacionEmitida, self::CartaAceptacionRecibida, self::Aceptada];
+        // El lugar se ocupa cuando la coordinación valida la carta de aceptación y la práctica queda activa
+        return [self::Aceptada];
     }
 
     /** Estados "en trámite": el alumno ya se comprometió con UNA empresa. */

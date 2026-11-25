@@ -109,6 +109,7 @@ class Requisitos
             'en_revision' => 'Tu coordinación está revisando juntos tu kardex y tu constancia IMSS. Si están correctos, te avisaremos y podrás postularte a una vacante.',
             'devuelto' => 'Tu coordinación te pidió corregir un documento de tu expediente: súbelo en «Mis documentos» para poder postularte.',
             'imss_vencido' => 'Tu constancia IMSS venció: sube una vigente en «Mis documentos»; cuando tu coordinación la valide podrás postularte.',
+            'no_cumple' => 'Tu carrera requiere al menos el '.Formato::porcentaje($alumno->carrera->porcentaje_creditos_minimo).'% de créditos cursados y declaraste '.Formato::porcentaje($alumno->porcentaje_creditos).'%. Cuando los cumplas, sube tu kardex actualizado en «Mis documentos».',
             default => 'Revisa tu expediente en «Mis documentos» antes de postularte.',
         };
     }
@@ -151,9 +152,11 @@ class Requisitos
         }
         // Kardex e IMSS ya se validaron antes de postularse (expediente); si algo cambió, se avisa
         if (! $alumno->expedienteValidado()) {
-            $faltan[] = $alumno->estadoExpediente() === 'imss_vencido'
-                ? 'El IMSS del alumno ya no está vigente: debe subir una constancia actual.'
-                : 'El expediente del alumno (kardex e IMSS) no está validado.';
+            $faltan[] = match ($alumno->estadoExpediente()) {
+                'imss_vencido' => 'El IMSS del alumno ya no está vigente: debe subir una constancia actual.',
+                'no_cumple' => 'Los créditos del alumno están por debajo del mínimo de su carrera.',
+                default => 'El expediente del alumno (kardex e IMSS) no está validado.',
+            };
         }
         if ($alumno->grado === null || $alumno->turno === null) {
             $faltan[] = 'El alumno no ha capturado su grado y turno.';
@@ -173,11 +176,17 @@ class Requisitos
         return $faltan;
     }
 
-    /** Activar la práctica (con la carta de aceptación ya registrada). */
+    /** Validar la carta de aceptación y activar la práctica (un solo paso: ocupa 1 lugar del cupo). */
     public static function activarPractica(Postulacion $po): ?string
     {
+        if ($po->documentoVigente('carta_aceptacion') === null) {
+            return 'El alumno aún no sube la carta de aceptación que le entregó la organización.';
+        }
         if ($po->programa->esInterno() && $po->documentoVigente('oficio_aceptacion_interno') === null) {
             return 'Sube primero el Oficio de Aceptación Interno firmado por el área receptora.';
+        }
+        if ($po->programa->cuposOcupados() >= $po->programa->cupos_totales) {
+            return 'La vacante ya no tiene cupos disponibles: otro alumno ocupó el último lugar.';
         }
 
         return null;

@@ -211,6 +211,7 @@ test('la baja justificada con reportes validados (parcial acreditada) pasa las h
     $otro = ($this->programa)($this->convenio);
     $po2 = Postulacion::create(['alumno_id' => $this->alumno->id, 'programa_id' => $otro->id, 'estado' => PostulacionEstado::CartaAceptacionRecibida,
         'porcentaje_creditos_declarado' => 70, 'fecha_postulacion' => today()]);
+    $po2->addMedia(acPdf('aceptacion.pdf'))->toMediaCollection('carta_aceptacion');
     $nueva = app(ActivarPractica::class)($po2, $this->coord, today(), today()->addMonths(4));
 
     expect($nueva->horas_reconocidas)->toBe(80)->and($nueva->horas_acumuladas)->toBe(80);
@@ -330,16 +331,16 @@ test('el panel, mis documentos y la campana muestran la etapa real del alumno', 
 
     $tramite = TramiteAlumno::de($this->alumno->fresh());
     expect($tramite->paso())->toBe(4)
-        ->and($tramite->situacion()['titulo'])->toBe('Tu carta de aceptación quedó registrada');
+        ->and($tramite->situacion()['titulo'])->toBe('Tu carta de aceptación está por validarse');
 
     // Avisos ya no dice «Kardex e IMSS validados» cuando el alumno va en las cartas
     $this->actingAs($this->alumnoUser)->get(route('alumno.dashboard'))->assertOk()
-        ->assertSee('Tu carta de aceptación quedó registrada')->assertDontSee('Kardex e IMSS validados')
+        ->assertSee('Tu carta de aceptación está por validarse')->assertDontSee('Kardex e IMSS validados')
         ->assertSee('Cartas de presentación y aceptación');
     $this->actingAs($this->alumnoUser)->get(route('alumno.mis-documentos'))->assertOk()->assertSee('Cartas de presentación y aceptación');
 
     // «Por atender» vive en el panel, no en la campana
-    expect(Pendientes::de($this->alumnoUser)[0]['mensaje'])->toContain('Tu carta de aceptación quedó registrada');
+    expect(Pendientes::de($this->alumnoUser)[0]['mensaje'])->toContain('Tu carta de aceptación está por validarse');
     $this->actingAs($this->alumnoUser)->getJson(route('notificaciones.resumen'))->assertOk()->assertJsonMissingPath('pendientes');
 });
 

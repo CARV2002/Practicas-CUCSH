@@ -167,6 +167,18 @@ final class Pendientes
         if ($sinComentar > 0) {
             $items[] = self::item('info', "{$sinComentar} reporte(s) de tus practicantes esperan tu comentario.", route('empresa.lista-practicantes', absolute: false), $sinComentar);
         }
+        // La carta de término la emite la organización: practicantes que ya cubrieron sus horas y aún no la tienen
+        $porCarta = Practica::conHorasAcumuladas()
+            ->where('estado', PracticaEstado::EnCurso->value)
+            ->whereHas('postulacion.programa.convenio', fn ($c) => $c->where('empresa_id', $empresa->id))
+            ->whereDoesntHave('cartaTermino.media', fn ($m) => $m->where('collection_name', 'carta_termino'))
+            ->get()
+            ->filter(fn (Practica $p) => $p->horasCompletas())
+            ->count();
+        if ($porCarta > 0) {
+            $items[] = self::item('advertencia', "{$porCarta} practicante(s) completaron sus horas: emite su carta de término en hoja membretada, firmada y sellada, y entrégasela.", route('empresa.lista-practicantes', absolute: false), $porCarta);
+        }
+
         $rechazadas = Programa::whereHas('convenio', fn ($c) => $c->where('empresa_id', $empresa->id))
             ->where('estado', ProgramaEstado::Rechazado->value)->count();
         if ($rechazadas > 0) {

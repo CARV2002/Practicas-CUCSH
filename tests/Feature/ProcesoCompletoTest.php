@@ -265,9 +265,9 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
     expect(e2eAvisos($coord, 'se postuló'))->toBe(1)
         ->and((float) $postulacion->porcentaje_creditos_declarado)->toBe(75.0);
 
-    $this->actingAs($coord)->post(route('coordinacion.postulaciones.carta', $postulacion))->assertSessionHasNoErrors();
+    $this->actingAs($coord)->post(route('coordinacion.postulaciones.carta', $postulacion), ['carta' => e2ePdf('carta-firmada.pdf')])->assertSessionHasNoErrors();
     expect($postulacion->fresh()->estado)->toBe(PostulacionEstado::CartaPresentacionEmitida);
-    $this->actingAs($alumnoUser->fresh())->get(route('alumno.mis-documentos'))->assertOk()->assertSee('Carta generada: imprímela y preséntala en la organización');
+    $this->actingAs($alumnoUser->fresh())->get(route('alumno.mis-documentos'))->assertOk()->assertSee('Carta generada por tu coordinación');
 
     $this->actingAs($alumnoUser)->post(route('alumno.documentos.aceptacion', $postulacion), ['archivo' => e2ePdf('aceptacion.pdf')])->assertSessionHasNoErrors();
     expect(e2eAvisos($coord, 'subió su carta de aceptación'))->toBe(1);
@@ -277,6 +277,10 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
     ])->assertSessionHasNoErrors();
     $practica = $postulacion->fresh()->practica;
     expect($practica->estado)->toBe(PracticaEstado::EnCurso);
+    // Validada la aceptación, la práctica ya está activa (sin «te avisaremos») y la carta de término trae sus requisitos
+    $this->actingAs($alumnoUser->fresh())->get(route('alumno.mis-documentos'))->assertOk()
+        ->assertSee('Carta de aceptación validada: tu práctica ya está activa')
+        ->assertSee('Requisitos que debe incluir tu carta')->assertDontSee('Te avisaremos cuando active tu práctica');
 
     // ── 10. Reporte, validación y horas ─────────────────────────────────────────
     $this->actingAs($alumnoUser)->post(route('alumno.documentos.reporte.crear', $practica), [
@@ -298,7 +302,7 @@ test('proceso completo: carrera, convenio, vacante y práctica hasta la acredita
     expect($practica->fresh()->estado)->toBe(PracticaEstado::Acreditada)
         ->and(Alumno::find($alumno->id)->yaAcreditado())->toBeTrue();
     // El alumno fue avisado en cada paso que le toca
-    foreach (['Nueva vacante disponible', 'fue validada', 'registró tu carta de aceptación', 'quedó activa', 'quedó acreditada'] as $paso) {
+    foreach (['Nueva vacante disponible', 'emitió tu carta de presentación', 'recibió tu carta de aceptación', 'validó tu carta de aceptación', 'quedó acreditada'] as $paso) {
         expect(e2eAvisos($alumnoUser, $paso))->toBeGreaterThanOrEqual(1, "Falta el aviso al alumno: {$paso}");
     }
     // y la empresa, de lo que le toca

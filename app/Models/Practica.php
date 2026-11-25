@@ -20,10 +20,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[ObservedBy([PracticaObserver::class])]
 /**
  * Práctica activa del alumno: fechas, supervisor, horas validadas, reportes, cierre o baja.
  */
+#[ObservedBy([PracticaObserver::class])]
 class Practica extends Model
 {
     use Auditable, SoftDeletes;
@@ -236,7 +236,7 @@ class Practica extends Model
         }
 
         if (! $this->horasCompletas()) {
-            return "Aún no completas tus horas ({$this->progresoTexto()}). La carta de término se sube al terminar.";
+            return "Aún no completas tus horas ({$this->progresoTexto()}). Al completarlas, la organización te entrega tu carta de término firmada y sellada, y la subes aquí.";
         }
 
         return null;

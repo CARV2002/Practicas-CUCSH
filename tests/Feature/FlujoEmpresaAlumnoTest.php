@@ -172,14 +172,15 @@ test('empresa publica, alumno se postula y la práctica llega a acreditada', fun
     expect($po->estado)->toBe(PostulacionEstado::Pendiente)
         ->and((float) $po->porcentaje_creditos_declarado)->toBe(70.0);   // los créditos que validó con su kardex
 
-    // 3. Coordinación emite la carta de presentación (reserva cupo)
-    $this->actingAs($this->coordUser)->post(route('coordinacion.postulaciones.carta', $po))->assertSessionHasNoErrors()->assertRedirect();
+    // 3. Coordinación sube la carta de presentación firmada y sellada (aún no ocupa el cupo)
+    $this->actingAs($this->coordUser)->post(route('coordinacion.postulaciones.carta', $po), ['carta' => escPdf('carta-firmada.pdf')])->assertSessionHasNoErrors()->assertRedirect();
     expect($po->refresh()->estado)->toBe(PostulacionEstado::CartaPresentacionEmitida)
-        ->and($programa->refresh()->cupos_disponibles)->toBe(1)
-        ->and($po->getMedia('carta_presentacion'))->toHaveCount(1);   // la genera el sistema en Word
+        ->and($programa->refresh()->cupos_disponibles)->toBe(2)
+        ->and($po->getMedia('carta_presentacion'))->toHaveCount(1);
 
     // La empresa ya ve al candidato
-    $this->actingAs($this->empresaUser)->get(route('empresa.programas.postulantes', $programa))->assertSee('215000001');
+    $this->actingAs($this->empresaUser)->get(route('empresa.programas.postulantes', $programa))->assertSee('215000001')
+        ->assertSee('Qué debe incluir la carta de aceptación')->assertSee('Dirigida al Coordinador(a) de la carrera');
 
     // 4. Se registra la carta de aceptación y se activa la práctica
     $this->actingAs($this->coordUser)
@@ -193,7 +194,8 @@ test('empresa publica, alumno se postula y la práctica llega a acreditada', fun
     ])->assertSessionHasNoErrors()->assertRedirect();
 
     $practica = Practica::firstOrFail();
-    expect($practica->estado)->toBe(PracticaEstado::EnCurso)->and($practica->horas_requeridas)->toBe(250);
+    expect($practica->estado)->toBe(PracticaEstado::EnCurso)->and($practica->horas_requeridas)->toBe(250)
+        ->and($programa->refresh()->cupos_disponibles)->toBe(1);   // el lugar se ocupa al activar
     $this->actingAs($this->anaUser)->get(route('alumno.mis-practicas'))->assertOk();
 
     // 5. Reporte: el alumno sube el firmado, la Coordinación lo valida y la empresa retroalimenta

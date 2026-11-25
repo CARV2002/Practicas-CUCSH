@@ -14,7 +14,7 @@
     @endphp
 
     <div class="space-y-6">
-        <x-pagina.encabezado titulo="Practicantes" descripcion="Del expediente a la práctica activa: valida documentos, emite la carta de presentación, registra la aceptación y da seguimiento a las horas." />
+        <x-pagina.encabezado titulo="Practicantes" descripcion="Del expediente a la práctica activa: valida documentos, emite la carta de presentación, valida la carta de aceptación para activar la práctica y da seguimiento a las horas." />
 
         @if (session('status'))
             <x-ui.aviso tipo="exito" descartable>{{ session('status') }}</x-ui.aviso>
@@ -269,7 +269,7 @@
                 @forelse ($postulaciones as $po)
                     @php
                         $kardex = $po->alumno->documentoVigente('kardex');   // expediente del alumno, validado antes de postularse
-                        $aceptacion = $po->getFirstMedia('carta_aceptacion');
+                        $aceptacion = $po->documentoVigente('carta_aceptacion');
                         $presentacion = $po->cartaPresentacion();
                         $oficioInterno = $po->documentoVigente('oficio_aceptacion_interno');
                         $imss = $po->alumno->documentoVigente('constancia_imss');
@@ -277,13 +277,27 @@
                         $min = $po->alumno->carrera->porcentaje_creditos_minimo;
                         $cumple = (float) $po->porcentaje_creditos_declarado >= (float) $min;
                         $imssVigente = $po->alumno->tieneImssVigenteHasta(now());
-                        $faltaOficio = $interno && !$oficioInterno && in_array($po->estado, [PE::CartaPresentacionEmitida, PE::CartaAceptacionRecibida], true);
+                        $enCartas = in_array($po->estado, [PE::CartaPresentacionEmitida, PE::CartaAceptacionRecibida], true);
+                        $faltaOficio = $interno && !$oficioInterno && $enCartas;
                         $faltaActivar = $bloqueosActivar[$po->id] ?? null;
+                        $faltaCarta = $bloqueosCarta[$po->id] ?? [];
+                        $puedeEmitir = $po->estado === PE::Pendiente && !$faltaCarta;
+                        $puedeActivar = $enCartas && !$faltaActivar;
+                        // Todos los documentos del trámite: expediente del alumno y cartas de esta postulación
+                        $docs = array_values(array_filter([
+                            $imss ? ['nombre' => 'Constancia de vigencia IMSS', 'origen' => 'Expediente del alumno', 'media' => $imss, 'href' => route('coordinacion.alumnos.archivos', [$po->alumno, $imss]), 'nota' => $imssVigente ? null : 'Vigencia vencida'] : null,
+                            $kardex ? ['nombre' => 'Kardex', 'origen' => 'Expediente del alumno', 'media' => $kardex, 'href' => route('coordinacion.alumnos.archivos', [$po->alumno, $kardex]), 'nota' => null] : null,
+                            $presentacion ? ['nombre' => 'Carta de presentación', 'origen' => 'Emitida por la coordinación', 'media' => $presentacion, 'href' => route('coordinacion.postulaciones.archivos', [$po, $presentacion]), 'nota' => null] : null,
+                            $aceptacion ? ['nombre' => 'Carta de aceptación', 'origen' => 'De la organización · subida por el alumno', 'media' => $aceptacion, 'href' => route('coordinacion.postulaciones.archivos', [$po, $aceptacion]), 'nota' => $po->estado === PE::Aceptada ? null : 'Por validar'] : null,
+                            $oficioInterno ? ['nombre' => 'Oficio de aceptación interno', 'origen' => 'Área receptora', 'media' => $oficioInterno, 'href' => route('coordinacion.postulaciones.archivos', [$po, $oficioInterno]), 'nota' => null] : null,
+                        ]));
+                        $abrir = $errors->any() && old('postulacion') == $po->id;
                     @endphp
-                    <tbody x-data="{ abierto: {{ $errors->any() && old('postulacion') == $po->id ? 'true' : 'false' }} }">
+                    <tbody x-data="{ abierto: {{ $abrir ? 'true' : 'false' }}, docs: false }">
                         <tr class="tabla-fila align-top border-t border-gray-100">
                             <td class="px-6 py-4">
-                                <div class="flex items-start gap-3">
+                                {{-- min-w-0!: la columna es de ancho fijo; sin esto el mínimo general de la primera celda encima el nombre sobre «Programa» --}}
+                                <div class="flex min-w-0! items-start gap-3">
                                     <x-ui.user-avatar :user="$po->alumno->user" size="mt-0.5 size-9 shrink-0 text-xs ring-2 ring-white" />
                                     <div class="min-w-0">
                                         <p class="break-words font-semibold text-gray-900">{{ $po->alumno->user->name }}</p>
@@ -303,34 +317,36 @@
                             <td class="px-4 py-4">
                                 <x-ui.estatus :estado="$po->estado" />
                                 @if ($faltaOficio)<p class="mt-1 text-xs font-semibold text-rose-600">Falta el oficio de aceptación interno</p>@endif
-                                {{-- Documentos del trámite en un solo lugar: expediente del alumno y cartas de esta postulación --}}
-                                <div class="mt-2.5 flex flex-wrap gap-1.5">
-                                    @if ($imss)<x-ui.documento-mini :href="route('coordinacion.alumnos.archivos', [$po->alumno, $imss])" nombre="IMSS" :alerta="! $imssVigente" />@endif
-                                    @if ($kardex)<x-ui.documento-mini :href="route('coordinacion.alumnos.archivos', [$po->alumno, $kardex])" nombre="Kardex" />@endif
-                                    @if ($presentacion)<x-ui.documento-mini :href="route('coordinacion.postulaciones.archivos', [$po, $presentacion])" nombre="Presentación" />@endif
-                                    @if ($aceptacion)<x-ui.documento-mini :href="route('coordinacion.postulaciones.archivos', [$po, $aceptacion])" nombre="Aceptación" />@endif
-                                    @if ($oficioInterno)<x-ui.documento-mini :href="route('coordinacion.postulaciones.archivos', [$po, $oficioInterno])" nombre="Oficio interno" />@endif
-                                </div>
+                                @if ($enCartas && !$aceptacion)<p class="mt-1 text-xs text-gray-500">Esperando la carta de aceptación del alumno</p>@endif
+                                {{-- Los documentos se abren en un panel bajo la fila, en lugar de amontonarse en la celda --}}
+                                @if ($docs)
+                                    <button type="button" x-on:click="docs = !docs" :aria-expanded="docs.toString()" aria-controls="docs-{{ $po->id }}"
+                                        class="mt-2.5 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold text-udg-800 shadow-theme-xs ring-1 ring-inset transition-colors hover:bg-udg-50"
+                                        :class="docs ? 'bg-udg-50 ring-udg-200' : 'bg-white ring-gray-200'">
+                                        <x-dashboard.icono nombre="documento" clase="size-3.5" />
+                                        Documentos <span class="rounded-full bg-udg-100 px-1.5 text-[11px] tabular-nums text-udg-900">{{ count($docs) }}</span>
+                                        <svg class="size-3 transition-transform" :class="docs && 'rotate-180'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                @endif
                             </td>
                             <td class="acciones px-6 py-4 text-right">
                                 <div class="ml-auto flex w-48 flex-col items-stretch gap-1.5">
                                     @if ($po->estado === PE::Pendiente)
                                         {{-- El expediente (kardex + IMSS) ya se validó antes de postularse: aquí solo se emite la carta --}}
-                                        @if ($faltaCarta = $bloqueosCarta[$po->id] ?? [])
+                                        @if ($faltaCarta)
                                             <x-ui.accion-bloqueada :motivo="$faltaCarta" tamano="chico">Emitir carta</x-ui.accion-bloqueada>
                                         @else
-                                            <x-ui.accion-principal tono="primario" icono="documento" etiqueta="Emitir carta" :accion="route('coordinacion.postulaciones.carta', $po)" title="Emitir carta de presentación"
-                                                confirmar="¿Emitir la carta de presentación de {{ $po->alumno->user->name }}? Se le reserva un cupo en «{{ $po->programa->titulo }}» y se avisa a la organización." />
+                                            <x-ui.accion-principal tono="primario" icono="documento" etiqueta="Emitir carta" x-on:click="abierto = !abierto" ::aria-expanded="abierto.toString()" />
                                         @endif
-                                    @elseif ($po->estado === PE::CartaPresentacionEmitida)
-                                        <x-ui.accion-principal tono="primario" icono="subir" :etiqueta="$aceptacion ? 'Revisar aceptación' : 'Registrar aceptación'" x-on:click="abierto = !abierto" ::aria-expanded="abierto.toString()" />
-                                    @elseif ($faltaActivar)
-                                        <x-ui.accion-bloqueada :motivo="$faltaActivar" tamano="chico">Activar práctica</x-ui.accion-bloqueada>
-                                    @elseif ($po->estado === PE::CartaAceptacionRecibida)
-                                        <x-ui.accion-principal tono="exito" icono="check" etiqueta="Activar práctica" x-on:click="abierto = !abierto" ::aria-expanded="abierto.toString()" />
+                                    @elseif ($enCartas)
+                                        @if ($faltaActivar)
+                                            <x-ui.accion-bloqueada :motivo="$faltaActivar" tamano="chico">Validar y activar</x-ui.accion-bloqueada>
+                                        @else
+                                            <x-ui.accion-principal tono="exito" icono="check" etiqueta="Validar y activar" x-on:click="abierto = !abierto" ::aria-expanded="abierto.toString()" />
+                                        @endif
                                     @endif
 
-                                    @if ($faltaOficio && !($po->estado === PE::CartaAceptacionRecibida && !$faltaActivar))
+                                    @if ($faltaOficio)
                                         <x-ui.accion-principal icono="subir" etiqueta="Subir oficio interno" x-on:click="abierto = !abierto" />
                                     @endif
 
@@ -344,33 +360,74 @@
                             </td>
                         </tr>
 
+                        {{-- Panel de documentos, a lo ancho de la fila --}}
+                        @if ($docs)
+                            <tr x-show="docs" x-cloak id="docs-{{ $po->id }}">
+                                <td colspan="5" class="border-t border-gray-100 bg-gray-50/70 px-6 py-3">
+                                    <ul class="divide-y divide-gray-100 overflow-hidden rounded-xl bg-white ring-1 ring-inset ring-gray-200">
+                                        @foreach ($docs as $d)
+                                            <li class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
+                                                <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-udg-50 text-udg-800"><x-dashboard.icono nombre="documento" clase="size-4" /></span>
+                                                <div class="min-w-0 flex-1">
+                                                    <p class="text-sm font-semibold text-gray-900">{{ $d['nombre'] }}
+                                                        @if ($d['nota'])<span class="ml-1.5 whitespace-nowrap rounded-full bg-oro-50 px-2 py-0.5 text-[11px] font-semibold text-oro-800 ring-1 ring-inset ring-oro-100">{{ $d['nota'] }}</span>@endif
+                                                    </p>
+                                                    <p class="text-xs text-gray-500">{{ $d['origen'] }} · {{ $d['media']->created_at->format('d/m/Y') }}</p>
+                                                </div>
+                                                <div class="flex shrink-0 items-center gap-1.5">
+                                                    <a href="{{ $d['href'] }}" data-sin-vista data-sin-boton-ver class="boton boton-chico boton-secundario"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Descargar</a>
+                                                    <a href="{{ $d['href'] }}" data-sin-boton-ver data-nombre="{{ $d['nombre'] }}" class="boton boton-chico boton-primario"><x-dashboard.icono nombre="ver" clase="size-3.5" /> Ver documento</a>
+                                                </div>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </td>
+                            </tr>
+                        @endif
+
                         {{-- Formulario del siguiente paso, a lo ancho de la fila --}}
-                        @if ($po->estado === PE::CartaPresentacionEmitida || ($po->estado === PE::CartaAceptacionRecibida && !$faltaActivar) || $faltaOficio)
+                        @if ($puedeEmitir || $puedeActivar || $faltaOficio)
                             <tr x-show="abierto" x-cloak>
                                 <td colspan="5" class="border-t border-gray-100 bg-gray-50/70 px-6 py-4">
                                     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                                        @if ($po->estado === PE::CartaPresentacionEmitida)
-                                            <form method="POST" enctype="multipart/form-data" action="{{ route('coordinacion.postulaciones.aceptacion', $po) }}" class="space-y-2 rounded-xl bg-white p-4 ring-1 ring-inset ring-gray-200">
+                                        @if ($puedeEmitir)
+                                            {{-- Carta de presentación: la coordinación imprime el formato, lo firma, lo sella y sube el escaneo --}}
+                                            <form method="POST" enctype="multipart/form-data" action="{{ route('coordinacion.postulaciones.carta', $po) }}" class="space-y-3 rounded-xl bg-white p-4 ring-1 ring-inset ring-gray-200 lg:col-span-2"
+                                                data-confirmar="¿Emitir la carta de presentación de {{ $po->alumno->user->name }}? El alumno podrá descargarla para llevarla a la organización." data-confirmar-titulo="Emitir carta de presentación" data-confirmar-boton="Sí, emitir" data-confirmar-tono="normal">
                                                 @csrf
                                                 <input type="hidden" name="postulacion" value="{{ $po->id }}">
-                                                <p class="text-sm font-semibold text-gray-900">Carta de aceptación de la organización</p>
-                                                @if ($aceptacion)
-                                                    <p class="text-xs text-gray-600">El alumno ya la subió: <a href="{{ route('coordinacion.postulaciones.archivos', [$po, $aceptacion]) }}" class="font-semibold text-real-600 hover:underline">revísala</a> y confírmala, o sube otra si la recibiste tú.</p>
-                                                @endif
-                                                <x-ui.zona-archivo name="archivo" :etiqueta="$aceptacion ? 'Otra carta (opcional)' : 'Carta de aceptación'" :requerido="!$aceptacion" />
+                                                <p class="text-sm font-semibold text-gray-900">Carta de presentación</p>
+                                                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                    <div>
+                                                        <p class="etiqueta"><span class="mr-1.5 inline-flex size-5 items-center justify-center rounded-full bg-udg-800 text-[11px] font-bold text-white">1</span>Descarga el formato</p>
+                                                        <p class="-mt-1 mb-2 text-xs leading-relaxed text-gray-500">Ya trae los datos del alumno y de la vacante. Imprímelo, fírmalo y séllalo.</p>
+                                                        <a href="{{ route('coordinacion.postulaciones.carta.formato', $po) }}" data-sin-vista data-sin-boton-ver class="boton boton-chico boton-secundario"><x-dashboard.icono nombre="descargar" clase="size-3.5" /> Formato de la carta</a>
+                                                    </div>
+                                                    <x-ui.zona-archivo name="carta" paso="2" etiqueta="Carta firmada y sellada" ayuda="Escanéala y súbela en PDF: es la que el alumno descargará." />
+                                                </div>
                                                 <div class="flex justify-end gap-2">
                                                     <button type="button" class="boton boton-chico text-gray-500 hover:bg-gray-100" x-on:click="abierto = false">Cancelar</button>
-                                                    <button class="boton boton-chico boton-primario">{{ $aceptacion ? 'Confirmar carta del alumno' : 'Registrar aceptación' }}</button>
+                                                    <button class="boton boton-chico boton-primario"><x-dashboard.icono nombre="documento" clase="size-3.5" /> Emitir carta</button>
                                                 </div>
                                             </form>
-                                        @elseif ($po->estado === PE::CartaAceptacionRecibida && !$faltaActivar)
+                                        @elseif ($puedeActivar)
+                                            {{-- Validar la carta de aceptación y activar la práctica son un solo paso --}}
+                                            <div class="space-y-2.5 rounded-xl bg-white p-4 ring-1 ring-inset ring-gray-200">
+                                                <p class="text-sm font-semibold text-gray-900">Carta de aceptación de la organización</p>
+                                                <p class="text-xs leading-relaxed text-gray-600">El alumno la subió el {{ $aceptacion->created_at->format('d/m/Y') }}. Revisa que venga en hoja membretada, firmada y con el periodo de la práctica.</p>
+                                                <a href="{{ route('coordinacion.postulaciones.archivos', [$po, $aceptacion]) }}" data-sin-boton-ver data-nombre="Carta de aceptación" class="boton boton-chico boton-secundario"><x-dashboard.icono nombre="ver" clase="size-3.5" /> Ver carta de aceptación</a>
+                                                <p class="rounded-lg bg-emerald-50 px-3 py-2 text-xs leading-relaxed text-emerald-800 ring-1 ring-inset ring-emerald-100">
+                                                    Al validarla, la práctica queda <strong>en curso</strong> y ocupa 1 lugar de la vacante
+                                                    ({{ $po->programa->cupos_disponibles }} de {{ $po->programa->cupos_totales }} disponibles).
+                                                </p>
+                                            </div>
                                             <form method="POST" action="{{ route('coordinacion.postulaciones.activar', $po) }}" class="grid grid-cols-2 gap-3 rounded-xl bg-white p-4 ring-1 ring-inset ring-gray-200"
-                                                data-confirmar="¿Activar la práctica de {{ $po->alumno->user->name }} con este periodo? Desde ese momento empezará a registrar horas." data-confirmar-titulo="Activar práctica" data-confirmar-boton="Sí, activar" data-confirmar-tono="normal">
+                                                data-confirmar="¿Validar la carta de aceptación y activar la práctica de {{ $po->alumno->user->name }}? Desde ese momento podrá registrar horas y ocupará 1 lugar de la vacante." data-confirmar-titulo="Validar y activar práctica" data-confirmar-boton="Sí, validar y activar" data-confirmar-tono="normal">
                                                 @csrf
                                                 <input type="hidden" name="postulacion" value="{{ $po->id }}">
                                                 <p class="col-span-2 text-sm font-semibold text-gray-900">Periodo de la práctica</p>
-                                                <div><label class="etiqueta" for="ini-{{ $po->id }}">Inicio</label><input id="ini-{{ $po->id }}" type="date" name="fecha_inicio" required class="campo h-10"></div>
-                                                <div><label class="etiqueta" for="fin-{{ $po->id }}">Fin</label><input id="fin-{{ $po->id }}" type="date" name="fecha_fin" required class="campo h-10"></div>
+                                                <div><label class="etiqueta" for="ini-{{ $po->id }}">Inicio</label><input id="ini-{{ $po->id }}" type="date" name="fecha_inicio" value="{{ $abrir ? old('fecha_inicio') : '' }}" required class="campo h-10"></div>
+                                                <div><label class="etiqueta" for="fin-{{ $po->id }}">Fin</label><input id="fin-{{ $po->id }}" type="date" name="fecha_fin" value="{{ $abrir ? old('fecha_fin') : '' }}" required class="campo h-10"></div>
                                                 <div class="col-span-2">
                                                     <label class="etiqueta" for="sup-{{ $po->id }}">Profesor supervisor <span class="font-normal text-gray-400">(puedes asignarlo después)</span></label>
                                                     <select id="sup-{{ $po->id }}" name="profesor_id" class="campo h-10">
@@ -380,9 +437,10 @@
                                                         @endforeach
                                                     </select>
                                                 </div>
+                                                @if ($abrir && $errors->any())<p class="col-span-2 text-sm font-medium text-rose-600" role="alert">{{ $errors->first() }}</p>@endif
                                                 <div class="col-span-2 flex justify-end gap-2">
                                                     <button type="button" class="boton boton-chico text-gray-500 hover:bg-gray-100" x-on:click="abierto = false">Cancelar</button>
-                                                    <button class="boton boton-chico boton-exito"><x-dashboard.icono nombre="check" clase="size-3.5" /> Activar práctica</button>
+                                                    <button class="boton boton-chico boton-exito"><x-dashboard.icono nombre="check" clase="size-3.5" /> Validar y activar</button>
                                                 </div>
                                             </form>
                                         @endif

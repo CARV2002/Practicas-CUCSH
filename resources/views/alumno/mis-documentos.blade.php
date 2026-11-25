@@ -15,6 +15,11 @@
         $imssSt = $estadoDe($imss);
         $imssVencido = $imssSt === 'validada' && !$alumno->tieneImssVigenteHasta(now());   // validado pero ya venció: hay que renovarlo
         if ($imssVencido) { $imssSt = null; }
+        $noCumple = $expediente === 'no_cumple';
+        $motivoKardex = $noCumple
+            ? 'Declaraste ' . \App\Support\Formato::porcentaje($alumno->porcentaje_creditos) . '% de créditos y tu carrera requiere al menos ' . \App\Support\Formato::porcentaje($alumno->carrera->porcentaje_creditos_minimo) . '%. Sube tu kardex actualizado cuando los cumplas.'
+            : $kardex?->getCustomProperty('motivo');
+        if ($noCumple) { $kardexSt = 'rechazada'; }
 
         $pendiente = $postulaciones->first(fn ($p) => $p->estado === PE::Pendiente);
         $enCurso = $postulaciones->first(fn ($p) => in_array($p->estado, [PE::CartaPresentacionEmitida, PE::CartaAceptacionRecibida], true));
@@ -121,6 +126,11 @@
                         @endif
                     </div>
                     @break
+                @case('no_cumple')
+                    <x-ui.aviso tipo="error" titulo="No cumples el mínimo de créditos de tu carrera">
+                        Tu carrera requiere al menos el {{ $minimo }}% de créditos cursados y declaraste {{ \App\Support\Formato::porcentaje($alumno->porcentaje_creditos) }}%. Aún no puedes postularte: cuando los cumplas, sube tu kardex actualizado con tu nuevo porcentaje.
+                    </x-ui.aviso>
+                    @break
                 @case('imss_vencido')
                     <x-ui.aviso tipo="advertencia" titulo="Tu constancia IMSS venció">
                         Sube una constancia vigente; cuando tu coordinación la valide podrás seguir con tu trámite.
@@ -167,10 +177,20 @@
                         titulo="Kardex simple"
                         instrucciones="Descárgalo de SIIAU (Kardex simple) del ciclo actual."
                         accept=".pdf" formatos="PDF"
-                        :estado="$kardexSt" :motivo="$kardex?->getCustomProperty('motivo')"
+                        :estado="$kardexSt" :motivo="$motivoKardex"
                         :archivo="$kardex?->file_name" :url-archivo="$kardex ? route('alumno.documentos.descargar', $kardex) : null"
                         :fecha="$kardex?->created_at?->format('d/m/Y')"
-                        :boton="$kardexSt === 'rechazada' ? 'Enviar kardex corregido' : ($kardex ? 'Reemplazar kardex' : 'Enviar kardex')">
+                        :paso-archivo="$noCumple ? 2 : null"
+                        :etiqueta-estado="$noCumple ? 'No cumple requisitos' : null"
+                        :titulo-motivo="$noCumple ? 'Aún no cumples el mínimo de créditos' : null"
+                        :boton="$noCumple ? 'Enviar kardex actualizado' : ($kardexSt === 'rechazada' ? 'Enviar kardex corregido' : ($kardex ? 'Reemplazar kardex' : 'Enviar kardex'))">
+                        @if ($noCumple)
+                            <x-slot:campos>
+                                <x-ui.campo-paso paso="1" etiqueta="Porcentaje de créditos cursados" name="porcentaje_creditos" type="number"
+                                    step="0.01" min="{{ $alumno->carrera->porcentaje_creditos_minimo }}" max="100" placeholder="Ej. 72.5"
+                                    ayuda="El de tu kardex actualizado. Tu carrera requiere al menos {{ $minimo }}%." />
+                            </x-slot:campos>
+                        @endif
                         <p class="mt-2 text-xs text-gray-500">Créditos declarados: <span class="font-semibold text-gray-800">{{ $alumno->porcentaje_creditos !== null ? \App\Support\Formato::porcentaje($alumno->porcentaje_creditos) . '%' : 'sin capturar' }}</span> · mínimo {{ $minimo }}%</p>
                     </x-ui.carga-documento>
 
@@ -204,7 +224,9 @@
             @php
                 $presentacion = $po->cartaPresentacion();
                 $aceptacion = $po->getFirstMedia('carta_aceptacion');
-                $aceptacionRegistrada = in_array($po->estado, [PE::CartaAceptacionRecibida, PE::Aceptada], true);
+                $aceptacionRegistrada = $po->estado === PE::Aceptada;   // la coordinación la valida al activar la práctica
+                $practicaCerrada = in_array($po->practica?->estado, [PrE::EnCierre, PrE::Acreditada], true);
+                $horasCarrera = $alumno->carrera->horas_requeridas;
             @endphp
             <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xs" aria-label="Cartas de {{ $po->programa->titulo }}">
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-5 py-4 sm:px-6">
@@ -227,23 +249,31 @@
                 @else
                     <div class="grid grid-cols-1 gap-4 p-5 sm:p-6 lg:grid-cols-2">
                         <x-ui.carga-documento titulo="Carta de presentación" compacto
-                            :estado="$presentacion ? 'validada' : null" etiqueta-estado="Generada"
-                            mensaje-listo="Carta generada: imprímela y preséntala en la organización. Ahí te entregarán tu carta de aceptación firmada y sellada."
+                            :estado="$presentacion ? 'validada' : null" etiqueta-estado="Firmada y sellada"
+                            mensaje-listo="Carta generada por tu coordinación: imprímela y preséntala en la organización para solicitar tu carta de aceptación."
                             :archivo="$presentacion?->file_name"
                             :url-archivo="$presentacion ? route('alumno.documentos.descargar', $presentacion) : null"
-                            :bloqueo="$presentacion ? null : 'Tu coordinación la está generando; te avisaremos por correo cuando esté lista.'" />
+                            :bloqueo="$presentacion ? null : 'Tu coordinación la está preparando (firmada y sellada); te avisaremos por correo cuando puedas descargarla.'" />
 
                         <x-ui.carga-documento compacto
                             :action="$po->estado === PE::CartaPresentacionEmitida ? route('alumno.documentos.aceptacion', $po) : null"
                             titulo="Carta de aceptación"
-                            instrucciones="En hoja membretada de la organización, firmada y sellada. Escanéala completa."
+                            instrucciones="La que te entregó la organización, en su hoja membretada, firmada y sellada. Escanéala completa y súbela en PDF."
                             :estado="$aceptacion ? ($aceptacionRegistrada ? 'validada' : 'pendiente') : null"
-                            etiqueta-estado="Registrada"
-                            mensaje-listo="Tu coordinación registró tu carta de aceptación. Te avisaremos cuando active tu práctica."
+                            etiqueta-estado="Validada"
+                            :mensaje-listo="$practicaCerrada
+                                ? 'Carta de aceptación validada e integrada a tu expediente.'
+                                : 'Carta de aceptación validada: tu práctica ya está activa y puedes comenzar a registrar tus reportes.'"
                             :archivo="$aceptacion?->file_name" :url-archivo="$aceptacion ? route('alumno.documentos.descargar', $aceptacion) : null"
                             :fecha="$aceptacion?->created_at?->format('d/m/Y')"
                             :bloqueo="$po->estado === PE::Pendiente ? 'Se sube después de recibir tu carta de presentación.' : null"
-                            :boton="$aceptacion ? 'Reemplazar carta' : 'Enviar carta de aceptación'" />
+                            :boton="$aceptacion ? 'Reemplazar carta' : 'Enviar carta de aceptación'">
+                            {{-- Requisitos justo encima de la zona para subir el PDF; antes de la carta de presentación, como aviso --}}
+                            <x-slot:campos><x-ui.requisitos-carta tipo="aceptacion" :horas="$horasCarrera" /></x-slot:campos>
+                            @if ($po->estado === PE::Pendiente)
+                                <x-ui.requisitos-carta tipo="aceptacion" :horas="$horasCarrera" class="mt-3" />
+                            @endif
+                        </x-ui.carga-documento>
                     </div>
                 @endif
             </section>
@@ -382,7 +412,13 @@
                             :estado="$cartaSt" :motivo="$carta?->getCustomProperty('motivo')"
                             :archivo="$carta?->file_name" :url-archivo="$carta ? route('alumno.documentos.descargar', $carta) : null"
                             :bloqueo="$motivoCarta"
-                            :boton="$carta ? 'Reemplazar carta' : 'Enviar carta de término'" compacto />
+                            :boton="$carta ? 'Reemplazar carta' : 'Enviar carta de término'" compacto>
+                            <x-slot:campos><x-ui.requisitos-carta tipo="termino" :horas="$pr->horas_requeridas" /></x-slot:campos>
+                            {{-- Aún no se puede subir: los requisitos se muestran desde ya para pedírsela bien a la organización --}}
+                            @if ($motivoCarta !== null && $cartaSt !== 'validada')
+                                <x-ui.requisitos-carta tipo="termino" :horas="$pr->horas_requeridas" class="mt-3" />
+                            @endif
+                        </x-ui.carga-documento>
                         @endunless
                     </div>
                 </div>

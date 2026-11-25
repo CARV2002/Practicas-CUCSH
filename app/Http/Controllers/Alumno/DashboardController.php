@@ -130,7 +130,7 @@ class DashboardController extends Controller
             $p->estado === PracticaEstado::EnCierre => 'Tu carta de término fue validada. Solo falta que tu coordinación envíe tu oficio y Control Escolar capture tu acreditación en SIIAU.',
             $rechazados > 0 => "Tienes {$rechazados} reporte(s) rechazado(s). Corrígelos y vuelve a subirlos para que tus horas cuenten.",
             $sinArchivo > 0 => "Tienes {$sinArchivo} reporte(s) pendiente(s) de entregar firmado".($supervisor ? ". Tu supervisor es {$supervisor}." : '.'),
-            $horas >= $req => '¡Completaste tus horas! Sube tu carta de término en Mis documentos.',
+            $horas >= $req => '¡Completaste tus horas! Pide a tu jefe directo en la organización tu carta de término (en hoja membretada, firmada y sellada), escanéala y súbela en Mis documentos.',
             $dias > 0 && $dias <= 30 => 'Quedan '.$dias.' días y te faltan '.($req - $horas).' horas validadas. Es momento de acelerar. 💪',
             default => 'Te faltan '.($req - $horas).' horas validadas. Cada reporte a tiempo te acerca a la meta.',
         };
@@ -142,7 +142,7 @@ class DashboardController extends Controller
     {
         return match (true) {
             $tramite->bloqueo !== null => ['icono' => '🧭', 'titulo' => 'Habla con tu coordinación', 'texto' => 'Tu coordinación puede revisar tu caso en persona y, si hubo una causa de fuerza mayor, levantar la restricción.'],
-            $tramite->paso() === 4 => ['icono' => '🤝', 'titulo' => 'Ya casi empiezas', 'texto' => 'Con tus cartas en orden, tu coordinación activará tu práctica y empezarás a sumar horas.'],
+            $tramite->paso() === 4 => ['icono' => '🤝', 'titulo' => 'Ya casi empiezas', 'texto' => 'En cuanto tu coordinación valide tu carta de aceptación, tu práctica quedará activa y empezarás a sumar horas.'],
             $tramite->paso() === 3 => ['icono' => '🎯', 'titulo' => 'Elige bien tu plaza', 'texto' => 'Te postulas a una organización a la vez: revisa horario, actividades y sede antes de decidir.'],
             default => ['icono' => '🛡️', 'titulo' => 'Tu primer paso cuenta', 'texto' => 'Entrega tu kardex e IMSS; con tu expediente validado podrás postularte al programa que más te guste.'],
         };

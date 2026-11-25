@@ -20,6 +20,7 @@ use App\Models\Reporte;
 use App\Notifications\AvisoOperativo;
 use App\Services\Avisos;
 use App\Services\FormatoReporte;
+use App\Support\Formato;
 use App\Support\ReglasArchivo;
 use App\Support\Requisitos;
 use App\Support\TramiteAlumno;
@@ -27,6 +28,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -49,7 +51,7 @@ class DocumentoController extends Controller
             // Por qué todavía no puede postularse (null = ya puede)
             'motivoOferta' => Requisitos::alumnoVerOferta($alumno),
             'postulaciones' => $alumno->postulaciones()
-                ->with(['programa.convenio.empresa', 'media'])
+                ->with(['programa.convenio.empresa', 'media', 'practica'])
                 ->whereNotIn('estado', [PostulacionEstado::Cancelada->value])
                 ->latest('id')
                 ->get(),
@@ -102,15 +104,26 @@ class DocumentoController extends Controller
         $alumno = $request->user()->alumno;
 
         $anterior = $alumno->documentoVigente('kardex')?->getCustomProperty('estado');
-        if ($anterior === ValidacionEstado::Validada->value) {
+        // Un kardex validado ya no se cambia, salvo que sus créditos no alcancen el mínimo de la carrera
+        if ($anterior === ValidacionEstado::Validada->value && ! $alumno->creditosInsuficientes()) {
             throw ValidationException::withMessages(['archivo' => 'Tu kardex ya fue validado: no necesitas subirlo de nuevo.']);
         }
 
-        $request->validate(['archivo' => ReglasArchivo::pdfRequerido(estricto: true)], [
+        // El % de créditos sale del kardex: nunca por debajo del mínimo, y obligatorio si el actual no alcanza
+        $minimo = (float) $alumno->carrera->porcentaje_creditos_minimo;
+        $datos = $request->validate([
+            'porcentaje_creditos' => [Rule::requiredIf($alumno->creditosInsuficientes()), 'nullable', 'numeric', 'min:'.$minimo, 'max:100'],
+            'archivo' => ReglasArchivo::pdfRequerido(estricto: true),
+        ], [
+            'porcentaje_creditos.required' => 'Escribe tu porcentaje de créditos cursados (lo ves en tu kardex).',
+            'porcentaje_creditos.min' => 'Tu carrera requiere al menos el '.Formato::porcentaje($minimo).'% de créditos cursados para iniciar el trámite.',
             'archivo.required' => 'Elige el PDF o la imagen de tu kardex simple del ciclo actual.',
         ]);
 
         $alumno->addMediaFromRequest('archivo')->toMediaCollection('kardex');
+        if (isset($datos['porcentaje_creditos'])) {
+            $alumno->update(['porcentaje_creditos' => $datos['porcentaje_creditos']]);
+        }
 
         $this->avisarCoordinacion($request, $anterior === ValidacionEstado::Rechazada->value
             ? 'reemplazó el kardex que le devolviste. Revísalo de nuevo.'
@@ -131,9 +144,9 @@ class DocumentoController extends Controller
 
         $postulacion->addMediaFromRequest('archivo')->toMediaCollection('carta_aceptacion');
 
-        $this->avisarCoordinacion($request, 'subió su carta de aceptación de «'.$postulacion->programa->titulo.'»; regístrala para activar su práctica.', 'coordinacion.lista-practicantes');
+        $this->avisarCoordinacion($request, 'subió su carta de aceptación de «'.$postulacion->programa->titulo.'»; valídala para activar su práctica.', 'coordinacion.lista-practicantes');
 
-        return back()->with('status', 'Carta de aceptación enviada; tu coordinación la registrará.');
+        return back()->with('status', 'Carta de aceptación enviada: cuando tu coordinación la valide, tu práctica quedará activa.');
     }
 
     /** Formato estándar del reporte en PDF (FormatoReporte): se imprime, se firma y se sube escaneado. */

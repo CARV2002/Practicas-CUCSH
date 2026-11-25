@@ -565,6 +565,19 @@
                                     <x-ui.zona-archivo name="convenio_firmado" etiqueta="Escaneo de un juego firmado por ambas partes" :max-mb="20" ayuda="Un solo PDF con todas las hojas, firmas al calce y sellos visibles." />
                                 @endif
                             </div>
+                            {{-- Al formalizar, los 3 juegos concluyen solos; aquí se dejan en seguimiento los que aún no se entregan --}}
+                            <fieldset class="md:col-span-4">
+                                <legend class="etiqueta">¿Algún juego queda pendiente de entrega física? <span class="font-normal text-gray-400">(opcional)</span></legend>
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach ([1, 2, 3] as $j)
+                                        <label class="flex cursor-pointer items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-inset ring-gray-200">
+                                            <input type="checkbox" name="juegos_pendientes[]" value="{{ $j }}" class="size-4 rounded border-gray-300" @checked(in_array((string) $j, old('juegos_pendientes', []), true))>
+                                            Juego {{ $j }} <span class="text-xs text-gray-500">· {{ \App\Enums\TipoDocumentoFisico::destinoJuego($j) }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                                <p class="ayuda">Los que marques siguen en Documentos físicos hasta registrar su entrega; los demás pasan a Concluidos.</p>
+                            </fieldset>
                             <div class="md:col-span-3"><label class="etiqueta" for="fo-com">Comentario (opcional)</label><input id="fo-com" type="text" name="comentario" class="campo h-11"></div>
                             <div class="flex items-end"><button class="boton boton-exito h-11 w-full"><x-dashboard.icono nombre="vigente" clase="size-4" /> Formalizar convenio</button></div>
                             <p class="ayuda md:col-span-4">Al formalizar, la organización queda activa: puede publicar vacantes y los alumnos de las carreras aprobadas pueden postularse. De los 3 juegos, uno se entrega a la empresa, otro queda en tu carpeta y el tercero va al archivo de la Unidad Jurídica (síguelos en Documentos físicos).</p>

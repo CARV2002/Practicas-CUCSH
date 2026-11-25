@@ -23,6 +23,14 @@
             <x-ui.aviso tipo="error" titulo="Revisa lo siguiente"><ul class="list-disc space-y-1 pl-5">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></x-ui.aviso>
         @endif
 
+        {{-- La carta de término la emite la organización: se pide en cuanto el practicante cubre sus horas --}}
+        @if ($practica->estado === \App\Enums\PracticaEstado::EnCurso && $practica->horasCompletas() && ! $practica->cartaTermino?->getFirstMedia('carta_termino'))
+            <x-ui.aviso tipo="advertencia" titulo="{{ $alumno->user->name }} completó sus horas: emite su carta de término">
+                Elabórala en la hoja membretada de tu organización, fírmala, séllala y entrégasela. El practicante la sube escaneada y su coordinación la valida para acreditar la práctica.
+                <x-ui.requisitos-carta tipo="termino" para="empresa" :horas="$practica->horas_requeridas" class="mt-3 bg-white/70" />
+            </x-ui.aviso>
+        @endif
+
         <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs sm:p-6">
             <div class="flex flex-col gap-6 lg:flex-row lg:items-center">
                 <div class="flex min-w-0 items-center gap-4 lg:w-1/3">

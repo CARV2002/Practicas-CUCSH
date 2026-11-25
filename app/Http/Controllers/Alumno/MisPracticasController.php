@@ -147,7 +147,7 @@ class MisPracticasController extends Controller
             return "Tienes {$pendientes} reporte(s) sin archivo firmado. Súbelos en Mis documentos para que se validen tus horas.";
         }
         if ($horas >= $requeridas) {
-            return '¡Completaste tus horas! Sube tu carta de término en Mis documentos para cerrar tu práctica.';
+            return '¡Completaste tus horas! Pide a tu jefe directo en la organización tu carta de término (en hoja membretada, firmada y sellada), escanéala y súbela en Mis documentos para cerrar tu práctica.';
         }
 
         $faltan = $requeridas - $horas;
@@ -178,9 +178,9 @@ class MisPracticasController extends Controller
         if ($enTramite) {
             return match ($enTramite->estado) {
                 PostulacionEstado::CartaPresentacionEmitida => ['icono' => '📨', 'titulo' => 'Tu carta de presentación está lista',
-                    'texto' => 'Preséntate con '.($enTramite->programa->convenio?->empresa->razon_social ?? 'el programa').' y sube la carta de aceptación en Mis documentos.'],
+                    'texto' => 'Descárgala, imprímela y llévala a '.($enTramite->programa->convenio?->empresa->razon_social ?? 'el programa').'. Luego sube en Mis documentos la carta de aceptación que te entreguen.'],
                 default => ['icono' => '⏳', 'titulo' => 'Tu práctica está por activarse',
-                    'texto' => 'Tu coordinación registrará tu carta de aceptación y activará tu práctica en breve.'],
+                    'texto' => 'Tu coordinación validará tu carta de aceptación; en ese momento tu práctica quedará activa.'],
             };
         }
 

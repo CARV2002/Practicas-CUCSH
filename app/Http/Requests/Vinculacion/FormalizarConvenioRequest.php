@@ -24,6 +24,9 @@ class FormalizarConvenioRequest extends GestionConvenioRequest
             'fecha_inicio_vigencia' => ['required', 'date'],
             'convenio_firmado' => ReglasArchivo::pdfOpcional(ReglasArchivo::MB_ESCANEO),
             'comentario' => ['nullable', 'string', 'max:1000'],
+            // Juegos que aún no se entregan físicamente al formalizar (siguen en Documentos físicos)
+            'juegos_pendientes' => ['nullable', 'array'],
+            'juegos_pendientes.*' => ['integer', 'in:1,2,3'],
         ];
     }
 

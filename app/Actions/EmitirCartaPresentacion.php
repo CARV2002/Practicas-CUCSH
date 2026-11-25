@@ -14,12 +14,15 @@ use App\Notifications\AvisoOperativo;
 use App\Services\Avisos;
 use App\Services\ConvertidorPdf;
 use App\Services\GeneradorCartaPresentacion;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Validation\ValidationException;
 
 /**
- * El coordinador valida la postulación y emite la carta de presentación (reserva el cupo).
+ * El coordinador valida la postulación y emite la carta de presentación: sube el escaneo firmado y sellado
+ * (el formato lo genera el sistema). El alumno la descarga, la imprime y la lleva a la organización.
+ * El cupo no se ocupa aquí: se ocupa al validar la carta de aceptación (ActivarPractica).
  * Todo en UNA transacción con bloqueo de filas: dos validaciones simultáneas no sobrepasan
  * el cupo ni dejan a un alumno con dos empresas.
  */
@@ -27,9 +30,10 @@ class EmitirCartaPresentacion
 {
     public function __construct(private GeneradorCartaPresentacion $generador) {}
 
-    public function __invoke(Postulacion $postulacion, Personal $por): Postulacion
+    /** $firmada: escaneo firmado y sellado; sin él (procesos internos y datos de prueba) se adjunta el formato generado. */
+    public function __invoke(Postulacion $postulacion, Personal $por, ?UploadedFile $firmada = null): Postulacion
     {
-        return DB::transaction(function () use ($postulacion, $por) {
+        return DB::transaction(function () use ($postulacion, $por, $firmada) {
             // Orden fijo de bloqueo (alumno -> programa -> postulación) para evitar deadlocks
             $alumno = Alumno::with('carrera')->lockForUpdate()->findOrFail($postulacion->alumno_id);
             $programa = Programa::with('convenio')->lockForUpdate()->findOrFail($postulacion->programa_id);
@@ -98,28 +102,35 @@ class EmitirCartaPresentacion
                 'validado_por' => $por->id,
             ]);
 
-            // Carta de Presentación (.docx) con carrera, grado y turno del alumno
-            $ruta = $this->generador->generar($postulacion->setRelation('alumno', $alumno)->setRelation('programa', $programa), $por);
-
-            // PDF listo para imprimir (LibreOffice); el Word queda por si la coordinación necesita ajustarlo
-            $pdf = app(ConvertidorPdf::class)->convertir($ruta);
-
-            $postulacion->addMedia($ruta)
-                ->usingFileName("carta-presentacion-{$alumno->num_control}.docx")
-                ->toMediaCollection('carta_presentacion');
-
-            if ($pdf) {
-                $postulacion->addMedia($pdf)
+            if ($firmada !== null) {
+                $postulacion->addMedia($firmada)
                     ->usingFileName("carta-presentacion-{$alumno->num_control}.pdf")
-                    ->withCustomProperties(['generada' => true])
+                    ->withCustomProperties(['firmada' => true])
                     ->toMediaCollection('carta_presentacion');
-                File::deleteDirectory(dirname($pdf));
+            } else {
+                // Carta de Presentación (.docx) con carrera, grado y turno del alumno
+                $ruta = $this->generador->generar($postulacion->setRelation('alumno', $alumno)->setRelation('programa', $programa), $por);
+
+                // PDF listo para imprimir (LibreOffice); el Word queda por si la coordinación necesita ajustarlo
+                $pdf = app(ConvertidorPdf::class)->convertir($ruta);
+
+                $postulacion->addMedia($ruta)
+                    ->usingFileName("carta-presentacion-{$alumno->num_control}.docx")
+                    ->toMediaCollection('carta_presentacion');
+
+                if ($pdf) {
+                    $postulacion->addMedia($pdf)
+                        ->usingFileName("carta-presentacion-{$alumno->num_control}.pdf")
+                        ->withCustomProperties(['generada' => true])
+                        ->toMediaCollection('carta_presentacion');
+                    File::deleteDirectory(dirname($pdf));
+                }
             }
 
             $empresa = $programa->convenio?->empresa;
 
             Avisos::enviar($alumno->user, new AvisoOperativo(
-                mensaje: "Tu postulación a «{$programa->titulo}» fue validada. Preséntate con ".($empresa->razon_social ?? 'el proyecto interno del CUCSH').' y sube tu carta de aceptación.',
+                mensaje: "Tu coordinación emitió tu carta de presentación para «{$programa->titulo}», firmada y sellada. Descárgala en Mis documentos, imprímela y llévala a ".($empresa->razon_social ?? 'el proyecto interno del CUCSH').'. Cuando te acepten, sube la carta de aceptación que te entregue la organización.',
                 url: route('alumno.mis-documentos', absolute: false),
                 detalle: $programa->titulo,
                 correo: true,

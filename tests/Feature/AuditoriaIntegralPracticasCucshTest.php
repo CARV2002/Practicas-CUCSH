@@ -596,7 +596,7 @@ test('FASE 5 · expediente devuelto y corregido, carta de presentación, aceptac
     // Postulación → carta de presentación (la genera el sistema) → aceptación → activa con su profesor supervisor
     $this->actingAs($u->fresh())->post(route('alumno.oferta-programas.postular', $vacante), ['siiau' => '1'])->assertSessionHasNoErrors();
     $postulacion = Postulacion::firstOrFail();
-    $this->actingAs($coord)->post(route('coordinacion.postulaciones.carta', $postulacion))->assertSessionHasNoErrors();
+    $this->actingAs($coord)->post(route('coordinacion.postulaciones.carta', $postulacion), ['carta' => aiPdf('carta-firmada.pdf')])->assertSessionHasNoErrors();
     $carta = $postulacion->fresh()->cartaPresentacion();
     expect($carta)->not->toBeNull();
     $this->actingAs($u->fresh())->get(route('alumno.documentos.descargar', $carta))->assertOk();

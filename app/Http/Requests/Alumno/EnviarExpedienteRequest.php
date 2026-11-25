@@ -48,7 +48,7 @@ class EnviarExpedienteRequest extends FormRequest
     {
         return [
             'porcentaje_creditos.required' => 'Escribe tu porcentaje de créditos cursados (lo ves en tu kardex).',
-            'porcentaje_creditos.min' => "Tu carrera pide al menos {$this->minimoCreditos()}% de créditos para hacer prácticas.",
+            'porcentaje_creditos.min' => "Tu carrera requiere al menos el {$this->minimoCreditos()}% de créditos cursados para iniciar el trámite.",
             'kardex.required' => 'Adjunta tu kardex simple del ciclo actual.',
             'imss.required' => 'Adjunta tu constancia de vigencia de derechos del IMSS.',
             'vigencia_imss.required' => 'Escribe la fecha hasta la que está vigente tu seguro (aparece en la constancia).',

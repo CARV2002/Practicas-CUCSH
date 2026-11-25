@@ -12,7 +12,7 @@
     @endphp
 
     <div class="space-y-6">
-        <x-pagina.encabezado titulo="Cierre de prácticas" descripcion="Valida la carta de término, registra el oficio y confirma la captura en SIIAU. Control Escolar no usa el sistema: tú registras cada paso." />
+        <x-pagina.encabezado titulo="Cierre de prácticas" descripcion="Valida la carta de término que emitió la organización (membretada, firmada y sellada), registra el oficio y confirma la captura en SIIAU. Control Escolar no usa el sistema: tú registras cada paso." />
 
         @if (session('status'))
             <x-ui.aviso tipo="exito" descartable>{{ session('status') }}</x-ui.aviso>

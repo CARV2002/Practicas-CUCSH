@@ -55,7 +55,7 @@ final class Ayuda
                 ['titulo' => 'Postúlate', 'texto' => 'Elige un programa de tu carrera, sube tu kardex y declara tu porcentaje de créditos.', 'ruta' => 'alumno.oferta-programas', 'icono' => 'buscar'],
                 ['titulo' => 'Preséntate', 'texto' => 'Con tu carta de presentación acude a la organización y sube la carta de aceptación sellada.', 'ruta' => 'alumno.mis-documentos', 'icono' => 'documento'],
                 ['titulo' => 'Reporta tus horas', 'texto' => 'Sube cada reporte firmado. Tus horas cuentan cuando tu coordinación lo valida.', 'ruta' => 'alumno.mis-documentos', 'icono' => 'reporte'],
-                ['titulo' => 'Cierra tu práctica', 'texto' => 'Al completar tus horas sube la carta de término. Tu coordinación envía el oficio a Control Escolar.', 'ruta' => 'alumno.mis-practicas', 'icono' => 'cierre'],
+                ['titulo' => 'Cierra tu práctica', 'texto' => 'Al completar tus horas, la organización te entrega tu carta de término firmada y sellada; súbela escaneada. Tu coordinación envía el oficio a Control Escolar.', 'ruta' => 'alumno.mis-practicas', 'icono' => 'cierre'],
             ],
             'temas' => [
                 ['categoria' => 'Postulación', 'pregunta' => '¿Por qué no puedo postularme?', 'respuesta' => 'El botón «Postularme» se habilita cuando tienes grado y turno en tu perfil, una constancia IMSS subida, no rechazada y vigente, y no tienes otra empresa en trámite ni una práctica activa. Si algo falta, el botón te dice exactamente qué.'],
@@ -65,14 +65,14 @@ final class Ayuda
                 ['categoria' => 'Documentos', 'pregunta' => '¿Dónde subo la carta de aceptación?', 'respuesta' => 'En «Mis documentos», dentro de tu postulación, cuando ya tengas tu carta de presentación. Después, tu coordinación activa tu práctica.'],
                 ['categoria' => 'Reportes', 'pregunta' => '¿Cuándo cuentan mis horas?', 'respuesta' => 'Cuando tu coordinación valida el reporte. Un reporte rechazado no suma horas hasta que lo corrijas y lo vuelvas a subir.'],
                 ['categoria' => 'Reportes', 'pregunta' => '¿Cada cuánto entrego reportes?', 'respuesta' => 'Depende del esquema de tu carrera: mensual, bimestral o parcial (a la mitad de las horas), y siempre un reporte final.'],
-                ['categoria' => 'Cierre', 'pregunta' => '¿Cómo se acredita mi práctica?', 'respuesta' => 'Al completar tus horas sube la carta de término. Tu coordinación la valida, envía el oficio a Control Escolar y registra la captura en SIIAU. Entonces tu práctica queda «Acreditada».'],
+                ['categoria' => 'Cierre', 'pregunta' => '¿Cómo se acredita mi práctica?', 'respuesta' => 'Al completar tus horas, pide a tu jefe directo tu carta de término: la emite la organización en su hoja membretada, firmada y sellada. Súbela escaneada en Mis documentos. Tu coordinación la valida, envía el oficio a Control Escolar y registra la captura en SIIAU. Entonces tu práctica queda «Acreditada».'],
                 ['categoria' => 'Cuenta', 'pregunta' => '¿Cómo cambio mi correo o mi contraseña?', 'respuesta' => 'En «Mi perfil». Si cambias tu correo tendrás que confirmarlo de nuevo con el enlace que te enviamos.'],
             ],
             'estados' => [
                 ['grupo' => 'Tu postulación', 'items' => [
                     ['estado' => PostulacionEstado::Pendiente, 'texto' => 'Tu coordinación revisa tus créditos y tu kardex.'],
-                    ['estado' => PostulacionEstado::CartaPresentacionEmitida, 'texto' => 'Ya puedes presentarte con la organización.'],
-                    ['estado' => PostulacionEstado::CartaAceptacionRecibida, 'texto' => 'Tu coordinación activará tu práctica.'],
+                    ['estado' => PostulacionEstado::CartaPresentacionEmitida, 'texto' => 'Descarga tu carta, llévala a la organización y sube la carta de aceptación que te entreguen.'],
+                    ['estado' => PostulacionEstado::CartaAceptacionRecibida, 'texto' => 'Tu coordinación validará tu carta de aceptación y activará tu práctica.'],
                     ['estado' => PostulacionEstado::Aceptada, 'texto' => 'Tu práctica está activa.'],
                     ['estado' => PostulacionEstado::Rechazada, 'texto' => 'Revisa el motivo y postúlate a otro programa.'],
                 ]],

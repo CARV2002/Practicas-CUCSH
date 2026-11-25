@@ -24,6 +24,8 @@ use App\Models\Practica;
 use App\Models\Profesor;
 use App\Notifications\AvisoOperativo;
 use App\Services\Avisos;
+use App\Services\ConvertidorPdf;
+use App\Services\GeneradorCartaPresentacion;
 use App\Support\ReglasArchivo;
 use App\Support\Requisitos;
 use Illuminate\Http\RedirectResponse;
@@ -32,6 +34,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -81,7 +84,7 @@ class PracticanteController extends Controller
                 ->mapWithKeys(fn (Postulacion $po) => [$po->id => Requisitos::emitirCarta($po)])
                 ->all(),
             'bloqueosActivar' => $postulaciones->getCollection()
-                ->filter(fn (Postulacion $po) => $po->estado === PostulacionEstado::CartaAceptacionRecibida)
+                ->filter(fn (Postulacion $po) => in_array($po->estado, [PostulacionEstado::CartaPresentacionEmitida, PostulacionEstado::CartaAceptacionRecibida], true))
                 ->mapWithKeys(fn (Postulacion $po) => [$po->id => Requisitos::activarPractica($po)])
                 ->all(),
             // Bajas que ya lleva el alumno de cada práctica activa: el modal de baja avisa si llega al límite
@@ -97,13 +100,33 @@ class PracticanteController extends Controller
         ]);
     }
 
+    /** Emite la carta de presentación: la coordinación sube el escaneo firmado y sellado; el alumno lo descarga. */
     public function emitirCarta(Request $request, Postulacion $postulacion, EmitirCartaPresentacion $emitir): RedirectResponse
     {
         $this->authorize('gestionar', $postulacion);
 
-        $emitir($postulacion, $request->user()->personal);
+        $request->validate(['carta' => ReglasArchivo::pdfRequerido()], [
+            'carta.required' => 'Sube la carta de presentación firmada y sellada (PDF).',
+        ]);
 
-        return back()->with('status', 'Carta de presentación emitida; cupo reservado.');
+        $emitir($postulacion, $request->user()->personal, $request->file('carta'));
+
+        return back()->with('status', 'Carta de presentación emitida: el alumno ya puede descargarla para llevarla a la organización.');
+    }
+
+    /** Formato de la carta de presentación con los datos del alumno, para imprimirlo, firmarlo y sellarlo. */
+    public function formatoCarta(Request $request, Postulacion $postulacion, GeneradorCartaPresentacion $generador, ConvertidorPdf $convertidor): BinaryFileResponse
+    {
+        $this->authorize('gestionar', $postulacion);
+
+        $word = $generador->generar($postulacion, $request->user()->personal);
+        $pdf = $convertidor->convertir($word);
+        $nombre = 'carta-presentacion-'.$postulacion->alumno->num_control;
+
+        // Sin LibreOffice se entrega el Word para imprimirlo desde ahí
+        return $pdf
+            ? response()->download($pdf, "{$nombre}.pdf")->deleteFileAfterSend()
+            : response()->download($word, "{$nombre}.docx")->deleteFileAfterSend();
     }
 
     /** Kardex e IMSS se revisan juntos: se autorizan ambos o se devuelve el que esté mal (RevisarExpedienteAlumno). */

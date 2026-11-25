@@ -325,8 +325,9 @@ class ConvenioWorkflow
         CarbonInterface $inicio,
         CarbonInterface $fin,
         ?string $comentario = null,
+        array $juegosPendientes = [],
     ): Convenio {
-        return DB::transaction(function () use ($convenio, $por, $folio, $inicio, $fin, $comentario) {
+        return DB::transaction(function () use ($convenio, $por, $folio, $inicio, $fin, $comentario, $juegosPendientes) {
             $convenio = $this->bloquear($convenio);
             $this->exigirEstado($convenio, ConvenioEstado::EnFirmas);
 
@@ -356,12 +357,17 @@ class ConvenioWorkflow
             $this->cerrarEtapa($convenio, EtapaConvenio::ArchivoDistribucion, SeguimientoEstado::Aprobado, $por, $comentario);
             // El expediente de Jurídica ya cumplió su recorrido: pasa a Concluidos y deja libre la bandeja activa
             $this->moverFisico($convenio, TipoDocumentoFisico::DictamenJuridico, EstadoDocumentoFisico::Archivado, $por, 'Convenio formalizado: el expediente jurídico concluye.');
-            // El juego 1 se queda en la carpeta de Vinculación: también concluye. Los juegos 2 y 3 siguen hasta entregarse.
-            $juegoPropio = $convenio->documentosFisicos()->where('tipo', TipoDocumentoFisico::JuegoConvenio->value)->where('juego', 1)->first();
-            if ($juegoPropio && ! in_array($juegoPropio->estado->value, EstadoDocumentoFisico::concluidos(), true)) {
-                $juegoPropio->mover(EstadoDocumentoFisico::Archivado, $por, 'Convenio formalizado: el juego de Vinculación queda en su archivo.');
-            }
-            $this->avisarEmpresa($convenio, "Tu convenio quedó formalizado (folio {$folio}), vigente del {$inicio->format('d/m/Y')} al {$fin->format('d/m/Y')}. Ya puedes proponer vacantes para las carreras aprobadas.");
+            // Los 3 juegos ya tienen ambas firmas: se reparten (archivo de Vinculación, empresa, archivo de Jurídica) y concluyen,
+            // salvo los que Vinculación marque como pendientes de entrega física (siguen en seguimiento)
+            $convenio->repartirJuegos($por, $juegosPendientes);
+            $vigencia = "vigente del {$inicio->format('d/m/Y')} al {$fin->format('d/m/Y')}";
+            $this->avisarEmpresa(
+                $convenio,
+                "Tu convenio quedó formalizado (folio {$folio}), {$vigencia}. El convenio firmado ya está en Mi convenio para descargarlo y ya puedes proponer vacantes para las carreras aprobadas.",
+                correo: true,
+                asunto: "Convenio formalizado · folio {$folio}",
+            );
+            $this->avisarJuridica($convenio, $folio, $vigencia);
 
             return $convenio;
         });
@@ -435,9 +441,16 @@ class ConvenioWorkflow
         $this->cerrarEtapa($convenio, EtapaConvenio::DictamenJuridico, SeguimientoEstado::Aprobado, $por, $comentario);
         $convenio->update(['estado' => ConvenioEstado::EnFirmas]);
         $this->abrirEtapa($convenio, EtapaConvenio::FirmaEmpresa, $por, 'Imprimir 3 juegos y llamar a la empresa.');
-        $this->moverFisico($convenio, TipoDocumentoFisico::DictamenJuridico, EstadoDocumentoFisico::EnVinculacion, $por, 'Dictamen aprobatorio recibido.');
+        // El expediente regresó con el dictamen favorable: concluye, y en seguimiento quedan solo los 3 juegos para firma
+        $this->moverFisico($convenio, TipoDocumentoFisico::DictamenJuridico, EstadoDocumentoFisico::Archivado, $por, 'Dictamen favorable recibido: el expediente concluye.');
         $convenio->prepararDocumentosFisicos($por);
-        $this->avisarEmpresa($convenio, 'La Unidad Jurídica aprobó tu convenio. Vinculación te contactará para entregar los 3 juegos originales y recabar tu firma.');
+        $plazo = EstadoDocumentoFisico::ConEmpresa->plazoHabiles();
+        $this->avisarEmpresa(
+            $convenio,
+            "La Unidad Jurídica dio dictamen favorable a tu convenio. Ya puedes pasar a Vinculación (CUCSH) a recoger los 3 juegos originales para firmarlos: tendrás {$plazo} días hábiles para devolverlos firmados.",
+            correo: true,
+            asunto: 'Tu convenio está listo para firma: recoge los 3 juegos',
+        );
     }
 
     private function observarJuridica(Convenio $convenio, Personal $por, ?string $comentario): void
@@ -487,6 +500,23 @@ class ConvenioWorkflow
         if ($buzon && ! $vinculacion->contains(fn ($u) => strcasecmp($u->email, $buzon) === 0)) {
             Avisos::enviarCorreo($buzon, new NuevaSolicitudConvenio($convenio));
         }
+    }
+
+    /** La Unidad Jurídica no usa el sistema: si su correo institucional está configurado, se le avisa del convenio formalizado. */
+    private function avisarJuridica(Convenio $convenio, string $folio, string $vigencia): void
+    {
+        $correo = config('practicas.juridica.correo');
+        if (blank($correo)) {
+            return;
+        }
+
+        $convenio->loadMissing('empresa');
+        Avisos::enviarCorreo((string) $correo, new AvisoOperativo(
+            mensaje: "El convenio con {$convenio->empresa->razon_social} quedó formalizado con el folio {$folio}, {$vigencia}. El juego original para su archivo se entrega desde Vinculación.",
+            url: url('/'),
+            correo: true,
+            asunto: "Convenio formalizado · folio {$folio}",
+        ));
     }
 
     private function abrirEtapa(Convenio $convenio, EtapaConvenio $etapa, ?Personal $por, ?string $comentario = null): ConvenioSeguimiento

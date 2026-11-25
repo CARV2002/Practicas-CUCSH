@@ -15,10 +15,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
-#[ObservedBy([ReporteObserver::class])]
 /**
  * Reporte de horas del alumno: periodo, actividades y el archivo firmado que valida la coordinación.
  */
+#[ObservedBy([ReporteObserver::class])]
 class Reporte extends Model implements HasMedia
 {
     use Auditable, InteractsWithMedia, ValidaDocumentos;

@@ -126,7 +126,38 @@ class ReporteController extends Controller
             asunto: 'Tu reporte fue rechazado',
         ));
 
+        // Con este reporte se completaron las horas: la carta de término la emite la organización, no la coordinación
+        $practica = $reporte->practica->fresh();
+        if ($ok && $practica->horasCompletas()) {
+            $this->avisarHorasCompletas($practica);
+        }
+
         return back()->with('status', 'Reporte '.($datos['estado'] === ReporteEstado::Validado->value ? 'validado' : 'rechazado').'.');
+    }
+
+    /**
+     * El alumno cubrió sus horas: él pide la carta de término a su jefe directo y la organización la emite
+     * en su hoja membretada, firmada y sellada. El alumno la sube escaneada y la coordinación la valida.
+     */
+    private function avisarHorasCompletas(Practica $practica): void
+    {
+        $alumno = Avisos::alumnoDe($practica);
+        $titulo = $practica->postulacion->programa->titulo;
+
+        Avisos::enviar($alumno, new AvisoOperativo(
+            mensaje: "¡Completaste tus {$practica->horas_requeridas} horas en «{$titulo}»! Qué hacer: pide a tu jefe directo en la organización tu carta de término en hoja membretada, firmada y sellada; escanéala y súbela en «Mis documentos › Carta de término».",
+            url: route('alumno.mis-documentos', absolute: false),
+            correo: true,
+            asunto: 'Completaste tus horas: solicita tu carta de término',
+        ));
+
+        // Proyecto interno: no hay organización externa a quien avisar
+        Avisos::enviar(Avisos::empresaDe($practica), new AvisoOperativo(
+            mensaje: "{$alumno?->name} completó sus {$practica->horas_requeridas} horas de práctica en «{$titulo}». Qué hacer: emite su carta de término en la hoja membretada de tu organización, fírmala, séllala y entrégasela para que la suba al sistema.",
+            url: route('empresa.practicantes.show', $practica, false),
+            correo: true,
+            asunto: 'Tu practicante completó sus horas: emite su carta de término',
+        ));
     }
 
     /** Descarga del reporte firmado (disco privado). */

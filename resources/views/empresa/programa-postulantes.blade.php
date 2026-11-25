@@ -7,6 +7,9 @@
             <x-slot:acciones><x-ui.estatus :estado="$programa->estado" tamano="normal" /></x-slot:acciones>
         </x-pagina.encabezado>
 
+        {{-- La carta de aceptación va en la papelería de la organización: estos datos evitan que la coordinación la rechace --}}
+        <x-ui.requisitos-carta tipo="aceptacion" para="empresa" :horas="$programa->carrera->horas_requeridas" class="bg-white shadow-theme-xs" />
+
         <x-tabla.marco titulo="Alumnos con carta de presentación" descripcion="Validados por la coordinación de su carrera. Si aceptas a un alumno, entrégale la carta de aceptación sellada." :total="$postulaciones->count()">
             <table class="tabla">
                 <thead>

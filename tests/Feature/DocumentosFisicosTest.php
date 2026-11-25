@@ -22,8 +22,10 @@ use App\Models\Empresa;
 use App\Models\Personal;
 use App\Models\User;
 use App\Notifications\AvisoOperativo;
+use App\Notifications\ConvenioActualizado;
 use App\Services\ConvenioWorkflow;
 use Database\Seeders\RolesSeeder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
@@ -77,12 +79,15 @@ test('el dictamen jurídico aprobado crea los 3 juegos y las firmas los actualiz
     $juegos = $this->convenio->documentosFisicos()->where('tipo', TF::JuegoConvenio->value)->get();
     expect($juegos)->toHaveCount(3)
         ->and($juegos->pluck('estado')->unique()->all())->toBe([EF::PorElaborar])
-        ->and($this->convenio->documentosFisicos()->where('tipo', TF::DictamenJuridico->value)->first()->estado)->toBe(EF::EnVinculacion)
+        ->and($this->convenio->documentosFisicos()->where('tipo', TF::DictamenJuridico->value)->first()->estado)->toBe(EF::Archivado)
+        ->and($this->convenio->documentosFisicos()->activos()->pluck('juego')->sort()->values()->all())->toBe([1, 2, 3])
         ->and($this->convenio->fresh()->estadoDetallado()['texto'])->toBe('Imprimir los 3 juegos');
 
-    // Lorena entrega los juegos a la empresa: plazo de regreso de 7 días hábiles
-    $juegos->each(fn ($j) => $this->actingAs($this->lorena)
-        ->post(route('admin.documentos-fisicos.mover', $j), ['estado' => EF::ConEmpresa->value])->assertSessionHasNoErrors());
+    // Lorena entrega los 3 juegos a la empresa de un solo movimiento: plazo de regreso de 7 días hábiles
+    $this->actingAs($this->lorena)
+        ->post(route('admin.documentos-fisicos.mover', $juegos->first()), ['estado' => EF::ConEmpresa->value, 'juntos' => '1'])
+        ->assertSessionHasNoErrors()->assertSessionHas('status', 'Juegos 1, 2 y 3: Con la empresa para firma.');
+    expect($this->convenio->documentosFisicos()->where('estado', EF::ConEmpresa->value)->count())->toBe(3);
 
     $j = $juegos->first()->fresh();
     expect($j->estado)->toBe(EF::ConEmpresa)
@@ -96,6 +101,30 @@ test('el dictamen jurídico aprobado crea los 3 juegos y las firmas los actualiz
     $flujo->registrarFirma($this->convenio->fresh(), EtapaConvenio::FirmaRectoria, $this->personal);
     expect($this->convenio->documentosFisicos()->where('estado', EF::Firmado->value)->count())->toBe(3)
         ->and($this->convenio->fresh()->estadoDetallado()['texto'])->toBe('Por formalizar');
+
+    // Formalizar exige el escaneo del convenio firmado
+    Storage::fake('local');
+    $this->convenio->addMedia(UploadedFile::fake()->createWithContent('convenio.pdf', '%PDF-1.4
+%%EOF'))->toMediaCollection('convenio_firmado');
+    $flujo->formalizar($this->convenio->fresh(), $this->personal, 'CV-2026-099', today(), today()->addYears(2)->subDay());
+    $finales = $this->convenio->documentosFisicos()->where('tipo', TF::JuegoConvenio->value)->orderBy('juego')->get();
+    expect($finales->pluck('estado')->all())->toBe([EF::Archivado, EF::Entregado, EF::Entregado])
+        ->and($finales->pluck('destino')->all())->toBe(['Archivo de Vinculación (CUCSH)', 'Empresa', 'Archivo de la Unidad Jurídica'])
+        ->and($this->convenio->documentosFisicos()->activos()->count())->toBe(0);
+});
+
+test('sin marcar «juntos» solo se mueve el juego elegido, y los que están en otro lugar nunca se arrastran', function () {
+    $this->convenio->update(['estado' => ConvenioEstado::EnFirmas]);
+    $this->convenio->prepararDocumentosFisicos($this->personal);
+    [$j1, $j2, $j3] = $this->convenio->documentosFisicos()->where('tipo', TF::JuegoConvenio->value)->orderBy('juego')->get()->all();
+
+    $this->actingAs($this->lorena)->post(route('admin.documentos-fisicos.mover', $j1), ['estado' => EF::EnVinculacion->value])->assertSessionHasNoErrors();
+    expect($j1->fresh()->estado)->toBe(EF::EnVinculacion)->and($j2->fresh()->estado)->toBe(EF::PorElaborar);
+
+    // «Juntos» desde el juego 2 arrastra al 3 (mismo lugar), no al 1 (ya está en otro)
+    $this->actingAs($this->lorena)->post(route('admin.documentos-fisicos.mover', $j2), ['estado' => EF::EnVinculacion->value, 'juntos' => '1'])->assertSessionHasNoErrors();
+    expect($j3->fresh()->estado)->toBe(EF::EnVinculacion)
+        ->and($j1->fresh()->movimientos()->count())->toBe(2);
 });
 
 test('un estado que no aplica al papel o sin nota cuando se extravía se rechaza', function () {
@@ -185,4 +214,88 @@ test('un convenio rechazado ya no genera recordatorios de sus papeles', function
 
     Notification::assertNotSentTo($this->empresaUser, AvisoOperativo::class);
     Notification::assertNotSentTo($this->lorena, AvisoOperativo::class);
+});
+
+/** Lleva el convenio del dictamen favorable hasta «Por formalizar», con el PDF firmado adjunto. */
+function dfHastaPorFormalizar($test): void
+{
+    $flujo = app(ConvenioWorkflow::class);
+    $test->convenio->prepararDocumentosFisicos($test->personal);
+    $flujo->registrarDictamenJuridico($test->convenio, SeguimientoEstado::Aprobado, null, $test->personal);
+    $flujo->registrarFirma($test->convenio->fresh(), EtapaConvenio::FirmaEmpresa, $test->personal);
+    $flujo->registrarFirma($test->convenio->fresh(), EtapaConvenio::FirmaRectoria, $test->personal);
+    $test->convenio->addMedia(UploadedFile::fake()->createWithContent('convenio.pdf', "%PDF-1.4\n%%EOF"))->toMediaCollection('convenio_firmado');
+}
+
+test('el dictamen favorable avisa a la empresa por correo y en su panel que recoja los 3 juegos y el plazo', function () {
+    Notification::fake();
+    $this->convenio->prepararDocumentosFisicos($this->personal);
+
+    app(ConvenioWorkflow::class)->registrarDictamenJuridico($this->convenio, SeguimientoEstado::Aprobado, null, $this->personal);
+
+    Notification::assertSentTo($this->empresaUser, ConvenioActualizado::class, fn ($n, $canales) => $canales === ['database', 'mail']
+        && str_contains($n->mensaje, 'pasar a Vinculación (CUCSH) a recoger los 3 juegos originales')
+        && str_contains($n->mensaje, '7 días hábiles'));
+});
+
+test('los 3 juegos se mueven juntos a la empresa y a Rectoría con la misma fecha de regreso', function () {
+    Notification::fake();
+    $flujo = app(ConvenioWorkflow::class);
+    $this->convenio->prepararDocumentosFisicos($this->personal);
+    $flujo->registrarDictamenJuridico($this->convenio, SeguimientoEstado::Aprobado, null, $this->personal);
+    $juegos = fn () => $this->convenio->documentosFisicos()->where('tipo', TF::JuegoConvenio->value)->get();
+
+    $salida = today()->subDays(2);
+    $this->actingAs($this->lorena)->post(route('admin.documentos-fisicos.mover', $juegos()->first()), [
+        'estado' => EF::ConEmpresa->value, 'fecha' => $salida->toDateString(), 'juntos' => '1',
+    ])->assertSessionHasNoErrors();
+    expect($juegos()->pluck('estado')->unique()->all())->toBe([EF::ConEmpresa])
+        ->and($juegos()->map(fn ($d) => $d->fecha_compromiso->toDateString())->unique()->all())->toBe([$salida->copy()->addWeekdays(7)->toDateString()]);
+
+    $flujo->registrarFirma($this->convenio->fresh(), EtapaConvenio::FirmaEmpresa, $this->personal);
+    $this->actingAs($this->lorena)->post(route('admin.documentos-fisicos.mover', $juegos()->last()), [
+        'estado' => EF::EnRectoria->value, 'juntos' => '1',
+    ])->assertSessionHasNoErrors();
+    expect($juegos()->pluck('estado')->unique()->all())->toBe([EF::EnRectoria])
+        ->and($juegos()->pluck('fecha_compromiso')->map->toDateString()->unique())->toHaveCount(1);
+});
+
+test('al formalizar: juegos concluidos salvo los pendientes, PDF para todos y aviso a Jurídica', function () {
+    Notification::fake();
+    config(['practicas.juridica.correo' => 'juridica@cucsh.test']);
+    dfHastaPorFormalizar($this);
+
+    app(ConvenioWorkflow::class)->formalizar($this->convenio->fresh(), $this->personal, 'CV-2026-120', today(), today()->addYears(2)->subDay(), null, [2]);
+
+    // El juego 2 (de la empresa) sigue en seguimiento hasta que se entregue; los otros concluyen
+    $finales = $this->convenio->documentosFisicos()->where('tipo', TF::JuegoConvenio->value)->orderBy('juego')->get();
+    expect($finales->pluck('estado')->all())->toBe([EF::Archivado, EF::Firmado, EF::Entregado])
+        ->and($this->convenio->documentosFisicos()->activos()->pluck('juego')->all())->toBe([2])
+        ->and($finales[1]->movimientos()->latest('id')->first()->nota)->toContain('pendiente de entrega física');
+
+    // La empresa recibe correo y aviso; Jurídica, un correo con folio y vigencia
+    Notification::assertSentTo($this->empresaUser, ConvenioActualizado::class, fn ($n, $canales) => in_array('mail', $canales, true)
+        && str_contains($n->mensaje, 'folio CV-2026-120') && str_contains($n->mensaje, 'Mi convenio'));
+    Notification::assertSentOnDemand(AvisoOperativo::class, fn ($n, $canales, $destino) => $destino->routes['mail'] === 'juridica@cucsh.test'
+        && str_contains($n->mensaje, 'folio CV-2026-120') && str_contains($n->mensaje, 'vigente del'));
+
+    // El PDF firmado: Vinculación, Administración y la empresa (en Mi convenio, con su misma cuenta)
+    $pdf = $this->convenio->fresh()->getFirstMedia('convenio_firmado');
+    $admin = dfUsuario(Rol::Administrador);
+    Personal::create(['user_id' => $admin->id, 'puesto' => 'Administración']);
+    $this->actingAs($this->lorena)->get(route('admin.convenios.archivos.descargar', [$this->convenio, $pdf]))->assertOk();
+    $this->actingAs($admin)->get(route('admin.convenios.archivos.descargar', [$this->convenio, $pdf]))->assertOk();
+    $this->actingAs($this->empresaUser)->get(route('empresa.convenio'))->assertOk()->assertSee('Convenio firmado');
+    $this->actingAs($this->empresaUser)->get(route('empresa.convenio.archivo', $this->convenio))->assertOk();
+});
+
+test('sin correo de Jurídica configurado no se envía ese aviso', function () {
+    Notification::fake();
+    config(['practicas.juridica.correo' => null]);
+    dfHastaPorFormalizar($this);
+
+    app(ConvenioWorkflow::class)->formalizar($this->convenio->fresh(), $this->personal, 'CV-2026-121', today(), today()->addYears(2)->subDay());
+
+    Notification::assertSentOnDemandTimes(AvisoOperativo::class, 0);
+    expect($this->convenio->documentosFisicos()->activos()->count())->toBe(0);
 });

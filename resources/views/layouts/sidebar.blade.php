@@ -155,18 +155,18 @@
                                             </ul>
                                         </div>
                                     @elseif (!empty($item['bloqueado']))
-                                        {{-- Pestaña deshabilitada: se ve, pero explica por qué aún no se puede usar --}}
+                                        {{-- Pestaña deshabilitada: una etiqueta corta y legible; el motivo completo va al pasar el cursor y para lectores de pantalla (la pantalla lo muestra como aviso) --}}
                                         <span role="link" aria-disabled="true" tabindex="0" title="{{ $item['bloqueado'] }}"
-                                            class="menu-item group menu-item-inactive cursor-not-allowed opacity-60"
+                                            class="menu-item group menu-item-inactive cursor-not-allowed"
                                             :class="(!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen) ? 'xl:justify-center' : 'justify-start'">
-                                            <span class="menu-item-icon-inactive">{!! MenuHelper::getIconSvg($item['icon']) !!}</span>
+                                            <span class="menu-item-icon-inactive opacity-50">{!! MenuHelper::getIconSvg($item['icon']) !!}</span>
                                             <span x-show="$store.sidebar.isExpanded || $store.sidebar.isHovered || $store.sidebar.isMobileOpen"
                                                 class="menu-item-text flex flex-col items-start">
-                                                <span class="flex items-center gap-1.5">
+                                                <span class="flex items-center gap-1.5 text-gray-500">
                                                     {{ $item['name'] }}
                                                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
                                                 </span>
-                                                <span class="text-[11px] font-normal leading-tight text-gray-500">{{ $item['bloqueado'] }}</span>
+                                                <span class="text-[11px] font-semibold leading-tight text-amber-700" aria-hidden="true">Aún no disponible</span><span class="sr-only">. {{ $item['bloqueado'] }}</span>
                                             </span>
                                         </span>
                                     @else

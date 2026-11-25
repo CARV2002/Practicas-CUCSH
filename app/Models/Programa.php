@@ -17,12 +17,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
+ * Programa de prácticas: vacante de una organización con convenio o proyecto interno, con cupos y ciclo.
+ *
  * @property-read int|null $cupos_ocupados Solo si la consulta usó scopeConCuposOcupados()
  */
 #[ObservedBy([ProgramaObserver::class])]
-/**
- * Programa de prácticas: vacante de una organización con convenio o proyecto interno, con cupos y ciclo.
- */
 class Programa extends Model
 {
     use Auditable;

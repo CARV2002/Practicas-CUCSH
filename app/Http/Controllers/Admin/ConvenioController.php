@@ -354,7 +354,7 @@ class ConvenioController extends Controller
 
         $fin = $inicio->copy()->addYears($convenio->duracionAnios())->subDay();
 
-        $this->workflow->formalizar($convenio, $request->user()->personal, $datos['folio'], $inicio, $fin, $datos['comentario'] ?? null);
+        $this->workflow->formalizar($convenio, $request->user()->personal, $datos['folio'], $inicio, $fin, $datos['comentario'] ?? null, $datos['juegos_pendientes'] ?? []);
 
         $aviso = $this->workflow->advertenciaVigencia($inicio, $fin);
 

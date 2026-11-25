@@ -272,10 +272,7 @@ test('de la postulación a la acreditación: reglas, cupos, horas y cierre', fun
     $pAna = postular($ana, $programa, 62.5);
     $emitir($pAna, $this->lorena);
     expect($pAna->refresh()->estado)->toBe(PostulacionEstado::CartaPresentacionEmitida)
-        ->and($programa->refresh()->cupos_disponibles)->toBe(0);
-
-    // El único cupo ya está reservado
-    expect(fn () => $emitir(postular($luis, $programa), $this->lorena))->toThrow(ValidationException::class, 'cupos');
+        ->and($programa->refresh()->cupos_disponibles)->toBe(1);   // la carta de presentación no ocupa el lugar
 
     // La carta de aceptación es obligatoria
     $registrar = app(RegistrarCartaAceptacion::class);
@@ -288,7 +285,11 @@ test('de la postulación a la acreditación: reglas, cupos, horas y cierre', fun
     expect($practica->horas_requeridas)->toBe(250)
         ->and($practica->profesor_supervisor_id)->toBeNull()
         ->and($practica->estado)->toBe(PracticaEstado::EnCurso)
-        ->and($pAna->refresh()->estado)->toBe(PostulacionEstado::Aceptada);
+        ->and($pAna->refresh()->estado)->toBe(PostulacionEstado::Aceptada)
+        ->and($programa->refresh()->cupos_disponibles)->toBe(0);
+
+    // El único lugar ya lo ocupa la práctica activa
+    expect(fn () => $emitir(postular($luis, $programa), $this->lorena))->toThrow(ValidationException::class, 'cupos');
 
     // La carta de término no se valida si faltan horas
     $carta = CartaTermino::create(['practica_id' => $practica->id]);
@@ -352,4 +353,38 @@ test('el IMSS debe cubrir todo el periodo de la práctica', function () {
 
     expect(fn () => app(ActivarPractica::class)($p->refresh(), $this->lorena, today(), today()->addMonths(6)))
         ->toThrow(ValidationException::class, 'IMSS');
+});
+
+test('validar la carta de aceptación activa la práctica en un solo paso y ocupa el lugar', function () {
+    $c = ($this->convenioFormalizado)->call($this);
+    $programa = Programa::create(['convenio_id' => $c->id, 'carrera_id' => $this->abogado->id, 'modalidad' => 'externa',
+        'ciclo' => '2027A', 'titulo' => 'Auxiliar', 'descripcion' => 'x', 'actividades' => ['y'],
+        'perfil_requerido' => 'z', 'cupos_totales' => 1, 'estado' => ProgramaEstado::Publicado]);
+    $emitir = app(EmitirCartaPresentacion::class);
+    $activar = app(ActivarPractica::class);
+
+    // Dos alumnos llevan su carta de presentación a la misma vacante de 1 lugar
+    $pAna = postular(alumnoDe($this->abogado, '215000031'), $programa);
+    $pLuis = postular(alumnoDe($this->abogado, '215000032'), $programa);
+    $emitir($pAna, $this->lorena, pdfFalso('firmada-ana.pdf'));
+    $emitir($pLuis, $this->lorena, pdfFalso('firmada-luis.pdf'));
+    expect($pAna->refresh()->cartaPresentacion()->getCustomProperty('firmada'))->toBeTrue()
+        ->and($programa->refresh()->cupos_disponibles)->toBe(1);
+
+    // Sin la carta de aceptación del alumno no se activa
+    expect(fn () => $activar($pAna->refresh(), $this->lorena, today(), today()->addMonths(6)))
+        ->toThrow(ValidationException::class, 'carta de aceptación');
+
+    // El alumno la sube y la coordinación la valida: práctica en curso, carta validada, lugar ocupado
+    $pAna->addMedia(pdfFalso('aceptacion.pdf'))->toMediaCollection('carta_aceptacion');
+    $practica = $activar($pAna->refresh(), $this->lorena, today(), today()->addMonths(6));
+    expect($practica->estado)->toBe(PracticaEstado::EnCurso)
+        ->and($pAna->refresh()->estado)->toBe(PostulacionEstado::Aceptada)
+        ->and($pAna->documentoValidado('carta_aceptacion'))->toBeTrue()
+        ->and($programa->refresh()->cupos_disponibles)->toBe(0);
+
+    // El segundo ya no cabe aunque traiga su carta de aceptación
+    $pLuis->addMedia(pdfFalso('aceptacion-luis.pdf'))->toMediaCollection('carta_aceptacion');
+    expect(fn () => $activar($pLuis->refresh(), $this->lorena, today(), today()->addMonths(6)))
+        ->toThrow(ValidationException::class, 'cupos');
 });

@@ -19,6 +19,11 @@
         'concluidos' => ['Aún no hay papeles concluidos', 'Los juegos entregados y los expedientes archivados aparecerán aquí.'],
     ];
     $totalPapeles = $grupos->flatten()->count();
+    // Cada convenio se muestra plegado; se abre solo el que tiene un error de «Mover» o todos al buscar
+    $abiertosIniciales = $grupos->map(fn ($docs) => $docs->first()->convenio_id)
+        ->filter(fn ($id) => request('q') || $grupos->count() === 1
+            || ($errors->any() && $grupos->first(fn ($g) => $g->first()->convenio_id === $id)?->contains('id', (int) old('doc'))))
+        ->values();
 @endphp
 
 <div class="space-y-6">
@@ -164,7 +169,7 @@
             </form>
         </x-slot:herramientas>
 
-        <table class="tabla table-fixed">
+        <table class="tabla table-fixed" x-data="{ abiertos: @js($abiertosIniciales), alternar(id) { this.abiertos = this.abiertos.includes(id) ? this.abiertos.filter(a => a !== id) : [...this.abiertos, id] } }">
             <colgroup>
                 <col class="w-[30%]"><col><col class="w-28"><col class="w-32"><col class="w-40">
             </colgroup>
@@ -183,18 +188,26 @@
                     $detalle = $convenio->estadoDetallado();
                     $conEmpresa = $docs->where('estado', EF::ConEmpresa)->count();
                     $vencidosGrupo = $docs->filter(fn ($d) => $d->vencido())->count();
+                    $porEstado = $docs->groupBy(fn ($d) => $d->estado->value)->map(fn ($g) => [$g->first()->estado, $g->count()]);
+                    $cid = $convenio->id;
                 @endphp
                 {{-- Encabezado del convenio --}}
                 <tbody>
                     <tr class="border-t-4 border-white bg-gray-50">
-                        <td colspan="5" class="px-6 py-3">
+                        <td colspan="5" class="px-6 py-3" x-on:click.self="alternar({{ $cid }})">
                             <div class="flex flex-wrap items-center justify-between gap-3">
-                                <div class="flex min-w-0 items-center gap-3">
+                                <div class="flex min-w-0 items-start gap-3">
                                     <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white font-display text-sm font-bold text-udg-900 ring-1 ring-inset ring-udg-100" aria-hidden="true">{{ mb_strtoupper(mb_substr($convenio->empresa->razon_social, 0, 1)) }}</span>
                                     <div class="min-w-0">
                                         <a href="{{ route('admin.convenios.show', $convenio) }}" class="font-semibold text-gray-900 underline-offset-2 hover:text-udg-900 hover:underline">{{ $convenio->empresa->razon_social }}</a>
                                         <p class="text-xs text-gray-500">{{ $convenio->folio ? 'Folio ' . $convenio->folio : 'Sin folio aún' }} · {{ $detalle['texto'] }}
                                             · {{ $docs->count() }} {{ $docs->count() === 1 ? 'papel' : 'papeles' }}@if ($vencidosGrupo)<span class="font-semibold text-rose-600"> · {{ $vencidosGrupo }} {{ $vencidosGrupo === 1 ? 'vencido' : 'vencidos' }}</span>@endif</p>
+                                        {{-- Dónde están sus papeles, de un vistazo, sin abrir el detalle --}}
+                                        <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                            @foreach ($porEstado as [$est, $n])
+                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset {{ \App\Support\Estatus::chip($est->familia()) }}">{{ $n }} · {{ $est->label() }}</span>
+                                            @endforeach
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
@@ -203,6 +216,13 @@
                                             confirmar="¿Enviar a la empresa un recordatorio por correo para devolver los juegos firmados?" />
                                     @endif
                                     <a href="{{ route('admin.convenios.show', $convenio) }}" class="boton boton-chico boton-secundario">Ver trámite <x-dashboard.icono nombre="flecha" clase="size-3.5" /></a>
+                                    {{-- Los papeles del convenio se despliegan debajo: la tabla no carga todos los renglones a la vez --}}
+                                    <button type="button" x-on:click="alternar({{ $cid }})" :aria-expanded="abiertos.includes({{ $cid }}).toString()"
+                                        class="boton boton-chico" :class="abiertos.includes({{ $cid }}) ? 'boton-primario' : 'boton-secundario'">
+                                        <x-dashboard.icono nombre="documento" clase="size-3.5" />
+                                        <span x-text="abiertos.includes({{ $cid }}) ? 'Ocultar papeles' : 'Ver papeles'">Ver papeles</span>
+                                        <svg class="size-3 transition-transform" :class="abiertos.includes({{ $cid }}) && 'rotate-180'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
                                 </div>
                             </div>
                         </td>
@@ -215,7 +235,7 @@
                         $porVencer = $d->porVencer();
                         $opcionesJs = collect($d->tipo->estados())->mapWithKeys(fn ($e) => [$e->value => $e->plazoHabiles()]);
                     @endphp
-                    <tbody x-data="{ editar: {{ $errors->any() && old('doc') == $d->id ? 'true' : 'false' }}, historial: false, estado: '{{ old('doc') == $d->id ? old('estado') : $d->estado->value }}', plazos: {{ $opcionesJs->toJson() }} }">
+                    <tbody x-show="abiertos.includes({{ $cid }})" x-cloak x-data="{ editar: {{ $errors->any() && old('doc') == $d->id ? 'true' : 'false' }}, historial: false, estado: '{{ old('doc') == $d->id ? old('estado') : $d->estado->value }}', plazos: {{ $opcionesJs->toJson() }} }">
                         <tr @class(['tabla-fila align-top border-t border-gray-100', 'bg-rose-50/40 shadow-[inset_3px_0_0_var(--color-rose-500)]' => $vencido, 'shadow-[inset_3px_0_0_var(--color-amber-400)]' => $porVencer])>
                             <td class="px-6 py-3.5">
                                 <div class="flex items-start gap-3">
@@ -290,6 +310,15 @@
                                             <label class="etiqueta" for="dest-{{ $d->id }}">Destino del juego</label>
                                             <input id="dest-{{ $d->id }}" type="text" name="destino" value="{{ $d->destino }}" maxlength="255" class="campo h-10">
                                         </div>
+                                    @endif
+                                    {{-- Los juegos viajan en la misma carpeta: se pueden mover juntos los que están en el mismo lugar --}}
+                                    @php $hermanos = $d->juego ? $docs->filter(fn ($o) => $o->juego && $o->id !== $d->id && $o->estado === $d->estado)->sortBy('juego') : collect(); @endphp
+                                    @if ($hermanos->isNotEmpty())
+                                        <label class="flex cursor-pointer items-start gap-2.5 rounded-xl bg-white px-3.5 py-2.5 text-sm ring-1 ring-inset ring-udg-100 sm:col-span-full">
+                                            <input type="checkbox" name="juntos" value="1" checked class="mt-0.5 size-4 shrink-0 rounded border-gray-300">
+                                            <span><span class="font-semibold text-gray-900">Mover también {{ $hermanos->count() === 1 ? 'el juego' : 'los juegos' }} {{ $hermanos->pluck('juego')->join(', ', ' y ') }}</span>
+                                                <span class="text-gray-500">· están en «{{ $d->estado->label() }}» y viajan en la misma carpeta</span></span>
+                                        </label>
                                     @endif
                                     <div class="flex flex-col gap-3 border-t border-gray-200/70 pt-3 sm:col-span-full sm:flex-row sm:items-end">
                                         <div class="min-w-0 flex-1">
