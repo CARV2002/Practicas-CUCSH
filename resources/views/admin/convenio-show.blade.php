@@ -46,6 +46,25 @@
         </div>
         <x-convenio.pista :estado="$estado" grande class="mt-4" />
 
+        {{-- De dónde viene la solicitud: reenvío tras un rechazo o renovación --}}
+        @php $antecedente = $convenio->antecedente(); @endphp
+        @if ($antecedente && $antecedente['tipo'] === 'reenvio')
+            <div class="mt-4 flex items-start gap-3 rounded-xl bg-orange-50 px-4 py-3 text-sm text-orange-900 ring-1 ring-inset ring-orange-200">
+                <x-dashboard.icono nombre="deshacer" clase="mt-0.5 size-4 shrink-0" />
+                <div class="min-w-0">
+                    <p class="font-semibold">Reenvío: la organización vuelve a solicitar el convenio</p>
+                    <p class="mt-0.5">Su solicitud anterior (recibida el {{ $antecedente['anterior']->fecha_recepcion->format('d/m/Y') }}) fue rechazada por {{ $antecedente['origen'] }}@if ($antecedente['carrerasNegativas']) · no aprobaron: {{ implode(', ', $antecedente['carrerasNegativas']) }}@endif.</p>
+                    @if ($antecedente['motivo'])<p class="mt-0.5">Motivo: «{{ $antecedente['motivo'] }}»</p>@endif
+                    <p class="mt-1 text-xs">Revisa que la nueva propuesta atienda ese motivo. <a href="{{ route('admin.convenios.show', $antecedente['anterior']) }}" class="font-semibold underline underline-offset-2">Ver la solicitud anterior</a></p>
+                </div>
+            </div>
+        @elseif ($antecedente && $antecedente['tipo'] === 'renovacion')
+            <div class="mt-4 flex items-start gap-3 rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-900 ring-1 ring-inset ring-sky-200">
+                <x-dashboard.icono nombre="vigente" clase="mt-0.5 size-4 shrink-0" />
+                <p><span class="font-semibold">Renovación</span> del convenio {{ $antecedente['anterior']->folio ?? '' }}@if ($antecedente['anterior']->fecha_fin_vigencia) (vence el {{ $antecedente['anterior']->fecha_fin_vigencia->format('d/m/Y') }})@endif. <a href="{{ route('admin.convenios.show', $antecedente['anterior']) }}" class="font-semibold underline underline-offset-2">Ver convenio anterior</a></p>
+            </div>
+        @endif
+
         @php $detalle = $convenio->estadoDetallado(); @endphp
         <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-gray-100 px-4 py-3">
             <x-ui.estatus :familia="$detalle['familia']" :texto="$detalle['texto']" tamano="normal" />
@@ -83,7 +102,13 @@
             </div>
         @elseif ($estado->esFinal())
             <p class="mt-4 rounded-xl bg-gray-50 p-4 text-sm text-gray-600 ring-1 ring-inset ring-gray-100">
-                {{ $estado === E::Formalizado ? 'Trámite concluido: el convenio está formalizado.' : 'Trámite cerrado como rechazado.' }}
+                @if ($estado === E::Formalizado)
+                    Trámite concluido: el convenio está formalizado.
+                @else
+                    @php $cierre = $convenio->seguimientos->where('estado', \App\Enums\SeguimientoEstado::Rechazado)->last(); @endphp
+                    Trámite cerrado como rechazado{{ $cierre?->comentario ? ': «' . $cierre->comentario . '»' : '.' }}
+                    <span class="mt-1 block text-xs">Si la organización vuelve a solicitar, su nueva solicitud aparecerá marcada como «Reenvío tras rechazo».</span>
+                @endif
             </p>
         @endif
     </section>
@@ -306,7 +331,9 @@
                 @endif
             </x-dashboard.panel>
 
-            {{-- Validación académica --}}
+            {{-- Validación académica: aparece cuando la solicitud ya se turnó a las carreras (pasos en orden) --}}
+            @php $conDictamenes = $convenio->dictamenes->contains(fn ($d) => $d->dictamen !== \App\Enums\Dictamen::Pendiente); @endphp
+            @if ($estado !== E::Solicitado && !($estado === E::Rechazado && !$conDictamenes))
             <x-dashboard.panel titulo="Dictamen académico por carrera" icono="academico"
                 descripcion="Cada carrera solicitada da su dictamen; tú das seguimiento.">
                 @if ($estado === E::EnValidacionAcademica || $convenio->fecha_turno_secretaria || $convenio->fecha_turno_division)
@@ -385,6 +412,7 @@
                     @endforelse
                 </ul>
             </x-dashboard.panel>
+            @endif
 
             {{-- Borrador y Jurídica: aparece cuando las carreras ya dictaminaron (redacción) y se queda como historial.
                  En la revisión de documentos, con dictámenes pendientes o en un convenio rechazado no tiene nada que hacer. --}}

@@ -74,7 +74,11 @@ class ConvenioWorkflow
 
             $this->abrirEtapa($convenio, EtapaConvenio::RevisionDocumentos, null);
             $this->avisarAdministradores($convenio);
-            $this->avisarEmpresa($convenio, 'Recibimos tu solicitud de convenio. Vinculación revisará tu expediente.');
+            $this->avisarEmpresa($convenio, match ($convenio->antecedente()['tipo'] ?? null) {
+                'reenvio' => 'Recibimos tu nueva solicitud de convenio. Vinculación revisará que atienda lo que se pidió y tu expediente.',
+                'renovacion' => 'Recibimos tu solicitud de renovación. Vinculación revisará tu expediente; tu convenio actual sigue vigente mientras tanto.',
+                default => 'Recibimos tu solicitud de convenio. Vinculación revisará tu expediente.',
+            });
 
             return $convenio;
         });

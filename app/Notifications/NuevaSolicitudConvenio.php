@@ -19,7 +19,14 @@ class NuevaSolicitudConvenio extends AvisoPracticas
 
     protected function texto(): string
     {
-        return "La empresa {$this->convenio->empresa->razon_social} envió una solicitud de convenio. Revisa su documentación.";
+        $empresa = $this->convenio->empresa->razon_social;
+        $a = $this->convenio->antecedente();
+
+        return match ($a['tipo'] ?? null) {
+            'reenvio' => "{$empresa} volvió a enviar su solicitud de convenio. La anterior la rechazó {$a['origen']}".($a['motivo'] ? ": «{$a['motivo']}»" : '').'. Revisa que la nueva propuesta lo atienda.',
+            'renovacion' => "{$empresa} envió la renovación de su convenio ".($a['anterior']->folio ?? '').'. Revisa su documentación.',
+            default => "La empresa {$empresa} envió una solicitud de convenio. Revisa su documentación.",
+        };
     }
 
     protected function ruta(): string
@@ -34,7 +41,11 @@ class NuevaSolicitudConvenio extends AvisoPracticas
 
     protected function asunto(): string
     {
-        return "Nueva solicitud de convenio: {$this->convenio->empresa->razon_social}";
+        return match ($this->convenio->antecedente()['tipo'] ?? null) {
+            'reenvio' => "Reenvío de solicitud de convenio: {$this->convenio->empresa->razon_social}",
+            'renovacion' => "Renovación de convenio: {$this->convenio->empresa->razon_social}",
+            default => "Nueva solicitud de convenio: {$this->convenio->empresa->razon_social}",
+        };
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -48,7 +59,8 @@ class NuevaSolicitudConvenio extends AvisoPracticas
         $mensaje = (new MailMessage)
             ->subject($this->asunto())
             ->greeting('Hola '.data_get($notifiable, 'name', 'equipo de Prácticas Profesionales'))
-            ->line("La empresa **{$e->razon_social}** ({$e->rfc}, {$e->tipo_organismo->label()}) envió una solicitud de convenio.")
+            ->line($this->texto())
+            ->line("**Organización:** {$e->razon_social} ({$e->rfc}, {$e->tipo_organismo->label()})")
             ->line("**Contacto:** {$contacto}")
             ->line('**Carreras de interés:** '.$c->dictamenes->map(fn ($d) => $d->carrera->nombre)->join('; '))
             ->line("**Plazas estimadas:** {$c->plazas_estimadas}");

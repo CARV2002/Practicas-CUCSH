@@ -211,6 +211,42 @@ class Convenio extends Model implements HasMedia
         return $this->dictamenes()->where('dictamen', Dictamen::Pendiente->value)->count();
     }
 
+    /**
+     * De dónde viene esta solicitud, para que Vinculación lo sepa de un vistazo:
+     *  - reenvio: la solicitud anterior de la empresa fue rechazada (por el dictamen académico o en otra etapa);
+     *  - renovacion: la empresa ya tuvo un convenio formalizado.
+     * null si es la primera solicitud de la empresa.
+     *
+     * @return array{tipo: string, anterior: Convenio, motivo: ?string, origen: ?string, carrerasNegativas: list<string>}|null
+     */
+    public function antecedente(): ?array
+    {
+        $anterior = self::query()->where('empresa_id', $this->empresa_id)->where('id', '<', $this->id)->orderByDesc('id')->first();
+        if ($anterior === null) {
+            return null;
+        }
+
+        if ($anterior->estado === ConvenioEstado::Formalizado) {
+            return ['tipo' => 'renovacion', 'anterior' => $anterior, 'motivo' => null, 'origen' => null, 'carrerasNegativas' => []];
+        }
+
+        if ($anterior->estado !== ConvenioEstado::Rechazado) {
+            return null;
+        }
+
+        $cierre = $anterior->seguimientos()->where('estado', SeguimientoEstado::Rechazado->value)->latest('id')->first();
+        $negativas = $anterior->dictamenes()->where('dictamen', Dictamen::Negativo->value)->with('carrera')->get();
+        $porDictamen = $negativas->isNotEmpty() && ! $anterior->tieneAprobatorio();
+
+        return [
+            'tipo' => 'reenvio',
+            'anterior' => $anterior,
+            'motivo' => $cierre?->comentario,
+            'origen' => $porDictamen ? 'el dictamen académico de las coordinaciones' : ($cierre?->etapa ? 'Vinculación ('.$cierre->etapa->label().')' : 'Vinculación'),
+            'carrerasNegativas' => $negativas->map(fn (ConvenioCarrera $d) => $d->carrera->carrera_clave)->values()->all(),
+        ];
+    }
+
     public function tieneAprobatorio(): bool
     {
         return $this->dictamenes()->where('dictamen', Dictamen::Aprobatorio->value)->exists();
@@ -536,10 +572,16 @@ class Convenio extends Model implements HasMedia
         $rechazados = $vigentes->filter(fn ($m) => $m->getCustomProperty('estado') === 'rechazada')->count();
         $total = count($colecciones);
 
+        $datosPorCorregir = count($this->correccionesPendientes());
+        $reenvio = ($this->antecedente()['tipo'] ?? null) === 'reenvio';
+
         return match (true) {
-            $rechazados > 0 => $r('Esperando correcciones', "{$rechazados} documento(s) rechazado(s) por corregir", 'rosa', 'Empresa'),
+            $rechazados > 0 || $datosPorCorregir > 0 => $r('Esperando correcciones', collect([
+                $rechazados ? "{$rechazados} documento(s) por corregir" : null,
+                $datosPorCorregir ? "{$datosPorCorregir} dato(s) por corregir" : null,
+            ])->filter()->join(' y '), 'rosa', 'Empresa'),
             $vigentes->count() < $total => $r('Expediente incompleto', 'Faltan '.($total - $vigentes->count())." de {$total} documentos", 'cielo', 'Empresa'),
-            $validados === 0 => $r('Solicitud recibida', "{$total} documentos por revisar", 'cielo', 'Vinculación'),
+            $validados === 0 => $r($reenvio ? 'Reenvío recibido' : 'Solicitud recibida', ($reenvio ? 'Vuelve tras un rechazo · ' : '')."{$total} documentos por revisar", 'cielo', 'Vinculación'),
             $validados < $total => $r('En revisión de documentos', "{$validados} de {$total} validados", 'cielo', 'Vinculación'),
             default => $r('Listo para turnar', 'Expediente completo y validado', 'turquesa', 'Vinculación'),
         };

@@ -76,6 +76,7 @@
                     @endphp
                     <tr class="tabla-fila align-top">
                         <td class="px-4 py-3">
+                            @unless ($convenio->estado->esFinal())<x-convenio.tipo-solicitud :convenio="$convenio" class="mb-1" />@endunless
                             <x-tabla.ficha :href="route('admin.convenios.show', $convenio)" ver="Ver trámite" :titulo="$convenio->empresa->razon_social"
                                 :inicial="mb_strtoupper(mb_substr($convenio->empresa->razon_social, 0, 1))" :subtitulo="$convenio->empresa->rfc">
                                 {{ $convenio->folio ? 'Folio ' . $convenio->folio : 'Recibido el ' . $convenio->fecha_recepcion->format('d/m/Y') }}
