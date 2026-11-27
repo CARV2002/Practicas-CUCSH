@@ -33,13 +33,19 @@ class Formatos
     /** Cargo, ciudad: letras, espacios y signos básicos (sin números). */
     public const TEXTO_LETRAS = "/^[\\pL'.,\\s-]+$/u";
 
-    /** Teléfono de México: 10 dígitos. */
-    public const TELEFONO = '/^\d{10}$/';
+    /**
+     * Teléfono de México: 10 dígitos, sin empezar con 0 o 1 (no existen así) y sin repetir el mismo número
+     * 7 veces seguidas (descarta 0000000000, 3300000000, 5555555555…).
+     */
+    public const TELEFONO = '/^(?!\d*(\d)\1{6})[2-9]\d{9}$/';
+
+    /** Mismo criterio para el atributo pattern del navegador. */
+    public const TELEFONO_HTML = '(?![0-9]*([0-9])\1{6})[2-9][0-9]{9}';
 
     /** Extensión telefónica (conmutador UdG): de 1 a 6 números. */
     public const EXTENSION = '/^\d{1,6}$/';
 
-    /** Une teléfono y extensión en un solo texto para mostrar: «3338193300 ext. 23549». */
+    /** Une teléfono y extensión en un solo texto para mostrar: «3312345678 ext. 1234». */
     public static function telefonoConExtension(?string $telefono, ?string $extension): ?string
     {
         $telefono = self::digitos($telefono);
@@ -60,7 +66,7 @@ class Formatos
         $telefono = preg_replace('/\D+/', '', $partes[0] ?? '');
         $extension = preg_replace('/\D+/', '', $partes[1] ?? '');
 
-        // Solo una extensión corta guardada sin «ext.» (p. ej. «23549»)
+        // Solo una extensión corta guardada sin «ext.» (p. ej. «1234»)
         if ($extension === '' && strlen($telefono) > 0 && strlen($telefono) <= 6) {
             return ['', $telefono];
         }
@@ -75,6 +81,20 @@ class Formatos
 
     /** Números de escritura y de notaría. */
     public const NUMERO = '/^\d{1,10}$/';
+
+    /**
+     * Número exterior del domicilio (ya en mayúsculas): 976 · 12-B · 1500 BIS · S/N · KM 12.5.
+     * Evita texto libre como «988-Lorem Ipsum» en un dato que va impreso en el convenio.
+     */
+    public const NUMERO_EXTERIOR = '/^(S\/N|SN|KM ?\d{1,4}(\.\d{1,2})?|\d{1,6}( ?- ?| )?([A-Z]{1,2}|BIS)?)$/u';
+
+    /** Mismo formato para el atributo pattern del navegador (sin delimitadores; el navegador lo ancla solo). */
+    public const NUMERO_EXTERIOR_HTML = 'S\/N|SN|KM ?[0-9]{1,4}(\.[0-9]{1,2})?|[0-9]{1,6}( ?- ?| )?([A-Z]{1,2}|BIS)?';
+
+    /** Número interior: 3 · 3-A · B · LOCAL 2 · DEPTO 4 · PISO 2 (siempre con un número, salvo una o dos letras). */
+    public const NUMERO_INTERIOR = '/^((DEPTO|DEP|LOCAL|PISO|INT|OF|OFICINA|EDIF|TORRE|BODEGA|CASA)\.? ?[A-Z0-9-]{1,4}|[A-Z]{1,2}|\d{1,5}( ?- ?)?[A-Z]{0,2})$/u';
+
+    public const NUMERO_INTERIOR_HTML = '(DEPTO|DEP|LOCAL|PISO|INT|OF|OFICINA|EDIF|TORRE|BODEGA|CASA)\.? ?[A-Z0-9\-]{1,4}|[A-Z]{1,2}|[0-9]{1,5}( ?- ?)?[A-Z]{0,2}';
 
     /** Folio mercantil: letras mayúsculas, números y guiones. */
     public const FOLIO = '/^[A-Z0-9-]{3,60}$/';
@@ -98,23 +118,23 @@ class Formatos
     public static function mensajes(): array
     {
         return [
-            'num_control.regex' => 'El código de alumno son exactamente 9 números (por ejemplo 219123456).',
+            'num_control.regex' => 'El código de alumno son 9 números (ej. 000000000).',
             'name.regex' => 'Escribe tu nombre completo (nombre y apellido), solo con letras.',
-            'representante_legal.regex' => 'Escribe el nombre completo del representante (nombre y apellido), solo con letras.',
-            'representante_cargo.regex' => 'El cargo solo lleva letras, por ejemplo «Director General».',
-            'contacto_cargo.regex' => 'El cargo solo lleva letras, por ejemplo «Coordinadora de Recursos Humanos».',
-            'contacto_telefono.regex' => 'El teléfono son 10 números, sin espacios ni guiones (por ejemplo 3312345678).',
-            'telefono.regex' => 'El teléfono son 10 números, sin espacios ni guiones (por ejemplo 3312345678).',
-            'extension.regex' => 'La extensión solo lleva números (de 1 a 6), por ejemplo 23549.',
-            'coordinacion_telefono.regex' => 'El teléfono son 10 números, sin espacios ni guiones (por ejemplo 3338193300).',
-            'coordinacion_extension.regex' => 'La extensión solo lleva números (de 1 a 6), por ejemplo 23549.',
-            'folio.regex' => 'El folio solo lleva letras mayúsculas, números y guiones (por ejemplo CV-2026-014).',
-            'rfc.regex' => 'El RFC son 12 o 13 caracteres: letras, 6 números de la fecha y la homoclave (por ejemplo ABC010203XY1).',
+            'representante_legal.regex' => 'Escribe nombre y apellido del representante, solo con letras.',
+            'representante_cargo.regex' => 'El cargo solo lleva letras (ej. «Director General»).',
+            'contacto_cargo.regex' => 'El cargo solo lleva letras (ej. «Coordinadora de RH»).',
+            'contacto_telefono.regex' => 'Escribe un teléfono real de 10 números (ej. 3312345678).',
+            'telefono.regex' => 'Escribe un teléfono real de 10 números (ej. 3312345678).',
+            'extension.regex' => 'La extensión son de 1 a 6 números (ej. 1234).',
+            'coordinacion_telefono.regex' => 'Escribe un teléfono real de 10 números (ej. 3312345678).',
+            'coordinacion_extension.regex' => 'La extensión son de 1 a 6 números (ej. 1234).',
+            'folio.regex' => 'El folio lleva mayúsculas, números y guiones (ej. CV-2026-001).',
+            'rfc.regex' => 'El RFC son 12 o 13 caracteres (ej. ABC010101XYZ).',
             'notario_nombre.regex' => 'Escribe el nombre completo del notario, solo con letras.',
-            'notaria_ciudad.regex' => 'La ciudad solo lleva letras, por ejemplo «Guadalajara, Jalisco».',
-            'escritura_numero.regex' => 'El número de escritura solo lleva números, sin comas ni puntos.',
+            'notaria_ciudad.regex' => 'La ciudad solo lleva letras (ej. «Guadalajara, Jalisco»).',
+            'escritura_numero.regex' => 'El número de escritura solo lleva números.',
             'notaria_numero.regex' => 'El número de notaría solo lleva números.',
-            'folio_mercantil.regex' => 'El folio mercantil solo lleva letras mayúsculas, números y guiones.',
+            'folio_mercantil.regex' => 'El folio mercantil lleva mayúsculas, números y guiones.',
         ];
     }
 }

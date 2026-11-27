@@ -44,10 +44,42 @@
     $elegidas = array_map('intval', (array) old('carreras', filled($borrador['carreras'] ?? null) ? $borrador['carreras'] : $carrerasBase));
     $carrerasPorDivision = $carreras->groupBy(fn ($c) => $c->division->nombre);
     $faltanTotal = collect($faltantes)->flatten()->count();
+    // Pasos en orden: una sección se abre cuando las anteriores están completas (los perfiles precargados cuentan
+    // como pendientes hasta guardarlos). En una renovación, cada sección debe revisarse (guardarse) aunque ya esté llena.
+    $enRenovacion = (bool) ($puedeRenovar ?? false);
+    $revisadas = $borrador['revisadas'] ?? [];
+    $bloqueoDe = function (string $clave) use ($faltantes, $enRenovacion, $revisadas): ?string {
+        foreach (array_keys(S::SECCIONES) as $previa) {
+            if ($previa === $clave) {
+                return null;
+            }
+            if (! empty($faltantes[$previa]) || ($enRenovacion && $previa !== 'documentos' && ! in_array($previa, $revisadas, true))) {
+                return S::SECCIONES[$previa];
+            }
+        }
+
+        return null;
+    };
+    if ($bloqueoDe($actual)) {
+        $actual = collect(array_keys(S::SECCIONES))->first(fn ($c) => $bloqueoDe($c) === null && (! empty($faltantes[$c]) || ($enRenovacion && $c !== 'documentos' && ! in_array($c, $revisadas, true)))) ?? 'generales';
+    }
+    $confirmarPaso = 'data-confirmar="Antes de continuar, revisa que tus datos estén completos y bien escritos." data-confirmar-titulo="Verifica tus datos" data-confirmar-boton="Todo bien: siguiente paso" data-confirmar-tono="normal"';
     $nombres = S::atributos();
     $ast = '<span class="ml-0.5 text-rose-500" aria-hidden="true">*</span>';
-    // Campo que falta para enviar: se resalta en ámbar
-    $falta = fn (string $seccionCampo, string $c) => !($precargado && $seccionCampo === 'perfiles') && in_array($c, $faltantes[$seccionCampo] ?? [], true) ? '!border-amber-300 bg-amber-50/40' : '';
+    // Lo que impide enviar: en ámbar lo que falta llenar; en rojo lo que está lleno pero mal escrito
+    $estadoCampos = S::estadoCampos($empresa);
+    $falta = function (string $seccionCampo, string $c) use ($precargado, $estadoCampos) {
+        if ($precargado && $seccionCampo === 'perfiles') {
+            return '';
+        }
+        $e = $estadoCampos[$seccionCampo] ?? ['vacios' => [], 'corregir' => []];
+
+        return match (true) {
+            array_key_exists($c, $e['corregir']) => '!border-rose-400 bg-rose-50/40',
+            in_array($c, $e['vacios'], true) => '!border-amber-300 bg-amber-50/40',
+            default => '',
+        };
+    };
 @endphp
 
 <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-theme-xs" x-data="{ seccion: @js($actual) }" aria-labelledby="titulo-solicitud">
@@ -62,19 +94,28 @@
 
         <ol class="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4" role="tablist">
             @foreach (S::SECCIONES as $clave => $nombre)
-                @php $lista = empty($faltantes[$clave]); @endphp
+                @php
+                    $pendienteRevision = $enRenovacion && $clave !== 'documentos' && ! in_array($clave, $revisadas, true);
+                    $lista = empty($faltantes[$clave]) && ! $pendienteRevision;
+                    $bloqueada = $bloqueoDe($clave);
+                    // Bloqueada manda: aunque ya tenga datos, no se abre (ni se marca lista) hasta completar el paso anterior
+                    if ($bloqueada) {
+                        $lista = false;
+                    }
+                @endphp
                 <li>
-                    <button type="button" role="tab" x-on:click="seccion = '{{ $clave }}'" :aria-selected="(seccion === '{{ $clave }}').toString()"
-                        class="flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25"
+                    <button type="button" role="tab" @if ($bloqueada) disabled title="Completa primero «{{ $bloqueada }}»" @else x-on:click="seccion = '{{ $clave }}'" @endif :aria-selected="(seccion === '{{ $clave }}').toString()"
+                        class="flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25 disabled:cursor-not-allowed disabled:opacity-60"
                         :class="seccion === '{{ $clave }}' ? 'border-udg-800 bg-udg-50/70 ring-1 ring-udg-800' : 'border-gray-200 hover:border-udg-200 hover:bg-gray-50'">
-                        @php $porRevisar = !$lista && $clave === 'perfiles' && $precargado; @endphp
+                        @php $porRevisar = !$bloqueada && !$lista && (($clave === 'perfiles' && $precargado) || ($pendienteRevision && empty($faltantes[$clave]))); @endphp
                         <span @class(['flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
                             'bg-emerald-600 text-white' => $lista, 'bg-sky-100 text-sky-700' => $porRevisar, 'bg-gray-100 text-gray-500' => !$lista && !$porRevisar])>
-                            @if ($lista)<x-dashboard.icono nombre="check" clase="size-4" />@else{{ $loop->iteration }}@endif
+                            @if ($lista)<x-dashboard.icono nombre="check" clase="size-4" />@elseif ($bloqueada)<x-dashboard.icono nombre="candado" clase="size-3.5" />@else{{ $loop->iteration }}@endif
                         </span>
                         <span class="min-w-0">
                             <span class="block text-sm font-semibold leading-tight text-gray-900">{{ $nombre }}</span>
-                            <span @class(['block text-[11px]', 'text-emerald-700' => $lista, 'text-sky-700' => $porRevisar, 'text-amber-700' => !$lista && !$porRevisar])>{{ $lista ? 'Completa' : ($porRevisar ? 'Precargada · revisa y guarda' : 'Faltan ' . count($faltantes[$clave])) }}</span>
+                            @php $aCorregir = $porRevisar ? 0 : count($estadoCampos[$clave]['corregir'] ?? []); $aLlenar = count($estadoCampos[$clave]['vacios'] ?? []); @endphp
+                            <span @class(['block text-[11px]', 'text-emerald-700' => $lista, 'text-sky-700' => $porRevisar, 'text-gray-500' => $bloqueada, 'text-rose-700' => !$bloqueada && !$lista && !$porRevisar && $aCorregir, 'text-amber-700' => !$bloqueada && !$lista && !$porRevisar && !$aCorregir])>{{ $lista ? 'Completa' : ($bloqueada ? 'Completa el paso anterior' : ($porRevisar ? 'Precargada · revisa y guarda' : collect([$aCorregir ? "Corregir {$aCorregir}" : null, $aLlenar ? "Faltan {$aLlenar}" : null])->filter()->join(' · '))) }}</span>
                         </span>
                     </button>
                 </li>
@@ -93,17 +134,26 @@
         </div>
     @endif
     @foreach (['generales', 'legales', 'perfiles'] as $clave)
-        @if (!empty($faltantes[$clave]) && !($clave === 'perfiles' && $precargado))
-            <div x-show="seccion === '{{ $clave }}'" x-cloak class="mx-5 mt-5 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-inset ring-amber-200 sm:mx-6">
-                <p class="font-semibold">Para enviar la solicitud te falta:</p>
-                <p class="mt-0.5">{{ collect($faltantes[$clave])->map(fn ($c) => $nombres[preg_replace('/\.\d+$/', '', $c)] ?? $c)->unique()->join(', ', ' y ') }}.</p>
-            </div>
+        @if (!($clave === 'perfiles' && $precargado))
+            @php $e = $estadoCampos[$clave] ?? ['vacios' => [], 'corregir' => []]; @endphp
+            @if ($e['corregir'])
+                <div x-show="seccion === '{{ $clave }}'" x-cloak class="mx-5 mt-5 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-900 ring-1 ring-inset ring-rose-200 sm:mx-6" role="alert">
+                    <p class="font-semibold">Corrige lo marcado en rojo:</p>
+                    <ul class="mt-1 list-disc space-y-0.5 pl-5">@foreach ($e['corregir'] as $mensaje)<li>{{ $mensaje }}</li>@endforeach</ul>
+                </div>
+            @endif
+            @if ($e['vacios'])
+                <div x-show="seccion === '{{ $clave }}'" x-cloak class="mx-5 mt-5 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-inset ring-amber-200 sm:mx-6">
+                    <p class="font-semibold">Para enviar la solicitud te falta llenar:</p>
+                    <p class="mt-0.5">{{ collect($e['vacios'])->map(fn ($c) => $nombres[preg_replace('/\.\d+$/', '', $c)] ?? $c)->unique()->join(', ', ' y ') }}.</p>
+                </div>
+            @endif
         @endif
     @endforeach
 
     {{-- 1. Datos generales y fiscales --}}
-    <form x-show="seccion === 'generales'" x-cloak method="POST" action="{{ route('empresa.convenio.seccion', 'generales') }}" class="space-y-6 p-5 sm:p-6"
-        x-data="codigoPostal(@js((string) $v('codigo_postal', '')), @js($v('colonia')), @js($v('entidad')))">
+    <form x-show="seccion === 'generales'" x-cloak method="POST" action="{{ route('empresa.convenio.seccion', 'generales') }}" {!! $confirmarPaso !!} class="space-y-6 p-5 sm:p-6"
+        x-data="codigoPostal(@js(['url' => url('/api/cp'), 'cp' => (string) $v('codigo_postal', ''), 'colonia' => (string) $v('colonia', ''), 'municipio' => (string) $v('municipio', ''), 'entidad' => (string) $v('entidad', '')]))">
         @csrf @method('PUT')
         <input type="hidden" name="_seccion" value="generales">
 
@@ -111,7 +161,7 @@
             <div class="md:col-span-2">
                 <label class="etiqueta" for="g-razon">Razón social{!! $ast !!}</label>
                 <input id="g-razon" name="razon_social" required minlength="3" maxlength="{{ F::MAX_RAZON_SOCIAL }}" data-contador="caracteres" value="{{ $v('razon_social') }}"
-                    placeholder="Ej. Despacho Jurídico González S.C." class="campo h-11">
+                    placeholder="Ej. Organización Ejemplo S.C." class="campo h-11">
                 <p class="ayuda">Completa, tal como aparece en tu constancia de situación fiscal. RFC: <span class="font-mono font-semibold text-gray-700">{{ $empresa->rfc }}</span></p>
             </div>
             <div>
@@ -126,7 +176,7 @@
             <div class="md:col-span-2">
                 <label class="etiqueta" for="g-proy">Principales proyectos, acciones o clientes{!! $ast !!}</label>
                 <textarea id="g-proy" name="proyectos_principales" rows="2" minlength="10" maxlength="1500" class="campo {{ $falta('generales', 'proyectos_principales') }}"
-                    placeholder="Ej. Asesoría legal a la Cámara de Comercio de Guadalajara; programa de mediación vecinal.">{{ $v('proyectos_principales') }}</textarea>
+                    placeholder="Ej. Asesoría legal a una cámara empresarial; programa de mediación vecinal.">{{ $v('proyectos_principales') }}</textarea>
             </div>
         </div>
 
@@ -135,14 +185,27 @@
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-6">
                 <div class="sm:col-span-2">
                     <label class="etiqueta" for="g-cp">Código postal{!! $ast !!}</label>
-                    <input id="g-cp" name="codigo_postal" x-model="cp" x-on:input.debounce.400ms="buscar()" inputmode="numeric" data-solo="digitos" minlength="5" maxlength="5" pattern="\d{5}"
-                        data-msg-formato="El código postal son 5 números." placeholder="Ej. 44100" class="campo h-11 {{ $falta('generales', 'codigo_postal') }}">
-                    <p class="ayuda" x-text="mensaje">Escríbelo y llenamos colonia y estado.</p>
+                    <div class="relative">
+                        <input id="g-cp" name="codigo_postal" x-model="cp" x-on:input="alCambiarCp()" inputmode="numeric" autocomplete="postal-code" data-solo="digitos" minlength="5" maxlength="5" pattern="\d{5}"
+                            data-msg-formato="El código postal son 5 números." placeholder="Ej. 00000" :aria-busy="cargando.toString()" class="campo h-11 pr-9 {{ $falta('generales', 'codigo_postal') }}">
+                        <svg x-show="cargando" x-cloak class="pointer-events-none absolute right-3 top-3.5 size-4 animate-spin text-gray-400 motion-reduce:animate-none" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+                    </div>
+                    <p class="ayuda min-h-8" :class="error && 'text-amber-700'" x-text="mensaje" aria-live="polite">Empieza aquí: escribe los 5 números y llenamos el resto.</p>
                 </div>
                 <div class="sm:col-span-4">
                     <label class="etiqueta" for="g-colonia">Colonia{!! $ast !!}</label>
-                    <input id="g-colonia" name="colonia" x-model="colonia" list="lista-colonias" minlength="3" maxlength="120" class="campo h-11 {{ $falta('generales', 'colonia') }}" placeholder="Ej. Centro (elige de la lista o escríbela)">
-                    <datalist id="lista-colonias"><template x-for="c in colonias" :key="c"><option :value="c"></option></template></datalist>
+                    <template x-if="encontrado && colonias.length && !coloniaLibre && !bloqueado">
+                        <select id="g-colonia" name="colonia" x-model="colonia" x-on:change="colonia === '__otra__' && elegirOtra()" class="campo h-11 {{ $falta('generales', 'colonia') }}">
+                            <option value="">Elige tu colonia</option>
+                            <template x-for="c in colonias" :key="c"><option :value="c" x-text="c" :selected="c === colonia"></option></template>
+                            <option value="__otra__">Otra (escribirla)</option>
+                        </select>
+                    </template>
+                    <template x-if="!(encontrado && colonias.length && !coloniaLibre && !bloqueado)">
+                        <input id="g-colonia" name="colonia" x-model="colonia" :readonly="bloqueado" minlength="3" maxlength="120" class="campo h-11 read-only:cursor-not-allowed read-only:bg-gray-50 read-only:text-gray-600 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-600 {{ $falta('generales', 'colonia') }}"
+                            :placeholder="bloqueado ? 'Primero escribe tu código postal' : 'Escribe tu colonia'">
+                    </template>
+                    <p class="ayuda min-h-5" x-show="encontrado && coloniaLibre && !bloqueado" x-cloak>¿Sí está en la lista? <button type="button" class="enlace" x-on:click="coloniaLibre = false; colonia = ''">Elegirla de la lista</button></p>
                 </div>
                 <div class="sm:col-span-4">
                     <label class="etiqueta" for="g-calle">Calle{!! $ast !!}</label>
@@ -150,22 +213,25 @@
                 </div>
                 <div>
                     <label class="etiqueta" for="g-ext">Núm. exterior{!! $ast !!}</label>
-                    <input id="g-ext" name="numero_exterior" maxlength="15" pattern="[A-Za-z0-9\-\/ ]+" data-msg-formato="Solo letras, números, guion o diagonal (ej. 976 o 12-B)." value="{{ $v('numero_exterior') }}" class="campo h-11 {{ $falta('generales', 'numero_exterior') }}" placeholder="Ej. 976">
+                    <input id="g-ext" name="numero_exterior" maxlength="15" data-solo="domicilio" pattern="{{ F::NUMERO_EXTERIOR_HTML }}" data-msg-formato="Escribe solo el número y, si lleva, su letra (ej. 976, 12-B o S/N)." value="{{ $v('numero_exterior') }}" class="campo h-11 {{ $falta('generales', 'numero_exterior') }}" placeholder="Ej. 976">
                 </div>
                 <div>
                     <label class="etiqueta" for="g-int">Núm. interior</label>
-                    <input id="g-int" name="numero_interior" maxlength="15" pattern="[A-Za-z0-9\-\/ ]+" data-msg-formato="Solo letras, números, guion o diagonal." value="{{ $v('numero_interior') }}" class="campo h-11" placeholder="Ej. 3-A">
+                    <input id="g-int" name="numero_interior" maxlength="15" data-solo="domicilio" pattern="{{ F::NUMERO_INTERIOR_HTML }}" data-msg-formato="Escribe el número interior (ej. 3, 3-A, Local 2 o Depto 4)." value="{{ $v('numero_interior') }}" class="campo h-11" placeholder="Ej. 3-A">
                 </div>
                 <div class="sm:col-span-3">
                     <label class="etiqueta" for="g-mun">Municipio{!! $ast !!}</label>
-                    <input id="g-mun" name="municipio" data-solo="letras" minlength="3" maxlength="120" value="{{ $v('municipio') }}" class="campo h-11 {{ $falta('generales', 'municipio') }}" placeholder="Ej. Guadalajara">
+                    <input id="g-mun" name="municipio" x-model="municipio" :readonly="bloqueado || encontrado" data-solo="letras" minlength="3" maxlength="120" class="campo h-11 read-only:cursor-not-allowed read-only:bg-gray-50 read-only:text-gray-600 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-600 {{ $falta('generales', 'municipio') }}"
+                        :placeholder="bloqueado ? 'Se llena con el código postal' : 'Escribe tu municipio'">
                 </div>
                 <div class="sm:col-span-3">
                     <label class="etiqueta" for="g-ent">Estado{!! $ast !!}</label>
-                    <select id="g-ent" name="entidad" x-model="entidad" class="campo h-11 {{ $falta('generales', 'entidad') }}">
+                    {{-- Bloqueado (disabled) no se envía: el valor viaja en el campo oculto mientras tanto --}}
+                    <select id="g-ent" name="entidad" x-model="entidad" :disabled="bloqueado || encontrado" class="campo h-11 read-only:cursor-not-allowed read-only:bg-gray-50 read-only:text-gray-600 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-600 {{ $falta('generales', 'entidad') }}">
                         <option value="">Elige el estado</option>
-                        @foreach (S::ENTIDADES as $e)<option value="{{ $e }}">{{ $e }}</option>@endforeach
+                        @foreach (S::ENTIDADES as $e)<option value="{{ $e }}" :selected="entidad === @js($e)">{{ $e }}</option>@endforeach
                     </select>
+                    <input type="hidden" name="entidad" :value="entidad" :disabled="!(bloqueado || encontrado)">
                 </div>
             </div>
         </fieldset>
@@ -177,7 +243,7 @@
                 <div>
                     <label class="etiqueta" for="g-cnom">Nombre completo{!! $ast !!}</label>
                     <input id="g-cnom" name="contacto_nombre" required data-solo="letras" minlength="5" maxlength="{{ F::MAX_NOMBRE_PERSONA }}" pattern="{{ F::NOMBRE_PERSONA_HTML }}"
-                        data-msg-formato="Escribe nombre y apellido, solo con letras." value="{{ $v('contacto_nombre') }}" placeholder="Ej. Laura Gómez Ruiz" class="campo h-11">
+                        data-msg-formato="Escribe nombre y apellido, solo con letras." value="{{ $v('contacto_nombre') }}" placeholder="Ej. Nombre Apellido Apellido" class="campo h-11">
                 </div>
                 <div>
                     <label class="etiqueta" for="g-ccar">Cargo o área{!! $ast !!}</label>
@@ -185,8 +251,8 @@
                 </div>
                 <div>
                     <label class="etiqueta" for="g-ctel">Teléfono{!! $ast !!}</label>
-                    <input id="g-ctel" name="contacto_telefono" type="tel" inputmode="numeric" data-solo="digitos" data-contador="dígitos" minlength="10" maxlength="10" pattern="\d{10}"
-                        data-msg-formato="El teléfono son 10 números." value="{{ $v('contacto_telefono') }}" placeholder="Ej. 3312345678" class="campo h-11 {{ $falta('generales', 'contacto_telefono') }}">
+                    <input id="g-ctel" name="contacto_telefono" type="tel" inputmode="numeric" data-solo="digitos" data-contador="dígitos" minlength="10" maxlength="10" pattern="{{ \App\Support\Formatos::TELEFONO_HTML }}"
+                        data-msg-formato="Escribe un teléfono real de 10 números (ej. 3312345678)." value="{{ $v('contacto_telefono') }}" placeholder="Ej. 3312345678" class="campo h-11 {{ $falta('generales', 'contacto_telefono') }}">
                 </div>
             </div>
         </fieldset>
@@ -197,7 +263,7 @@
     </form>
 
     {{-- 2. Declaraciones legales --}}
-    <form x-show="seccion === 'legales'" x-cloak method="POST" action="{{ route('empresa.convenio.seccion', 'legales') }}" class="space-y-6 p-5 sm:p-6"
+    <form x-show="seccion === 'legales'" x-cloak method="POST" action="{{ route('empresa.convenio.seccion', 'legales') }}" {!! $confirmarPaso !!} class="space-y-6 p-5 sm:p-6"
         x-data="{ tipo: @js($empresa->tipo_organismo->value), origen: @js($v('facultad_origen', $escritura ? '' : 'nombramiento')) }">
         @csrf @method('PUT')
         <input type="hidden" name="_seccion" value="legales">
@@ -207,7 +273,7 @@
             <div>
                 <label class="etiqueta" for="l-rep">Representante legal (quien firma){!! $ast !!}</label>
                 <input id="l-rep" name="representante_legal" data-solo="letras" minlength="5" maxlength="{{ F::MAX_NOMBRE_PERSONA }}" pattern="{{ F::NOMBRE_PERSONA_HTML }}"
-                    data-msg-formato="Escribe nombre y apellido del representante, solo con letras." value="{{ $v('representante_legal') }}" placeholder="Ej. Lic. Jorge Ramírez Lozano" class="campo h-11 {{ $falta('legales', 'representante_legal') }}">
+                    data-msg-formato="Escribe nombre y apellido del representante, solo con letras." value="{{ $v('representante_legal') }}" placeholder="Ej. Lic. Nombre Apellido Apellido" class="campo h-11 {{ $falta('legales', 'representante_legal') }}">
             </div>
             <div>
                 <label class="etiqueta" for="l-cargo">Cargo del representante{!! $ast !!}</label>
@@ -241,7 +307,7 @@
                 <div x-show="origen === 'poder'" x-cloak class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                         <label class="etiqueta" for="p-num">Número de escritura del poder{!! $ast !!}</label>
-                        <input id="p-num" name="poder_escritura_numero" inputmode="numeric" data-solo="digitos" maxlength="10" value="{{ $v('poder_escritura_numero') }}" placeholder="Ej. 5678" :disabled="origen !== 'poder'" class="campo h-11">
+                        <input id="p-num" name="poder_escritura_numero" inputmode="numeric" data-solo="digitos" maxlength="10" value="{{ $v('poder_escritura_numero') }}" placeholder="Ej. 0000" :disabled="origen !== 'poder'" class="campo h-11">
                     </div>
                     <div>
                         <label class="etiqueta" for="p-fecha">Fecha del poder{!! $ast !!}</label>
@@ -249,7 +315,7 @@
                     </div>
                     <div class="sm:col-span-2">
                         <label class="etiqueta" for="p-not">Notario que dio fe{!! $ast !!}</label>
-                        <input id="p-not" name="poder_notario_nombre" data-solo="letras" minlength="5" maxlength="{{ F::MAX_NOMBRE_PERSONA }}" value="{{ $v('poder_notario_nombre') }}" placeholder="Ej. Lic. Ricardo Alatorre Gómez" :disabled="origen !== 'poder'" class="campo h-11">
+                        <input id="p-not" name="poder_notario_nombre" data-solo="letras" minlength="5" maxlength="{{ F::MAX_NOMBRE_PERSONA }}" value="{{ $v('poder_notario_nombre') }}" placeholder="Ej. Lic. Nombre Apellido Apellido" :disabled="origen !== 'poder'" class="campo h-11">
                     </div>
                     <div>
                         <label class="etiqueta" for="p-nota">Número de notaría{!! $ast !!}</label>
@@ -274,7 +340,7 @@
     </form>
 
     {{-- 3. Perfiles requeridos --}}
-    <form x-show="seccion === 'perfiles'" x-cloak method="POST" action="{{ route('empresa.convenio.seccion', 'perfiles') }}" class="space-y-5 p-5 sm:p-6"
+    <form x-show="seccion === 'perfiles'" x-cloak method="POST" action="{{ route('empresa.convenio.seccion', 'perfiles') }}" {!! $confirmarPaso !!} class="space-y-5 p-5 sm:p-6"
         x-data="{ elegidas: @js($elegidas) }">
         @csrf @method('PUT')
         <input type="hidden" name="_seccion" value="perfiles">
@@ -321,7 +387,7 @@
             </div>
             <div class="md:col-span-2">
                 <label class="etiqueta" for="c-medio">¿Cómo se enteraron de la posibilidad de tener practicantes del CUCSH?{!! $ast !!}</label>
-                <input id="c-medio" name="medio_conocimiento" value="{{ $v('medio_conocimiento') }}" minlength="3" maxlength="255" placeholder="Ej. Por la página del CUCSH, por un egresado o en una feria de empleo" class="campo h-11 {{ $falta('perfiles', 'medio_conocimiento') }}">
+                <input id="c-medio" name="medio_conocimiento" value="{{ $v('medio_conocimiento') }}" minlength="3" maxlength="255" placeholder="Ej. Por www.ejemplo.com, por un egresado o en una feria de empleo" class="campo h-11 {{ $falta('perfiles', 'medio_conocimiento') }}">
             </div>
         </div>
         <div>

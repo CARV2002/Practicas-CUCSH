@@ -20,6 +20,8 @@
     'convenios' => $conveniosJs,
     'urlStore' => route('empresa.programas.store'),
     'urlUpdate' => route('empresa.programas.update', 0),
+    // Si el servidor rechazó el programa, la ventana se reabre con lo capturado (old) y sin perder la edición
+    'inicial' => $errors->any() && old('titulo') !== null ? \Illuminate\Support\Arr::except(old(), ['_token', '_method']) : null,
     'preseleccionarConvenio' => true,
 ]))" class="space-y-6">
 
@@ -155,6 +157,7 @@
         <form method="POST" :action="action" @click.stop class="relative animate-entrada motion-reduce:animate-none my-8 w-full max-w-2xl space-y-5 rounded-2xl bg-white p-6 shadow-theme-xl">
             @csrf
             <template x-if="p.id"><input type="hidden" name="_method" value="PUT"></template>
+            <input type="hidden" name="id" :value="p.id ?? ''">
             <h3 class="text-lg font-semibold text-gray-800" x-text="p.id ? 'Editar programa' : 'Nuevo programa'"></h3>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">

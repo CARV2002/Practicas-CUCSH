@@ -151,7 +151,8 @@
                         x-on:change="elegir($event.target.files[0])" aria-describedby="{{ $idBase }}-ayuda">
                 </label>
                 <p id="{{ $idBase }}-ayuda" class="sr-only">Formatos aceptados: {{ $formatos }}. Tamaño máximo: {{ $maxMb }} MB.</p>
-                <p x-show="error" x-cloak x-text="error" class="mt-1.5 flex items-center gap-1 text-sm font-medium text-rose-600" role="alert"></p>
+                {{-- Renglón reservado: elegir un archivo inválido y luego uno bueno no mueve el botón --}}
+                <p x-text="error" :aria-hidden="(!error).toString()" class="mt-1.5 flex min-h-5 items-center gap-1 text-sm font-medium text-rose-600" role="alert"></p>
                 @if ($tieneError)<p class="mt-1.5 text-sm font-medium text-rose-600" role="alert">{{ $errors->first($name) }}</p>@endif
             </div>
 

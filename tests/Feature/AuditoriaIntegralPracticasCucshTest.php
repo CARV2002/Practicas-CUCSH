@@ -44,6 +44,8 @@ use App\Notifications\AvisoOperativo;
 use App\Notifications\BorradorTurnadoJuridica;
 use App\Notifications\ConfigurarContrasena;
 use App\Notifications\NuevaSolicitudConvenio;
+use App\Support\SolicitudEmpresa;
+use Carbon\CarbonInterface;
 use Database\Seeders\RolesSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -436,6 +438,17 @@ test('FASE 3 · alertas de vencimiento a 60 y 30 días y renovación precargada 
         'carreras' => [$this->abog->id], 'objetivos' => $vigente->objetivos, 'actividades_propuestas' => $vigente->actividades_propuestas,
         'plazas_estimadas' => 4, 'medio_conocimiento' => 'Página del CUCSH', 'experiencia_previa' => 'Ninguno',
     ])->assertSessionHasNoErrors();
+
+    // En una renovación cada sección se revisa: aún faltan «Datos generales» y «Declaraciones legales»
+    $this->actingAs($empresaUser->fresh())->post(route('empresa.convenio.solicitar'))
+        ->assertSessionHasErrors(['convenio' => 'Para enviar la renovación, revisa y guarda: «Datos generales y fiscales» y «Declaraciones legales».']);
+    foreach (['generales', 'legales'] as $seccion) {
+        $e30->refresh();
+        $datos = collect(SolicitudEmpresa::CAMPOS[$seccion])
+            ->mapWithKeys(fn ($c) => [$c => $e30->{$c} instanceof CarbonInterface ? $e30->{$c}->toDateString() : $e30->{$c}])
+            ->filter(fn ($v) => $v !== null)->all();
+        $this->actingAs($empresaUser->fresh())->put(route('empresa.convenio.seccion', $seccion), $datos)->assertSessionHasNoErrors();
+    }
     $this->actingAs($empresaUser->fresh())->post(route('empresa.convenio.solicitar'))->assertSessionHasNoErrors();
     Notification::assertSentTo($lorena, NuevaSolicitudConvenio::class);
     expect($e30->convenios()->where('estado', ConvenioEstado::Solicitado->value)->exists())->toBeTrue();

@@ -45,6 +45,8 @@ class ProfileController extends Controller
                     'ayuda' => $alumno->vigencia_imss ? 'Vigente hasta el '.$alumno->vigencia_imss->format('d/m/Y').'.' : 'Captura la vigencia al subir tu constancia.', 'ruta' => 'alumno.mis-documentos'],
             ];
             $datos['motivoPostular'] = Requisitos::alumnoPostularse($alumno);
+            // Grado y turno se congelan desde la carta de presentación (misma regla que el controlador)
+            $datos['motivoDatosEscolares'] = $alumno->motivoSinCambioDatosEscolares();
         }
 
         if ($rol === Rol::Empresa && $user->empresa) {
@@ -54,7 +56,8 @@ class ProfileController extends Controller
             $datos['convenioVigente'] = $convenios->first(fn ($c) => $c->estaVigente());
             $datos['convenioEnTramite'] = $convenios->first(fn ($c) => ! $c->estado->esFinal());
             $datos['expedienteCompleto'] = $empresa->expedienteEnOrden();
-            $datos['representanteBloqueado'] = $empresa->documentosBloqueados();
+            // Descripción y proyectos son parte de la solicitud del convenio: se congelan con ella
+            $datos['solicitudBloqueada'] = $empresa->motivoSolicitudBloqueada();
         }
 
         if ($rol?->esPersonal() && $user->personal) {

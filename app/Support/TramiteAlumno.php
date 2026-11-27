@@ -149,11 +149,15 @@ final class TramiteAlumno
         if ($po = $this->postulacion) {
             $titulo = $po->programa->titulo;
 
-            return match ($po->estado) {
-                PostulacionEstado::CartaAceptacionRecibida => $this->aviso('info', 'Tu carta de aceptación está por validarse',
-                    "Al validarla, tu coordinación activará tu práctica en «{$titulo}». Te avisaremos para que empieces a reportar tus horas.",
-                    ['Ver mis documentos', $docs]),
-                PostulacionEstado::CartaPresentacionEmitida => $this->aviso('advertencia', 'Preséntate en la organización',
+            // Ya subió su carta de aceptación: el siguiente paso es de la coordinación, no del alumno
+            $aceptacionSubida = $po->getMedia('carta_aceptacion')->isNotEmpty();
+
+            return match (true) {
+                $po->estado === PostulacionEstado::CartaAceptacionRecibida
+                    || ($po->estado === PostulacionEstado::CartaPresentacionEmitida && $aceptacionSubida) => $this->aviso('info', 'Tu carta de aceptación está por validarse',
+                        "Al validarla, tu coordinación activará tu práctica en «{$titulo}». Te avisaremos para que empieces a reportar tus horas.",
+                        ['Ver mis documentos', $docs]),
+                $po->estado === PostulacionEstado::CartaPresentacionEmitida => $this->aviso('advertencia', 'Preséntate en la organización',
                     "Tu coordinación ya firmó y selló tu carta de presentación para «{$titulo}»: descárgala, imprímela, llévala a {$organizacion($po)} y sube en PDF la carta de aceptación que te entreguen.",
                     ['Descargar mi carta', $docs]),
                 default => $this->aviso('info', "Ya te postulaste a «{$titulo}»",

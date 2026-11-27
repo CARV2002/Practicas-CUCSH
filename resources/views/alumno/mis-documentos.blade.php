@@ -205,14 +205,16 @@
                         :archivo="$imss?->file_name" :url-archivo="$imss ? route('alumno.documentos.descargar', $imss) : null"
                         :fecha="$imss?->created_at?->format('d/m/Y')"
                         :paso-archivo="2"
-                        :boton="$imssSt === 'rechazada' ? 'Enviar constancia corregida' : ($imss ? 'Reemplazar constancia' : 'Enviar constancia')">
+                        :reemplazable="$alumno->puedeRenovarImss()"
+                        :boton="$imssSt === 'rechazada' ? 'Enviar constancia corregida' : ($alumno->puedeRenovarImss() ? 'Enviar constancia renovada' : ($imss ? 'Reemplazar constancia' : 'Enviar constancia'))">
                         <x-slot:campos>
                             <x-ui.campo-paso paso="1" etiqueta="¿Hasta qué fecha está vigente tu seguro?" name="vigencia_imss" type="date"
                                 :value="$alumno->vigencia_imss?->toDateString()" min="{{ now()->addDay()->toDateString() }}"
                                 ayuda="Aparece en tu constancia como «Vigencia» o «Vigente hasta». Usa esa misma fecha." />
                         </x-slot:campos>
                         @if ($imssSt === 'validada')
-                            <p class="mt-2 text-xs text-gray-500">Vigente hasta el <span class="font-semibold text-gray-800">{{ $alumno->vigencia_imss->format('d/m/Y') }}</span>.</p>
+                            <p class="mt-2 text-xs text-gray-500">Vigente hasta el <span class="font-semibold text-gray-800">{{ $alumno->vigencia_imss->format('d/m/Y') }}</span>.
+                                {{ $alumno->puedeRenovarImss() ? 'Está por vencer: sube la constancia renovada.' : 'Podrás renovarla 30 días antes de que venza.' }}</p>
                         @endif
                     </x-ui.carga-documento>
                 </div>

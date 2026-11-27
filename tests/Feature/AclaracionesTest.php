@@ -148,6 +148,9 @@ test('al formalizar, la fecha de fin se calcula con la duración pactada', funct
 });
 
 test('la empresa captura sus datos legales en Documentos', function () {
+    // Con convenio vigente los datos firmados quedan fijos: se capturan sin trámite ni convenio vigente
+    $this->convenio->update(['estado' => ConvenioEstado::Rechazado]);
+    datosEmpresaCompletos($this->empresa);   // los pasos van en orden: «Datos generales» ya está completo
     $this->actingAs($this->empresaUser)->put(route('empresa.datos-legales'), [
         'representante_legal' => 'Ing. Nuevo Representante', 'representante_cargo' => 'Apoderado', 'domicilio_fiscal' => 'Calle 2 núm. 15, Guadalajara',
         ...datosNotarialesPrueba(), 'objeto_social' => 'servicios públicos de asesoría', 'facultad_firmante' => 'el reglamento interior vigente',
@@ -547,10 +550,10 @@ test('la solicitud se llena por secciones con borrador y no se envía incompleta
     $this->convenio->update(['estado' => ConvenioEstado::Rechazado]);
     $this->empresa->update(['representante_legal' => null, 'giro' => null]);
 
-    // Guardar avance con datos a medias sí se puede; enviar no
+    // Los pasos van en orden: con «Datos generales» incompleto no se guardan los perfiles
     $this->actingAs($this->empresaUser)->put(route('empresa.convenio.seccion', 'perfiles'), ['carreras' => [$this->abog->id], 'objetivos' => 'Formar practicantes en litigio.'])
-        ->assertSessionHasNoErrors()->assertRedirect(route('empresa.convenio', ['seccion' => 'perfiles']));
-    expect($this->empresa->fresh()->solicitud_borrador['carreras'])->toBe([$this->abog->id]);
+        ->assertSessionHasErrors(['convenio' => 'Primero completa «Datos generales y fiscales»: los pasos van en orden.']);
+    expect($this->empresa->fresh()->solicitud_borrador['carreras'] ?? null)->toBeNull();
     $this->actingAs($this->empresaUser)->post(route('empresa.convenio.solicitar'))->assertSessionHasErrors('convenio');
 
     // Formatos: código postal y estado

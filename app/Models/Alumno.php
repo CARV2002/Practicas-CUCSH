@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\PostulacionEstado;
 use App\Enums\PracticaEstado;
 use App\Enums\Turno;
 use App\Enums\ValidacionEstado;
@@ -243,6 +244,46 @@ class Alumno extends Model implements HasMedia
     {
         return $this->vigencia_imss !== null
             && $this->vigencia_imss->toDateString() >= $fecha->toDateString();
+    }
+
+    /** Grado y turno van impresos en la carta de presentación: se congelan desde que se emite hasta que termina la práctica. */
+    public function motivoSinCambioDatosEscolares(): ?string
+    {
+        if ($this->tienePracticaActiva()) {
+            return 'Tienes una práctica en curso: tu grado y turno quedan como aparecen en tu carta de presentación.';
+        }
+
+        $cartaEmitida = $this->postulaciones()
+            ->whereIn('estado', PostulacionEstado::valores([PostulacionEstado::CartaPresentacionEmitida, PostulacionEstado::CartaAceptacionRecibida]))
+            ->exists();
+
+        return $cartaEmitida
+            ? 'Tu carta de presentación ya se emitió con estos datos: no puedes cambiarlos mientras sigue tu trámite.'
+            : null;
+    }
+
+    /** Un IMSS validado se renueva solo en sus últimos 30 días (o ya vencido); antes no hay nada que cambiar. */
+    public function puedeRenovarImss(): bool
+    {
+        return $this->documentoValidado('constancia_imss') && ! $this->tieneImssVigenteHasta(now()->addDays(30));
+    }
+
+    public function motivoSinCambioImss(): ?string
+    {
+        if ($this->documentoValidado('constancia_imss') && ! $this->puedeRenovarImss()) {
+            return 'Tu constancia IMSS ya fue validada y sigue vigente hasta el '.$this->vigencia_imss?->format('d/m/Y').': podrás renovarla 30 días antes de que venza.';
+        }
+
+        return null;
+    }
+
+    /** El envío conjunto (kardex + IMSS + créditos) nunca reemplaza un documento ya validado: lo devuelto se cambia por separado. */
+    public function motivoSinEnviarExpediente(): ?string
+    {
+        // Lo que importa es no pisar un documento ya validado; uno pendiente o devuelto sí se puede reemplazar
+        return $this->documentoValidado('kardex') || $this->documentoValidado('constancia_imss')
+            ? 'Parte de tu expediente ya fue validada: reemplaza solo el documento que tu coordinación te devolvió.'
+            : null;
     }
 
     public function yaAcreditado(): bool

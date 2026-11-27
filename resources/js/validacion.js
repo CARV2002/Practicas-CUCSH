@@ -7,6 +7,8 @@
  *  - Revisa tipo y tamaño de archivos, la confirmación de contraseña y el largo mínimo, en vivo.
  *  - Muestra junto a su campo los errores que regresa el servidor (window.__erroresServidor).
  *  - Evita el doble envío: deshabilita el botón y muestra «Enviando…».
+ *  - Sin saltos: el renglón del mensaje se queda reservado (invisible) al corregir el campo, así nada se
+ *    mueve mientras se escribe; los contadores también ocupan siempre su renglón.
  */
 
 const MB_POR_DEFECTO = 10;
@@ -94,13 +96,16 @@ function mensajeDe(campo) {
     if (v.tooShort) return `«${nombre}» debe tener al menos ${campo.minLength} caracteres (llevas ${campo.value.length}).`;
     if (v.tooLong) return `«${nombre}» no puede tener más de ${campo.maxLength} caracteres.`;
     if (v.rangeUnderflow) return campo.type === 'date'
-        ? `La fecha de «${nombre}» no puede ser anterior al ${formatoFecha(campo.min)}.`
+        ? `«${nombre}»: no puede ser antes del ${formatoFecha(campo.min)}.`
         : `«${nombre}» debe ser al menos ${campo.min}.`;
     if (v.rangeOverflow) return campo.type === 'date'
-        ? `La fecha de «${nombre}» no puede ser posterior al ${formatoFecha(campo.max)}.`
+        ? `«${nombre}»: no puede ser después del ${formatoFecha(campo.max)}.`
         : `«${nombre}» no puede ser mayor que ${campo.max}.`;
     if (v.stepMismatch) return `«${nombre}» debe ser un número ${campo.step === '1' || !campo.step ? 'entero' : `con incrementos de ${campo.step}`}.`;
-    if (v.badInput) return campo.type === 'number' ? `«${nombre}» debe ser un número.` : `Revisa el valor de «${nombre}».`;
+    if (v.badInput) {
+        if (campo.type === 'date') return `«${nombre}»: esa fecha no existe o está incompleta. Elígela en el calendario.`;
+        return campo.type === 'number' ? `«${nombre}» debe ser un número.` : `Revisa el valor de «${nombre}».`;
+    }
     if (v.patternMismatch) return campo.dataset.msgFormato || campo.title || `El formato de «${nombre}» no es válido.`;
 
     return `Revisa «${nombre}».`;
@@ -122,7 +127,7 @@ function mensajeEl(campo) {
     let p = ancla.nextElementSibling;
     if (!p || !p.classList.contains('js-mensaje-campo')) {
         p = document.createElement('p');
-        p.className = 'js-mensaje-campo mt-1 flex items-start gap-1 text-sm font-medium text-error-600';
+        p.className = 'js-mensaje-campo mt-1 flex min-h-5 items-start gap-1 text-sm font-medium text-error-600';
         p.setAttribute('role', 'alert');
         ancla.insertAdjacentElement('afterend', p);
     }
@@ -136,6 +141,8 @@ function mostrarError(campo, texto) {
     const p = mensajeEl(campo);
     p.textContent = '⚠ ' + texto;
     p.hidden = false;
+    p.classList.remove('invisible');
+    p.removeAttribute('aria-hidden');
 }
 
 function limpiar(campo, marcarOk) {
@@ -148,7 +155,11 @@ function limpiar(campo, marcarOk) {
     }
     const ancla = anclaDe(campo);
     const p = ancla.nextElementSibling;
-    if (p && p.classList.contains('js-mensaje-campo')) p.hidden = true;
+    // Se oculta sin quitar su lugar: el campo de abajo y el botón no suben mientras el usuario corrige
+    if (p && p.classList.contains('js-mensaje-campo')) {
+        p.classList.add('invisible');
+        p.setAttribute('aria-hidden', 'true');
+    }
 }
 
 function esValidable(el) {
@@ -216,6 +227,7 @@ function avisoFormulario(form, mostrar) {
  *  letras  → letras, espacios, punto, guion y apóstrofo (nombres de personas, cargos, ciudades)
  *  rfc     → mayúsculas, sin espacios ni guiones
  *  clave   → mayúsculas, números y guiones (folio mercantil)
+ *  domicilio → números exterior e interior: mayúsculas, números, espacio, punto, guion y diagonal
  */
 const FILTROS = {
     digitos: (v) => v.replace(/\D+/g, ''),
@@ -223,6 +235,7 @@ const FILTROS = {
     rfc: (v) => v.toUpperCase().replace(/[^A-ZÑ&0-9]+/g, ''),
     clave: (v) => v.toUpperCase().replace(/[^A-Z0-9-]+/g, ''),
     folio: (v) => v.toUpperCase().replace(/[^A-Z0-9/-]+/g, ''),
+    domicilio: (v) => v.toUpperCase().replace(/[^A-Z0-9 ./-]+/g, '').replace(/\s{2,}/g, ' '),
 };
 
 function filtrar(campo) {
@@ -237,12 +250,26 @@ function filtrar(campo) {
     try { campo.setSelectionRange(pos, pos); } catch { /* type=email/number no admiten selección */ }
 }
 
+/**
+ * Fechas con calendario: al dar clic en cualquier parte del campo se abre el calendario del navegador
+ * (no solo en el icono), y un año siempre de 4 cifras (1900–2099) para no aceptar fechas imposibles.
+ */
+function calendario(campo) {
+    if (!campo.min) campo.min = '1900-01-01';
+    if (!campo.max) campo.max = '2099-12-31';
+    campo.classList.add('cursor-pointer');
+    campo.addEventListener('click', () => {
+        if (campo.readOnly || campo.disabled || typeof campo.showPicker !== 'function') return;
+        try { campo.showPicker(); } catch { /* sin gesto de usuario o navegador sin soporte: queda el icono */ }
+    });
+}
+
 /** Contador «6 de 9 dígitos» bajo los campos con data-contador (largo exacto). */
 function contador(campo) {
     const total = parseInt(campo.getAttribute('maxlength') || '0', 10);
     if (!total) return;
     const ayuda = document.createElement('p');
-    ayuda.className = 'js-contador mt-1 text-xs text-gray-500';
+    ayuda.className = 'js-contador mt-1 min-h-4 text-xs text-gray-500';
     ayuda.setAttribute('aria-live', 'polite');
     (campo.parentElement?.classList.contains('relative') ? campo.parentElement : campo).insertAdjacentElement('afterend', ayuda);
     const unidad = campo.dataset.contador || 'caracteres';
@@ -250,9 +277,10 @@ function contador(campo) {
     const exacto = campo.minLength === total;
     const pintar = () => {
         const n = campo.value.length;
-        const listo = exacto && n === total;
+        // ✓ solo si además es válido (p. ej. un teléfono de 10 ceros completa el largo, pero no es real)
+        const listo = exacto && n === total && campo.validity.valid;
         ayuda.textContent = exacto ? `${listo ? '✓ ' : ''}${n} de ${total} ${unidad}` : `${n} / ${total} ${unidad}`;
-        ayuda.className = `js-contador mt-1 text-xs ${listo ? 'text-success-600' : (!exacto && n >= total * 0.9 ? 'text-amber-700' : 'text-gray-500')}`;
+        ayuda.className = `js-contador mt-1 min-h-4 text-xs ${listo ? 'text-success-600' : (!exacto && n >= total * 0.9 ? 'text-amber-700' : 'text-gray-500')}`;
     };
     campo.addEventListener('input', pintar);
     pintar();
@@ -281,6 +309,7 @@ function iniciar() {
     document.addEventListener('input', (e) => { if (e.target instanceof HTMLInputElement) filtrar(e.target); }, true);
     document.querySelectorAll('input[data-solo]').forEach(filtrar);
     document.querySelectorAll('input[data-contador]').forEach(contador);
+    document.querySelectorAll('input[type="date"]').forEach(calendario);
 
     // 1. Errores del navegador: se cancelan los globos nativos y se muestra el mensaje propio
     document.addEventListener('invalid', (e) => {

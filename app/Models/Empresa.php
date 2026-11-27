@@ -214,6 +214,36 @@ class Empresa extends Model implements HasMedia
     }
 
     /** Mientras el convenio está en trámite la empresa no cambia documentos (salvo los rechazados). */
+    /** Días antes del vencimiento en que se abre la renovación (y con ella la edición de la solicitud). */
+    public const DIAS_RENOVACION = 60;
+
+    /**
+     * Por qué la solicitud del convenio (datos generales, declaraciones y perfiles) está en solo lectura; null = editable.
+     * Lo enviado a revisión no cambia mientras dura el trámite, y lo firmado no cambia mientras el convenio está
+     * vigente: se actualiza al renovarlo. Es la misma regla que muestra u oculta el formulario en «Mi convenio».
+     */
+    public function motivoSolicitudBloqueada(): ?string
+    {
+        $convenios = $this->convenios()->get();
+
+        if ($convenios->contains(fn (Convenio $c) => ! $c->estado->esFinal())) {
+            return 'Tu convenio está en revisión: los datos que enviaste quedan fijos hasta que termine el trámite.';
+        }
+
+        $vigente = $convenios->first(fn (Convenio $c) => $c->estaVigente());
+        if ($vigente && (int) now()->startOfDay()->diffInDays($vigente->fecha_fin_vigencia, false) > self::DIAS_RENOVACION) {
+            return 'Tu convenio está vigente con estos datos: podrás actualizarlos al renovarlo, '.self::DIAS_RENOVACION.' días antes de que venza.';
+        }
+
+        return null;
+    }
+
+    /** Renovación abierta: tiene convenio vigente y ya está dentro de los últimos DIAS_RENOVACION días, sin trámite. */
+    public function enRenovacion(): bool
+    {
+        return $this->motivoSolicitudBloqueada() === null && $this->convenios()->get()->contains(fn (Convenio $c) => $c->estaVigente());
+    }
+
     public function documentosBloqueados(): bool
     {
         return $this->convenios()

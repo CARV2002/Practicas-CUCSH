@@ -23,7 +23,7 @@
 
                 <div>
                     <label for="num_control" class="{{ $label }}">Código de alumno<span class="text-error-500">*</span></label>
-                    <input id="num_control" name="num_control" type="text" required inputmode="numeric" autocomplete="off" data-solo="digitos" data-contador="dígitos" minlength="9" maxlength="9" pattern="{{ \App\Support\Formatos::CODIGO_ALUMNO_HTML }}" data-msg-formato="El código de alumno son exactamente 9 números (por ejemplo 219123456)." placeholder="Ej. 219123456" value="{{ old('num_control') }}" class="{{ $input }}">
+                    <input id="num_control" name="num_control" type="text" required inputmode="numeric" autocomplete="off" data-solo="digitos" data-contador="dígitos" minlength="9" maxlength="9" pattern="{{ \App\Support\Formatos::CODIGO_ALUMNO_HTML }}" data-msg-formato="El código de alumno son exactamente 9 números (por ejemplo 000000000)." placeholder="Ej. 000000000" value="{{ old('num_control') }}" class="{{ $input }}">
                     @error('num_control')<p class="text-error-500 mt-1 text-sm">{{ $message }}</p>@enderror
                 </div>
 

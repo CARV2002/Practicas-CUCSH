@@ -509,6 +509,8 @@ test('al renovar, «Perfiles requeridos» viene precargado con el convenio vigen
         'plazas_estimadas' => 3, 'medio_conocimiento' => 'Por un egresado', 'experiencia_previa' => 'Ninguno']);
     $vigente->dictamenes()->create(['carrera_id' => $this->abog->id, 'dictamen' => Dictamen::Aprobatorio]);
     $vigente->dictamenes()->create(['carrera_id' => $this->crim->id, 'dictamen' => Dictamen::Negativo]);
+    // Pasos 1 y 2 completos y ya revisados en esta renovación: «Perfiles» queda abierto
+    seccionesRevisadas(datosEmpresaCompletos($this->empresa), ['generales', 'legales']);
 
     $pagina = $this->actingAs($this->empresaUser)->get(route('empresa.convenio', ['seccion' => 'perfiles']))->assertOk()
         ->assertSee('Precargamos los perfiles de tu convenio CV-2023-014')->assertSee('Precargada · revisa y guarda')
@@ -542,7 +544,9 @@ test('la empresa rechazada recibe aviso y el recuadro rojo desaparece en cuanto 
     $this->actingAs($this->empresaUser)->get(route('empresa.convenio'))->assertOk()
         ->assertSee('Tu última solicitud fue rechazada')->assertSee('Sin actividades afines al perfil.')->assertSee('Corrige aquí:');
 
-    // Corrige y guarda «Perfiles requeridos»: el recuadro rojo se va
+    // Corrige y guarda «Perfiles requeridos» (sus datos generales y legales ya estaban completos): el recuadro rojo se va
+    datosEmpresaCompletos($this->empresa);
+    $this->empresaUser->unsetRelation('empresa');
     $this->travel(1)->minutes();
     $this->actingAs($this->empresaUser)->put(route('empresa.convenio.seccion', 'perfiles'), [
         '_seccion' => 'perfiles', 'carreras' => [$this->abog->id], 'objetivos' => 'Objetivos ajustados al plan de estudios de Abogado.',

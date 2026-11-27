@@ -16,6 +16,7 @@ use App\Http\Controllers\Alumno\DocumentoController as AlumnoDocumentoController
 use App\Http\Controllers\Alumno\MisPracticasController;
 use App\Http\Controllers\Alumno\OfertaController;
 use App\Http\Controllers\AyudaController;
+use App\Http\Controllers\CodigoPostalController;
 use App\Http\Controllers\Coordinacion\CierreController;
 use App\Http\Controllers\Coordinacion\DashboardController as CoordinacionDashboardController;
 use App\Http\Controllers\Coordinacion\DictamenController as CoordinacionDictamenController;
@@ -29,7 +30,6 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Empresa\ConvenioController as EmpresaConvenioController;
 use App\Http\Controllers\Empresa\DashboardController as EmpresaDashboardController;
 use App\Http\Controllers\Empresa\DocumentoController;
-use App\Http\Controllers\Empresa\PerfilController;
 use App\Http\Controllers\Empresa\PracticanteController as EmpresaPracticanteController;
 use App\Http\Controllers\Empresa\ProgramaController as EmpresaProgramaController;
 use App\Http\Controllers\FotoUsuarioController;
@@ -98,6 +98,12 @@ Route::prefix('alumno')
         Route::put('/datos-escolares', [DatosEscolaresController::class, 'update'])->name('datos-escolares');
     });
 
+// Códigos postales (catálogo local de SEPOMEX): JSON para autollenar colonia, municipio y estado.
+// Sin restricción de formato en la ruta: un CP mal escrito responde 422 en JSON, no una página 404.
+Route::get('/api/cp/{cp}', CodigoPostalController::class)
+    ->middleware(['auth', 'throttle:60,1'])
+    ->name('api.cp');
+
 /*
 |--------------------------------------------------------------------------
 | Empresa: tramita su convenio y publica sus ofertas
@@ -114,14 +120,13 @@ Route::prefix('empresa')
         Route::get('/convenio', [EmpresaConvenioController::class, 'show'])->name('convenio');
         Route::post('/convenio', [EmpresaConvenioController::class, 'solicitar'])->name('convenio.solicitar');
         Route::put('/convenio/secciones/{seccion}', [EmpresaConvenioController::class, 'guardarSeccion'])->whereIn('seccion', ['generales', 'legales', 'perfiles'])->name('convenio.seccion');
-        Route::get('/codigo-postal/{cp}', [EmpresaConvenioController::class, 'codigoPostal'])->where('cp', '[0-9]{5}')->middleware('throttle:30,1')->name('codigo-postal');
+        Route::put('/convenio/correcciones', [EmpresaConvenioController::class, 'corregir'])->name('convenio.corregir');
         Route::get('/convenio/{convenio}/archivo', [EmpresaConvenioController::class, 'descargar'])->name('convenio.archivo');
 
         // Route::view('/documentos', 'empresa.documentos')->name('documentos');
         Route::get('/documentos', [DocumentoController::class, 'index'])->name('documentos');
         Route::post('/documentos', [DocumentoController::class, 'subir'])->name('documentos.subir');
         Route::put('/datos-legales', [EmpresaConvenioController::class, 'datosLegales'])->name('datos-legales');
-        Route::patch('/perfil', [PerfilController::class, 'update'])->name('perfil.update');
         Route::get('/documentos/{media}', [DocumentoController::class, 'descargar'])->name('documentos.descargar');
 
         // Route::view('/lista-programas', 'empresa.lista-programas')->name('lista-programas');
@@ -193,6 +198,7 @@ Route::prefix('admin')
                 Route::post('/firmas', [ConvenioController::class, 'registrarFirma'])->name('firmas');
                 Route::post('/formalizar', [ConvenioController::class, 'formalizar'])->name('formalizar');
                 Route::post('/rechazar', [ConvenioController::class, 'rechazar'])->name('rechazar');
+                Route::post('/correcciones', [ConvenioController::class, 'pedirCorreccion'])->name('correcciones');
                 Route::post('/borrador/generar', [ConvenioController::class, 'generarBorrador'])->name('borrador.generar');
                 // Juegos finales: el borrador aprobado por Jurídica con la fecha real de firma
                 Route::post('/juegos-finales', [ConvenioController::class, 'juegosFinales'])->name('juegos-finales');

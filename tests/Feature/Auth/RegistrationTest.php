@@ -157,7 +157,7 @@ test('el comando rechaza contraseñas cortas', function () {
 test('el código de alumno son exactamente 9 números y el nombre lleva nombre y apellido', function () {
     foreach (['21512345', '2151234567', '21512345A', 'ABCDEFGHI'] as $malo) {
         $this->post('/registro/alumno', datosAlumno(['num_control' => $malo]))
-            ->assertSessionHasErrors(['num_control' => 'El código de alumno son exactamente 9 números (por ejemplo 219123456).']);
+            ->assertSessionHasErrors(['num_control' => 'El código de alumno son 9 números (ej. 000000000).']);
     }
     $this->post('/registro/alumno', datosAlumno(['name' => 'Ana']))->assertSessionHasErrors('name');
     $this->post('/registro/alumno', datosAlumno(['name' => 'Ana López 3']))->assertSessionHasErrors('name');
@@ -171,7 +171,7 @@ test('el código de alumno son exactamente 9 números y el nombre lleva nombre y
 
 test('el registro de empresa valida el RFC del SAT y el teléfono', function () {
     $this->post('/registro/empresa', datosEmpresa(['contacto_telefono' => '33 1234']))
-        ->assertSessionHasErrors(['contacto_telefono' => 'El teléfono son 10 números, sin espacios ni guiones (por ejemplo 3312345678).']);
+        ->assertSessionHasErrors(['contacto_telefono' => 'Escribe un teléfono real de 10 números (ej. 3312345678).']);
     // Genérico del SAT, fecha imposible y largo incorrecto
     $this->post('/registro/empresa', datosEmpresa(['rfc' => 'XAXX010101000']))->assertSessionHasErrors(['rfc' => 'Ese es un RFC genérico del SAT: escribe el RFC propio de tu organización.']);
     $this->post('/registro/empresa', datosEmpresa(['rfc' => 'ABC011340AB1']))->assertSessionHasErrors('rfc');

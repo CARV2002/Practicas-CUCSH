@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Models\CodigoPostal;
 use App\Models\Empresa;
 use App\Rules\UnicoNormalizado;
 use Illuminate\Support\Arr;
@@ -39,10 +40,62 @@ final class SolicitudEmpresa
         'perfiles' => ['carreras', 'objetivos', 'actividades_propuestas', 'plazas_estimadas', 'medio_conocimiento', 'experiencia_previa'],
     ];
 
+    /**
+     * Campos que Vinculación puede devolver para corrección (sección => campos). Las carreras no: cambiarlas
+     * es otra propuesta (se rechaza y la empresa envía una nueva).
+     */
+    public const CORREGIBLES = [
+        'generales' => ['razon_social', 'giro', 'descripcion', 'proyectos_principales', 'calle', 'numero_exterior', 'numero_interior',
+            'colonia', 'codigo_postal', 'municipio', 'entidad', 'contacto_nombre', 'contacto_cargo', 'contacto_telefono'],
+        'legales' => ['representante_legal', 'representante_cargo', 'objeto_social', 'facultad_firmante', 'escritura_numero', 'escritura_fecha',
+            'notario_nombre', 'notaria_numero', 'notaria_ciudad', 'folio_mercantil', 'constitucion'],
+        'perfiles' => ['objetivos', 'actividades_propuestas', 'plazas_estimadas', 'medio_conocimiento', 'experiencia_previa'],
+    ];
+
+    /** Sección a la que pertenece un campo corregible (null si no se puede devolver). */
+    public static function seccionDe(string $campo): ?string
+    {
+        foreach (self::CORREGIBLES as $seccion => $campos) {
+            if (in_array($campo, $campos, true)) {
+                return $seccion;
+            }
+        }
+
+        return null;
+    }
+
     public const ENTIDADES = ['Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche', 'Chiapas', 'Chihuahua', 'Ciudad de México',
         'Coahuila', 'Colima', 'Durango', 'Estado de México', 'Guanajuato', 'Guerrero', 'Hidalgo', 'Jalisco', 'Michoacán', 'Morelos', 'Nayarit',
         'Nuevo León', 'Oaxaca', 'Puebla', 'Querétaro', 'Quintana Roo', 'San Luis Potosí', 'Sinaloa', 'Sonora', 'Tabasco', 'Tamaulipas',
         'Tlaxcala', 'Veracruz', 'Yucatán', 'Zacatecas'];
+
+    /**
+     * Datos del código postal enviado si está en el catálogo local de SEPOMEX (null si no hay CP válido o no se encontró).
+     *
+     * @return array{cp:string, estado:string, municipio:string, colonias:list<string>}|null
+     */
+    private static function cpDelCatalogo(string $cp): ?array
+    {
+        return preg_match('/^\d{5}$/', $cp) === 1 ? CatalogoPostal::buscar($cp) : null;
+    }
+
+    /** Regla: el municipio o el estado enviado corresponde al código postal según el catálogo. */
+    private static function coincideConCp(string $campo, string $cp): \Closure
+    {
+        return function (string $atributo, mixed $valor, \Closure $fallar) use ($campo, $cp) {
+            if (blank($valor)) {
+                return;
+            }
+
+            // Mayúsculas y acentos no cuentan (la columna compara sin distinguirlos)
+            if (! CodigoPostal::where('cp', $cp)->where($campo, trim((string) $valor))->exists()) {
+                $correcto = CatalogoPostal::buscar($cp)[$campo] ?? '';
+                $fallar($campo === 'estado'
+                    ? "El estado no corresponde al código postal {$cp} ({$correcto})."
+                    : "El municipio no corresponde al código postal {$cp} ({$correcto}).");
+            }
+        };
+    }
 
     /** Normaliza lo que llega del formulario antes de validar (espacios, mayúsculas, números pegados con separadores). */
     public static function normalizar(array $datos): array
@@ -55,6 +108,11 @@ final class SolicitudEmpresa
         foreach (['contacto_telefono', 'codigo_postal', 'escritura_numero', 'poder_escritura_numero'] as $c) {
             if (array_key_exists($c, $datos)) {
                 $datos[$c] = Formatos::digitos($datos[$c]) ?: null;
+            }
+        }
+        foreach (['numero_exterior', 'numero_interior'] as $c) {
+            if (array_key_exists($c, $datos)) {
+                $datos[$c] = preg_replace('/\s+/', ' ', mb_strtoupper(trim((string) $datos[$c]))) ?: null;
             }
         }
         if (array_key_exists('folio_mercantil', $datos)) {
@@ -70,6 +128,8 @@ final class SolicitudEmpresa
         $req = fn (bool $cuando = true) => $estricto && $cuando ? 'required' : 'nullable';
         $escritura = DatosNotariales::usaEscritura($empresa->tipo_organismo);
         $poder = request('facultad_origen') === 'poder';
+        // CP con el que se revisan municipio y estado: el que se envía o, al revisar lo guardado, el de la organización
+        $cp = (string) (request('codigo_postal') ?? $empresa->codigo_postal);
 
         return match ($seccion) {
             'generales' => [
@@ -79,12 +139,14 @@ final class SolicitudEmpresa
                 'descripcion' => [$req(), 'string', 'min:30', 'max:1500'],
                 'proyectos_principales' => [$req(), 'string', 'min:10', 'max:1500'],
                 'calle' => [$req(), 'string', 'min:3', 'max:120'],
-                'numero_exterior' => [$req(), 'string', 'max:15', 'regex:/^[A-Za-z0-9\-\/ ]+$/'],
-                'numero_interior' => ['nullable', 'string', 'max:15', 'regex:/^[A-Za-z0-9\-\/ ]+$/'],
+                'numero_exterior' => [$req(), 'string', 'max:15', 'regex:'.Formatos::NUMERO_EXTERIOR],
+                'numero_interior' => ['nullable', 'string', 'max:15', 'regex:'.Formatos::NUMERO_INTERIOR],
                 'colonia' => [$req(), 'string', 'min:3', 'max:120'],
                 'codigo_postal' => [$req(), 'regex:'.Formatos::CODIGO_POSTAL],
-                'municipio' => [$req(), 'string', 'min:3', 'max:120', 'regex:'.Formatos::TEXTO_LETRAS],
-                'entidad' => [$req(), Rule::in(self::ENTIDADES)],
+                // Con el CP en el catálogo de SEPOMEX, municipio y estado deben ser los suyos (el catálogo manda,
+                // aunque el municipio oficial lleve números, p. ej. «Ahualulco del Sonido 13»); sin él, se escriben a mano
+                'municipio' => [$req(), 'string', 'min:3', 'max:120', ...(self::cpDelCatalogo($cp) ? [self::coincideConCp('municipio', $cp)] : ['regex:'.Formatos::TEXTO_LETRAS])],
+                'entidad' => [$req(), Rule::in(self::ENTIDADES), ...(self::cpDelCatalogo($cp) ? [self::coincideConCp('estado', $cp)] : [])],
                 'contacto_nombre' => ['required', 'string', 'min:5', 'max:'.Formatos::MAX_NOMBRE_PERSONA, 'regex:'.Formatos::NOMBRE_PERSONA],
                 'contacto_cargo' => [$req(), 'string', 'min:3', 'max:120', 'regex:'.Formatos::TEXTO_LETRAS],
                 'contacto_telefono' => [$req(), 'regex:'.Formatos::TELEFONO],
@@ -143,8 +205,8 @@ final class SolicitudEmpresa
             'carreras.required' => 'Elige al menos una carrera.',
             'carreras.min' => 'Elige al menos una carrera.',
             'codigo_postal.regex' => 'El código postal son 5 números.',
-            'numero_exterior.regex' => 'El número solo lleva letras, números, guion o diagonal (ej. 976 o 12-B).',
-            'numero_interior.regex' => 'El número interior solo lleva letras, números, guion o diagonal.',
+            'numero_exterior.regex' => 'Escribe solo el número y, si lleva, su letra (ej. 976, 12-B o S/N).',
+            'numero_interior.regex' => 'Escribe el número interior (ej. 3, 3-A, Local 2 o Depto 4).',
             'entidad.in' => 'Elige el estado de la lista.',
             'poder_escritura_numero.regex' => 'El número de escritura del poder solo lleva números.',
             'poder_notaria_numero.regex' => 'El número de notaría solo lleva números.',
@@ -233,23 +295,72 @@ final class SolicitudEmpresa
      */
     public static function faltantes(Empresa $empresa): array
     {
+        return array_map(fn ($errores) => array_keys($errores), self::revisar($empresa));
+    }
+
+    /**
+     * Lo que impide enviar la solicitud, separado: «vacios» (falta llenarlos, ámbar) y «corregir» (están llenos pero
+     * mal escritos, rojo, con el mensaje de qué corregir).
+     *
+     * @return array<string, array{vacios: list<string>, corregir: array<string, string>}>
+     */
+    public static function estadoCampos(Empresa $empresa): array
+    {
+        $borrador = $empresa->solicitud_borrador ?? [];
+        $resultado = [];
+
+        foreach (self::revisar($empresa) as $seccion => $errores) {
+            $resultado[$seccion] = ['vacios' => [], 'corregir' => []];
+            foreach ($errores as $campo => $mensajes) {
+                $base = preg_replace('/\.\d+$/', '', (string) $campo);
+                $valor = match ($seccion) {
+                    'perfiles' => $borrador[$base] ?? null,
+                    'documentos' => null,
+                    default => $empresa->{$base},
+                };
+                blank($valor)
+                    ? $resultado[$seccion]['vacios'][] = (string) $campo
+                    : $resultado[$seccion]['corregir'][(string) $campo] = (string) ($mensajes[0] ?? '');
+            }
+        }
+
+        return $resultado;
+    }
+
+    /** @return array<string, array<string, list<string>>> errores de validación por sección (campo => mensajes) */
+    private static function revisar(Empresa $empresa): array
+    {
         $borrador = $empresa->solicitud_borrador ?? [];
         $faltan = [];
 
-        foreach (['generales', 'legales'] as $seccion) {
-            $datos = $empresa->only(self::CAMPOS[$seccion]);
-            $datos['poder_fecha'] = $empresa->poder_fecha?->toDateString();
-            $datos['escritura_fecha'] = $empresa->escritura_fecha?->toDateString();
-            request()->merge(['facultad_origen' => $empresa->facultad_origen]);
-            $v = validator($datos, self::reglas($seccion, $empresa, true), self::mensajes(), self::atributos());
-            $faltan[$seccion] = array_keys($v->errors()->messages());
+        // Las reglas leen del request (facultad_origen, codigo_postal): para revisar lo GUARDADO se ponen los valores
+        // de la empresa y al final se regresan los que traía el request, para no alterar un envío en curso
+        $contexto = ['facultad_origen', 'codigo_postal'];
+        $originales = request()->only($contexto);
+        request()->merge(['facultad_origen' => $empresa->facultad_origen, 'codigo_postal' => $empresa->codigo_postal]);
+
+        try {
+            foreach (['generales', 'legales'] as $seccion) {
+                $datos = $empresa->only(self::CAMPOS[$seccion]);
+                $datos['poder_fecha'] = $empresa->poder_fecha?->toDateString();
+                $datos['escritura_fecha'] = $empresa->escritura_fecha?->toDateString();
+                $v = validator($datos, self::reglas($seccion, $empresa, true), self::mensajes(), self::atributos());
+                $faltan[$seccion] = $v->errors()->messages();
+            }
+        } finally {
+            foreach ($contexto as $clave) {
+                array_key_exists($clave, $originales)
+                    ? request()->merge([$clave => $originales[$clave]])
+                    : request()->request->remove($clave);
+            }
         }
 
-        $v = validator($borrador, self::reglas('perfiles', $empresa, true));
-        $faltan['perfiles'] = array_keys($v->errors()->messages());
+        $v = validator($borrador, self::reglas('perfiles', $empresa, true), self::mensajes(), self::atributos());
+        $faltan['perfiles'] = $v->errors()->messages();
 
         $faltan['documentos'] = collect($empresa->obligatorias())
-            ->filter(fn ($c) => $empresa->documentoVigente($c) === null)->values()->all();
+            ->filter(fn ($c) => $empresa->documentoVigente($c) === null)
+            ->mapWithKeys(fn ($c) => [$c => ['Falta subirlo.']])->all();
 
         return $faltan;
     }

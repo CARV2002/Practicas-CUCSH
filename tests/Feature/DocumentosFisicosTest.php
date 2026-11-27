@@ -14,6 +14,7 @@ use App\Enums\SeguimientoEstado;
 use App\Enums\TipoDocumentoFisico as TF;
 use App\Enums\TipoOrganismo;
 use App\Models\Carrera;
+use App\Models\Configuracion;
 use App\Models\Convenio;
 use App\Models\ConvenioSeguimiento;
 use App\Models\Division;
@@ -262,7 +263,7 @@ test('los 3 juegos se mueven juntos a la empresa y a Rectoría con la misma fech
 
 test('al formalizar: juegos concluidos salvo los pendientes, PDF para todos y aviso a Jurídica', function () {
     Notification::fake();
-    config(['practicas.juridica.correo' => 'juridica@cucsh.test']);
+    Configuracion::guardar(Configuracion::CORREO_JURIDICA, 'juridica@cucsh.test');
     dfHastaPorFormalizar($this);
 
     app(ConvenioWorkflow::class)->formalizar($this->convenio->fresh(), $this->personal, 'CV-2026-120', today(), today()->addYears(2)->subDay(), null, [2]);
@@ -291,7 +292,7 @@ test('al formalizar: juegos concluidos salvo los pendientes, PDF para todos y av
 
 test('sin correo de Jurídica configurado no se envía ese aviso', function () {
     Notification::fake();
-    config(['practicas.juridica.correo' => null]);
+    Configuracion::guardar(Configuracion::CORREO_JURIDICA, null);
     dfHastaPorFormalizar($this);
 
     app(ConvenioWorkflow::class)->formalizar($this->convenio->fresh(), $this->personal, 'CV-2026-121', today(), today()->addYears(2)->subDay());

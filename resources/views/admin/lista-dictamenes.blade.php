@@ -10,7 +10,7 @@
 @endphp
 
 <div class="space-y-6">
-    <x-pagina.encabezado :titulo="$esCoordinacion ? 'Dictámenes de mi carrera' : 'Dictámenes por carrera'"
+    <x-pagina.encabezado :titulo="$esCoordinacion ? 'Dictamen de convenios' : 'Dictámenes por carrera'"
         :descripcion="$esCoordinacion
             ? 'Revisa si las actividades que propone la organización corresponden al perfil de egreso de tu carrera y emite tu dictamen.'
             : 'Cada coordinación de carrera emite su dictamen de pertinencia desde su panel; aquí das seguimiento.'" />
@@ -73,7 +73,14 @@
                     $abrirConError = $capturable && (int) old('dictamen_id') === $d->id;
                 @endphp
                 {{-- Cada solicitud es su propio tbody: la fila y su panel desplegable comparten el estado de Alpine --}}
-                <tbody class="border-t border-gray-100" x-data="{ abierto: @js($abrirConError), pestana: @js($abrirConError ? 'dictaminar' : 'propuesta'), resultado: @js($abrirConError ? old('dictamen', '') : '') }">
+                <tbody class="border-t border-gray-100" x-data="{ abierto: @js($abrirConError), pestana: @js($abrirConError ? 'dictaminar' : 'propuesta'), resultado: @js($abrirConError ? old('dictamen', '') : ''),
+                    obs: @js($abrirConError ? (string) old('observaciones', '') : ''), tieneArchivo: false,
+                    get falta() {
+                        if (this.resultado === '') return 'Elige si el dictamen es aprobatorio o negativo.';
+                        if (this.resultado === 'negativo' && this.obs.trim() === '') return 'Escribe las observaciones: son obligatorias en un dictamen negativo.';
+                        if (! this.tieneArchivo) return 'Adjunta el dictamen firmado y sellado en PDF.';
+                        return '';
+                    } }">
                     <tr class="tabla-fila">
                         <td class="px-4 py-3">
                             @php $subDictamen = $d->convenio->plazas_estimadas . ' ' . ((int) $d->convenio->plazas_estimadas === 1 ? 'plaza estimada' : 'plazas estimadas') . ($d->convenio->fecha_recepcion ? ' · recibida ' . $d->convenio->fecha_recepcion->format('d/m/Y') : ''); @endphp
@@ -178,13 +185,14 @@
                                     <div x-show="pestana === 'empresa'" x-cloak class="grid grid-cols-1 gap-4 p-5 text-sm md:grid-cols-2" role="tabpanel">
                                         <div><p class="text-xs text-gray-500">Tipo de organismo</p><p class="font-semibold text-gray-900">{{ $empresa->tipo_organismo?->label() ?? '—' }}{{ $empresa->giro ? ' · ' . $empresa->giro : '' }}</p></div>
                                         <div><p class="text-xs text-gray-500">Ubicación</p><p class="font-semibold text-gray-900">{{ collect([$empresa->municipio, $empresa->entidad])->filter()->join(', ') ?: '—' }}</p></div>
-                                        <div class="md:col-span-2"><p class="text-xs text-gray-500">A qué se dedica</p><p class="whitespace-pre-line leading-relaxed text-gray-800">{{ $empresa->descripcion ?: '—' }}</p></div>
-                                        <div class="md:col-span-2"><p class="text-xs text-gray-500">Principales proyectos o servicios</p><p class="whitespace-pre-line leading-relaxed text-gray-800">{{ $empresa->proyectos_principales ?: '—' }}</p></div>
+                                        <div class="md:col-span-2"><p class="text-xs text-gray-500">A qué se dedica</p><p class="texto-acotado whitespace-pre-line leading-relaxed text-gray-800" tabindex="0">{{ $empresa->descripcion ?: '—' }}</p></div>
+                                        <div class="md:col-span-2"><p class="text-xs text-gray-500">Principales proyectos o servicios</p><p class="texto-acotado whitespace-pre-line leading-relaxed text-gray-800" tabindex="0">{{ $empresa->proyectos_principales ?: '—' }}</p></div>
                                     </div>
 
                                     @if ($capturable)
                                         <form x-show="pestana === 'dictaminar'" x-cloak x-ref="form" method="POST" enctype="multipart/form-data" action="{{ route('coordinacion.dictamenes.registrar', $d) }}"
                                             class="space-y-5 p-5" role="tabpanel"
+                                            x-on:archivo-cambio="tieneArchivo = $event.detail.valido"
                                             :data-confirmar="'¿Registrar el dictamen ' + resultado + '? Un dictamen registrado ya no se puede cambiar.'" data-confirmar-titulo="Registrar dictamen" data-confirmar-boton="Sí, registrar" :data-confirmar-tono="resultado === 'negativo' ? 'peligro' : 'normal'">
                                             @csrf
                                             <input type="hidden" name="dictamen_id" value="{{ $d->id }}">
@@ -203,14 +211,17 @@
                                             </fieldset>
                                             <div>
                                                 <label for="obs-{{ $d->id }}" class="etiqueta">Observaciones <span x-show="resultado === 'negativo'" class="font-normal text-rose-600">* obligatorias: la empresa las usará para ajustar sus actividades</span></label>
-                                                <textarea id="obs-{{ $d->id }}" name="observaciones" rows="4" maxlength="2000" :required="resultado === 'negativo'"
-                                                    placeholder="Ej. Las actividades son administrativas; para esta carrera deben incluir tareas propias del perfil de egreso." class="campo">{{ $abrirConError ? old('observaciones') : '' }}</textarea>
+                                                <textarea id="obs-{{ $d->id }}" name="observaciones" rows="4" maxlength="2000" x-model="obs" :required="resultado === 'negativo'"
+                                                    placeholder="Ej. Las actividades son administrativas; para esta carrera deben incluir tareas propias del perfil de egreso." class="campo"></textarea>
+                                                @error('observaciones')<p class="mt-1.5 text-sm font-medium text-error-600">{{ $message }}</p>@enderror
                                             </div>
                                             <x-ui.zona-archivo name="documento" etiqueta="Dictamen de pertinencia firmado y sellado (PDF)" ayuda="Obligatorio en ambos casos: el dictamen escaneado con firma y sello de la coordinación." />
-                                            <div class="flex flex-col-reverse gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
-                                                {{-- Cancelar: no registra nada, limpia lo capturado y cierra el panel --}}
-                                                <button type="button" class="boton boton-secundario" x-on:click="$refs.form.reset(); resultado = ''; pestana = 'propuesta'; abierto = false">Cancelar</button>
-                                                <button class="boton boton-primario" :disabled="resultado === ''" :class="resultado === '' && 'cursor-not-allowed opacity-50'">
+                                            <div class="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                                                {{-- Qué falta para poder registrar (el botón se habilita con el dictamen completo) --}}
+                                                <p class="min-h-5 text-sm text-amber-700 sm:mr-auto" x-text="falta" aria-live="polite"></p>
+                                                {{-- Cancelar: no registra nada, limpia lo capturado (también el archivo) y cierra el panel --}}
+                                                <button type="button" class="boton boton-secundario" x-on:click="$refs.form.reset(); resultado = ''; obs = ''; pestana = 'propuesta'; abierto = false">Cancelar</button>
+                                                <button class="boton boton-primario" :disabled="falta !== ''" :class="falta !== '' && 'cursor-not-allowed opacity-50'">
                                                     <x-dashboard.icono nombre="check" clase="size-4" /> Registrar dictamen
                                                 </button>
                                             </div>

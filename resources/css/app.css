@@ -262,6 +262,21 @@
    ══════════════════════════════════════════════════════════════════ */
 
 /* Botones: base + variante. Tamaño normal h-10; boton-chico h-8; en móvil pueden ir a lo ancho con w-full sm:w-auto */
+/* Texto largo capturado por la organización (descripción, actividades): altura fija con desplazamiento interno,
+   para que no estire la tarjeta; se puede enfocar y desplazar con el teclado. */
+@utility texto-acotado {
+  max-height: 10rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.25rem;
+  border-radius: 0.375rem;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-real-500);
+    outline-offset: 2px;
+  }
+}
+
 @utility boton {
   @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 py-2 text-center text-sm font-semibold transition duration-150 ease-out select-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-real-500/25 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 motion-reduce:transition-none motion-reduce:active:scale-100;
 }

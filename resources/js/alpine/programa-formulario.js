@@ -10,10 +10,11 @@ import { conId } from './rutas';
  * @param {string}   opciones.urlStore   alta
  * @param {string}   opciones.urlUpdate  edición con id 0
  * @param {boolean}  opciones.preseleccionarConvenio  la empresa con un solo convenio no tiene que elegirlo
+ * @param {?object}  opciones.inicial    lo capturado cuando el servidor rechazó el envío: la ventana se reabre con ello
  */
-export default ({ vacio = {}, convenios = [], urlStore = '', urlUpdate = '', preseleccionarConvenio = false } = {}) => ({
-    modal: false,
-    p: { ...vacio },
+export default ({ vacio = {}, convenios = [], urlStore = '', urlUpdate = '', preseleccionarConvenio = false, inicial = null } = {}) => ({
+    modal: !!inicial,
+    p: inicial ? { ...vacio, ...inicial } : { ...vacio },
     vacio,
     convenios,
 

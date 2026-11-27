@@ -14,11 +14,6 @@ return [
         'extensiones' => ['23549', '23404'],
     ],
 
-    // Correo institucional de la Unidad Jurídica: si está configurado, recibe el aviso de cada convenio formalizado
-    'juridica' => [
-        'correo' => env('PRACTICAS_CORREO_JURIDICA'),
-    ],
-
     'google' => [
         'dominios_alumno' => array_filter(array_map('trim', explode(',', env('GOOGLE_DOMINIOS_ALUMNO', 'alumnos.udg.mx')))),
         'dominios_personal' => array_filter(array_map('trim', explode(',', env('GOOGLE_DOMINIOS_PERSONAL', 'academicos.udg.mx,csh.udg.mx,udg.mx')))),

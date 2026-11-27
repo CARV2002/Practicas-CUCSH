@@ -93,7 +93,7 @@
 
             {{-- Expediente --}}
             <x-dashboard.panel id="expediente" class="scroll-mt-24" titulo="Expediente de la empresa" icono="documento"
-                :descripcion="$estado === E::Solicitado ? 'Valida cada documento en el orden que quieras, o marca varios y valídalos juntos. Si alguno está mal, devuélvelo con su motivo. Lo validado ya no se rechaza.' : 'Los documentos se validan durante la revisión de documentos.'">
+                :descripcion="$estado === E::Solicitado ? 'Valida cada documento o varios juntos. Si alguno está mal, devuélvelo con su motivo.' : 'Los documentos se validan en la revisión inicial.'">
                 {{-- Lo que capturó la empresa: se compara contra sus documentos --}}
                 <details class="group mb-4 rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-100" @if ($estado === E::Solicitado) open @endif>
                     <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
@@ -125,9 +125,68 @@
                         @endif
                         <div class="min-w-0 sm:col-span-2"><dt class="text-xs text-gray-500">Carreras solicitadas</dt><dd class="text-sm font-medium text-gray-900">{{ $convenio->dictamenes->map(fn ($d) => $d->carrera->carrera_clave)->join(', ') }}</dd></div>
                         @if ($convenio->actividades_propuestas)
-                            <div class="min-w-0 sm:col-span-2"><dt class="text-xs text-gray-500">Actividades propuestas</dt><dd class="whitespace-pre-line text-sm text-gray-800">{{ $convenio->actividades_propuestas }}</dd></div>
+                            <div class="min-w-0 sm:col-span-2"><dt class="text-xs text-gray-500">Actividades propuestas</dt><dd class="texto-acotado whitespace-pre-line text-sm text-gray-800" tabindex="0">{{ $convenio->actividades_propuestas }}</dd></div>
                         @endif
                     </dl>
+                    {{-- Datos devueltos a la empresa para corregir (además de los documentos) --}}
+                    @php
+                        $correcciones = $convenio->correcciones ?? [];
+                        $nombresCampo = \App\Support\SolicitudEmpresa::atributos();
+                        $seccionesNombre = \App\Support\SolicitudEmpresa::SECCIONES;
+                    @endphp
+                    @if ($correcciones)
+                        <div class="border-t border-gray-100 px-4 py-3">
+                            <p class="text-xs font-semibold text-gray-700">Datos que pediste corregir</p>
+                            <ul class="mt-1.5 space-y-1">
+                                @foreach ($correcciones as $campo => $c)
+                                    <li class="flex flex-wrap items-center gap-x-2 text-xs">
+                                        <span class="font-medium text-gray-900">{{ ucfirst($nombresCampo[$campo] ?? $campo) }}</span>
+                                        @if (empty($c['corregido_at']))
+                                            <span class="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800 ring-1 ring-inset ring-amber-200">Esperando a la empresa</span>
+                                        @else
+                                            <span class="rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200">Corregido {{ \Illuminate\Support\Carbon::parse($c['corregido_at'])->format('d/m/Y') }}</span>
+                                        @endif
+                                        <span class="text-gray-500">«{{ $c['motivo'] }}»</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+                    @if ($estado === E::Solicitado && $opera)
+                        <details class="group/corr border-t border-gray-100" @if ($errors->hasAny(['campos', 'motivo_correccion'])) open @endif>
+                            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-rose-700 hover:bg-rose-50/40">
+                                <span class="flex items-center gap-2"><x-dashboard.icono nombre="editar" clase="size-4" /> Pedir corrección de datos</span>
+                                <svg class="size-4 transition-transform group-open/corr:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+                            </summary>
+                            <form method="POST" action="{{ route('admin.convenios.correcciones', $convenio) }}" class="space-y-3 px-4 pb-4"
+                                data-confirmar="¿Pedir a la empresa que corrija los datos marcados? Solo esos quedarán abiertos para ella y la solicitud no pasará a las carreras hasta que los corrija." data-confirmar-titulo="Pedir corrección" data-confirmar-boton="Sí, pedir corrección" data-confirmar-tono="normal">
+                                @csrf
+                                <p class="text-xs text-gray-600">Marca solo lo que está mal. La empresa recibe un correo y podrá editar únicamente esos datos.</p>
+                                @foreach (\App\Support\SolicitudEmpresa::CORREGIBLES as $seccionCorr => $camposCorr)
+                                    <fieldset>
+                                        <legend class="text-xs font-semibold text-gray-700">{{ $seccionesNombre[$seccionCorr] ?? $seccionCorr }}</legend>
+                                        <div class="mt-1 grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+                                            @foreach ($camposCorr as $campoCorr)
+                                                @php $pendiente = isset($correcciones[$campoCorr]) && empty($correcciones[$campoCorr]['corregido_at']); @endphp
+                                                <label class="flex items-start gap-2 text-sm {{ $pendiente ? 'text-gray-400' : 'text-gray-800' }}">
+                                                    <input type="checkbox" name="campos[]" value="{{ $campoCorr }}" class="mt-0.5 size-4 rounded border-gray-300" @disabled($pendiente) @checked(in_array($campoCorr, old('campos', []), true))>
+                                                    <span>{{ ucfirst($nombresCampo[$campoCorr] ?? $campoCorr) }}@if ($pendiente) <span class="text-xs">(ya pedido)</span>@endif</span>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    </fieldset>
+                                @endforeach
+                                @error('campos')<p class="text-xs font-medium text-error-600">{{ $message }}</p>@enderror
+                                <div>
+                                    <label class="etiqueta" for="motivo-corr">Qué debe corregir</label>
+                                    <input id="motivo-corr" type="text" name="motivo_correccion" value="{{ old('motivo_correccion') }}" required minlength="10" maxlength="1000"
+                                        placeholder="Ej. La razón social no coincide con la constancia fiscal" class="campo h-10">
+                                    @error('motivo_correccion')<p class="mt-1 text-xs font-medium text-error-600">{{ $message }}</p>@enderror
+                                </div>
+                                <div class="flex justify-end"><button class="boton boton-chico boton-primario">Pedir corrección</button></div>
+                            </form>
+                        </details>
+                    @endif
                 </details>
                 @php
                     $pendientesLote = collect($colecciones)->map(fn ($c) => $empresa->documentoVigente($c))
@@ -249,27 +308,48 @@
 
             {{-- Validación académica --}}
             <x-dashboard.panel titulo="Dictamen académico por carrera" icono="academico"
-                descripcion="La propuesta llega solo a las coordinaciones de las carreras solicitadas. Cada una vota y sube su dictamen firmado; tú solo das seguimiento.">
+                descripcion="Cada carrera solicitada da su dictamen; tú das seguimiento.">
                 @if ($estado === E::EnValidacionAcademica || $convenio->fecha_turno_secretaria || $convenio->fecha_turno_division)
-                    <details class="group mb-4 rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-100">
+                    <details class="group mb-4 rounded-xl bg-gray-50 ring-1 ring-inset ring-gray-100" @if ($errors->hasAny(['fecha_turno_secretaria', 'fecha_turno_division'])) open @endif>
                         <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
                             <span>
                                 <span class="block text-sm font-semibold text-gray-900">Paso del oficio por Secretaría Académica y la División</span>
                                 <span class="block text-xs text-gray-500">Opcional: solo sirve para medir tiempos; no detiene el dictamen.
-                                    @if ($convenio->fecha_turno_secretaria) Secretaría: {{ $convenio->fecha_turno_secretaria->format('d/m/Y') }}. @endif
-                                    @if ($convenio->fecha_turno_division) División: {{ $convenio->fecha_turno_division->format('d/m/Y') }}. @endif
+                                    @if ($convenio->fecha_turno_secretaria) Secretaría: {{ $convenio->fecha_turno_secretaria->format('d/m/Y') }}{{ $convenio->fecha_turno_secretaria->isFuture() ? ' (estimada)' : '' }}. @endif
+                                    @if ($convenio->fecha_turno_division) División: {{ $convenio->fecha_turno_division->format('d/m/Y') }}{{ $convenio->fecha_turno_division->isFuture() ? ' (estimada)' : '' }}. @endif
                                 </span>
                             </span>
                             @if ($estado === E::EnValidacionAcademica && $opera)<span class="shrink-0 text-xs font-semibold text-real-600 group-open:hidden">Registrar fechas</span>@endif
                         </summary>
                         @if ($estado === E::EnValidacionAcademica && $opera)
-                            <form method="POST" action="{{ route('admin.convenios.turnos', $convenio) }}" class="grid grid-cols-1 gap-3 border-t border-gray-100 p-4 md:grid-cols-3 md:items-end">
+                            @php
+                                $envio = $convenio->fechaEnvioAcademico();
+                                $tope = $convenio->topeTurnoAcademico();
+                                $estimado = $convenio->turnoEstimado();
+                            @endphp
+                            <form method="POST" action="{{ route('admin.convenios.turnos', $convenio) }}" class="grid grid-cols-1 gap-3 border-t border-gray-100 p-4 md:grid-cols-3 md:items-start"
+                                x-data="{
+                                    sec: @js(old('fecha_turno_secretaria', $convenio->fecha_turno_secretaria?->toDateString() ?? '')),
+                                    div: @js(old('fecha_turno_division', $convenio->fecha_turno_division?->toDateString() ?? '')),
+                                    hoy: @js(today()->toDateString()),
+                                    estimar() { this.sec = @js($estimado['secretaria']->toDateString()); this.div = @js($estimado['division']->toDateString()); },
+                                }">
                                 @csrf
+                                <div class="flex flex-col gap-2 md:col-span-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <p class="text-xs leading-relaxed text-gray-600">Fecha real o <strong>estimada</strong>, entre el <strong>{{ $envio->format('d/m/Y') }}</strong> (envío a las carreras) y el <strong>{{ $tope->format('d/m/Y') }}</strong>. La División va el mismo día o después de Secretaría.
+                                        Lo usual: Secretaría ~{{ $estimado['secretaria']->format('d/m/Y') }} y División ~{{ $estimado['division']->format('d/m/Y') }}.</p>
+                                    <button type="button" x-on:click="estimar()" class="boton boton-chico boton-secundario shrink-0"><x-dashboard.icono nombre="calendario" clase="size-3.5" /> Usar fechas estimadas</button>
+                                </div>
                                 <div><label for="f-sec" class="etiqueta">Secretaría Académica</label>
-                                    <input id="f-sec" type="date" name="fecha_turno_secretaria" max="{{ today()->toDateString() }}" value="{{ old('fecha_turno_secretaria', $convenio->fecha_turno_secretaria?->toDateString()) }}" class="campo h-10"></div>
+                                    <input id="f-sec" type="date" name="fecha_turno_secretaria" x-model="sec" min="{{ $envio->toDateString() }}" max="{{ $tope->toDateString() }}" class="campo h-10">
+                                    <p x-show="sec && sec > hoy" x-cloak class="mt-1 text-xs font-medium text-sky-700">Fecha estimada (aún no llega).</p>
+                                    @error('fecha_turno_secretaria')<p class="mt-1 text-xs font-medium text-error-600">{{ $message }}</p>@enderror</div>
                                 <div><label for="f-div" class="etiqueta">División</label>
-                                    <input id="f-div" type="date" name="fecha_turno_division" max="{{ today()->toDateString() }}" value="{{ old('fecha_turno_division', $convenio->fecha_turno_division?->toDateString()) }}" class="campo h-10"></div>
-                                <button class="boton boton-secundario h-10">Guardar fechas</button>
+                                    <input id="f-div" type="date" name="fecha_turno_division" x-model="div" :min="sec || @js($envio->toDateString())" :disabled="!sec" max="{{ $tope->toDateString() }}" class="campo h-10 disabled:cursor-not-allowed disabled:bg-gray-50">
+                                    <p x-show="!sec" class="mt-1 text-xs text-gray-500">Primero la de Secretaría.</p>
+                                    <p x-show="div && div > hoy" x-cloak class="mt-1 text-xs font-medium text-sky-700">Fecha estimada (aún no llega).</p>
+                                    @error('fecha_turno_division')<p class="mt-1 text-xs font-medium text-error-600">{{ $message }}</p>@enderror</div>
+                                <div class="md:pt-6"><button class="boton boton-secundario h-10 w-full">Guardar fechas</button></div>
                             </form>
                         @endif
                     </details>
@@ -306,8 +386,9 @@
                 </ul>
             </x-dashboard.panel>
 
-            {{-- Borrador y Jurídica --}}
-            @if (in_array($estado, [E::EnValidacionAcademica, E::EnRevisionJuridica], true) || $borradores->isNotEmpty())
+            {{-- Borrador y Jurídica: aparece cuando las carreras ya dictaminaron (redacción) y se queda como historial.
+                 En la revisión de documentos, con dictámenes pendientes o en un convenio rechazado no tiene nada que hacer. --}}
+            @if ($etapa === Et::RedaccionBorrador || in_array($estado, [E::EnRevisionJuridica, E::EnFirmas, E::Formalizado], true))
                 <x-dashboard.panel titulo="Borrador y Unidad Jurídica" icono="juridico" descripcion="Genera o adjunta el borrador del convenio y registra el dictamen jurídico.">
                     @php
                         // ¿Jurídica devolvió el borrador? Se muestra arriba, en rojo, con qué hacer y dónde
@@ -472,7 +553,7 @@
                                 @method('PUT')
                                 <div>
                                     <label class="etiqueta" for="cfg-juridica">Correo institucional de la Unidad Jurídica</label>
-                                    <input id="cfg-juridica" type="email" name="correo_juridica" value="{{ $correoJuridica }}" placeholder="juridico@csh.udg.mx" class="campo h-10">
+                                    <input id="cfg-juridica" type="email" name="correo_juridica" value="{{ $correoJuridica }}" placeholder="usuario@dominio.com" class="campo h-10">
                                 </div>
                                 <button type="button" class="boton boton-secundario h-10" x-on:click="editarCorreo = false; $el.form.reset()">Cancelar</button>
                                 <button class="boton boton-primario h-10">Guardar correo</button>
@@ -538,10 +619,10 @@
                     @elseif ($etapa === Et::ArchivoDistribucion)
                         <form method="POST" enctype="multipart/form-data" action="{{ route('admin.convenios.formalizar', $convenio) }}" class="grid grid-cols-1 gap-4 md:grid-cols-4"
                             data-confirmar="¿Formalizar el convenio con este folio y fecha de inicio? Quedará vigente y la empresa podrá publicar vacantes. Revisa bien los datos: ya no se pueden cambiar." data-confirmar-titulo="Formalizar convenio" data-confirmar-boton="Sí, formalizar" data-confirmar-tono="normal"
-                            x-data="{ inicio: '', anios: {{ $convenio->duracionAnios() }},
+                            x-data="{ inicio: @js(old('fecha_inicio_vigencia', '')), anios: {{ $convenio->duracionAnios() }},
                                 get fin() { if (!this.inicio) return ''; const d = new Date(this.inicio + 'T00:00:00'); d.setFullYear(d.getFullYear() + Number(this.anios)); d.setDate(d.getDate() - 1); return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }); } }">
                             @csrf
-                            <div><label class="etiqueta" for="fo-folio">Folio</label><input id="fo-folio" type="text" name="folio" required minlength="3" maxlength="30" data-solo="folio" placeholder="CV-2026-014" pattern="[A-Z0-9\/\-]{3,30}" data-msg-formato="El folio solo lleva letras mayúsculas, números, guiones o diagonales." class="campo h-11"></div>
+                            <div><label class="etiqueta" for="fo-folio">Folio</label><input id="fo-folio" type="text" name="folio" value="{{ old('folio') }}" required minlength="3" maxlength="30" data-solo="folio" placeholder="CV-2026-014" pattern="[A-Z0-9\/\-]{3,30}" data-msg-formato="El folio solo lleva letras mayúsculas, números, guiones o diagonales." class="campo h-11"></div>
                             <div><label class="etiqueta" for="fo-ini">Inicio de vigencia (fecha de firma)</label><input id="fo-ini" type="date" name="fecha_inicio_vigencia" required x-model="inicio" class="campo h-11"></div>
                             <div>
                                 <span class="etiqueta">Duración pactada (cláusula UNDÉCIMA)</span>
@@ -578,7 +659,7 @@
                                 </div>
                                 <p class="ayuda">Los que marques siguen en Documentos físicos hasta registrar su entrega; los demás pasan a Concluidos.</p>
                             </fieldset>
-                            <div class="md:col-span-3"><label class="etiqueta" for="fo-com">Comentario (opcional)</label><input id="fo-com" type="text" name="comentario" class="campo h-11"></div>
+                            <div class="md:col-span-3"><label class="etiqueta" for="fo-com">Comentario (opcional)</label><input id="fo-com" type="text" name="comentario" value="{{ old('comentario') }}" class="campo h-11"></div>
                             <div class="flex items-end"><button class="boton boton-exito h-11 w-full"><x-dashboard.icono nombre="vigente" clase="size-4" /> Formalizar convenio</button></div>
                             <p class="ayuda md:col-span-4">Al formalizar, la organización queda activa: puede publicar vacantes y los alumnos de las carreras aprobadas pueden postularse. De los 3 juegos, uno se entrega a la empresa, otro queda en tu carpeta y el tercero va al archivo de la Unidad Jurídica (síguelos en Documentos físicos).</p>
                         </form>
@@ -609,8 +690,8 @@
         <aside class="space-y-6" aria-label="Datos del convenio">
             <x-dashboard.panel titulo="Datos del convenio" icono="documento">
                 <dl class="space-y-4 text-sm">
-                    <div><dt class="text-xs font-medium text-gray-500">Objetivos</dt><dd class="mt-1 leading-relaxed text-gray-800">{{ $convenio->objetivos ?: 'Sin objetivos registrados' }}</dd></div>
-                    <div><dt class="text-xs font-medium text-gray-500">Actividades propuestas</dt><dd class="mt-1 leading-relaxed text-gray-800">{{ $convenio->actividades_propuestas ?: 'Sin actividades registradas' }}</dd></div>
+                    <div><dt class="text-xs font-medium text-gray-500">Objetivos</dt><dd class="texto-acotado mt-1 leading-relaxed text-gray-800" tabindex="0">{{ $convenio->objetivos ?: 'Sin objetivos registrados' }}</dd></div>
+                    <div><dt class="text-xs font-medium text-gray-500">Actividades propuestas</dt><dd class="texto-acotado mt-1 whitespace-pre-line leading-relaxed text-gray-800" tabindex="0">{{ $convenio->actividades_propuestas ?: 'Sin actividades registradas' }}</dd></div>
                     <div class="grid grid-cols-2 gap-3">
                         <div class="rounded-xl bg-gray-50 p-3 ring-1 ring-inset ring-gray-100"><dt class="text-xs text-gray-500">Plazas estimadas</dt><dd class="mt-0.5 font-display text-xl font-bold tabular-nums text-gray-900">{{ $convenio->plazas_estimadas }}</dd></div>
                         <div class="rounded-xl bg-gray-50 p-3 ring-1 ring-inset ring-gray-100"><dt class="text-xs text-gray-500">Vigencia</dt>
@@ -624,6 +705,8 @@
                 @endif
             </x-dashboard.panel>
 
+            {{-- Los papeles nacen al turnar a Jurídica: antes (o con el convenio rechazado) la tarjeta no se muestra --}}
+            @if (in_array($estado, [E::EnRevisionJuridica, E::EnFirmas, E::Formalizado], true))
             <x-dashboard.panel titulo="Documentos físicos" icono="firma" :enlace="route('admin.documentos-fisicos', ['q' => $empresa->razon_social, 'vista' => 'activos'])" enlace-texto="Controlar">
                 @forelse ($convenio->documentosFisicos as $d)
                     <div class="flex items-center justify-between gap-3 py-1.5">
@@ -636,14 +719,11 @@
                         <x-ui.estatus :estado="$d->estado" class="shrink-0" />
                     </div>
                 @empty
-                    @if (in_array($estado, [E::EnValidacionAcademica, E::EnRevisionJuridica, E::EnFirmas, E::Formalizado], true))
-                        <p class="text-sm text-gray-600">Este trámite aún no tiene control de sus papeles.</p>
-                        @can('operar-convenios')<x-ui.boton-icono :accion="route('admin.convenios.fisicos.preparar', $convenio)" icono="mas" etiqueta="Abrir control físico" tono="primario" con-texto class="mt-3" />@endcan
-                    @else
-                        <p class="dato-vacio">El oficio de turno se registra al turnar a las carreras</p>
-                    @endif
+                    <p class="text-sm text-gray-600">Este trámite aún no tiene control de sus papeles.</p>
+                    @can('operar-convenios')<x-ui.boton-icono :accion="route('admin.convenios.fisicos.preparar', $convenio)" icono="mas" etiqueta="Abrir control físico" tono="primario" con-texto class="mt-3" />@endcan
                 @endforelse
             </x-dashboard.panel>
+            @endif
 
             <x-dashboard.panel titulo="Contacto de la empresa" icono="alumno" :enlace="route('admin.empresas.show', $empresa)" enlace-texto="Expediente">
                 <p class="font-semibold text-gray-900">{{ $empresa->contacto_nombre ?: 'Contacto sin registrar' }}</p>

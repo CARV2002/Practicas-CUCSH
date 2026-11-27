@@ -30,6 +30,11 @@ class EnviarExpedienteRequest extends FormRequest
                 ? 'Tu expediente ya está validado: ya puedes postularte.'
                 : 'Tu expediente ya está en revisión con tu coordinación.']);
         }
+
+        // Devuelto, IMSS vencido o créditos insuficientes: se reemplaza solo el documento afectado, nunca los dos juntos
+        if ($motivo = $this->alumno()->motivoSinEnviarExpediente()) {
+            throw ValidationException::withMessages(['expediente' => $motivo]);
+        }
     }
 
     /** @return array<string, mixed> */

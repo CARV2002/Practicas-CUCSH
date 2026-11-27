@@ -34,7 +34,6 @@
     // Pestaña inicial: la que pide la URL o la que tiene errores / mensaje de éxito
     $inicial = match (true) {
         $errors->updatePassword->isNotEmpty() || $estado === 'password-updated' => 'seguridad',
-        $errors->organizacion->isNotEmpty() || $errors->has('representante_legal') || $estado === 'organizacion-updated' || $estado === 'Representante legal actualizado.' => 'organizacion',
         $errors->hasAny(['grado', 'turno']) || $estado === 'datos-escolares-updated' => 'escolar',
         $errors->hasAny(['name', 'email', 'foto']) => 'cuenta',
         in_array(request('seccion'), $claves, true) => request('seccion'),
@@ -47,7 +46,6 @@
         'foto-updated' => 'Tu foto se actualizó.',
         'foto-deleted' => 'Quitaste tu foto de perfil.',
         'datos-escolares-updated' => 'Tus datos escolares se actualizaron.',
-        'organizacion-updated' => 'Los datos de tu organización se actualizaron.',
     ];
     $mensaje = $mensajes[$estado] ?? ($estado && !str_contains((string) $estado, '-') ? $estado : null);
 @endphp
@@ -189,11 +187,16 @@
                                 </div>
                             @endforeach
                         </dl>
+                        @if ($motivoDatosEscolares)
+                            <x-ui.aviso tipo="info" titulo="Tus datos escolares están fijos" class="mb-4">{{ $motivoDatosEscolares }}</x-ui.aviso>
+                        @endif
                         <form method="POST" action="{{ route('alumno.datos-escolares') }}" class="space-y-5">
                             @csrf
                             @method('PUT')
-                            <x-alumno.grado-turno :grado="$alumno->grado" :turno="$alumno->turno" />
-                            <div class="flex justify-end"><button class="boton boton-primario w-full sm:w-auto">Guardar datos escolares</button></div>
+                            <fieldset @disabled($motivoDatosEscolares) class="space-y-5 disabled:opacity-70">
+                                <x-alumno.grado-turno :grado="$alumno->grado" :turno="$alumno->turno" />
+                                <div class="flex justify-end"><button class="boton boton-primario w-full disabled:cursor-not-allowed sm:w-auto">Guardar datos escolares</button></div>
+                            </fieldset>
                         </form>
                     </x-dashboard.panel>
 
@@ -239,7 +242,7 @@
             {{-- ===================== EMPRESA: MI ORGANIZACIÓN ===================== --}}
             @isset($empresa)
                 <section id="panel-organizacion" role="tabpanel" aria-labelledby="tab-organizacion" x-show="tab === 'organizacion'" x-cloak class="space-y-6 animate-entrada motion-reduce:animate-none">
-                    <x-dashboard.panel titulo="Datos legales" icono="empresa" descripcion="Para corregir la razón social, el RFC o el tipo de organismo, escribe a Vinculación." :enlace="route('empresa.convenio')" enlace-texto="Mi convenio">
+                    <x-dashboard.panel titulo="Datos legales" icono="empresa" descripcion="Razón social, RFC y tipo de organismo: para corregirlos, escribe a Vinculación." :enlace="route('empresa.convenio')" enlace-texto="Mi convenio">
                         <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             @foreach ([['Razón social', $empresa->razon_social], ['RFC', $empresa->rfc], ['Tipo de organismo', $empresa->tipo_organismo?->label() ?? '—'], ['Domicilio fiscal', $empresa->domicilio_fiscal ?: '—']] as [$k, $v])
                                 <div class="rounded-xl bg-gray-50 p-3.5 ring-1 ring-inset ring-gray-100">
@@ -260,52 +263,35 @@
                         </div>
                     </x-dashboard.panel>
 
-                    <x-dashboard.panel titulo="Contacto y presentación" icono="comentario" descripcion="Lo ve Vinculación y la coordinación de cada carrera al revisar sus vacantes.">
-                        <form method="POST" action="{{ route('empresa.perfil.update') }}" class="space-y-5">
-                            @csrf
-                            @method('PATCH')
-                            <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
-                                <div class="md:col-span-1">
-                                    <label for="contacto_nombre" class="etiqueta">Persona de contacto</label>
-                                    <input id="contacto_nombre" data-solo="letras" pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ&#039;.\-]+(\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ&#039;.\-]+)+" data-msg-formato="Escribe nombre y apellido, solo con letras." name="contacto_nombre" value="{{ old('contacto_nombre', $empresa->contacto_nombre) }}" required maxlength="255" class="campo h-11">
-                                    @error('contacto_nombre', 'organizacion')<p class="mt-1.5 text-sm font-medium text-error-600">{{ $message }}</p>@enderror
-                                </div>
-                                <div>
-                                    <label for="contacto_cargo" class="etiqueta">Cargo</label>
-                                    <input id="contacto_cargo" data-solo="letras" name="contacto_cargo" value="{{ old('contacto_cargo', $empresa->contacto_cargo) }}" maxlength="255" class="campo h-11">
-                                </div>
-                                <div>
-                                    <label for="contacto_telefono" class="etiqueta">Teléfono</label>
-                                    <input id="contacto_telefono" name="contacto_telefono" type="tel" inputmode="numeric" autocomplete="tel" data-solo="digitos" data-contador="dígitos" minlength="10" maxlength="10" pattern="\d{10}" data-msg-formato="El teléfono son 10 números, sin espacios ni guiones (por ejemplo 3312345678)." value="{{ old('contacto_telefono', $empresa->contacto_telefono) }}" class="campo h-11">
-                                    @error('contacto_telefono', 'organizacion')<p class="mt-1.5 text-sm font-medium text-error-600">{{ $message }}</p>@enderror
-                                </div>
-                            </div>
-                            @foreach ([['descripcion', '¿A qué se dedica su organización?'], ['proyectos_principales', 'Proyectos principales']] as [$campo, $etiqueta])
-                                <div x-data="{ n: {{ mb_strlen(old($campo, $empresa->{$campo}) ?? '') }} }">
-                                    <label for="{{ $campo }}" class="etiqueta">{{ $etiqueta }}</label>
-                                    <textarea id="{{ $campo }}" name="{{ $campo }}" rows="3" maxlength="3000" @input="n = $event.target.value.length" class="campo">{{ old($campo, $empresa->{$campo}) }}</textarea>
-                                    <p class="ayuda text-right"><span x-text="n"></span>/3000</p>
+                    {{-- Una sola fuente: estos datos son los de la solicitud del convenio y solo se editan en «Mi convenio»,
+                         con sus mismos bloqueos (en revisión o con convenio vigente quedan fijos). Aquí solo se consultan. --}}
+                    <x-dashboard.panel titulo="Contacto, presentación y representante" icono="comentario"
+                        descripcion="Lo ven Vinculación y las coordinaciones de carrera. Se editan en «Mi convenio».">
+                        <dl class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            @foreach ([['Persona de contacto', $empresa->contacto_nombre], ['Cargo', $empresa->contacto_cargo], ['Teléfono', $empresa->contacto_telefono]] as [$k, $v])
+                                <div class="rounded-xl bg-gray-50 p-3.5 ring-1 ring-inset ring-gray-100">
+                                    <dt class="text-xs text-gray-500">{{ $k }}</dt>
+                                    <dd class="mt-0.5 break-words text-sm font-semibold {{ $v ? 'text-gray-900' : 'italic text-gray-400' }}">{{ $v ?: 'Sin capturar' }}</dd>
                                 </div>
                             @endforeach
-                            <div class="flex justify-end"><button class="boton boton-primario w-full sm:w-auto">Guardar datos de la organización</button></div>
-                        </form>
-                    </x-dashboard.panel>
-
-                    <x-dashboard.panel titulo="Representante legal" icono="firma" descripcion="Firma el convenio en nombre de su organización.">
-                        @if ($representanteBloqueado)
-                            <x-ui.aviso tipo="info" titulo="{{ $empresa->representante_legal ?: 'Sin registrar' }}">Su convenio está en revisión: podrá cambiar al representante legal cuando termine.</x-ui.aviso>
-                        @else
-                            <form method="POST" action="{{ route('empresa.datos-legales') }}" class="flex flex-col gap-3 sm:flex-row sm:items-end">
-                                @csrf
-                                @method('PUT')
-                                <div class="flex-1">
-                                    <label for="representante_legal" class="etiqueta">Nombre completo</label>
-                                    <input id="representante_legal" name="representante_legal" value="{{ old('representante_legal', $empresa->representante_legal) }}" required maxlength="255" class="campo h-11">
-                                    @error('representante_legal')<p class="mt-1.5 text-sm font-medium text-error-600">{{ $message }}</p>@enderror
+                            @foreach ([['¿A qué se dedica?', $empresa->descripcion], ['Proyectos principales', $empresa->proyectos_principales], ['Representante legal', trim($empresa->representante_legal . ($empresa->representante_cargo ? ', ' . $empresa->representante_cargo : ''))]] as [$k, $v])
+                                <div class="rounded-xl bg-gray-50 p-3.5 ring-1 ring-inset ring-gray-100 sm:col-span-3">
+                                    <dt class="text-xs text-gray-500">{{ $k }}</dt>
+                                    <dd class="texto-acotado mt-0.5 whitespace-pre-line text-sm {{ $v ? 'text-gray-800' : 'italic text-gray-400' }}" tabindex="0">{{ $v ?: 'Sin capturar' }}</dd>
                                 </div>
-                                <button class="boton boton-primario">Actualizar</button>
-                            </form>
-                        @endif
+                            @endforeach
+                        </dl>
+                        <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            @if ($solicitudBloqueada)
+                                <p class="flex items-start gap-2 text-sm text-gray-600">
+                                    <x-dashboard.icono nombre="candado" clase="mt-0.5 size-4 shrink-0 text-gray-400" />
+                                    <span>{{ $solicitudBloqueada }} Si necesitas corregir algo urgente, escribe a Vinculación.</span>
+                                </p>
+                            @else
+                                <p class="text-sm text-gray-600">Para cambiarlos, entra a tu solicitud en «Mi convenio».</p>
+                                <a href="{{ route('empresa.convenio', ['seccion' => 'generales']) }}" class="boton boton-primario shrink-0"><x-dashboard.icono nombre="editar" clase="size-4" /> Editar en Mi convenio</a>
+                            @endif
+                        </div>
                     </x-dashboard.panel>
                 </section>
             @endisset

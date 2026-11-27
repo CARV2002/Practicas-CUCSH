@@ -21,9 +21,11 @@ use App\Policies\ReportePolicy;
 use App\Services\Auditoria;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -44,6 +46,8 @@ class AppServiceProvider extends ServiceProvider
         if (app()->environment('local') && filled(config('practicas.correo_redirigir_a'))) {
             Mail::alwaysTo(config('practicas.correo_redirigir_a'));
         }
+
+        $this->fechasLegibles();
 
         Gate::policy(Convenio::class, ConvenioPolicy::class);
         Gate::policy(Programa::class, ProgramaPolicy::class);
@@ -88,5 +92,33 @@ class AppServiceProvider extends ServiceProvider
 
         // Operar convenios, empresas y documentos físicos: solo Vinculación (el administrador supervisa en solo lectura)
         Gate::define('operar-convenios', fn (User $u) => $u->hasRole(Rol::Vinculacion->value) && $u->personal !== null);
+    }
+
+    /**
+     * Las reglas de fecha (after, before…) dicen «hoy», «del 20/11/2026» o «la fecha de «Inicio»» en lugar de
+     * «today», «2026-11-20» o el nombre técnico del otro campo: mensajes cortos que cualquiera entiende.
+     */
+    private function fechasLegibles(): void
+    {
+        foreach (['after', 'after_or_equal', 'before', 'before_or_equal', 'date_equals'] as $regla) {
+            Validator::replacer($regla, function (string $mensaje, string $atributo, string $r, array $parametros, $validador) {
+                $p = (string) ($parametros[0] ?? '');
+                $fecha = match (true) {
+                    $p === 'today' => 'hoy',
+                    $p === 'tomorrow' => 'mañana',
+                    $p === 'yesterday' => 'ayer',
+                    preg_match('/^\d{4}-\d{2}-\d{2}/', $p) === 1 => 'el '.Carbon::parse($p)->format('d/m/Y'),
+                    // Otro campo: «Fecha de inicio» tal cual; si su nombre no dice «fecha», se antepone
+                    default => self::fechaDeCampo((string) $validador->getDisplayableAttribute($p)),
+                };
+
+                return str_replace(['de el ', ' a el '], ['del ', ' al '], str_replace(':date', $fecha, $mensaje));
+            });
+        }
+    }
+
+    private static function fechaDeCampo(string $nombre): string
+    {
+        return str_starts_with(mb_strtolower($nombre), 'fecha') ? '«'.mb_ucfirst($nombre).'»' : 'la fecha de «'.$nombre.'»';
     }
 }

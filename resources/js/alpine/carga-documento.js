@@ -26,19 +26,36 @@ export default function cargaDocumento({ maxMb = 10, accept = '', formatos = 'PD
         elegir(f) {
             this.error = '';
             this.archivo = null;
-            if (!f) return;
+            if (!f) {
+                this.avisar();
+                return;
+            }
 
             if (!tipoPermitido(f, accept)) {
-                this.error = `«${f.name}» no es un archivo válido. Sube un ${formatos}.`;
+                this.error = `«${f.name}» no es un ${formatos}. Elige el archivo en ${formatos}.`;
                 this.$refs.entrada.value = '';
+                this.avisar();
                 return;
             }
             if (f.size > maxMb * 1048576) {
-                this.error = `El archivo pesa ${peso(f.size)} y el máximo es ${maxMb} MB. Comprímelo (por ejemplo con ilovepdf.com) e inténtalo de nuevo.`;
+                this.error = `El archivo pesa ${peso(f.size)} y el máximo es ${maxMb} MB. Comprímelo (por ejemplo en www.ejemplo.com) e inténtalo de nuevo.`;
                 this.$refs.entrada.value = '';
+                this.avisar();
                 return;
             }
             this.archivo = { nombre: f.name, peso: peso(f.size) };
+            this.avisar();
+        },
+
+        /** Avisa al formulario si ya hay un archivo válido (p. ej. para habilitar «Registrar»). */
+        avisar() {
+            this.$dispatch('archivo-cambio', { valido: this.archivo !== null, nombre: this.$refs.entrada?.name });
+        },
+
+        limpiar() {
+            this.archivo = null;
+            this.error = '';
+            this.avisar();
         },
 
         soltar(e) {

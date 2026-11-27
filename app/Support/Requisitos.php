@@ -64,6 +64,15 @@ class Requisitos
             return 'Captura el nombre del representante legal en «Mi convenio», sección Declaraciones legales.';
         }
 
+        // Renovación: los datos vienen precargados del convenio anterior; cada sección se revisa (y guarda) antes de enviar
+        if ($vigente !== null) {
+            $revisadas = $empresa->solicitud_borrador['revisadas'] ?? [];
+            $porRevisar = collect(['generales', 'legales', 'perfiles'])->reject(fn ($s) => in_array($s, $revisadas, true));
+            if ($porRevisar->isNotEmpty()) {
+                return 'Para enviar la renovación, revisa y guarda: '.$porRevisar->map(fn ($s) => '«'.SolicitudEmpresa::SECCIONES[$s].'»')->join(', ', ' y ').'.';
+            }
+        }
+
         // Las declaraciones van tal cual al Formato de PP: sin ellas Vinculación tendría que pedirlas
         $faltanLegales = collect(['representante_cargo', 'domicilio_fiscal', 'constitucion', 'objeto_social', 'facultad_firmante'])
             ->filter(fn ($campo) => blank($empresa->{$campo}));

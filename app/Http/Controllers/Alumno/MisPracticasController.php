@@ -138,7 +138,7 @@ class MisPracticasController extends Controller
                 .' Consulta los detalles en Mis documentos.';
         }
         if ($p->estado === PracticaEstado::EnCierre) {
-            return 'Tu carta de término ya fue validada. Solo falta que tu coordinación envíe tu oficio y Control Escolar capture tu acreditación en SIIAU; no tienes que hacer nada más.';
+            return 'Tu carta de término ya fue validada. Tu coordinación termina el trámite: no tienes que hacer nada más.';
         }
         if ($rechazados > 0) {
             return 'Un reporte fue rechazado. Revísalo, corrígelo y súbelo de nuevo para que tus horas cuenten.';
@@ -147,7 +147,7 @@ class MisPracticasController extends Controller
             return "Tienes {$pendientes} reporte(s) sin archivo firmado. Súbelos en Mis documentos para que se validen tus horas.";
         }
         if ($horas >= $requeridas) {
-            return '¡Completaste tus horas! Pide a tu jefe directo en la organización tu carta de término (en hoja membretada, firmada y sellada), escanéala y súbela en Mis documentos para cerrar tu práctica.';
+            return '¡Completaste tus horas! Pide tu carta de término a la organización y súbela en Mis documentos.';
         }
 
         $faltan = $requeridas - $horas;
@@ -176,8 +176,11 @@ class MisPracticasController extends Controller
     private function mensajeSinPractica($enTramite): array
     {
         if ($enTramite) {
-            return match ($enTramite->estado) {
-                PostulacionEstado::CartaPresentacionEmitida => ['icono' => '📨', 'titulo' => 'Tu carta de presentación está lista',
+            // Con la carta de aceptación ya subida, lo que sigue es la validación de la coordinación
+            $porSubir = $enTramite->estado === PostulacionEstado::CartaPresentacionEmitida && $enTramite->getMedia('carta_aceptacion')->isEmpty();
+
+            return match (true) {
+                $porSubir => ['icono' => '📨', 'titulo' => 'Tu carta de presentación está lista',
                     'texto' => 'Descárgala, imprímela y llévala a '.($enTramite->programa->convenio?->empresa->razon_social ?? 'el programa').'. Luego sube en Mis documentos la carta de aceptación que te entreguen.'],
                 default => ['icono' => '⏳', 'titulo' => 'Tu práctica está por activarse',
                     'texto' => 'Tu coordinación validará tu carta de aceptación; en ese momento tu práctica quedará activa.'],

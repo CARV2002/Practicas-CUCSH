@@ -35,7 +35,7 @@ class Rfc implements ValidationRule
 
         if (! preg_match('/^([A-ZÑ&]{3,4})(\d{2})(\d{2})(\d{2})([A-Z\d]{3})$/u', $rfc, $m)) {
             $fail(mb_strlen($rfc) < 12 || mb_strlen($rfc) > 13
-                ? 'El RFC lleva 12 caracteres si es persona moral (ej. BJP150420ABC) o 13 si es persona física (ej. PEGS850812XYZ).'
+                ? 'El RFC lleva 12 caracteres si es persona moral (ej. ABC010101XYZ) o 13 si es persona física (ej. ABCD010101XYZ).'
                 : 'El RFC no tiene el formato del SAT: letras iniciales, 6 dígitos de fecha (AAMMDD) y 3 de homoclave.');
 
             return;

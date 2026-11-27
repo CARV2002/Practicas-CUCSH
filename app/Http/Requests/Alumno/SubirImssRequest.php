@@ -16,13 +16,11 @@ class SubirImssRequest extends FormRequest
         return true;   // la ruta ya exige el rol de alumno
     }
 
-    /** Un IMSS validado y vigente ya no se reemplaza (no tendría caso volver a revisarlo). */
+    /** Un IMSS validado y vigente ya no se reemplaza; se renueva en sus últimos 30 días (Alumno::motivoSinCambioImss). */
     protected function prepareForValidation(): void
     {
-        if ($this->user()->alumno->tieneImssValidadoVigente()) {
-            throw ValidationException::withMessages([
-                'archivo' => 'Tu constancia IMSS ya fue validada y sigue vigente: no necesitas subirla de nuevo.',
-            ]);
+        if ($motivo = $this->user()->alumno->motivoSinCambioImss()) {
+            throw ValidationException::withMessages(['archivo' => $motivo]);
         }
     }
 

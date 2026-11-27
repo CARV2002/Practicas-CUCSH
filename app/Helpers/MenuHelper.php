@@ -195,7 +195,7 @@ class MenuHelper
                 'items' => [
                     ['name' => 'Panel de coordinación', 'icon' => 'dashboard', 'path' => '/coordinacion/dashboard'],
                     ['name' => 'Programas y vacantes', 'icon' => 'forms', 'path' => '/coordinacion/lista-programas'],
-                    ['name' => 'Dictámenes', 'icon' => 'task', 'path' => '/coordinacion/lista-dictamenes'],
+                    ['name' => 'Dictamen de convenios', 'icon' => 'task', 'path' => '/coordinacion/lista-dictamenes'],
                     ['name' => 'Practicantes', 'icon' => 'user-profile', 'path' => '/coordinacion/lista-practicantes'],
                     ['name' => 'Reportes', 'icon' => 'charts', 'path' => '/coordinacion/lista-reportes'],
                     ['name' => 'Cierre de prácticas', 'icon' => 'calendar', 'path' => '/coordinacion/lista-cierres'],

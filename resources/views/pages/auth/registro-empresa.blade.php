@@ -14,9 +14,9 @@
                     <x-auth.input name="razon_social" label="Razón social" minlength="3" maxlength="{{ \App\Support\Formatos::MAX_RAZON_SOCIAL }}" data-contador="caracteres"
                         placeholder="Como aparece en tu constancia de situación fiscal" />
                     <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                        <x-auth.input name="rfc" label="RFC" placeholder="Ej. BJP150420ABC" autocomplete="off" data-solo="rfc" minlength="12" maxlength="13"
+                        <x-auth.input name="rfc" label="RFC" placeholder="Ej. ABC010101XYZ" autocomplete="off" data-solo="rfc" minlength="12" maxlength="13"
                             :pattern="\App\Support\Formatos::RFC_HTML"
-                            data-msg-formato="El RFC lleva 12 caracteres si es persona moral (BJP150420ABC) o 13 si es persona física (PEGS850812XYZ)."
+                            data-msg-formato="El RFC lleva 12 caracteres si es persona moral (ABC010101XYZ) o 13 si es persona física (ABCD010101XYZ)."
                             ayuda="12 caracteres (persona moral) o 13 (persona física). Se escribe en mayúsculas solo." />
                         <div>
                             <label for="tipo_organismo" class="mb-2 block text-sm font-semibold text-gray-800">Tipo de organismo<span class="ml-0.5 text-error-500" aria-hidden="true">*</span></label>
@@ -47,7 +47,7 @@
                     <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                         <x-auth.input name="contacto_cargo" label="Cargo" data-solo="letras" minlength="3" maxlength="120" placeholder="Ej. Coordinadora de RH" />
                         <x-auth.input name="contacto_telefono" label="Teléfono" autocomplete="tel" type="tel" inputmode="numeric" data-solo="digitos" data-contador="dígitos"
-                            minlength="10" maxlength="10" pattern="\d{10}" data-msg-formato="El teléfono son 10 números, sin espacios ni guiones (por ejemplo 3312345678)." placeholder="Ej. 3312345678" />
+                            minlength="10" maxlength="10" pattern="\d{10}" data-msg-formato="El teléfono son 10 números, sin espacios (ej. 3300000000)." placeholder="Ej. 3300000000" />
                     </div>
                 </fieldset>
 

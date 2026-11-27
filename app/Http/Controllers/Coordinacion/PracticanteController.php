@@ -151,6 +151,7 @@ class PracticanteController extends Controller
             return back()->withErrors(['postulacion' => "Una postulación «{$postulacion->estado->label()}» ya no se puede rechazar."]);
         }
 
+        $teniaCarta = $postulacion->estado === PostulacionEstado::CartaPresentacionEmitida;
         $postulacion->update(['estado' => PostulacionEstado::Rechazada]);
 
         Avisos::enviar($postulacion->alumno->user, new AvisoOperativo(
@@ -159,6 +160,15 @@ class PracticanteController extends Controller
             correo: true,
             asunto: 'Actualización de tu postulación',
         ));
+
+        // La organización ya esperaba al alumno con su carta de presentación: se le avisa que ya no se presentará
+        if ($teniaCarta) {
+            Avisos::enviar($postulacion->programa->convenio?->empresa?->user, new AvisoOperativo(
+                mensaje: "{$postulacion->alumno->user->name} ya no se presentará en «{$postulacion->programa->titulo}»: su coordinación canceló la postulación.",
+                url: route('empresa.dashboard', absolute: false),
+                detalle: $postulacion->programa->titulo,
+            ));
+        }
 
         return back()->with('status', 'Postulación rechazada.');
     }

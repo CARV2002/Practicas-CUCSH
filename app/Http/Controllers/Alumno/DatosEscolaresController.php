@@ -9,12 +9,17 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /** Grado y turno del alumno: se imprimen en su Carta de Presentación. */
 class DatosEscolaresController extends Controller
 {
     public function update(Request $request): RedirectResponse
     {
+        if ($motivo = $request->user()->alumno->motivoSinCambioDatosEscolares()) {
+            throw ValidationException::withMessages(['grado' => $motivo]);
+        }
+
         $datos = $request->validate([
             'grado' => ['required', 'integer', 'between:1,12'],
             'turno' => ['required', Rule::enum(Turno::class)],

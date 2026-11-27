@@ -10,11 +10,14 @@ class RegistrarTurnosRequest extends GestionConvenioRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        $recepcion = $this->convenio()->fecha_recepcion->toDateString();
+        $envio = $this->convenio()->fechaEnvioAcademico()->toDateString();
+        $tope = $this->convenio()->topeTurnoAcademico()->toDateString();
 
+        // Fechas reales (sin 31 de febrero), desde el envío a las carreras; pueden ser estimadas (a futuro) hasta el
+        // tope, porque solo miden tiempos. La División va el mismo día o después de Secretaría.
         return [
-            'fecha_turno_secretaria' => ['nullable', 'date', 'before_or_equal:today', 'after_or_equal:'.$recepcion],
-            'fecha_turno_division' => ['nullable', 'date', 'before_or_equal:today', 'after_or_equal:fecha_turno_secretaria'],
+            'fecha_turno_secretaria' => ['nullable', 'required_with:fecha_turno_division', 'date_format:Y-m-d', 'after_or_equal:'.$envio, 'before_or_equal:'.$tope],
+            'fecha_turno_division' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:fecha_turno_secretaria', 'before_or_equal:'.$tope],
         ];
     }
 
@@ -22,8 +25,13 @@ class RegistrarTurnosRequest extends GestionConvenioRequest
     public function messages(): array
     {
         return [
-            'fecha_turno_division.after_or_equal' => 'La División recibe el turno después de Secretaría Académica.',
-            'fecha_turno_secretaria.after_or_equal' => 'El turno no puede ser anterior a la recepción de la solicitud.',
+            'fecha_turno_secretaria.required_with' => 'Anota primero la fecha de Secretaría Académica: la División lo recibe después.',
+            'fecha_turno_secretaria.after_or_equal' => 'Secretaría Académica no pudo recibirlo antes de que lo enviaras a las carreras (:date).',
+            'fecha_turno_division.after_or_equal' => 'La División lo recibe el mismo día o después que Secretaría Académica.',
+            'fecha_turno_secretaria.before_or_equal' => 'Puede ser una fecha estimada, pero no más allá de :date (90 días después del envío).',
+            'fecha_turno_division.before_or_equal' => 'Puede ser una fecha estimada, pero no más allá de :date (90 días después del envío).',
+            'fecha_turno_secretaria.date_format' => 'Esa fecha no existe: elígela en el calendario.',
+            'fecha_turno_division.date_format' => 'Esa fecha no existe: elígela en el calendario.',
         ];
     }
 }

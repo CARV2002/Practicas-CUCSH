@@ -71,17 +71,17 @@
                     <legend class="mb-1 text-sm font-semibold text-gray-900">Contacto que ven tus alumnos</legend>
                     <div>
                         <label for="correo-{{ $carrera->id }}" class="etiqueta">Correo de la coordinación</label>
-                        <input id="correo-{{ $carrera->id }}" type="email" name="coordinacion_correo" maxlength="255" x-model="correo" placeholder="coordinacion@csh.udg.mx" class="campo h-11">
+                        <input id="correo-{{ $carrera->id }}" type="email" name="coordinacion_correo" maxlength="255" x-model="correo" placeholder="usuario@dominio.com" class="campo h-11">
                     </div>
                     <div>
                         <div class="grid grid-cols-[1fr_7rem] gap-2">
                             <div>
                                 <label for="tel-{{ $carrera->id }}" class="etiqueta">Teléfono</label>
-                                <input id="tel-{{ $carrera->id }}" type="tel" inputmode="numeric" data-solo="digitos" data-contador="dígitos" minlength="10" maxlength="10" pattern="\d{10}" data-msg-formato="El teléfono son 10 números, sin espacios ni guiones." name="coordinacion_telefono" x-model="tel" placeholder="3338193300" class="campo h-11">
+                                <input id="tel-{{ $carrera->id }}" type="tel" inputmode="numeric" data-solo="digitos" data-contador="dígitos" minlength="10" maxlength="10" pattern="{{ \App\Support\Formatos::TELEFONO_HTML }}" data-msg-formato="Escribe un teléfono real de 10 números (ej. 3312345678)." name="coordinacion_telefono" x-model="tel" placeholder="Ej. 3312345678" class="campo h-11">
                             </div>
                             <div>
                                 <label for="ext-{{ $carrera->id }}" class="etiqueta">Extensión</label>
-                                <input id="ext-{{ $carrera->id }}" type="text" inputmode="numeric" data-solo="digitos" maxlength="6" pattern="\d{1,6}" data-msg-formato="La extensión solo lleva números (hasta 6)." name="coordinacion_extension" x-model="ext" placeholder="23549" class="campo h-11">
+                                <input id="ext-{{ $carrera->id }}" type="text" inputmode="numeric" data-solo="digitos" maxlength="6" pattern="\d{1,6}" data-msg-formato="La extensión solo lleva números (hasta 6)." name="coordinacion_extension" x-model="ext" placeholder="1234" class="campo h-11">
                             </div>
                         </div>
                     </div>

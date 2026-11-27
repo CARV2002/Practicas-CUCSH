@@ -100,7 +100,7 @@ class EmpresaController extends Controller
             'rfc' => ['required', 'string', 'regex:/^[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}$/u', Rule::unique('empresas', 'rfc')->ignore($empresa->id)],
             'razon_social' => ['required', 'string', 'max:255', new UnicoNormalizado('empresas', 'razon_social', 'Ya hay otra organización registrada con esa razón social.', $empresa->id)],
             'tipo_organismo' => ['required', Rule::enum(TipoOrganismo::class)],
-            'domicilio_fiscal' => ['nullable', 'string', 'max:255'],
+            'domicilio_fiscal' => ['nullable', 'string', 'max:600'],
             'representante_legal' => ['nullable', 'string', 'max:255', 'regex:'.Formatos::NOMBRE_PERSONA],
             'contacto_nombre' => ['required', 'string', 'max:255', 'regex:'.Formatos::NOMBRE_PERSONA],
             'contacto_cargo' => ['nullable', 'string', 'max:255', 'regex:'.Formatos::TEXTO_LETRAS],

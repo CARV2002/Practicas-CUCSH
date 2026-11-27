@@ -17,7 +17,7 @@
         <form method="POST" action="{{ route('login') }}">
             @csrf
             <div class="space-y-5">
-                <x-auth.input name="email" type="email" label="Correo electrónico" placeholder="nombre@correo.com"
+                <x-auth.input name="email" type="email" label="Correo electrónico" placeholder="usuario@dominio.com"
                     autocomplete="username" />
 
                 <x-auth.input name="password" type="password" label="Contraseña" placeholder="Tu contraseña"

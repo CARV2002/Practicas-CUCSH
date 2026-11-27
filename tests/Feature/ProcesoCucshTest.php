@@ -372,14 +372,14 @@ test('cada coordinación emite su dictamen; Vinculación registra los turnos y y
     $this->actingAs($this->vinculacion)->post(route('admin.convenios.validacion-academica', $c))->assertSessionHasNoErrors();
     Notification::assertSentTo($this->coordAbog, AvisoOperativo::class, fn ($n) => str_contains($n->mensaje, 'dictamen'));
 
-    // Turnos: la División recibe después de Secretaría
+    // Turnos (se envió hoy a las carreras): la División recibe el mismo día o después de Secretaría
     $this->actingAs($this->vinculacion)->post(route('admin.convenios.turnos', $c), [
-        'fecha_turno_secretaria' => today()->subDays(3)->toDateString(), 'fecha_turno_division' => today()->subDays(5)->toDateString(),
+        'fecha_turno_secretaria' => today()->toDateString(), 'fecha_turno_division' => today()->subDay()->toDateString(),
     ])->assertSessionHasErrors('fecha_turno_division');
     $this->actingAs($this->vinculacion)->post(route('admin.convenios.turnos', $c), [
-        'fecha_turno_secretaria' => today()->subDays(5)->toDateString(), 'fecha_turno_division' => today()->subDays(3)->toDateString(),
+        'fecha_turno_secretaria' => today()->toDateString(), 'fecha_turno_division' => today()->toDateString(),
     ])->assertSessionHasNoErrors();
-    expect($c->refresh()->fecha_turno_secretaria->toDateString())->toBe(today()->subDays(5)->toDateString());
+    expect($c->refresh()->fecha_turno_secretaria->toDateString())->toBe(today()->toDateString());
 
     // La coordinación ve la propuesta y dictamina solo su carrera
     $this->actingAs($this->coordAbog)->get(route('coordinacion.lista-dictamenes'))->assertOk()->assertSee('Análisis de casos');

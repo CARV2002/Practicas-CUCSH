@@ -112,7 +112,8 @@ function datosNotarialesPrueba(): array
  * Deja completas las secciones de la solicitud de convenio de una empresa (generales, legales y perfiles),
  * como si la hubiera llenado en «Mi convenio». Los documentos se suben aparte.
  */
-function solicitudLista(Empresa $empresa, array $carreraIds, array $perfiles = []): Empresa
+/** Generales y declaraciones legales completos (los pasos 1 y 2 de la solicitud). */
+function datosEmpresaCompletos(Empresa $empresa): Empresa
 {
     $escritura = DatosNotariales::usaEscritura($empresa->tipo_organismo);
     $empresa->update(array_merge([
@@ -130,6 +131,23 @@ function solicitudLista(Empresa $empresa, array $carreraIds, array $perfiles = [
         : ['constitucion' => 'el decreto publicado en el Periódico Oficial el 1 de enero de 2000', 'facultad_origen' => 'nombramiento',
             'facultad_firmante' => 'nombramiento de fecha 1 de enero de 2025 expedido por el titular del Ejecutivo'],
     ));
+
+    return $empresa->refresh();
+}
+
+/** Marca secciones como revisadas en la solicitud en curso (en una renovación se exige revisar las tres). */
+function seccionesRevisadas(Empresa $empresa, array $secciones): Empresa
+{
+    $borrador = $empresa->solicitud_borrador ?? [];
+    $borrador['revisadas'] = array_values(array_unique([...($borrador['revisadas'] ?? []), ...$secciones]));
+    $empresa->update(['solicitud_borrador' => $borrador]);
+
+    return $empresa->refresh();
+}
+
+function solicitudLista(Empresa $empresa, array $carreraIds, array $perfiles = []): Empresa
+{
+    datosEmpresaCompletos($empresa);
     $empresa->update(['solicitud_borrador' => array_merge([
         'carreras' => $carreraIds, 'objetivos' => 'Formar practicantes en proyectos reales de la organización.',
         'actividades_propuestas' => 'Apoyo en atención al público, archivo y elaboración de documentos.', 'plazas_estimadas' => 3,

@@ -19,6 +19,8 @@
     'convenios' => $conveniosJs,
     'urlStore' => route('coordinacion.programas.store'),
     'urlUpdate' => route('coordinacion.programas.update', 0),
+    // Si el servidor rechazó el programa, la ventana se reabre con lo capturado (old) y sin perder la edición
+    'inicial' => $errors->any() && old('titulo') !== null ? \Illuminate\Support\Arr::except(old(), ['_token', '_method']) : null,
 ]))" class="space-y-6">
 
     <x-pagina.encabezado titulo="Programas y vacantes" descripcion="Aprueba las vacantes que proponen las organizaciones y crea proyectos internos para tu carrera.">
@@ -340,6 +342,7 @@
         <form method="POST" :action="action" @click.stop class="relative animate-entrada motion-reduce:animate-none my-8 w-full max-w-2xl space-y-5 rounded-2xl bg-white p-6 shadow-theme-xl">
             @csrf
             <template x-if="p.id"><input type="hidden" name="_method" value="PUT"></template>
+            <input type="hidden" name="id" :value="p.id ?? ''">
             <h3 class="text-lg font-semibold text-gray-800" x-text="p.id ? 'Editar proyecto interno' : 'Nuevo proyecto interno'"></h3>
             <p class="text-xs text-gray-500">Proyectos dentro de la UdeG (bufetes, revistas, centros de investigación). No llevan convenio: al activar la práctica se exige el Oficio de Aceptación Interno del área receptora. Las vacantes externas las registra la empresa y aquí solo las apruebas.</p>
             <input type="hidden" name="modalidad" value="interna">

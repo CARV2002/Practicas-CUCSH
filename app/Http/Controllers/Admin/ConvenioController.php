@@ -29,11 +29,13 @@ use App\Services\Avisos;
 use App\Services\BorradoresConvenio;
 use App\Services\ConvenioWorkflow;
 use App\Support\Requisitos;
+use App\Support\SolicitudEmpresa;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\Response;
@@ -153,7 +155,7 @@ class ConvenioController extends Controller
                 correo: true,
                 asunto: 'Documento de tu expediente rechazado',
             ));
-        } elseif ($empresa->fresh()->expedienteCompleto()) {
+        } elseif ($empresa->fresh()->expedienteCompleto() && ! $convenio->fresh()->tieneCorreccionesPendientes()) {
             // Con el último documento aprobado, la plataforma turna sola la propuesta a las coordinaciones
             // de las carreras solicitadas (y le avisa a la empresa): Lorena ya no tiene que hacerlo a mano.
             $this->workflow->enviarAValidacionAcademica($convenio, $request->user()->personal);
@@ -193,7 +195,7 @@ class ConvenioController extends Controller
             }
         }
 
-        if ($empresa->fresh()->expedienteCompleto()) {
+        if ($empresa->fresh()->expedienteCompleto() && ! $convenio->fresh()->tieneCorreccionesPendientes()) {
             $this->workflow->enviarAValidacionAcademica($convenio, $request->user()->personal);
 
             return back()->with('status', "Validaste {$validados} documento(s) y el expediente quedó completo: la propuesta se envió a las coordinaciones de las carreras solicitadas.");
@@ -268,7 +270,7 @@ class ConvenioController extends Controller
 
         $request->merge(['correo_juridica' => Str::lower(trim((string) $request->input('correo_juridica')))]);
         $datos = $request->validate(['correo_juridica' => ['nullable', 'email', 'max:255']], [
-            'correo_juridica.email' => 'Escribe un correo válido, por ejemplo juridico@csh.udg.mx.',
+            'correo_juridica.email' => 'Escribe un correo válido, por ejemplo usuario@dominio.com.',
         ]);
 
         Configuracion::guardar(Configuracion::CORREO_JURIDICA, $datos['correo_juridica'] ?: null, $request->user()->id);
@@ -374,6 +376,27 @@ class ConvenioController extends Controller
         );
 
         return back()->with('status', 'Fechas de turno registradas.');
+    }
+
+    /** Devuelve datos de la solicitud a la empresa para corregir (solo esos quedan abiertos para ella). */
+    public function pedirCorreccion(Request $request, Convenio $convenio): RedirectResponse
+    {
+        $this->authorize('gestionar', $convenio);
+
+        $corregibles = array_merge(...array_values(SolicitudEmpresa::CORREGIBLES));
+        $datos = $request->validate([
+            'campos' => ['required', 'array', 'min:1'],
+            'campos.*' => ['string', Rule::in($corregibles)],
+            'motivo_correccion' => ['required', 'string', 'min:10', 'max:1000'],
+        ], [
+            'campos.required' => 'Marca al menos un dato para que la empresa lo corrija.',
+            'motivo_correccion.required' => 'Escribe qué debe corregir: la empresa lo verá en su aviso.',
+            'motivo_correccion.min' => 'Explica un poco más qué debe corregir.',
+        ]);
+
+        $this->workflow->pedirCorreccion($convenio, $datos['campos'], $datos['motivo_correccion'], $request->user()->personal);
+
+        return back()->with('status', 'Pediste corregir '.count($datos['campos']).' dato(s). Avisamos a la empresa por correo; solo esos campos quedan abiertos para ella.');
     }
 
     public function rechazar(Request $request, Convenio $convenio): RedirectResponse

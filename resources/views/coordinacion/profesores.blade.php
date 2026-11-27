@@ -100,12 +100,12 @@
             </div>
             <div class="space-y-4 px-6 py-5">
                 <div><label class="etiqueta" for="pr-nombre">Nombre completo <span class="text-rose-500">*</span></label>
-                    <input id="pr-nombre" type="text" data-solo="letras" name="nombre" x-model="p.nombre" required minlength="5" maxlength="80" placeholder="Ej. Dra. Ana López Ruiz" class="campo h-11"></div>
+                    <input id="pr-nombre" type="text" data-solo="letras" name="nombre" x-model="p.nombre" required minlength="5" maxlength="80" placeholder="Ej. Dra. Nombre Apellido Apellido" class="campo h-11"></div>
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div><label class="etiqueta" for="pr-correo">Correo</label><input id="pr-correo" type="email" name="email" x-model="p.email" maxlength="255" placeholder="ana.lopez@academicos.udg.mx" class="campo h-11"></div>
+                    <div><label class="etiqueta" for="pr-correo">Correo</label><input id="pr-correo" type="email" name="email" x-model="p.email" maxlength="255" placeholder="usuario@dominio.com" class="campo h-11"></div>
                     <div class="grid grid-cols-[1fr_7rem] gap-2">
-                        <div><label class="etiqueta" for="pr-tel">Teléfono</label><input id="pr-tel" type="tel" inputmode="numeric" data-solo="digitos" data-contador="dígitos" minlength="10" maxlength="10" pattern="\d{10}" data-msg-formato="El teléfono son 10 números, sin espacios ni guiones." name="telefono" x-model="p.telefono" placeholder="3312345678" class="campo h-11"></div>
-                        <div><label class="etiqueta" for="pr-ext">Extensión</label><input id="pr-ext" type="text" inputmode="numeric" data-solo="digitos" maxlength="6" pattern="\d{1,6}" data-msg-formato="La extensión solo lleva números (hasta 6)." name="extension" x-model="p.extension" placeholder="23549" class="campo h-11"></div>
+                        <div><label class="etiqueta" for="pr-tel">Teléfono</label><input id="pr-tel" type="tel" inputmode="numeric" data-solo="digitos" data-contador="dígitos" minlength="10" maxlength="10" pattern="{{ \App\Support\Formatos::TELEFONO_HTML }}" data-msg-formato="Escribe un teléfono real de 10 números (ej. 3312345678)." name="telefono" x-model="p.telefono" placeholder="Ej. 3312345678" class="campo h-11"></div>
+                        <div><label class="etiqueta" for="pr-ext">Extensión</label><input id="pr-ext" type="text" inputmode="numeric" data-solo="digitos" maxlength="6" pattern="\d{1,6}" data-msg-formato="La extensión solo lleva números (hasta 6)." name="extension" x-model="p.extension" placeholder="1234" class="campo h-11"></div>
                     </div>
                 </div>
                 @if ($variasDivisiones)

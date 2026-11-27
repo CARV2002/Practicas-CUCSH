@@ -11,6 +11,7 @@ use App\Enums\EtapaConvenio;
 use App\Enums\SeguimientoEstado;
 use App\Enums\TipoDocumentoFisico;
 use App\Models\Carrera;
+use App\Models\Configuracion;
 use App\Models\Convenio;
 use App\Models\ConvenioCarrera;
 use App\Models\ConvenioSeguimiento;
@@ -19,6 +20,7 @@ use App\Models\Personal;
 use App\Notifications\AvisoOperativo;
 use App\Notifications\ConvenioActualizado;
 use App\Notifications\NuevaSolicitudConvenio;
+use App\Support\SolicitudEmpresa;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -84,6 +86,11 @@ class ConvenioWorkflow
         return DB::transaction(function () use ($convenio, $por) {
             $convenio = $this->bloquear($convenio);
             $this->exigirEstado($convenio, ConvenioEstado::Solicitado);
+
+            // Primero lo más específico: datos devueltos que la empresa aún no corrige
+            if ($convenio->tieneCorreccionesPendientes()) {
+                $this->fallar('La empresa aún no corrige los datos que le pediste: la solicitud pasa a las carreras cuando los corrija.');
+            }
 
             if (! $convenio->empresa->expedienteCompleto()) {
                 $this->fallar('El expediente de la empresa está incompleto o tiene documentos sin validar.');
@@ -373,6 +380,98 @@ class ConvenioWorkflow
         });
     }
 
+    /**
+     * Fase 1 — Vinculación devuelve datos de la solicitud para corregir (además de los documentos). Solo esos campos
+     * quedan editables para la empresa; la solicitud no pasa a las carreras hasta que los corrija.
+     *
+     * @param  list<string>  $campos
+     */
+    public function pedirCorreccion(Convenio $convenio, array $campos, string $motivo, Personal $por): Convenio
+    {
+        return DB::transaction(function () use ($convenio, $campos, $motivo, $por) {
+            $convenio = $this->bloquear($convenio);
+            $this->exigirEstado($convenio, ConvenioEstado::Solicitado);
+
+            $campos = array_values(array_unique(array_filter($campos, fn ($c) => SolicitudEmpresa::seccionDe($c) !== null)));
+            if ($campos === []) {
+                $this->fallar('Elige al menos un dato para corregir.');
+            }
+
+            $correcciones = $convenio->correcciones ?? [];
+            foreach ($campos as $campo) {
+                $correcciones[$campo] = [
+                    'seccion' => SolicitudEmpresa::seccionDe($campo),
+                    'motivo' => $motivo,
+                    'pedido_at' => now()->toIso8601String(),
+                    'corregido_at' => null,
+                ];
+            }
+            $convenio->update(['correcciones' => $correcciones, 'gestionado_por' => $convenio->gestionado_por ?? $por->id]);
+
+            $nombres = collect($campos)->map(fn ($c) => SolicitudEmpresa::atributos()[$c] ?? $c)->join(', ', ' y ');
+            $this->avisarEmpresa(
+                $convenio,
+                "Vinculación te pide corregir estos datos de tu solicitud: {$nombres}. Motivo: «{$motivo}». Qué hacer: entra a «Mi convenio»; solo esos campos estarán abiertos para editar.",
+                correo: true,
+                asunto: 'Corrige datos de tu solicitud de convenio',
+            );
+
+            return $convenio;
+        });
+    }
+
+    /**
+     * La empresa corrige los datos devueltos. Se guardan en la empresa (generales y declaraciones) o en la solicitud
+     * (perfiles), se marcan como corregidos y se avisa a Vinculación.
+     *
+     * @param  array<string, mixed>  $datos  solo campos con corrección pendiente (ya validados)
+     */
+    public function registrarCorreccion(Convenio $convenio, array $datos): Convenio
+    {
+        return DB::transaction(function () use ($convenio, $datos) {
+            $convenio = $this->bloquear($convenio);
+            $this->exigirEstado($convenio, ConvenioEstado::Solicitado);
+
+            $pendientes = $convenio->correccionesPendientes();
+            $datos = array_intersect_key($datos, $pendientes);
+            if ($datos === []) {
+                $this->fallar('No hay datos por corregir.');
+            }
+
+            $empresa = $convenio->empresa;
+            $deEmpresa = array_diff_key($datos, array_flip(SolicitudEmpresa::CORREGIBLES['perfiles']));
+            if ($deEmpresa) {
+                $empresa->fill($deEmpresa);
+                // El domicilio completo se rearma si cambió alguna de sus partes
+                if (array_intersect(array_keys($deEmpresa), ['calle', 'numero_exterior', 'numero_interior', 'colonia', 'codigo_postal', 'municipio', 'entidad'])) {
+                    $empresa->domicilio_fiscal = $empresa->domicilioCompleto();
+                }
+                $empresa->save();
+            }
+            $dePerfil = array_intersect_key($datos, array_flip(SolicitudEmpresa::CORREGIBLES['perfiles']));
+            if ($dePerfil) {
+                $convenio->fill($dePerfil);
+            }
+
+            $correcciones = $convenio->correcciones ?? [];
+            foreach (array_keys($datos) as $campo) {
+                $correcciones[$campo]['corregido_at'] = now()->toIso8601String();
+            }
+            $convenio->correcciones = $correcciones;
+            $convenio->save();
+
+            $nombres = collect(array_keys($datos))->map(fn ($c) => SolicitudEmpresa::atributos()[$c] ?? $c)->join(', ', ' y ');
+            $faltan = count($convenio->correccionesPendientes());
+            Avisos::enviar(Avisos::vinculacionDe($convenio), new AvisoOperativo(
+                mensaje: "{$empresa->razon_social} corrigió: {$nombres}.".($faltan ? " Aún le faltan {$faltan} dato(s)." : ' Ya no tiene datos pendientes: revísalos y continúa con la solicitud.'),
+                url: route('admin.convenios.show', $convenio, false).'#expediente',
+                detalle: $empresa->razon_social,
+            ));
+
+            return $convenio;
+        });
+    }
+
     /** Cierra el trámite (Vinculación, Jurídica, o "todas las carreras dijeron no"). */
     public function rechazar(Convenio $convenio, ?Personal $por, string $motivo, ?string $observacionesAcademicas = null): Convenio
     {
@@ -502,10 +601,13 @@ class ConvenioWorkflow
         }
     }
 
-    /** La Unidad Jurídica no usa el sistema: si su correo institucional está configurado, se le avisa del convenio formalizado. */
+    /**
+     * La Unidad Jurídica no usa el sistema: si Vinculación registró su correo institucional (el mismo al que se turnan
+     * los borradores, Configuracion::CORREO_JURIDICA), se le avisa del convenio formalizado.
+     */
     private function avisarJuridica(Convenio $convenio, string $folio, string $vigencia): void
     {
-        $correo = config('practicas.juridica.correo');
+        $correo = Configuracion::valor(Configuracion::CORREO_JURIDICA);
         if (blank($correo)) {
             return;
         }

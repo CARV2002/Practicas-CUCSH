@@ -97,7 +97,13 @@ final class Pendientes
             'imss' => $expedientes->filter(fn ($a) => $porValidar($a->documentoVigente('constancia_imss')))->count(),
             'kardex' => $expedientes->filter(fn ($a) => $porValidar($a->documentoVigente('kardex')))->count(),
             'postulaciones' => Postulacion::visiblesPara($personal)->where('estado', PostulacionEstado::Pendiente->value)->count(),
-            'cartas_aceptacion' => Postulacion::visiblesPara($personal)->where('estado', PostulacionEstado::CartaAceptacionRecibida->value)->count(),
+            // Cartas de aceptación por validar: el alumno la sube con la carta de presentación emitida (flujo actual)
+            // o quedó registrada antes (estado anterior); en ambos casos la coordinación tiene que validar y activar
+            'cartas_aceptacion' => Postulacion::visiblesPara($personal)
+                ->where(fn ($q) => $q->where('estado', PostulacionEstado::CartaAceptacionRecibida->value)
+                    ->orWhere(fn ($q) => $q->where('estado', PostulacionEstado::CartaPresentacionEmitida->value)
+                        ->whereHas('media', fn ($m) => $m->where('collection_name', 'carta_aceptacion'))))
+                ->count(),
             // Solo los que el alumno ya entregó firmados: los que esperan archivo son pendiente del alumno
             'reportes' => Reporte::where('estado', ReporteEstado::Pendiente->value)
                 ->whereHas('practica', fn ($p) => $p->visiblesPara($personal)->activas())->whereHas('media')->count(),
@@ -125,7 +131,7 @@ final class Pendientes
         $conteos = [
             [$c['expedientes'], 'advertencia', 'expediente(s) de alumnos (kardex e IMSS) por revisar: al validarlos, el alumno ya puede postularse.', $practicantes],
             [$c['postulaciones'], 'advertencia', 'alumno(s) ya se postularon con su expediente validado: emite su carta de presentación.', $practicantes],
-            [$c['cartas_aceptacion'], 'info', 'carta(s) de aceptación registradas: activa la práctica.', $practicantes],
+            [$c['cartas_aceptacion'], 'info', 'carta(s) de aceptación por validar: valídala y activa la práctica.', $practicantes],
             [$c['reportes'], 'info', 'reporte(s) firmados por revisar.', route('coordinacion.lista-reportes', absolute: false)],
             [$c['cartas_termino'], 'info', 'carta(s) de término por validar.', $cierres],
             [$c['en_cierre'], 'info', 'práctica(s) en cierre: envía el oficio a Control Escolar y registra la captura en SIIAU.', $cierres],
@@ -149,6 +155,13 @@ final class Pendientes
             ->count();
         if ($rechazados > 0) {
             $items[] = self::item('error', "Vinculación te devolvió {$rechazados} documento(s): revisa el motivo y súbelos corregidos.", route('empresa.documentos', absolute: false), $rechazados);
+        }
+
+        // Datos de la solicitud que Vinculación devolvió para corregir
+        $porCorregir = $empresa->convenios()->where('estado', ConvenioEstado::Solicitado->value)->get()
+            ->sum(fn (Convenio $c) => count($c->correccionesPendientes()));
+        if ($porCorregir > 0) {
+            $items[] = self::item('error', "Vinculación te pidió corregir {$porCorregir} dato(s) de tu solicitud.", route('empresa.convenio', absolute: false), $porCorregir);
         }
 
         if (! $empresa->convenios()->exists() && ($motivo = Requisitos::empresaSolicitarConvenio($empresa))) {

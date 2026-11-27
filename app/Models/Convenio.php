@@ -44,6 +44,7 @@ class Convenio extends Model implements HasMedia
         'objetivos',
         'actividades_propuestas',
         'plazas_estimadas',
+        'correcciones',
         'medio_conocimiento',
         'experiencia_previa',
         'fecha_turno_secretaria',
@@ -63,6 +64,7 @@ class Convenio extends Model implements HasMedia
             'fecha_turno_secretaria' => 'date',
             'fecha_turno_division' => 'date',
             'plazas_estimadas' => 'integer',
+            'correcciones' => 'array',
         ];
     }
 
@@ -135,6 +137,51 @@ class Convenio extends Model implements HasMedia
     public function carrerasAprobadas(): BelongsToMany
     {
         return $this->carreras()->wherePivot('dictamen', Dictamen::Aprobatorio->value);
+    }
+
+    /**
+     * Datos que Vinculación pidió corregir y la empresa aún no corrige: campo => [seccion, motivo, pedido_at].
+     *
+     * @return array<string, array{seccion: string, motivo: string, pedido_at: string, corregido_at: ?string}>
+     */
+    public function correccionesPendientes(): array
+    {
+        return array_filter($this->correcciones ?? [], fn ($c) => empty($c['corregido_at']));
+    }
+
+    public function tieneCorreccionesPendientes(): bool
+    {
+        return $this->correccionesPendientes() !== [];
+    }
+
+    /** Días después del envío a las carreras que se aceptan como fecha (real o estimada) del turno. */
+    public const DIAS_TOPE_TURNO = 90;
+
+    /** Último día que se puede anotar para el paso del oficio (real o estimado). */
+    public function topeTurnoAcademico(): Carbon
+    {
+        return $this->fechaEnvioAcademico()->addDays(self::DIAS_TOPE_TURNO);
+    }
+
+    /**
+     * Fechas estimadas del paso del oficio: Secretaría Académica y luego la División, con sus plazos habituales
+     * en días hábiles (los mismos que usa el control de documentos físicos).
+     *
+     * @return array{secretaria: Carbon, division: Carbon}
+     */
+    public function turnoEstimado(): array
+    {
+        $secretaria = $this->fechaEnvioAcademico()->addWeekdays(EstadoDocumentoFisico::EnSecretaria->plazoHabiles() ?? 5);
+
+        return ['secretaria' => $secretaria, 'division' => $secretaria->copy()->addWeekdays(EstadoDocumentoFisico::EnDivision->plazoHabiles() ?? 5)];
+    }
+
+    /** Día en que Vinculación envió la solicitud a las carreras: antes de eso nadie pudo recibir el turno. */
+    public function fechaEnvioAcademico(): Carbon
+    {
+        $envio = $this->seguimientos()->where('etapa', EtapaConvenio::TurnoAcademico->value)->orderBy('id')->value('fecha_registro');
+
+        return Carbon::parse($envio ?? $this->fecha_recepcion)->startOfDay();
     }
 
     /** @return HasMany<ConvenioSeguimiento, $this> */

@@ -110,6 +110,11 @@
                     <x-ui.aviso tipo="advertencia" class="mt-4">Tu expediente tiene documentos sin validar. <a href="{{ route('empresa.documentos') }}" class="font-semibold underline underline-offset-2">Revisar documentos</a></x-ui.aviso>
                 @endif
             </section>
+
+            {{-- Datos que Vinculación devolvió: solo esos se pueden editar --}}
+            @if ($enTramite->estado === \App\Enums\ConvenioEstado::Solicitado && $enTramite->tieneCorreccionesPendientes())
+                @include('empresa.partials.correcciones', ['convenio' => $enTramite])
+            @endif
         @endif
 
         @php $ultimoRechazo = $historial->first(fn ($h) => $h->estado === \App\Enums\ConvenioEstado::Rechazado); @endphp

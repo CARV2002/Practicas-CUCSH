@@ -67,22 +67,13 @@ test('el perfil muestra la sección propia de cada rol', function () {
         ->assertSee('Carreras a tu cargo')->assertSee('Contacto que ven los alumnos');
 });
 
-test('la organización actualiza su contacto desde Mi perfil, pero no sus datos legales', function () {
+test('Mi perfil de la organización muestra sus datos sin formularios para editarlos', function () {
     $u = paUsuario(Rol::Empresa);
-    $empresa = Empresa::create(['user_id' => $u->id, 'rfc' => 'PAY010101AB2', 'razon_social' => 'Org Perfil',
-        'tipo_organismo' => TipoOrganismo::Privado, 'contacto_nombre' => 'Antes']);
+    Empresa::create(['user_id' => $u->id, 'rfc' => 'PAY010101AB2', 'razon_social' => 'Org Perfil',
+        'tipo_organismo' => TipoOrganismo::Privado, 'contacto_nombre' => 'Ana Contacto', 'descripcion' => 'Despacho jurídico']);
 
-    $this->actingAs($u)->patch(route('empresa.perfil.update'), [
-        'contacto_nombre' => 'Ana Contacto', 'contacto_cargo' => 'RH', 'contacto_telefono' => '3312345678',
-        'descripcion' => 'Despacho jurídico', 'razon_social' => 'Intento de cambio', 'rfc' => 'XXX000000XX0',
-    ])->assertRedirect(route('profile.edit', ['seccion' => 'organizacion']));
-
-    $empresa->refresh();
-    expect($empresa->contacto_nombre)->toBe('Ana Contacto')
-        ->and($empresa->descripcion)->toBe('Despacho jurídico')
-        ->and($empresa->razon_social)->toBe('Org Perfil')
-        ->and($empresa->rfc)->toBe('PAY010101AB2');
-
-    $this->actingAs($u)->patch(route('empresa.perfil.update'), ['contacto_nombre' => ''])
-        ->assertSessionHasErrorsIn('organizacion', ['contacto_nombre' => 'Escribe el nombre de la persona de contacto.']);
+    $this->actingAs($u)->get(route('profile.edit', ['seccion' => 'organizacion']))->assertOk()
+        ->assertSee('Ana Contacto')->assertSee('Despacho jurídico')->assertSee('Org Perfil')
+        ->assertSee('Editar en Mi convenio')
+        ->assertDontSee('Guardar datos de la organización');
 });

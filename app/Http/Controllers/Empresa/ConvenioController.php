@@ -4,21 +4,20 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Empresa;
 
+use App\Enums\ConvenioEstado;
 use App\Enums\EstadoDocumentoFisico;
 use App\Http\Controllers\Controller;
 use App\Models\Carrera;
 use App\Models\Convenio;
 use App\Models\DocumentoFisico;
+use App\Models\Empresa;
 use App\Models\Practica;
 use App\Services\ConvenioWorkflow;
 use App\Support\Requisitos;
 use App\Support\SolicitudEmpresa;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -47,7 +46,7 @@ class ConvenioController extends Controller
             ? (int) now()->startOfDay()->diffInDays($vigente->fecha_fin_vigencia, false)
             : null;
 
-        $puedeRenovar = $vigente !== null && $enTramite === null && $diasRestantes <= 60;
+        $puedeRenovar = $vigente !== null && $enTramite === null && $diasRestantes <= Empresa::DIAS_RENOVACION;
 
         return view('empresa.convenio', [
             'empresa' => $empresa,
@@ -85,10 +84,28 @@ class ConvenioController extends Controller
         abort_unless(in_array($seccion, ['generales', 'legales', 'perfiles'], true), 404);
         $empresa = $request->user()->empresa;
 
-        if ($seccion === 'legales' && $empresa->documentosBloqueados()) {
-            return back()->withErrors(['representante_legal' => 'Tu convenio está en revisión: no puedes cambiar tus declaraciones legales.']);
+        // En revisión o con convenio vigente (fuera de la renovación) la solicitud es de solo lectura: el formulario
+        // ni se muestra, así que un envío directo se rechaza sin tocar nada
+        if ($motivo = $empresa->motivoSolicitudBloqueada()) {
+            throw ValidationException::withMessages(['convenio' => $motivo]);
         }
 
+        // Pasos en orden: no se guarda una sección si la anterior sigue incompleta
+        $faltantes = SolicitudEmpresa::faltantes($empresa);
+        foreach (['generales', 'legales'] as $anterior) {
+            if ($anterior === $seccion) {
+                break;
+            }
+            if (! empty($faltantes[$anterior])) {
+                throw ValidationException::withMessages(['convenio' => 'Primero completa «'.SolicitudEmpresa::SECCIONES[$anterior].'»: los pasos van en orden.']);
+            }
+        }
+
+        return $this->guardar($request, $seccion, $empresa);
+    }
+
+    private function guardar(Request $request, string $seccion, Empresa $empresa): RedirectResponse
+    {
         $request->merge(SolicitudEmpresa::normalizar($request->all()));
         $datos = $request->validate(
             SolicitudEmpresa::reglas($seccion, $empresa, false),
@@ -109,6 +126,11 @@ class ConvenioController extends Controller
             ));
         }
 
+        // Secciones revisadas en esta solicitud (en una renovación, todas deben revisarse antes de enviar)
+        $borrador = $empresa->fresh()->solicitud_borrador ?? [];
+        $borrador['revisadas'] = array_values(array_unique([...($borrador['revisadas'] ?? []), $seccion]));
+        $empresa->update(['solicitud_borrador' => $borrador]);
+
         $faltan = SolicitudEmpresa::faltantes($empresa->fresh())[$seccion];
         $siguiente = ['generales' => 'legales', 'legales' => 'perfiles', 'perfiles' => 'documentos'][$seccion];
 
@@ -121,7 +143,33 @@ class ConvenioController extends Controller
     /** Ruta anterior de «Datos legales»: hoy es la sección «Declaraciones legales» de la solicitud. */
     public function datosLegales(Request $request): RedirectResponse
     {
+        // Mismas reglas que la sección: solo editable sin trámite en revisión ni convenio vigente (fuera de la renovación)
         return $this->guardarSeccion($request, 'legales');
+    }
+
+    /**
+     * Corrige los datos que Vinculación devolvió: solo esos campos se reciben y se validan con las reglas de su
+     * sección; lo demás de la solicitud sigue en solo lectura.
+     */
+    public function corregir(Request $request): RedirectResponse
+    {
+        $empresa = $request->user()->empresa;
+        $convenio = $empresa->convenios()->where('estado', ConvenioEstado::Solicitado->value)->latest('id')->first();
+        $pendientes = $convenio?->correccionesPendientes() ?? [];
+        if ($convenio === null || $pendientes === []) {
+            throw ValidationException::withMessages(['convenio' => 'Vinculación no te ha pedido corregir datos.']);
+        }
+
+        $request->merge(SolicitudEmpresa::normalizar($request->all()));
+        $reglas = [];
+        foreach ($pendientes as $campo => $c) {
+            $reglas[$campo] = SolicitudEmpresa::reglas($c['seccion'], $empresa, true)[$campo] ?? ['required'];
+        }
+        $datos = $request->validate($reglas, SolicitudEmpresa::mensajes(), SolicitudEmpresa::atributos());
+
+        $this->workflow->registrarCorreccion($convenio, $datos);
+
+        return redirect()->route('empresa.convenio')->with('status', 'Corrección enviada. Avisamos a Vinculación para que la revise.');
     }
 
     /** Envía la solicitud (inicial o renovación) con lo guardado en las secciones. */
@@ -146,44 +194,6 @@ class ConvenioController extends Controller
 
         return redirect()->route('empresa.convenio')
             ->with('status', 'Solicitud enviada a Vinculación. Te avisaremos por correo en cada cambio de etapa.');
-    }
-
-    /**
-     * Colonias y estado de un código postal (para llenar el domicilio). Se consulta un servicio público
-     * de códigos postales y se guarda en caché; si no responde, la empresa escribe su domicilio a mano.
-     */
-    public function codigoPostal(string $cp): JsonResponse
-    {
-        abort_unless(preg_match('/^\d{5}$/', $cp) === 1, 422);
-
-        $datos = Cache::remember("cp:{$cp}", now()->addDays(30), function () use ($cp) {
-            try {
-                $r = Http::timeout(5)->acceptJson()->get("https://api.zippopotam.us/mx/{$cp}");
-            } catch (\Throwable) {
-                return null;
-            }
-            if (! $r->successful()) {
-                return ['colonias' => [], 'estado' => null];
-            }
-            $lugares = collect($r->json('places', []));
-
-            return [
-                'colonias' => $lugares->pluck('place name')->filter()->unique()->sort()->values()->all(),
-                'estado' => self::entidad((string) ($lugares->first()['state'] ?? '')),
-            ];
-        });
-
-        return response()->json($datos ?? ['colonias' => [], 'estado' => null, 'sin_servicio' => true]);
-    }
-
-    /** Nombre del estado tal como está en la lista del formulario. */
-    private static function entidad(string $estado): ?string
-    {
-        $equivalencias = ['Distrito Federal' => 'Ciudad de México', 'México' => 'Estado de México', 'Coahuila de Zaragoza' => 'Coahuila',
-            'Michoacán de Ocampo' => 'Michoacán', 'Veracruz de Ignacio de la Llave' => 'Veracruz'];
-        $estado = $equivalencias[$estado] ?? $estado;
-
-        return in_array($estado, SolicitudEmpresa::ENTIDADES, true) ? $estado : null;
     }
 
     /** Descarga del convenio firmado (solo propio y formalizado; disco privado). */
